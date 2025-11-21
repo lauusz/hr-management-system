@@ -6,17 +6,12 @@
         </div>
     @endif
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
         <div style="font-size:0.9rem;opacity:.7;">
             Daftar karyawan yang terdaftar di sistem. HR dapat mengelola data karyawan.
         </div>
 
-        <div style="display:flex;gap:8px;align-items:center;">
-            <a href="{{ route('hr.employees.create') }}"
-               style="padding:6px 10px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:0.85rem;text-decoration:none;">
-                + Tambah Karyawan
-            </a>
-
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <form method="GET" action="{{ route('hr.employees.index') }}" style="display:flex;gap:6px;align-items:center;">
                 <input
                     type="text"
@@ -31,6 +26,11 @@
                     Cari
                 </button>
             </form>
+
+            <a href="{{ route('hr.employees.create') }}"
+               style="padding:6px 10px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:0.85rem;text-decoration:none;white-space:nowrap;">
+                + Tambah Karyawan
+            </a>
         </div>
     </div>
 

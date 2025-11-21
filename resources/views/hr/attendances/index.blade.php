@@ -17,6 +17,15 @@
                 </select>
             </div>
 
+            <div>
+                <label style="font-size:0.85rem;">Nama</label>
+                <input type="text"
+                       name="q"
+                       value="{{ $q ?? '' }}"
+                       placeholder="Cari nama karyawan..."
+                       style="padding:6px 8px;border-radius:8px;border:1px solid #ddd;">
+            </div>
+
             <button style="padding:8px 12px;background:#1e4a8d;color:#fff;border:none;
                            border-radius:8px;cursor:pointer;">
                 Filter
@@ -131,7 +140,6 @@
     </div>
 
     <x-pagination :items="$items" />
-
 
     <div id="photoModal"
          style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.75);

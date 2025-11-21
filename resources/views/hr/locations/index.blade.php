@@ -10,9 +10,9 @@
             Master lokasi yang dipakai untuk presensi karyawan (gudang, depo, dsb).
         </div>
         <a href="{{ route('hr.locations.create') }}"
-           style="padding:8px 10px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:0.9rem;text-decoration:none;">
-            + Tambah Lokasi
-        </a>
+               style="padding:6px 10px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:0.85rem;text-decoration:none;white-space:nowrap;">
+                + Tambah Lokasi
+            </a>
     </div>
 
     <table>

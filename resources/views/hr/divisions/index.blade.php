@@ -1,28 +1,23 @@
 <x-app title="Master Divisi">
 
     @if(session('success'))
-    <div class="card" style="margin-bottom:12px;background:#e6ffec;color:#065f46;padding:8px 10px;border-radius:8px;">
+    <div class="card" style="margin-bottom:12px;background:#e6ffec;color:#065f46;padding:8px 10px;">
         {{ session('success') }}
     </div>
     @endif
 
     @if(session('error'))
-    <div class="card" style="margin-bottom:12px;background:#ffecec;color:#a40000;padding:8px 10px;border-radius:8px;">
+    <div class="card" style="margin-bottom:12px;background:#ffecec;color:#a40000;padding:8px 10px;">
         {{ session('error') }}
     </div>
     @endif
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
         <div style="font-size:0.9rem;opacity:.7;">
             Daftar divisi yang terdaftar di sistem. Setiap divisi dapat memiliki supervisor.
         </div>
 
-        <div style="display:flex;gap:8px;align-items:center;">
-            <a href="{{ route('hr.divisions.create') }}"
-                style="padding:6px 10px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:0.85rem;text-decoration:none;">
-                + Tambah Divisi
-            </a>
-
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <form method="GET" action="{{ route('hr.divisions.index') }}" style="display:flex;gap:6px;align-items:center;">
                 <input
                     type="text"
@@ -36,6 +31,11 @@
                     Cari
                 </button>
             </form>
+
+            <a href="{{ route('hr.divisions.create') }}"
+               style="padding:6px 10px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:0.85rem;text-decoration:none;white-space:nowrap;">
+                + Tambah Divisi
+            </a>
         </div>
     </div>
 
@@ -54,7 +54,7 @@
                 <td>{{ $division->supervisor->name ?? '-' }}</td>
                 <td style="display:flex;gap:10px;">
                     <a href="{{ route('hr.divisions.edit', $division->id) }}"
-                        style="font-size:0.85rem;color:#1e4a8d;text-decoration:none;">
+                       style="font-size:0.85rem;color:#1e4a8d;text-decoration:none;">
                         Edit
                     </a>
 
@@ -62,7 +62,7 @@
                         @csrf
                         @method('DELETE')
                         <button type="submit"
-                            style="font-size:0.85rem;color:#b91c1c;background:none;border:none;cursor:pointer;">
+                                style="font-size:0.85rem;color:#b91c1c;background:none;border:none;cursor:pointer;">
                             Hapus
                         </button>
                     </form>

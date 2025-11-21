@@ -11,19 +11,24 @@ class HRAttendanceController extends Controller
     {
         $date   = $request->get('date', now()->toDateString());
         $status = $request->get('status');
+        $q      = $request->get('q');
 
         $query = Attendance::with(['user', 'shift'])
             ->where('date', $date)
             ->orderBy('clock_in_at');
 
-        if ($status === 'TERLAMBAT') {
-            $query->where('status', 'TERLAMBAT');
-        } elseif ($status === 'HADIR') {
-            $query->where('status', 'HADIR');
+        if ($status === 'TERLAMBAT' || $status === 'HADIR') {
+            $query->where('status', $status);
+        }
+
+        if ($q) {
+            $query->whereHas('user', function ($sub) use ($q) {
+                $sub->where('name', 'like', '%' . $q . '%');
+            });
         }
 
         $items = $query->paginate(15)->withQueryString();
 
-        return view('hr.attendances.index', compact('items', 'date', 'status'));
+        return view('hr.attendances.index', compact('items', 'date', 'status', 'q'));
     }
 }

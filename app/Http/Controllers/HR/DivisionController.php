@@ -21,7 +21,7 @@ class DivisionController extends Controller
             $query->where('name', 'like', "%{$search}%");
         }
 
-        $items = $query->paginate(10)->withQueryString();
+        $items = $query->paginate(25)->withQueryString();
 
         return view('hr.divisions.index', compact('items', 'search'));
     }

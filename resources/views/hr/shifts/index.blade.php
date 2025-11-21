@@ -11,8 +11,8 @@
             Master Shift digunakan untuk mengatur jadwal kerja karyawan.
         </div>
         <a href="{{ route('hr.shifts.create') }}"
-           style="padding:8px 10px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:0.9rem;text-decoration:none;">
-            + Tambah Shift
+               style="padding:6px 10px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:0.85rem;text-decoration:none;white-space:nowrap;">
+                + Tambah Shift
         </a>
     </div>
 

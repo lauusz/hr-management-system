@@ -10,11 +10,11 @@
         <div style="opacity:.7;font-size:.9rem;">
             Daftar jadwal shift karyawan berdasarkan tanggal.
         </div>
-
+        
         <a href="{{ route('hr.schedules.create') }}"
-           style="padding:8px 10px;border-radius:8px;background:#1e4a8d;color:#fff;text-decoration:none;font-size:.9rem;">
-            + Tambah Jadwal
-        </a>
+               style="padding:6px 10px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:0.85rem;text-decoration:none;white-space:nowrap;">
+                + Tambah Jadwal
+            </a>
     </div>
 
     <table>
