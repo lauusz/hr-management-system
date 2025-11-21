@@ -2,7 +2,6 @@
 
     <div class="card" style="margin-bottom:14px;">
         <form method="GET" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-
             <div>
                 <label style="font-size:0.85rem;">Tanggal</label>
                 <input type="date" name="date" value="{{ $date }}"
@@ -11,7 +10,7 @@
 
             <div>
                 <label style="font-size:0.85rem;">Status</label>
-                <select name="status" style="padding:6px 8px;border-radius:8px;border:1px solid #ddd;">
+                <select name="status" style="padding:6px 8px;border-radius:8px;border:1px solid:#ddd;">
                     <option value="">Semua</option>
                     <option value="HADIR" @selected($status=='HADIR')>Hadir</option>
                     <option value="TERLAMBAT" @selected($status=='TERLAMBAT')>Terlambat</option>
@@ -57,13 +56,8 @@
                             @endif
                         </td>
 
-                        <td>
-                            {{ $at->clock_in_at ? $at->clock_in_at->format('H:i') : '-' }}
-                        </td>
-
-                        <td>
-                            {{ $at->clock_out_at ? $at->clock_out_at->format('H:i') : '-' }}
-                        </td>
+                        <td>{{ $at->clock_in_at ? $at->clock_in_at->format('H:i') : '-' }}</td>
+                        <td>{{ $at->clock_out_at ? $at->clock_out_at->format('H:i') : '-' }}</td>
 
                         <td>
                             @if($at->late_minutes > 0)
@@ -136,9 +130,8 @@
         </table>
     </div>
 
-    <div style="margin-top:10px;">
-        {{ $items->links() }}
-    </div>
+    <x-pagination :items="$items" />
+
 
     <div id="photoModal"
          style="display:none;position:fixed;inset:0;background:rgba(15,23,42,0.75);

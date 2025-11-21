@@ -76,8 +76,6 @@
         </tbody>
     </table>
 
-    <div style="margin-top:10px;">
-        {{ $items->links() }}
-    </div>
+    <x-pagination :items="$items" />
 
 </x-app>

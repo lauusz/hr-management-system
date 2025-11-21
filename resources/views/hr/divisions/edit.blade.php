@@ -45,7 +45,7 @@
 
         <div style="margin-top:16px;display:flex;gap:10px;">
             <button type="submit"
-                    style="padding:8px 16px;border-radius:999px;border:none;background:#2563eb;color:white;font-size:.9rem;cursor:pointer;">
+                    style="padding:8px 16px;border-radius:999px;border:none;background:#1e4a8d;color:white;font-size:.9rem;cursor:pointer;">
                 Simpan Perubahan
             </button>
             <a href="{{ route('hr.divisions.index') }}"

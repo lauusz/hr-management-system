@@ -42,6 +42,7 @@
                     <td>
                         <a href="{{ route('hr.locations.edit', $loc->id) }}"
                            style="font-size:0.85rem;margin-right:6px;">Edit</a>
+
                         <form action="{{ route('hr.locations.destroy', $loc->id) }}"
                               method="POST"
                               style="display:inline;"
@@ -49,7 +50,7 @@
                             @csrf
                             @method('DELETE')
                             <button type="submit"
-                                    style="border:none;background:none;color:#b91c1c;font-size:0.85rem;cursor:pointer;">
+                                style="border:none;background:none;color:#b91c1c;font-size:0.85rem;cursor:pointer;">
                                 Hapus
                             </button>
                         </form>
@@ -65,7 +66,6 @@
         </tbody>
     </table>
 
-    <div style="margin-top:10px;">
-        {{ $items->links() }}
-    </div>
+    <x-pagination :items="$items" />
+
 </x-app>
