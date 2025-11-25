@@ -78,8 +78,16 @@ class User extends Authenticatable
         ];
     }
 
+    public function profile(){
+        return $this->hasOne(EmployeeProfile::class);
+    }
+
     public function division(){
         return $this->belongsTo(Division::class);
+    }
+
+    public function position(){
+        return $this->belongsTo(Position::class, 'position_id');
     }
 
     public function leaveRequests(){

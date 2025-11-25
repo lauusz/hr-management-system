@@ -264,6 +264,12 @@
           Master Divisi
         </a>
 
+        <a href="{{ route('hr.positions.index') }}"
+          class="{{ request()->routeIs('hr.positions.*') ? 'active' : '' }}">
+          Master Jabatan
+        </a>
+
+
         <a href="{{ route('hr.employees.index') }}"
           class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">
           Daftar Karyawan

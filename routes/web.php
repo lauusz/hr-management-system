@@ -10,6 +10,7 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\EmployeeShiftController;
 use App\Http\Controllers\HR\AttendanceLocationController;
 use App\Http\Controllers\HR\DivisionController;
+use App\Http\Controllers\HR\PositionController;
 use App\Http\Controllers\HR\ScheduleController;
 use App\Http\Controllers\HRAttendanceController;
 use App\Http\Controllers\HREmployeeController;
@@ -32,7 +33,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/attendance/clock-out', [AttendanceController::class, 'showClockOutForm'])->name('attendance.clockOut.form');
     Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clockOut');
 
-    // settings
     Route::get('/settings/password', [AuthController::class, 'showChangePasswordForm'])->name('settings.password');
     Route::put('/settings/password', [AuthController::class, 'updatePassword'])->name('settings.password.update');
 
@@ -75,6 +75,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/hr/schedules/{schedule}', [ScheduleController::class, 'destroy'])->name('hr.schedules.destroy');
 
         Route::get('/hr/attendances', [HRAttendanceController::class, 'index'])->name('hr.attendances.index');
+
+        Route::get('/hr/positions', [PositionController::class, 'index'])->name('hr.positions.index');
+        Route::get('/hr/positions/create', [PositionController::class, 'create'])->name('hr.positions.create');
+        Route::post('/hr/positions', [PositionController::class, 'store'])->name('hr.positions.store');
+        Route::get('/hr/positions/{position}/edit', [PositionController::class, 'edit'])->name('hr.positions.edit');
+        Route::put('/hr/positions/{position}', [PositionController::class, 'update'])->name('hr.positions.update');
+        Route::delete('/hr/positions/{position}', [PositionController::class, 'destroy'])->name('hr.positions.destroy');
 
         Route::get('/hr/divisions', [DivisionController::class, 'index'])->name('hr.divisions.index');
         Route::get('/hr/divisions/create', [DivisionController::class, 'create'])->name('hr.divisions.create');

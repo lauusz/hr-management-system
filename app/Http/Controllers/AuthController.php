@@ -65,7 +65,7 @@ class AuthController extends Controller
             'password'              => ['required', 'string', 'confirmed'],
         ]);
 
-        if (! Hash::check($request->input('current_password'), $user->password)) {
+        if (!Hash::check($request->input('current_password'), $user->password)) {
             return back()->withErrors([
                 'current_password' => 'Password saat ini tidak sesuai.',
             ]);
