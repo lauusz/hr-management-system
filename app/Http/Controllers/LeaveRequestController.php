@@ -12,27 +12,42 @@ use Carbon\Carbon;
 
 class LeaveRequestController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $user = Auth::user();
+        $userId = Auth::id();
 
-        $query = LeaveRequest::with(['user', 'approver'])->orderByDesc('created_at');
+        $query = LeaveRequest::with(['user', 'approver'])
+            ->where('user_id', $userId)
+            ->orderByDesc('created_at');
 
-        if (method_exists($user, 'isEmployee') && $user->isEmployee()) {
-            $query->where('user_id', $user->id);
-        } elseif (method_exists($user, 'isSupervisor') && $user->isSupervisor()) {
-            if (method_exists($user, 'subordinateIds')) {
-                $ids = $user->subordinateIds();
-                $query->whereIn('user_id', $ids);
-            } elseif (property_exists($user, 'division_id') && $user->division_id) {
-                $query->whereHas('user', function ($q) use ($user) {
-                    $q->where('division_id', $user->division_id);
-                });
+        $typeFilter = $request->query('type');
+        if ($typeFilter && in_array($typeFilter, LeaveType::values(), true)) {
+            $query->where('type', $typeFilter);
+        } else {
+            $typeFilter = null;
+        }
+
+        $submittedDate = $request->query('submitted_date');
+        if ($submittedDate) {
+            try {
+                $start = Carbon::parse($submittedDate)->startOfDay();
+                $end = (clone $start)->endOfDay();
+                $query->whereBetween('created_at', [$start, $end]);
+            } catch (\Exception $e) {
+                $submittedDate = null;
             }
         }
 
+        $items = $query->paginate(12)->appends([
+            'type' => $typeFilter,
+            'submitted_date' => $submittedDate,
+        ]);
+
         return view('leave_requests.index', [
-            'items' => $query->paginate(12),
+            'items'         => $items,
+            'typeFilter'    => $typeFilter,
+            'typeOptions'   => LeaveType::cases(),
+            'submittedDate' => $submittedDate,
         ]);
     }
 
@@ -100,7 +115,17 @@ class LeaveRequestController extends Controller
             'location_captured_at' => $validated['location_captured_at'] ?? now(),
         ]);
 
-        return redirect()->route('leave-requests.index')->with('success', 'Pengajuan izin berhasil dikirim.');
+        $isIzinTelat = $type === LeaveType::IZIN_TELAT->value;
+
+        if ($isIzinTelat) {
+            return redirect()
+                ->route('leave-requests.create')
+                ->with('show_izin_telat_popup', true);
+        }
+
+        return redirect()
+            ->route('leave-requests.index')
+            ->with('success', 'Pengajuan izin berhasil dikirim.');
     }
 
     public function show(LeaveRequest $leave_request)
@@ -170,6 +195,7 @@ class LeaveRequestController extends Controller
             'approved_by' => Auth::id(),
             'approved_at' => now(),
         ]);
+
         return back()->with('ok', 'Pengajuan disetujui.');
     }
 
@@ -182,6 +208,7 @@ class LeaveRequestController extends Controller
             'approved_by' => Auth::id(),
             'approved_at' => now(),
         ]);
+
         return back()->with('ok', 'Pengajuan ditolak.');
     }
 }

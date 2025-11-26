@@ -43,6 +43,9 @@ Route::middleware('auth')->group(function () {
         Route::post('/hr/leave-requests/{leave}/approve', [HrLeaveController::class, 'approve'])->name('hr.leave.approve');
         Route::post('/hr/leave-requests/{leave}/reject', [HrLeaveController::class, 'reject'])->name('hr.leave.reject');
 
+        Route::get('/hr/leave/master', [HrLeaveController::class, 'master'])->name('hr.leave.master');
+
+
         Route::get('/hr/shifts', [ShiftController::class, 'index'])->name('hr.shifts.index');
         Route::get('/hr/shifts/create', [ShiftController::class, 'create'])->name('hr.shifts.create');
         Route::post('/hr/shifts', [ShiftController::class, 'store'])->name('hr.shifts.store');

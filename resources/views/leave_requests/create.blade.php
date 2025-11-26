@@ -49,8 +49,6 @@
                 @error('end_date') <div class="error">{{ $message }}</div> @enderror
             </div>
 
-            <!-- Lokasi -->
-
             <div class="field full" id="location">
                 <label for="lokasi"><b>Lokasi:</b></label>
                 <button type="button" id="btn-get-location">
@@ -67,7 +65,6 @@
                 <input type="hidden" name="location_captured_at" id="location_captured_at">
             </div>
 
-            <!-- Bukti Pendukung -->
             <div class="field full">
                 <label><b>Bukti Pendukung:</b></label>
                 <input type="file" name="photo" id="photoInput" accept="image/*">
@@ -93,7 +90,6 @@
         </div>
     </form>
 
-    {{-- Styles --}}
     <style>
         .alert-error {
             background: #ffecec;
@@ -138,7 +134,6 @@
             margin-top: 3px;
             transform: scale(1.1);
             accent-color: #1b3e7f;
-            /* warna corporate */
         }
 
         .card label {
@@ -194,7 +189,6 @@
             gap: 8px;
         }
 
-        /* Preview foto */
         .preview-container {
             display: none;
             margin-top: 10px;
@@ -215,8 +209,6 @@
         #map-preview { height: 240px; }
         #map-preview .leaflet-container { height: 100% !important; }
 
-
-        /* Responsif */
         @media (max-width: 600px) {
             .grid-form {
                 grid-template-columns: 1fr;
@@ -231,9 +223,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-
-
-    <!-- Location Capture -->
     <script>
         (function() {
             const typeRadios = document.querySelectorAll('input[name="type"]');
@@ -292,20 +281,17 @@
 
                         statusEl.textContent = `Lokasi berhasil diambil ${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)}m)`;
 
-                        // Show map
                         mapDiv.style.display = 'block';
 
-                        // Initialize map if not yet
                         if (!map) {
                             map = L.map('map-preview', {
                                 zoomControl: true
                             });
                             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                            attribution: '© OpenStreetMap contributors'
+                                attribution: '© OpenStreetMap contributors'
                             }).addTo(map);
                         }
                         map.setView([latitude, longitude], 18);
-
 
                         if (marker) marker.setLatLng([latitude, longitude]);
                         else marker = L.marker([latitude, longitude]).addTo(map);
@@ -320,8 +306,6 @@
                         const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
                         mapDiv.style.cursor = 'pointer';
                         mapDiv.onclick = () => window.open(gmapsUrl, '_blank', 'noopener');
-
-
                     },
                     (err) => {
                         const mapErr = {
@@ -340,7 +324,6 @@
         })();
     </script>
 
-    {{-- Script preview foto --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const input = document.getElementById('photoInput');
@@ -363,6 +346,28 @@
             });
         });
     </script>
+
+    <x-modal
+        id="info-izin-telat"
+        title="Izin Terlambat"
+        type="info"
+        cancelLabel="Tutup"
+        primaryLinkHref="https://wa.me/6289686786066?text=Saya%20ingin%20mengajukan%20izin%20terlambat."
+        primaryLinkLabel="Chat HRD via WhatsApp"
+    >
+        <p style="margin:0 0 6px 0;">
+            Harap menghubungi HRD di nomor berikut untuk mengajukan izin keterlambatan.
+        </p>
+        <p style="margin:0;font-size:0.9rem;">
+            Nomor HRD:
+            <a href="https://wa.me/6289686786066?text=Saya%20ingin%20mengajukan%20izin%20terlambat."
+               target="_blank"
+               style="color:#16a34a;text-decoration:none;font-weight:600;">
+                089686786066
+            </a>
+        </p>
+    </x-modal>
+
     @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -372,6 +377,7 @@
                 const ruleEl = document.getElementById('cuti-rule');
                 const warnEl = document.getElementById('h7-warning');
                 const typeRadios = document.querySelectorAll('input[name="type"]');
+                var shouldShowIzinTelatPopup = !!@json(session('show_izin_telat_popup'));
 
                 function parseYMD(ymd) {
                     if (!ymd) return null;
@@ -464,6 +470,14 @@
                 });
 
                 renderRuleVisibility();
+
+                if (shouldShowIzinTelatPopup) {
+                    var modal = document.getElementById('info-izin-telat');
+                    if (modal) {
+                        modal.style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
+                    }
+                }
             })();
         });
     </script>

@@ -4,59 +4,50 @@
             Pastikan mengizinkan akses <b>kamera</b> dan <b>lokasi</b>.
         </p>
 
-        <div style="border-radius:8px;overflow:hidden;background:#000;margin-bottom:8px;">
-            <video id="video" autoplay playsinline style="width:100%;max-height:320px;object-fit:cover;"></video>
+        <div style="border-radius:12px;overflow:hidden;background:#000;margin-bottom:12px;">
+            <video id="video" autoplay playsinline style="width:100%;max-height:360px;object-fit:cover;"></video>
         </div>
 
-        <div id="capturePreviewWrapper" style="display:none;margin-bottom:8px;">
-            <p style="font-size:0.85rem;margin-bottom:4px;">Foto yang akan dikirim:</p>
-            <img id="capturePreview" src="" alt="Captured" style="width:100%;border-radius:8px;border:1px solid #e5e7eb;">
+        <div id="capturePreviewWrapper" style="display:none;margin-bottom:12px;">
+            <p style="font-size:0.85rem;margin-bottom:6px;">Foto yang akan dikirim:</p>
+            <img id="capturePreview" src="" alt="Captured" style="width:100%;border-radius:12px;border:1px solid #e5e7eb;">
         </div>
 
         <canvas id="canvas" style="display:none;"></canvas>
 
-        <div id="statusBox" style="font-size:0.85rem;margin-bottom:10px;color:#4b5563;">
-            Menunggu izin kamera & lokasi...
+        <div id="statusBox" style="font-size:0.9rem;margin-bottom:14px;color:#4b5563;">
+            Menunggu izin kamera dan lokasi dari perangkat...
         </div>
 
-        <div id="locationInfo" style="font-size:0.85rem;margin-bottom:12px;color:#4b5563;display:none;">
-            <span id="coordsText"></span>
-        </div>
+        <input type="hidden" id="hiddenLat">
+        <input type="hidden" id="hiddenLng">
 
-        <div id="map" style="width: 100%; height: 180px; border-radius: 8px; margin-top: 10px;"></div>
-
-        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
             <button id="btnCapture" type="button"
-                style="flex:1;padding:8px 10px;border:none;margin-top:8px;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:0.9rem;">
+                style="width:100%;padding:12px 16px;border:none;border-radius:999px;background:#2563eb;color:#fff;cursor:pointer;font-size:1rem;font-weight:600;">
                 📸 Ambil Foto
             </button>
-        </div>
 
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button id="btnClockIn" type="button"
-                style="flex:1;padding:8px 10px;border:none;border-radius:6px;background:#16a34a;color:#fff;cursor:pointer;font-size:0.9rem;">
+                style="width:100%;padding:12px 16px;border:none;border-radius:999px;background:#16a34a;color:#fff;cursor:pointer;font-size:1rem;font-weight:600;">
                 ✅ Clock-in
             </button>
         </div>
     </div>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script>
-        const lat = -7.22020;
-        const lng = 112.72942;
-
-        const map = L.map('map').setView([lat, lng], 18);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
-
-        L.marker([lat, lng]).addTo(map)
-            .bindPopup("Lokasi Presensi")
-            .openPopup();
-    </script>
+    <x-modal
+        id="attendance-success"
+        title="Berhasil Clock-in"
+        type="info"
+        cancelLabel="Tutup"
+    >
+        <p style="margin:0 0 4px 0;">
+            Presensi berhasil tercatat.
+        </p>
+        <p style="margin:0;font-size:0.9rem;opacity:.85;">
+            Anda akan diarahkan ke halaman riwayat presensi sesaat lagi.
+        </p>
+    </x-modal>
 
     <script>
         const video = document.getElementById('video');
@@ -64,8 +55,8 @@
         const capturePreviewWrapper = document.getElementById('capturePreviewWrapper');
         const capturePreview = document.getElementById('capturePreview');
         const statusBox = document.getElementById('statusBox');
-        const locationInfo = document.getElementById('locationInfo');
-        const coordsText = document.getElementById('coordsText');
+        const hiddenLat = document.getElementById('hiddenLat');
+        const hiddenLng = document.getElementById('hiddenLng');
 
         const btnCapture = document.getElementById('btnCapture');
         const btnClockIn = document.getElementById('btnClockIn');
@@ -76,6 +67,7 @@
         let currentLng = null;
         let isSubmitting = false;
         let isCameraActive = false;
+        let hasRedirectScheduled = false;
 
         async function initCamera() {
             try {
@@ -89,7 +81,7 @@
 
                 isCameraActive = true;
                 statusBox.textContent = 'Kamera aktif. Silakan ambil foto.';
-                btnCapture.textContent = "Ambil Foto";
+                btnCapture.textContent = "📸 Ambil Foto";
             } catch (err) {
                 console.error(err);
                 statusBox.textContent = 'Gagal mengakses kamera. Izinkan akses kamera di browser.';
@@ -114,9 +106,9 @@
                 (pos) => {
                     currentLat = pos.coords.latitude;
                     currentLng = pos.coords.longitude;
-                    locationInfo.style.display = 'block';
-                    coordsText.textContent = `Lokasi: ${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`;
-                    statusBox.textContent = 'Kamera & lokasi siap. Silakan ambil foto lalu Clock-in.';
+                    hiddenLat.value = currentLat;
+                    hiddenLng.value = currentLng;
+                    statusBox.textContent = 'Kamera dan lokasi siap. Silakan ambil foto lalu Clock-in.';
                 },
                 (err) => {
                     console.error(err);
@@ -135,7 +127,7 @@
                 capturePreviewWrapper.style.display = 'none';
                 video.style.display = 'block';
                 initCamera();
-                btnCapture.textContent = "Ambil Foto";
+                btnCapture.textContent = "📸 Ambil Foto";
                 return;
             }
 
@@ -211,9 +203,22 @@
                 }
 
                 statusBox.textContent = data.message || 'Presensi berhasil.';
+
+                const successModal = document.getElementById('attendance-success');
+                if (successModal) {
+                    successModal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                }
+
+                if (!hasRedirectScheduled) {
+                    hasRedirectScheduled = true;
+                    setTimeout(function () {
+                        window.location.href = '{{ url('/attendance') }}';
+                    }, 3500);
+                }
             } catch (err) {
                 console.error(err);
-                statusBox.textContent = 'Terjadi kesalahan jaringan (fetch gagal). Coba lagi.';
+                statusBox.textContent = 'Terjadi kesalahan jaringan. Coba lagi.';
             } finally {
                 setButtonsDisabled(false);
                 isSubmitting = false;

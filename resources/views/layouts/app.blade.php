@@ -207,6 +207,10 @@
       background: #fafbff;
       color: #333;
     }
+
+    .modal-backdrop {
+      display: none;
+    }
   </style>
 </head>
 
@@ -233,7 +237,6 @@
           Absensi
         </a>
 
-        {{-- 🔑 Pengaturan Akun / Ganti Password --}}
         <a href="{{ route('settings.password') }}"
           class="{{ request()->routeIs('settings.password') ? 'active' : '' }}">
           Pengaturan Akun
@@ -250,8 +253,13 @@
         <h3>HRD Panel</h3>
 
         <a href="{{ route('hr.leave.index') }}"
-          class="{{ request()->routeIs('hr.leave.*') ? 'active' : '' }}">
+          class="{{ request()->routeIs('hr.leave.index','hr.leave.show','hr.leave.approve','hr.leave.reject') ? 'active' : '' }}">
           Daftar Pengajuan Izin/Cuti
+        </a>
+
+        <a href="{{ route('hr.leave.master') }}"
+          class="{{ request()->routeIs('hr.leave.master') ? 'active' : '' }}">
+          Master Izin/Cuti
         </a>
 
         <a href="{{ route('hr.shifts.index') }}"
@@ -268,7 +276,6 @@
           class="{{ request()->routeIs('hr.positions.*') ? 'active' : '' }}">
           Master Jabatan
         </a>
-
 
         <a href="{{ route('hr.employees.index') }}"
           class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">
@@ -294,10 +301,7 @@
       </nav>
 
       <div class="logout">
-        <form class="inline" method="POST" action="{{ route('logout') }}">
-          @csrf
-          <button class="btn" type="submit">Logout</button>
-        </form>
+        <button class="btn" type="button" data-modal-target="confirm-logout">Logout</button>
       </div>
     </aside>
 
@@ -317,6 +321,19 @@
       </div>
     </main>
   </div>
+
+  <x-modal
+    id="confirm-logout"
+    title="Konfirmasi Logout"
+    type="confirm"
+    confirmLabel="Logout"
+    cancelLabel="Batal"
+    :confirmFormAction="route('logout')"
+    confirmFormMethod="POST"
+  >
+    <p style="margin:0 0 4px 0;">Yakin ingin keluar dari sistem?</p>
+    <p style="margin:0;font-size:0.85rem;opacity:.8;">Sesi Anda akan diakhiri dan perlu login kembali untuk mengakses HRD System.</p>
+  </x-modal>
 
   <script>
     const sidenav = document.getElementById('sidenav');
@@ -347,6 +364,54 @@
     });
     window.addEventListener('resize', () => {
       if (!isMobile()) closeMobile();
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+      function openModal(id) {
+        var modal = document.getElementById(id);
+        if (!modal) return;
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+      }
+
+      function closeModal(modal) {
+        if (!modal) return;
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+
+      document.querySelectorAll('[data-modal-target]').forEach(function (trigger) {
+        trigger.addEventListener('click', function () {
+          var targetId = this.getAttribute('data-modal-target');
+          if (targetId) {
+            openModal(targetId);
+          }
+        });
+      });
+
+      document.querySelectorAll('.modal-backdrop').forEach(function (backdropEl) {
+        backdropEl.addEventListener('click', function (e) {
+          if (e.target === backdropEl) {
+            closeModal(backdropEl);
+          }
+        });
+      });
+
+      document.addEventListener('click', function (e) {
+        var closeButton = e.target.closest('[data-modal-close]');
+        if (!closeButton) return;
+        var modal = closeButton.closest('.modal-backdrop');
+        closeModal(modal);
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Escape') return;
+        document.querySelectorAll('.modal-backdrop').forEach(function (modal) {
+          if (modal.style.display === 'flex') {
+            closeModal(modal);
+          }
+        });
+      });
     });
   </script>
   @stack('scripts')
