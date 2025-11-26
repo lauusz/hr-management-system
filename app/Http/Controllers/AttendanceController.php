@@ -129,8 +129,10 @@ class AttendanceController extends Controller
 
     public function clockOut(Request $request)
     {
-        $user  = Auth::user();
-        $today = now()->toDateString();
+        $user = Auth::user();
+        $now = now();
+        $today = $now->toDateString();
+        $yesterday = $now->copy()->subDay()->toDateString();
 
         $request->validate([
             'lat' => ['required', 'numeric'],
@@ -147,19 +149,40 @@ class AttendanceController extends Controller
             ], 400);
         }
 
-        $attendance = Attendance::where('user_id', $user->id)
+        $attendanceTodayOpen = Attendance::where('user_id', $user->id)
             ->where('date', $today)
+            ->whereNotNull('clock_in_at')
+            ->whereNull('clock_out_at')
             ->first();
+
+        $attendance = $attendanceTodayOpen;
+
+        if (!$attendance) {
+            $hasTodayClockIn = Attendance::where('user_id', $user->id)
+                ->where('date', $today)
+                ->whereNotNull('clock_in_at')
+                ->exists();
+
+            if (!$hasTodayClockIn) {
+                $attendanceYesterdayOpen = Attendance::where('user_id', $user->id)
+                    ->where('date', $yesterday)
+                    ->whereNotNull('clock_in_at')
+                    ->whereNull('clock_out_at')
+                    ->first();
+
+                $attendance = $attendanceYesterdayOpen;
+            }
+        }
 
         if (!$attendance || !$attendance->clock_in_at) {
             return response()->json([
-                'error' => 'Anda belum melakukan clock-in hari ini.',
+                'error' => 'Tidak ada presensi yang bisa di-clock-out.',
             ], 400);
         }
 
         if ($attendance->clock_out_at) {
             return response()->json([
-                'error' => 'Anda sudah melakukan clock-out hari ini.',
+                'error' => 'Presensi ini sudah memiliki clock-out.',
             ], 400);
         }
 
@@ -179,7 +202,7 @@ class AttendanceController extends Controller
         }
 
         $attendance->update([
-            'clock_out_at'  => now(),
+            'clock_out_at'  => $now,
             'clock_out_lat' => $request->lat,
             'clock_out_lng' => $request->lng,
         ]);

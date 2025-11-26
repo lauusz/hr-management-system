@@ -97,15 +97,33 @@
                             </td>
 
                             <td style="padding:10px 12px;vertical-align:middle;">
-                                <span style="font-size:0.85rem;color:#111827;">
-                                    {{ $at->clock_in_at ? $at->clock_in_at->format('H:i') : '-' }}
-                                </span>
+                                @if($at->clock_in_at)
+                                    <div style="font-size:0.83rem;color:#111827;line-height:1.3;">
+                                        <div style="font-weight:600;">
+                                            {{ $at->clock_in_at->format('d/m/Y') }}
+                                        </div>
+                                        <div style="opacity:.8;">
+                                            {{ $at->clock_in_at->format('H:i') }}
+                                        </div>
+                                    </div>
+                                @else
+                                    <span style="opacity:.6;font-size:0.85rem;">-</span>
+                                @endif
                             </td>
 
                             <td style="padding:10px 12px;vertical-align:middle;">
-                                <span style="font-size:0.85rem;color:#111827;">
-                                    {{ $at->clock_out_at ? $at->clock_out_at->format('H:i') : '-' }}
-                                </span>
+                                @if($at->clock_out_at)
+                                    <div style="font-size:0.83rem;color:#111827;line-height:1.3;">
+                                        <div style="font-weight:600;">
+                                            {{ $at->clock_out_at->format('d/m/Y') }}
+                                        </div>
+                                        <div style="opacity:.8;">
+                                            {{ $at->clock_out_at->format('H:i') }}
+                                        </div>
+                                    </div>
+                                @else
+                                    <span style="opacity:.6;font-size:0.85rem;">-</span>
+                                @endif
                             </td>
 
                             <td style="padding:10px 12px;vertical-align:middle;">
@@ -134,7 +152,7 @@
                                 @endif
                             </td>
 
-                            <td style="padding:10px 12px;vertical-align:middle;">
+                            <td style="padding:10px 12px;vertical-align:middle%;">
                                 @if($at->clock_in_photo)
                                     <button type="button"
                                             class="btn-view-photo"
