@@ -30,6 +30,10 @@
                            border-radius:999px;cursor:pointer;font-size:0.85rem;white-space:nowrap;">
                 Filter
             </button>
+            <a href="{{ route('hr.attendances.index') }}"
+               style="padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#374151;font-size:0.8rem;text-decoration:none;white-space:nowrap;">
+                Reset
+            </a>
         </form>
     </div>
 

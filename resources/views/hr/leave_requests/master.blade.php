@@ -83,7 +83,7 @@
             </button>
 
             <a href="{{ route('hr.leave.master') }}"
-               style="font-size:0.8rem;color:#6b7280;text-decoration:none;">
+               style="padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#374151;font-size:0.8rem;text-decoration:none;white-space:nowrap;">
                 Reset
             </a>
         </form>
