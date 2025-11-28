@@ -16,7 +16,7 @@ class ScheduleController extends Controller
     {
         $items = EmployeeShift::with(['user', 'shift', 'location'])
             ->orderBy('user_id')
-            ->paginate(15);
+            ->paginate(100);
 
         return view('hr.schedules.index', compact('items'));
     }

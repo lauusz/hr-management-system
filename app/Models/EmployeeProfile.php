@@ -20,6 +20,7 @@ class EmployeeProfile extends Model
         'nama_bank',
         'no_rekening',
         'pendidikan',
+        'golongan_darah',
         'jenis_kelamin',
         'tgl_lahir',
         'tempat_lahir',
@@ -30,20 +31,25 @@ class EmployeeProfile extends Model
         'kecamatan',
         'desa_kelurahan',
         'kode_pos',
+        'badge_id',
+        'pin',
         'ptkp',
-        'no_npwp',
+        'npwp',
+        'nomor_npwp',
         'bpjs_tk',
-        'no_bpjs_kesehatan',
+        'nomor_bpjs_kesehatan',
         'kelas_bpjs',
         'masa_kerja',
         'tgl_bergabung',
-        'tgl_berakhir_percobaan',
+        'tgl_akhir_percobaan',
+        'lokasi_kerja',
+        'alamat_sesuai_ktp',
     ];
 
     protected $casts = [
         'tgl_lahir' => 'date',
         'tgl_bergabung' => 'date',
-        'tgl_berakhir_percobaan' => 'date',
+        'tgl_akhir_percobaan' => 'date',
     ];
 
     public function user(){

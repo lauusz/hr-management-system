@@ -146,8 +146,14 @@
       @endif
 
       <div class="row">
-        <label for="username">Username</label>
-        <input id="username" name="username" type="text" value="{{ old('username') }}" required autofocus>
+        <label for="username">Email</label>
+        <input
+          id="username"
+          name="username"
+          type="text"
+          value="{{ old('username') }}"
+          required
+          autofocus>
       </div>
 
       <div class="row">

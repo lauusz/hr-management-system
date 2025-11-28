@@ -15,7 +15,7 @@ class HrLeaveController extends Controller
         $leaves = LeaveRequest::pendingHr()
             ->with('user')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate(100);
 
         return view('hr.leave_requests.index', compact('leaves'));
     }
@@ -66,7 +66,7 @@ class HrLeaveController extends Controller
             });
         }
 
-        $items = $query->paginate(20)->appends([
+        $items = $query->paginate(100)->appends([
             'status'         => $status,
             'type'           => $typeFilter,
             'submitted_date' => $submittedDate,

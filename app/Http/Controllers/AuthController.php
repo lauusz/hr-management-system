@@ -20,10 +20,18 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        $input = $data['username'];
+
+        if (str_contains($input, '@')) {
+            $field = 'email';
+        } else {
+            $field = 'username';
+        }
+
         $credentials = [
-            'username' => $data['username'],
+            $field => $input,
             'password' => $data['password'],
-            'status'   => 'ACTIVE',
+            'status' => 'ACTIVE',
         ];
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
@@ -61,8 +69,8 @@ class AuthController extends Controller
         $user = Auth::user();
 
         $request->validate([
-            'current_password'      => ['required'],
-            'password'              => ['required', 'string', 'confirmed'],
+            'current_password' => ['required'],
+            'password' => ['required', 'string', 'confirmed'],
         ]);
 
         if (!Hash::check($request->input('current_password'), $user->password)) {

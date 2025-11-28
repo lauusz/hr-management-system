@@ -38,7 +38,7 @@ class LeaveRequestController extends Controller
             }
         }
 
-        $items = $query->paginate(12)->appends([
+        $items = $query->paginate(100)->appends([
             'type' => $typeFilter,
             'submitted_date' => $submittedDate,
         ]);

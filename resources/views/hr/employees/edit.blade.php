@@ -36,7 +36,6 @@
                 type="text"
                 name="username"
                 value="{{ old('username', $item->username) }}"
-                required
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
@@ -133,13 +132,20 @@
         {{-- PT --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="pt" style="font-size:.9rem;font-weight:500;">PT</label>
-            <input
+            <select
                 id="pt"
-                type="text"
                 name="pt"
-                value="{{ old('pt', optional($profile)->pt) }}"
-                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
+                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;background:#fff;">
+                <option value="">Pilih PT</option>
+                @foreach($ptOptions as $ptOption)
+                <option value="{{ $ptOption }}"
+                    @selected(old('pt', $item->profile->pt ?? '') === $ptOption)>
+                    {{ $ptOption }}
+                </option>
+                @endforeach
+            </select>
         </div>
+
 
         {{-- KATEGORI --}}
         <div style="display:flex;flex-direction:column;gap:4px;">

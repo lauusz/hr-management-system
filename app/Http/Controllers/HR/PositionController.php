@@ -15,7 +15,7 @@ class PositionController extends Controller
         $positions = Position::with('division')
             ->orderBy('division_id')
             ->orderBy('name')
-            ->paginate(25);
+            ->paginate(100);
 
         return view('hr.positions.index', [
             'positions' => $positions,

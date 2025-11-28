@@ -54,15 +54,18 @@ class User extends Authenticatable
 
 
     // Role Helper
-    public function isHR(){
+    public function isHR()
+    {
         return $this->role === 'HRD';
     }
 
-    public function isSupervisor(){
+    public function isSupervisor()
+    {
         return $this->role === 'SUPERVISOR';
     }
 
-    public function isEmployee(){
+    public function isEmployee()
+    {
         return $this->role === 'EMPLOYEE';
     }
 
@@ -78,27 +81,38 @@ class User extends Authenticatable
         ];
     }
 
-    public function profile(){
+    public function profile()
+    {
         return $this->hasOne(EmployeeProfile::class);
     }
 
-    public function division(){
+    public function division()
+    {
         return $this->belongsTo(Division::class);
     }
 
-    public function position(){
+    public function supervisedDivisions()
+    {
+        return $this->hasMany(Division::class, 'supervisor_id');
+    }
+
+    public function position()
+    {
         return $this->belongsTo(Position::class, 'position_id');
     }
 
-    public function leaveRequests(){
+    public function leaveRequests()
+    {
         return $this->hasMany(LeaveRequest::class);
     }
 
-    public function shift(){
+    public function shift()
+    {
         return $this->belongsTo(Shift::class);
     }
 
-    public function getShiftNameAttribute(){
+    public function getShiftNameAttribute()
+    {
         return $this->shift?->name ?? 'No Shift assigned';
     }
 

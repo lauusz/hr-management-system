@@ -27,7 +27,7 @@ class HRAttendanceController extends Controller
             });
         }
 
-        $items = $query->paginate(15)->withQueryString();
+        $items = $query->paginate(100)->withQueryString();
 
         return view('hr.attendances.index', compact('items', 'date', 'status', 'q'));
     }

@@ -13,15 +13,17 @@ class DivisionController extends Controller
 {
     public function index(Request $request)
     {
+        $search = $request->get('q');
+
         $query = Division::query()
             ->with('supervisor')
             ->orderBy('name');
 
-        if ($search = $request->get('q')) {
+        if ($search) {
             $query->where('name', 'like', "%{$search}%");
         }
 
-        $items = $query->paginate(25)->withQueryString();
+        $items = $query->paginate(100)->withQueryString();
 
         return view('hr.divisions.index', compact('items', 'search'));
     }

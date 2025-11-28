@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('nama_bank', 100)->nullable();
             $table->string('no_rekening', 50)->nullable();
             $table->string('pendidikan', 100)->nullable();
+            $table->string('golongan_darah', 50)->nullable();
             $table->string('jenis_kelamin', 20)->nullable();
             $table->date('tgl_lahir')->nullable();
             $table->string('tempat_lahir', 100)->nullable();
@@ -36,14 +37,19 @@ return new class extends Migration
             $table->string('kecamatan', 100)->nullable();
             $table->string('desa_kelurahan', 100)->nullable();
             $table->string('kode_pos', 10)->nullable();
+            $table->string('badge_id', 50)->nullable();
+            $table->string('pin', 50)->nullable();
             $table->string('ptkp', 50)->nullable();
-            $table->string('no_npwp', 50)->nullable();
+            $table->string('npwp', 50)->nullable();
+            $table->string('nomor_npwp', 50)->nullable();
             $table->string('bpjs_tk', 50)->nullable();
-            $table->string('no_bpjs_kesehatan', 50)->nullable();
+            $table->string('nomor_bpjs_kesehatan', 50)->nullable();
             $table->string('kelas_bpjs', 50)->nullable();
             $table->string('masa_kerja', 50)->nullable();
             $table->date('tgl_bergabung')->nullable();
-            $table->date('tgl_berakhir_percobaan')->nullable();
+            $table->date('tgl_akhir_percobaan')->nullable();
+            $table->string('lokasi_kerja', 100)->nullable();
+            $table->string('alamat_sesuai_ktp', 100)->nullable();
             
             $table->timestamps();
         });

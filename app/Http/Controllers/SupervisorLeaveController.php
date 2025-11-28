@@ -15,7 +15,7 @@ class SupervisorLeaveController extends Controller
             ->pendingSupervisor()
             ->whereHas('user', fn($q) => $q->where('division_id', $me->division_id))
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate(100);
 
         return view('supervisor.leave_requests.index', compact('leaves'));
     }

@@ -29,7 +29,7 @@ class UserFactory extends Factory
             'username'    => $this->faker->unique()->userName(),
             'password'    => 'password',
             'phone'       => '08' . $this->faker->numerify('##########'), 
-            'role'        => $this->faker->randomElement(['HRD', 'HEAD', 'EMPLOYEE']),
+            'role'        => $this->faker->randomElement(['HRD', 'HEAD', 'STAFF']),
             'division_id' => null,                     
             'status'      => $this->faker->randomElement(['ACTIVE', 'INACTIVE']),
             'last_login_at' => null,

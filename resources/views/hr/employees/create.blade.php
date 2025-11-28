@@ -102,8 +102,8 @@
                 id="status"
                 name="status"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
-                <option value="ACTIVE" @selected(old('status')==='ACTIVE')>Aktif</option>
-                <option value="INACTIVE" @selected(old('status')==='INACTIVE')>Nonaktif</option>
+                <option value="ACTIVE" @selected(old('status')==='ACTIVE' )>Aktif</option>
+                <option value="INACTIVE" @selected(old('status')==='INACTIVE' )>Nonaktif</option>
             </select>
         </div>
 
@@ -119,13 +119,19 @@
 
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="pt" style="font-size:.9rem;font-weight:500;">PT</label>
-            <input
+            <select
                 id="pt"
-                type="text"
                 name="pt"
-                value="{{ old('pt') }}"
-                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
+                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;background:#fff;">
+                <option value="">Pilih PT</option>
+                @foreach($ptOptions as $ptOption)
+                <option value="{{ $ptOption }}" @selected(old('pt')===$ptOption)>
+                    {{ $ptOption }}
+                </option>
+                @endforeach
+            </select>
         </div>
+
 
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="kategori" style="font-size:.9rem;font-weight:500;">Kategori</label>
@@ -134,8 +140,8 @@
                 name="kategori"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
                 <option value="">Pilih kategori</option>
-                <option value="TETAP" @selected(old('kategori')==='TETAP')>Karyawan Tetap</option>
-                <option value="KONTRAK" @selected(old('kategori')==='KONTRAK')>Karyawan Kontrak</option>
+                <option value="TETAP" @selected(old('kategori')==='TETAP' )>Karyawan Tetap</option>
+                <option value="KONTRAK" @selected(old('kategori')==='KONTRAK' )>Karyawan Kontrak</option>
             </select>
         </div>
 
@@ -167,9 +173,9 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
                 <option value="">Tidak ada / Belum ditentukan</option>
                 @foreach ($positions as $position)
-                    <option value="{{ $position->id }}" @selected(old('position_id') == $position->id)>
-                        {{ $position->name }}
-                    </option>
+                <option value="{{ $position->id }}" @selected(old('position_id')==$position->id)>
+                    {{ $position->name }}
+                </option>
                 @endforeach
             </select>
         </div>
@@ -254,8 +260,8 @@
                 name="jenis_kelamin"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
                 <option value="">Pilih</option>
-                <option value="L" @selected(old('jenis_kelamin')==='L')>Laki-laki</option>
-                <option value="P" @selected(old('jenis_kelamin')==='P')>Perempuan</option>
+                <option value="L" @selected(old('jenis_kelamin')==='L' )>Laki-laki</option>
+                <option value="P" @selected(old('jenis_kelamin')==='P' )>Perempuan</option>
             </select>
         </div>
 
