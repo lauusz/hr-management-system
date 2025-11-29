@@ -6,23 +6,23 @@
             <div style="margin-bottom:10px;">
                 <label><b>Nama Lokasi</b></label>
                 <input type="text" name="name" value="{{ old('name') }}" required
-                       style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
+                    style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
             </div>
 
             <div style="margin-bottom:10px;">
                 <label><b>Alamat (opsional)</b></label>
                 <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
                     <textarea name="address" id="address-input" rows="2"
-                              style="flex:1;min-width:200px;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">{{ old('address') }}</textarea>
+                        style="flex:1;min-width:200px;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">{{ old('address') }}</textarea>
                     <div style="display:flex;flex-direction:column;gap:6px;">
                         <button type="button"
-                                id="geocode-btn"
-                                style="padding:8px 12px;border-radius:8px;border:1px solid #1e4a8d;background:#1e4a8d;color:#fff;cursor:pointer;white-space:nowrap;">
+                            id="geocode-btn"
+                            style="padding:8px 16px;border-radius:999px;border:none;background:#1e4a8d;color:white;font-size:.9rem;cursor:pointer;">
                             Cari di Peta
                         </button>
                         <button type="button"
-                                id="use-current-location-btn"
-                                style="padding:8px 12px;border-radius:8px;border:1px solid;cursor:pointer;white-space:nowrap;font-size:0.85rem;">
+                            id="use-current-location-btn"
+                            style="padding:8px 16px;border-radius:999px;border:1px solid #d1d5db;font-size:.9rem;text-decoration:none;color:#111827;display:flex;align-items:center;">
                             Gunakan Lokasi Saya
                         </button>
                     </div>
@@ -36,20 +36,20 @@
                 <div>
                     <label><b>Latitude</b></label>
                     <input type="text" name="latitude" id="lat-input"
-                           value="{{ old('latitude') }}" required
-                           style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
+                        value="{{ old('latitude') }}" required
+                        style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
                 </div>
                 <div>
                     <label><b>Longitude</b></label>
                     <input type="text" name="longitude" id="lng-input"
-                           value="{{ old('longitude') }}" required
-                           style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
+                        value="{{ old('longitude') }}" required
+                        style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
                 </div>
                 <div>
                     <label><b>Radius (meter)</b></label>
                     <input type="number" name="radius_meters" id="radius-input"
-                           value="{{ old('radius_meters', 30) }}" min="5" required
-                           style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
+                        value="{{ old('radius_meters', 30) }}" min="5" required
+                        style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
                     <div style="font-size:0.8rem;opacity:.75;margin-top:4px;" id="radius-label">
                         Radius: {{ old('radius_meters', 30) }} m
                     </div>
@@ -71,10 +71,17 @@
                 </div>
             </div>
 
-            <button type="submit"
-                    style="padding:8px 14px;border-radius:8px;border:none;background:#1e4a8d;color:#fff;cursor:pointer;">
-                Simpan Lokasi
-            </button>
+            <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">
+                <button type="submit"
+                    style="padding:8px 16px;border-radius:999px;border:none;background:#1e4a8d;color:white;font-size:.9rem;cursor:pointer;">
+                    Simpan Lokasi
+                </button>
+
+                <a href="{{ route('hr.locations.index') }}"
+                    style="padding:8px 16px;border-radius:999px;border:1px solid #d1d5db;font-size:.9rem;text-decoration:none;color:#111827;display:flex;align-items:center;">
+                    Batal
+                </a>
+            </div>
         </form>
     </div>
 
@@ -102,7 +109,9 @@
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        const marker = L.marker([initialLat, initialLng], { draggable: true }).addTo(map);
+        const marker = L.marker([initialLat, initialLng], {
+            draggable: true
+        }).addTo(map);
         let circle = L.circle([initialLat, initialLng], {
             radius: initialRadius,
             color: '#2563eb',
@@ -123,18 +132,18 @@
             map.setView([lat, lng], 18);
         }
 
-        marker.on('dragend', function (e) {
+        marker.on('dragend', function(e) {
             const pos = e.target.getLatLng();
             updatePosition(pos.lat, pos.lng);
         });
 
-        radiusInput.addEventListener('input', function () {
+        radiusInput.addEventListener('input', function() {
             const r = parseInt(this.value) || 10;
             circle.setRadius(r);
             updateRadiusLabel(r);
         });
 
-        latInput.addEventListener('change', function () {
+        latInput.addEventListener('change', function() {
             const lat = parseFloat(latInput.value);
             const lng = parseFloat(lngInput.value);
             if (!isNaN(lat) && !isNaN(lng)) {
@@ -142,7 +151,7 @@
             }
         });
 
-        lngInput.addEventListener('change', function () {
+        lngInput.addEventListener('change', function() {
             const lat = parseFloat(latInput.value);
             const lng = parseFloat(lngInput.value);
             if (!isNaN(lat) && !isNaN(lng)) {
@@ -195,15 +204,14 @@
             useCurrentLocationBtn.textContent = 'Mengambil lokasi...';
 
             navigator.geolocation.getCurrentPosition(
-                function (pos) {
+                function(pos) {
                     const lat = pos.coords.latitude;
                     const lng = pos.coords.longitude;
                     updatePosition(lat, lng);
                 },
-                function () {
+                function() {
                     alert('Gagal mengambil lokasi perangkat.');
-                },
-                {
+                }, {
                     enableHighAccuracy: true,
                     timeout: 10000,
                     maximumAge: 0
@@ -214,11 +222,11 @@
             useCurrentLocationBtn.textContent = originalText;
         }
 
-        geocodeBtn.addEventListener('click', function () {
+        geocodeBtn.addEventListener('click', function() {
             geocodeAddress();
         });
 
-        useCurrentLocationBtn.addEventListener('click', function () {
+        useCurrentLocationBtn.addEventListener('click', function() {
             useCurrentLocation();
         });
 

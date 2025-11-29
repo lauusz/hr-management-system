@@ -41,10 +41,16 @@
                 </select>
             </div>
 
-            <button type="submit"
-                    style="padding:10px 14px;border-radius:8px;background:#1e4a8d;color:#fff;border:none;cursor:pointer;">
-                Update Jadwal
-            </button>
+            <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">
+                <button type="submit"
+                    style="padding:8px 16px;border-radius:999px;border:none;background:#1e4a8d;color:white;font-size:.9rem;cursor:pointer;">
+                    Update Jadwal
+                </button>
+                 <a href="{{ route('hr.schedules.index') }}"
+                    style="padding:8px 16px;border-radius:999px;border:1px solid #d1d5db;font-size:.9rem;text-decoration:none;color:#111827;display:flex;align-items:center;">
+                    Batal
+                </a>
+            </div>
         </form>
     </div>
 

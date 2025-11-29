@@ -12,6 +12,7 @@ class PositionController extends Controller
 {
     public function index()
     {
+
         $positions = Position::with('division')
             ->orderBy('division_id')
             ->orderBy('name')
