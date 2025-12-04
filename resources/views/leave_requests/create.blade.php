@@ -255,10 +255,12 @@
                 }
             }
 
-            typeRadios.forEach(r => r.addEventListener('change', toggleSection));
+            typeRadios.forEach(function(r) {
+                r.addEventListener('change', toggleSection);
+            });
             toggleSection();
 
-            btn?.addEventListener('click', () => {
+            btn?.addEventListener('click', function() {
                 if (!('geolocation' in navigator)) {
                     statusEl.textContent = 'Geolocation is not supported in this browser.';
                     return;
@@ -268,18 +270,17 @@
                 mapDiv.style.display = 'block';
 
                 navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        const {
-                            latitude,
-                            longitude,
-                            accuracy
-                        } = pos.coords;
+                    function(pos) {
+                        const latitude = pos.coords.latitude;
+                        const longitude = pos.coords.longitude;
+                        const accuracy = pos.coords.accuracy;
+
                         latEl.value = latitude.toFixed(7);
                         lngEl.value = longitude.toFixed(7);
                         accEl.value = (accuracy ?? 0).toFixed(2);
                         tsEl.value = new Date(pos.timestamp).toISOString().slice(0, 19).replace('T', ' ');
 
-                        statusEl.textContent = `Lokasi berhasil diambil ${latitude.toFixed(5)}, ${longitude.toFixed(5)} (±${Math.round(accuracy)}m)`;
+                        statusEl.textContent = 'Lokasi berhasil diambil ' + latitude.toFixed(5) + ', ' + longitude.toFixed(5) + ' (±' + Math.round(accuracy) + 'm)';
 
                         mapDiv.style.display = 'block';
 
@@ -293,28 +294,42 @@
                         }
                         map.setView([latitude, longitude], 18);
 
-                        if (marker) marker.setLatLng([latitude, longitude]);
-                        else marker = L.marker([latitude, longitude]).addTo(map);
+                        if (marker) {
+                            marker.setLatLng([latitude, longitude]);
+                        } else {
+                            marker = L.marker([latitude, longitude]).addTo(map);
+                        }
 
-                        if (circle) circle.setLatLng([latitude, longitude]).setRadius(accuracy);
-                        else circle = L.circle([latitude, longitude], {
-                            radius: accuracy, color: '#1b3e7f', fillColor: '#1b3e7f', fillOpacity: 0.2
-                        }).addTo(map);
+                        if (circle) {
+                            circle.setLatLng([latitude, longitude]).setRadius(accuracy);
+                        } else {
+                            circle = L.circle([latitude, longitude], {
+                                radius: accuracy,
+                                color: '#1b3e7f',
+                                fillColor: '#1b3e7f',
+                                fillOpacity: 0.2
+                            }).addTo(map);
+                        }
 
-                        setTimeout(() => map.invalidateSize(), 100);
+                        setTimeout(function() {
+                            map.invalidateSize();
+                        }, 100);
 
-                        const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+                        const gmapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + latitude + ',' + longitude;
                         mapDiv.style.cursor = 'pointer';
-                        mapDiv.onclick = () => window.open(gmapsUrl, '_blank', 'noopener');
+                        mapDiv.onclick = function() {
+                            window.open(gmapsUrl, '_blank', 'noopener');
+                        };
                     },
-                    (err) => {
+                    function(err) {
                         const mapErr = {
                             1: 'Permission denied',
                             2: 'Position unavailable',
                             3: 'Timeout'
                         };
-                        statusEl.textContent = `Gagal mengambil lokasi: ${mapErr[err.code] || 'Unknown error'}`;
-                    }, {
+                        statusEl.textContent = 'Gagal mengambil lokasi: ' + (mapErr[err.code] || 'Unknown error');
+                    },
+                    {
                         enableHighAccuracy: true,
                         timeout: 10000,
                         maximumAge: 0
@@ -337,7 +352,7 @@
                     reader.onload = function(e) {
                         previewImg.src = e.target.result;
                         previewContainer.style.display = 'block';
-                    }
+                    };
                     reader.readAsDataURL(file);
                 } else {
                     previewContainer.style.display = 'none';
@@ -381,8 +396,8 @@
 
                 function parseYMD(ymd) {
                     if (!ymd) return null;
-                    const [y, m, d] = ymd.split('-').map(Number);
-                    const dt = new Date(y, m - 1, d);
+                    const parts = ymd.split('-').map(Number);
+                    const dt = new Date(parts[0], parts[1] - 1, parts[2]);
                     dt.setHours(0, 0, 0, 0);
                     return dt;
                 }
@@ -422,7 +437,7 @@
 
                     if (isCutiSelected()) {
                         ruleEl.style.display = 'block';
-                        ruleEl.innerHTML = `Ketentuan: pengajuan minimal H-7 dari hari ini (≥ <b>${formatID(boundaryDateH7())}</b>).`;
+                        ruleEl.innerHTML = 'Ketentuan: pengajuan minimal H-7 dari hari ini (≥ <b>' + formatID(boundaryDateH7()) + '</b>).';
                         updateWarning();
                     } else {
                         ruleEl.style.display = 'none';
@@ -440,7 +455,7 @@
                     }
 
                     const today = todayStart();
-                    const start = parseYMD(startInput?.value || '');
+                    const start = parseYMD(startInput ? startInput.value : '');
                     if (!(start instanceof Date) || isNaN(start)) {
                         warnEl.style.display = 'none';
                         warnEl.textContent = '';
@@ -451,32 +466,41 @@
                     if (diffDays < 7 && diffDays >= 0) {
                         warnEl.style.display = 'block';
                         warnEl.textContent =
-                            `Pengajuan dilakukan ${diffDays} hari sebelum tanggal mulai cuti (kurang dari H-7). ` +
-                            `Pengajuan tetap bisa diproses, namun akan ada potongan sesuai kebijakan perusahaan.`;
+                            'Pengajuan dilakukan ' + diffDays + ' hari sebelum tanggal mulai cuti (kurang dari H-7). ' +
+                            'Pengajuan tetap bisa diproses, namun akan ada potongan sesuai kebijakan perusahaan.';
                     } else {
                         warnEl.style.display = 'none';
                         warnEl.textContent = '';
                     }
                 }
 
-                startInput?.addEventListener('input', updateWarning);
-                startInput?.addEventListener('change', updateWarning);
-                startInput?.addEventListener('focus', updateWarning);
+                if (startInput) {
+                    startInput.addEventListener('input', updateWarning);
+                    startInput.addEventListener('change', updateWarning);
+                    startInput.addEventListener('focus', updateWarning);
+                }
 
-                typeRadios.forEach(r => {
-                    r.addEventListener('change', () => {
+                typeRadios.forEach(function(r) {
+                    r.addEventListener('change', function() {
                         renderRuleVisibility();
                     });
                 });
 
                 renderRuleVisibility();
 
-                if (shouldShowIzinTelatPopup) {
-                    var modal = document.getElementById('info-izin-telat');
-                    if (modal) {
+                var modal = document.getElementById('info-izin-telat');
+                if (modal) {
+                    if (shouldShowIzinTelatPopup) {
                         modal.style.display = 'flex';
                         document.body.style.overflow = 'hidden';
                     }
+
+                    var closeButtons = modal.querySelectorAll('[data-modal-close="true"]');
+                    closeButtons.forEach(function(btn) {
+                        btn.addEventListener('click', function() {
+                            window.location.href = '{{ route('leave-requests.index') }}';
+                        });
+                    });
                 }
             })();
         });

@@ -6,7 +6,7 @@
         </div>
     @endif
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
         <div>
             <p style="font-size:.9rem;opacity:.75;margin:0;">
                 Daftar jabatan yang terdaftar di sistem. HR dapat mengelola jabatan per divisi.

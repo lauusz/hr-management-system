@@ -4,7 +4,9 @@ namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceLocation;
+use App\Models\EmployeeProfile;
 use App\Models\EmployeeShift;
+use App\Models\Position;
 use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,14 +14,73 @@ use Illuminate\Validation\Rule;
 
 class ScheduleController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $items = EmployeeShift::with(['user', 'shift', 'location'])
-            ->orderBy('user_id')
-            ->paginate(100);
+        $search = $request->get('q');
+        $ptFilter = $request->get('pt_id');
+        $positionFilter = $request->get('position_id');
+        $shiftFilter = $request->get('shift_id');
 
-        return view('hr.schedules.index', compact('items'));
+        $query = User::query()
+            ->leftJoin('employee_profiles', 'employee_profiles.user_id', '=', 'users.id')
+            ->leftJoin('pts', 'pts.id', '=', 'employee_profiles.pt_id')
+            ->leftJoin('positions', 'positions.id', '=', 'users.position_id')
+            ->leftJoin('employee_shifts', 'employee_shifts.user_id', '=', 'users.id')
+            ->leftJoin('shifts', 'shifts.id', '=', 'employee_shifts.shift_id')
+            ->leftJoin('attendance_locations', 'attendance_locations.id', '=', 'employee_shifts.location_id')
+            ->select(
+                'users.*',
+                'employee_profiles.pt_id',
+                'pts.name as pt_name',
+                'positions.name as position_name',
+                'employee_shifts.id as schedule_id',
+                'employee_shifts.shift_id',
+                'employee_shifts.location_id',
+                'shifts.name as shift_name',
+                'attendance_locations.name as location_name'
+            )
+            ->orderBy('users.name');
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('users.name', 'like', "%{$search}%")
+                    ->orWhere('users.username', 'like', "%{$search}%")
+                    ->orWhere('users.phone', 'like', "%{$search}%");
+            });
+        }
+
+        if ($ptFilter) {
+            $query->where('employee_profiles.pt_id', $ptFilter);
+        }
+
+        if ($positionFilter) {
+            $query->where('users.position_id', $positionFilter);
+        }
+
+        if ($shiftFilter === 'none') {
+            $query->whereNull('employee_shifts.id');
+        } elseif ($shiftFilter) {
+            $query->where('employee_shifts.shift_id', $shiftFilter);
+        }
+
+        $items = $query->paginate(100)->withQueryString();
+
+        $ptOptions = \App\Models\Pt::orderBy('name')->get();
+        $positionOptions = Position::orderBy('name')->get();
+        $shiftOptions = Shift::orderBy('start_time')->get();
+
+        return view('hr.schedules.index', [
+            'items' => $items,
+            'search' => $search,
+            'pt' => $ptFilter,
+            'ptOptions' => $ptOptions,
+            'positionId' => $positionFilter,
+            'positionOptions' => $positionOptions,
+            'shiftId' => $shiftFilter,
+            'shiftOptions' => $shiftOptions,
+        ]);
     }
+
 
     public function create()
     {

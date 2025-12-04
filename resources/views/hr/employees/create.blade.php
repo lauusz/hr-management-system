@@ -8,6 +8,7 @@
     <form class="card"
         method="POST"
         action="{{ route('hr.employees.store') }}"
+        enctype="multipart/form-data"
         style="max-width:520px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px;">
         @csrf
 
@@ -102,8 +103,8 @@
                 id="status"
                 name="status"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
-                <option value="ACTIVE" @selected(old('status')==='ACTIVE' )>Aktif</option>
-                <option value="INACTIVE" @selected(old('status')==='INACTIVE' )>Nonaktif</option>
+                <option value="ACTIVE" @selected(old('status')==='ACTIVE')>Aktif</option>
+                <option value="INACTIVE" @selected(old('status')==='INACTIVE')>Nonaktif</option>
             </select>
         </div>
 
@@ -117,16 +118,16 @@
             Informasi Karyawan
         </div>
 
-        <div style="display:flex;flex-direction:column;gap:4px;">
-            <label for="pt" style="font-size:.9rem;font-weight:500;">PT</label>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+            <label for="pt_id" style="font-size:.9rem;font-weight:500;">PT</label>
             <select
-                id="pt"
-                name="pt"
+                id="pt_id"
+                name="pt_id"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;background:#fff;">
                 <option value="">Pilih PT</option>
                 @foreach($ptOptions as $ptOption)
-                <option value="{{ $ptOption }}" @selected(old('pt')===$ptOption)>
-                    {{ $ptOption }}
+                <option value="{{ $ptOption->id }}" @selected(old('pt_id') == $ptOption->id)>
+                    {{ $ptOption->name }}
                 </option>
                 @endforeach
             </select>
@@ -140,8 +141,8 @@
                 name="kategori"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
                 <option value="">Pilih kategori</option>
-                <option value="TETAP" @selected(old('kategori')==='TETAP' )>Karyawan Tetap</option>
-                <option value="KONTRAK" @selected(old('kategori')==='KONTRAK' )>Karyawan Kontrak</option>
+                <option value="TETAP" @selected(old('kategori')==='TETAP')>Karyawan Tetap</option>
+                <option value="KONTRAK" @selected(old('kategori')==='KONTRAK')>Karyawan Kontrak</option>
             </select>
         </div>
 
@@ -202,23 +203,29 @@
         </div>
 
         <div style="display:flex;flex-direction:column;gap:4px;">
-            <label for="no_kartu_keluarga" style="font-size:.9rem;font-weight:500;">No. Kartu Keluarga</label>
+            <label for="path_kartu_keluarga" style="font-size:.9rem;font-weight:500;">Kartu Keluarga (Upload)</label>
             <input
-                id="no_kartu_keluarga"
-                type="text"
-                name="no_kartu_keluarga"
-                value="{{ old('no_kartu_keluarga') }}"
-                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
+                id="path_kartu_keluarga"
+                type="file"
+                name="path_kartu_keluarga"
+                accept=".jpg,.jpeg,.png"
+                style="width:100%;padding:6px 0;border-radius:8px;font-size:.9rem;">
+            <div style="font-size:.75rem;opacity:.7;margin-top:2px;">
+                Format: JPG/PNG, maksimal 2MB.
+            </div>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:4px;">
-            <label for="no_ktp" style="font-size:.9rem;font-weight:500;">No. KTP</label>
+            <label for="path_ktp" style="font-size:.9rem;font-weight:500;">KTP (Upload)</label>
             <input
-                id="no_ktp"
-                type="text"
-                name="no_ktp"
-                value="{{ old('no_ktp') }}"
-                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
+                id="path_ktp"
+                type="file"
+                name="path_ktp"
+                accept=".jpg,.jpeg,.png"
+                style="width:100%;padding:6px 0;border-radius:8px;font-size:.9rem;">
+            <div style="font-size:.75rem;opacity:.7;margin-top:2px;">
+                Format: JPG/PNG, maksimal 2MB.
+            </div>
         </div>
 
         <div style="display:flex;flex-direction:column;gap:4px;">
@@ -260,8 +267,8 @@
                 name="jenis_kelamin"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
                 <option value="">Pilih</option>
-                <option value="L" @selected(old('jenis_kelamin')==='L' )>Laki-laki</option>
-                <option value="P" @selected(old('jenis_kelamin')==='P' )>Perempuan</option>
+                <option value="L" @selected(old('jenis_kelamin')==='L')>Laki-laki</option>
+                <option value="P" @selected(old('jenis_kelamin')==='P')>Perempuan</option>
             </select>
         </div>
 
@@ -356,7 +363,7 @@
                 type="text"
                 name="kode_pos"
                 value="{{ old('kode_pos') }}"
-                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font: size 0.9rem;">
+                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
         <div style="height:1px;background:#e5e7eb;margin:8px 0;"></div>
@@ -441,12 +448,12 @@
         </div>
 
         <div style="display:flex;flex-direction:column;gap:4px;">
-            <label for="tgl_berakhir_percobaan" style="font-size:.9rem;font-weight:500;">Tanggal Berakhir Percobaan</label>
+            <label for="tgl_akhir_percobaan" style="font-size:.9rem;font-weight:500;">Tanggal Berakhir Percobaan</label>
             <input
-                id="tgl_berakhir_percobaan"
+                id="tgl_akhir_percobaan"
                 type="date"
-                name="tgl_berakhir_percobaan"
-                value="{{ old('tgl_berakhir_percobaan') }}"
+                name="tgl_akhir_percobaan"
+                value="{{ old('tgl_akhir_percobaan') }}"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 

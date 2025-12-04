@@ -8,6 +8,7 @@
     <form class="card"
         method="POST"
         action="{{ route('hr.employees.update', $item->id) }}"
+        enctype="multipart/form-data"
         style="max-width:520px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:14px;">
         @csrf
         @method('PUT')
@@ -16,7 +17,6 @@
             Data Akun
         </div>
 
-        {{-- NAMA --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="name" style="font-size:.9rem;font-weight:500;">Nama Lengkap</label>
             <input
@@ -28,7 +28,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- USERNAME --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="username" style="font-size:.9rem;font-weight:500;">Username</label>
             <input
@@ -39,7 +38,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- PHONE --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="phone" style="font-size:.9rem;font-weight:500;">No. Telepon</label>
             <input
@@ -51,7 +49,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- ROLE --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="role" style="font-size:.9rem;font-weight:500;">Role</label>
             <select
@@ -68,7 +65,6 @@
             </select>
         </div>
 
-        {{-- DIVISI --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="division_id" style="font-size:.9rem;font-weight:500;">Divisi</label>
             <select
@@ -84,7 +80,6 @@
             </select>
         </div>
 
-        {{-- SHIFT (opsional) --}}
         @isset($shifts)
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="shift_id" style="font-size:.9rem;font-weight:500;">Shift</label>
@@ -102,7 +97,6 @@
         </div>
         @endisset
 
-        {{-- STATUS --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="status" style="font-size:.9rem;font-weight:500;">Status Akun</label>
             <select
@@ -116,7 +110,7 @@
         </div>
 
         <div style="margin-top:4px;font-size:.8rem;opacity:.7;">
-            Password tidak ditampilkan di sini. Jika perlu reset, gunakan menu terpisah / fitur reset password.
+            Password tidak ditampilkan di sini. Jika perlu reset, gunakan menu terpisah atau fitur reset password.
         </div>
 
         <div style="height:1px;background:#e5e7eb;margin:8px 0;"></div>
@@ -129,39 +123,36 @@
         $profile = $item->profile;
         @endphp
 
-        {{-- PT --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
-            <label for="pt" style="font-size:.9rem;font-weight:500;">PT</label>
+            <label for="pt_id" style="font-size:.9rem;font-weight:500;">PT</label>
             <select
-                id="pt"
-                name="pt"
+                id="pt_id"
+                name="pt_id"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;background:#fff;">
                 <option value="">Pilih PT</option>
                 @foreach($ptOptions as $ptOption)
-                <option value="{{ $ptOption }}"
-                    @selected(old('pt', $item->profile->pt ?? '') === $ptOption)>
-                    {{ $ptOption }}
+                <option value="{{ $ptOption->id }}"
+                    @selected(old('pt_id', $item->profile->pt_id ?? null) == $ptOption->id)>
+                    {{ $ptOption->name }}
                 </option>
                 @endforeach
             </select>
         </div>
 
 
-        {{-- KATEGORI --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="kategori" style="font-size:.9rem;font-weight:500;">Kategori</label>
+            @php $kategori = old('kategori', optional($profile)->kategori); @endphp
             <select
                 id="kategori"
                 name="kategori"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
-                @php $kategori = old('kategori', optional($profile)->kategori); @endphp
                 <option value="">Pilih kategori</option>
                 <option value="TETAP" @selected($kategori==='TETAP' )>Karyawan Tetap</option>
                 <option value="KONTRAK" @selected($kategori==='KONTRAK' )>Karyawan Kontrak</option>
             </select>
         </div>
 
-        {{-- NIK --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="nik" style="font-size:.9rem;font-weight:500;">NIK</label>
             <input
@@ -172,7 +163,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- WORK EMAIL --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="work_email" style="font-size:.9rem;font-weight:500;">Work Email</label>
             <input
@@ -183,7 +173,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- JABATAN → pakai master positions --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="position_id" style="font-size:.9rem;font-weight:500;">Jabatan</label>
             <select
@@ -199,7 +188,6 @@
             </select>
         </div>
 
-        {{-- KEWARGANEGARAAN --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="kewarganegaraan" style="font-size:.9rem;font-weight:500;">Kewarganegaraan</label>
             <input
@@ -211,7 +199,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- AGAMA --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="agama" style="font-size:.9rem;font-weight:500;">Agama</label>
             <input
@@ -222,29 +209,74 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- NO KK --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
-            <label for="no_kartu_keluarga" style="font-size:.9rem;font-weight:500;">No. Kartu Keluarga</label>
+            <label for="path_kartu_keluarga" style="font-size:.9rem;font-weight:500;">Kartu Keluarga (Upload)</label>
+            @if(optional($profile)->path_kartu_keluarga)
+            @php $kkModalId = 'modal-kk-'.$item->id; @endphp
+            <div style="margin-bottom:4px;font-size:.8rem;">
+                <button type="button"
+                    data-modal-open="{{ $kkModalId }}"
+                    style="padding:4px 10px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#1e4a8d;font-size:.8rem;cursor:pointer;">
+                    Lihat file saat ini
+                </button>
+            </div>
+
+            <x-modal
+                :id="$kkModalId"
+                title="Kartu Keluarga"
+                type="info">
+                <div style="text-align:center;">
+                    <img src="{{ asset('storage/' . $profile->path_kartu_keluarga) }}"
+                        alt="Kartu Keluarga"
+                        style="max-width:100%;border-radius:8px;display:inline-block;">
+                </div>
+            </x-modal>
+            @endif
             <input
-                id="no_kartu_keluarga"
-                type="text"
-                name="no_kartu_keluarga"
-                value="{{ old('no_kartu_keluarga', optional($profile)->no_kartu_keluarga) }}"
-                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
+                id="path_kartu_keluarga"
+                type="file"
+                name="path_kartu_keluarga"
+                accept=".jpg,.jpeg,.png"
+                style="width:100%;padding:6px 0;border-radius:8px;font-size:.9rem;">
+            <div style="font-size:.75rem;opacity:.7;margin-top:2px;">
+                Kosongkan jika tidak ingin mengubah. Format: JPG/PNG, maksimal 2MB.
+            </div>
         </div>
 
-        {{-- NO KTP --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
-            <label for="no_ktp" style="font-size:.9rem;font-weight:500;">No. KTP</label>
+            <label for="path_ktp" style="font-size:.9rem;font-weight:500;">KTP (Upload)</label>
+            @if(optional($profile)->path_ktp)
+            @php $ktpModalId = 'modal-ktp-'.$item->id; @endphp
+            <div style="margin-bottom:4px;font-size:.8rem;">
+                <button type="button"
+                    data-modal-open="{{ $ktpModalId }}"
+                    style="padding:4px 10px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#1e4a8d;font-size:.8rem;cursor:pointer;">
+                    Lihat file saat ini
+                </button>
+            </div>
+
+            <x-modal
+                :id="$ktpModalId"
+                title="KTP"
+                type="info">
+                <div style="text-align:center;">
+                    <img src="{{ asset('storage/' . $profile->path_ktp) }}"
+                        alt="KTP"
+                        style="max-width:100%;border-radius:8px;display:inline-block;">
+                </div>
+            </x-modal>
+            @endif
             <input
-                id="no_ktp"
-                type="text"
-                name="no_ktp"
-                value="{{ old('no_ktp', optional($profile)->no_ktp) }}"
-                style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
+                id="path_ktp"
+                type="file"
+                name="path_ktp"
+                accept=".jpg,.jpeg,.png"
+                style="width:100%;padding:6px 0;border-radius:8px;font-size:.9rem;">
+            <div style="font-size:.75rem;opacity:.7;margin-top:2px;">
+                Kosongkan jika tidak ingin mengubah. Format: JPG/PNG, maksimal 2MB.
+            </div>
         </div>
 
-        {{-- NAMA BANK --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="nama_bank" style="font-size:.9rem;font-weight:500;">Nama Bank</label>
             <input
@@ -256,7 +288,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- NO REKENING --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="no_rekening" style="font-size:.9rem;font-weight:500;">No. Rekening</label>
             <input
@@ -267,7 +298,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- PENDIDIKAN --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="pendidikan" style="font-size:.9rem;font-weight:500;">Pendidikan Terakhir</label>
             <input
@@ -279,7 +309,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- JENIS KELAMIN --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="jenis_kelamin" style="font-size:.9rem;font-weight:500;">Jenis Kelamin</label>
             @php $jk = old('jenis_kelamin', optional($profile)->jenis_kelamin); @endphp
@@ -293,7 +322,6 @@
             </select>
         </div>
 
-        {{-- TANGGAL LAHIR --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="tgl_lahir" style="font-size:.9rem;font-weight:500;">Tanggal Lahir</label>
             <input
@@ -304,7 +332,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- TEMPAT LAHIR --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="tempat_lahir" style="font-size:.9rem;font-weight:500;">Tempat Lahir</label>
             <input
@@ -321,7 +348,6 @@
             Alamat
         </div>
 
-        {{-- ALAMAT 1 --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="alamat1" style="font-size:.9rem;font-weight:500;">Alamat 1</label>
             <textarea
@@ -331,7 +357,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">{{ old('alamat1', optional($profile)->alamat1) }}</textarea>
         </div>
 
-        {{-- ALAMAT 2 --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="alamat2" style="font-size:.9rem;font-weight:500;">Alamat 2</label>
             <textarea
@@ -341,7 +366,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">{{ old('alamat2', optional($profile)->alamat2) }}</textarea>
         </div>
 
-        {{-- PROVINSI --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="provinsi" style="font-size:.9rem;font-weight:500;">Provinsi</label>
             <input
@@ -352,7 +376,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- KAB / KOTA --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="kab_kota" style="font-size:.9rem;font-weight:500;">Kab/Kota</label>
             <input
@@ -363,7 +386,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- KECAMATAN --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="kecamatan" style="font-size:.9rem;font-weight:500;">Kecamatan</label>
             <input
@@ -374,7 +396,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- DESA / KELURAHAN --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="desa_kelurahan" style="font-size:.9rem;font-weight:500;">Desa/Kelurahan</label>
             <input
@@ -385,7 +406,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- KODE POS --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="kode_pos" style="font-size:.9rem;font-weight:500;">Kode Pos</label>
             <input
@@ -402,7 +422,6 @@
             Info Pajak & BPJS
         </div>
 
-        {{-- PTKP --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="ptkp" style="font-size:.9rem;font-weight:500;">PTKP</label>
             <input
@@ -414,7 +433,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- NPWP --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="no_npwp" style="font-size:.9rem;font-weight:500;">No. NPWP</label>
             <input
@@ -425,7 +443,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- BPJS TK --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="bpjs_tk" style="font-size:.9rem;font-weight:500;">BPJS TK</label>
             <input
@@ -436,7 +453,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- BPJS KESEHATAN --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="no_bpjs_kesehatan" style="font-size:.9rem;font-weight:500;">No. BPJS Kesehatan</label>
             <input
@@ -447,7 +463,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- KELAS BPJS --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="kelas_bpjs" style="font-size:.9rem;font-weight:500;">Kelas BPJS</label>
             <input
@@ -461,7 +476,6 @@
 
         <div style="height:1px;background:#e5e7eb;margin:8px 0;"></div>
 
-        {{-- MASA KERJA --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="masa_kerja" style="font-size:.9rem;font-weight:500;">Masa Kerja</label>
             <input
@@ -473,7 +487,6 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- TGL BERGABUNG --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
             <label for="tgl_bergabung" style="font-size:.9rem;font-weight:500;">Tanggal Bergabung</label>
             <input
@@ -484,14 +497,13 @@
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
-        {{-- TGL AKHIR PERCOBAAN --}}
         <div style="display:flex;flex-direction:column;gap:4px;">
-            <label for="tgl_berakhir_percobaan" style="font-size:.9rem;font-weight:500;">Tanggal Berakhir Percobaan</label>
+            <label for="tgl_akhir_percobaan" style="font-size:.9rem;font-weight:500;">Tanggal Berakhir Percobaan</label>
             <input
-                id="tgl_berakhir_percobaan"
+                id="tgl_akhir_percobaan"
                 type="date"
-                name="tgl_berakhir_percobaan"
-                value="{{ old('tgl_berakhir_percobaan', optional(optional($profile)->tgl_berakhir_percobaan)->format('Y-m-d')) }}"
+                name="tgl_akhir_percobaan"
+                value="{{ old('tgl_akhir_percobaan', optional(optional($profile)->tgl_akhir_percobaan)->format('Y-m-d')) }}"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
@@ -506,4 +518,37 @@
             </a>
         </div>
     </form>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var openButtons = document.querySelectorAll('[data-modal-open]');
+            openButtons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var id = btn.getAttribute('data-modal-open');
+                    if (!id) return;
+                    var modal = document.getElementById(id);
+                    if (!modal) return;
+                    modal.style.display = 'flex';
+                });
+            });
+
+            var closeButtons = document.querySelectorAll('[data-modal-close="true"]');
+            closeButtons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var modal = btn.closest('.modal-backdrop');
+                    if (!modal) return;
+                    modal.style.display = 'none';
+                });
+            });
+
+            var backdrops = document.querySelectorAll('.modal-backdrop');
+            backdrops.forEach(function(backdrop) {
+                backdrop.addEventListener('click', function(e) {
+                    if (e.target === backdrop) {
+                        backdrop.style.display = 'none';
+                    }
+                });
+            });
+        });
+    </script>
 </x-app>

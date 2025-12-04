@@ -57,13 +57,10 @@
             </div>
             @endif
 
-
             @if ($url)
             <p><b>Foto:</b></p>
-            <div class="photo-box">
-                <a href="{{ $url }}" target="_blank" rel="noopener">
-                    <img src="{{ $url }}" alt="Foto Izin">
-                </a>
+            <div class="photo-box js-view-leave-photo" data-photo-url="{{ $url }}">
+                <img src="{{ $url }}" alt="Foto Izin">
             </div>
             @elseif ($item->photo)
             <div class="card" style="background:#ffecec;color:#a40000;border:1px solid #f5c2c7">
@@ -103,22 +100,54 @@
         </div>
     </div>
 
+    <x-modal
+        id="leave-photo-modal"
+        title="Foto Pengajuan Izin"
+        type="info"
+        cancelLabel="Tutup"
+    >
+        <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="font-size:0.85rem;color:#4b5563;">
+                Foto saat karyawan mengajukan izin.
+            </div>
+            <div style="border-radius:10px;overflow:hidden;border:1px solid #e5e7eb;max-height:70vh;">
+                <img id="leave-photo-img"
+                     src=""
+                     alt="Foto Pengajuan Izin"
+                     style="width:100%;height:auto;display:block;object-fit:contain;background:#000;">
+            </div>
+        </div>
+    </x-modal>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        document.querySelectorAll('.js-confirm').forEach(f => {
-            f.addEventListener('submit', e => {
-                const msg = f.dataset.msg || 'Lanjutkan aksi?';
+        document.querySelectorAll('.js-confirm').forEach(function (f) {
+            f.addEventListener('submit', function (e) {
+                var msg = f.dataset.msg || 'Lanjutkan aksi?';
                 if (!confirm(msg)) {
                     e.preventDefault();
                     return;
                 }
-                const b = f.querySelector('button[type="submit"]');
+                var b = f.querySelector('button[type="submit"]');
                 if (b) {
                     b.disabled = true;
                     b.style.opacity = '.7';
                 }
+            });
+        });
+
+        var leavePhotoModal = document.getElementById('leave-photo-modal');
+        var leavePhotoImg = document.getElementById('leave-photo-img');
+
+        document.querySelectorAll('.js-view-leave-photo').forEach(function (box) {
+            box.addEventListener('click', function () {
+                var url = box.getAttribute('data-photo-url');
+                if (!url || !leavePhotoModal || !leavePhotoImg) return;
+                leavePhotoImg.src = url;
+                leavePhotoModal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
             });
         });
     </script>
@@ -156,6 +185,7 @@
             overflow: hidden;
             box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
             max-width: 320px;
+            cursor: pointer;
         }
 
         .photo-box img {
@@ -211,7 +241,6 @@
             border: 0;
             display: block;
         }
-
 
         @media(max-width:600px) {
             .lr-detail {

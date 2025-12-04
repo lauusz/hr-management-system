@@ -257,14 +257,14 @@
           Daftar Pengajuan Izin/Cuti
         </a>
 
+        <a href="{{ route('hr.employees.index') }}"
+          class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">
+          Daftar Karyawan
+        </a>
+
         <a href="{{ route('hr.leave.master') }}"
           class="{{ request()->routeIs('hr.leave.master') ? 'active' : '' }}">
           Master Izin/Cuti
-        </a>
-
-        <a href="{{ route('hr.shifts.index') }}"
-          class="{{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">
-          Master Shift
         </a>
 
         <a href="{{ route('hr.divisions.index') }}"
@@ -277,9 +277,9 @@
           Master Jabatan
         </a>
 
-        <a href="{{ route('hr.employees.index') }}"
-          class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">
-          Daftar Karyawan
+        <a href="{{ route('hr.shifts.index') }}"
+          class="{{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">
+          Master Shift
         </a>
 
         <a href="{{ route('hr.locations.index') }}"
@@ -295,6 +295,11 @@
         <a href="{{ route('hr.attendances.index') }}"
           class="{{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">
           Master Absensi
+        </a>
+
+        <a href="{{ route('hr.pts.index') }}"
+          class="{{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">
+          Master PT
         </a>
         @endif
 

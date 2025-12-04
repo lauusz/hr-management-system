@@ -21,8 +21,8 @@ return new class extends Migration
             $table->string('jabatan', 150)->nullable();
             $table->string('kewarganegaraan', 50)->nullable();
             $table->string('agama', 50)->nullable();
-            $table->string('no_kartu_keluarga', 50)->nullable();
-            $table->string('no_ktp', 50)->nullable();
+            $table->string('path_kartu_keluarga', 50)->nullable();
+            $table->string('path_ktp', 50)->nullable();
             $table->string('nama_bank', 100)->nullable();
             $table->string('no_rekening', 50)->nullable();
             $table->string('pendidikan', 100)->nullable();

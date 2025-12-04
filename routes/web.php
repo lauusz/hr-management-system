@@ -14,6 +14,7 @@ use App\Http\Controllers\HR\PositionController;
 use App\Http\Controllers\HR\ScheduleController;
 use App\Http\Controllers\HRAttendanceController;
 use App\Http\Controllers\HREmployeeController;
+use App\Http\Controllers\PtController;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -58,6 +59,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/hr/employees', [HREmployeeController::class, 'store'])->name('hr.employees.store');
         Route::get('/hr/employees/{employee}/edit', [HREmployeeController::class, 'edit'])->name('hr.employees.edit');
         Route::put('/hr/employees/{employee}', [HREmployeeController::class, 'update'])->name('hr.employees.update');
+        Route::put('/hr/employees/{employee}/exit', [HREmployeeController::class, 'exit'])
+            ->name('hr.employees.exit');
         Route::delete('/hr/employees/{employee}', [HREmployeeController::class, 'destroy'])->name('hr.employees.destroy');
 
         Route::get('/hr/employees/{user}/shift', [EmployeeShiftController::class, 'edit'])->name('hr.employees.shift.edit');
@@ -92,6 +95,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/divisions/{division}/edit', [DivisionController::class, 'edit'])->name('hr.divisions.edit');
         Route::put('/hr/divisions/{division}', [DivisionController::class, 'update'])->name('hr.divisions.update');
         Route::delete('/hr/divisions/{division}', [DivisionController::class, 'destroy'])->name('hr.divisions.destroy');
+
+        Route::get('/hr/pts', [PtController::class, 'index'])->name('hr.pts.index');
+        Route::get('/hr/pts/create', [PtController::class, 'create'])->name('hr.pts.create');
+        Route::post('/hr/pts', [PtController::class, 'store'])->name('hr.pts.store');
+        Route::get('/hr/pts/{pt}/edit', [PtController::class, 'edit'])->name('hr.pts.edit');
+        Route::put('/hr/pts/{pt}', [PtController::class, 'update'])->name('hr.pts.update');
+        Route::delete('/hr/pts/{pt}', [PtController::class, 'destroy'])->name('hr.pts.destroy');
     });
 
     Route::middleware('role:SUPERVISOR')->group(function () {

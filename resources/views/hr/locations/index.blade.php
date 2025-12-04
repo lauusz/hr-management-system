@@ -5,7 +5,7 @@
         </div>
     @endif
 
-    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+    <div class="card" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
         <div style="font-size:0.9rem;opacity:.7;">
             Master lokasi yang dipakai untuk presensi karyawan (gudang, depo, dsb).
         </div>

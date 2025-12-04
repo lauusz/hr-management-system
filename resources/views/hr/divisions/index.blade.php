@@ -12,7 +12,7 @@
         </div>
     @endif
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
         <div style="font-size:0.9rem;opacity:.7;">
             Daftar divisi yang terdaftar di sistem. Setiap divisi dapat memiliki supervisor.
         </div>

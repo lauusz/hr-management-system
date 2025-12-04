@@ -7,6 +7,7 @@ use App\Models\Shift;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Division;
+use App\Models\Pt;
 
 class DatabaseSeeder extends Seeder
 {

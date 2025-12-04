@@ -15,8 +15,8 @@ class EmployeeProfile extends Model
         'jabatan',
         'kewarganegaraan',
         'agama',
-        'no_kartu_keluarga',
-        'no_ktp',
+        'path_kartu_keluarga',
+        'path_ktp',
         'nama_bank',
         'no_rekening',
         'pendidikan',
@@ -44,15 +44,28 @@ class EmployeeProfile extends Model
         'tgl_akhir_percobaan',
         'lokasi_kerja',
         'alamat_sesuai_ktp',
+
+        'exit_date',
+        'exit_reason_code',
+        'exit_reason_note',
     ];
+
 
     protected $casts = [
         'tgl_lahir' => 'date',
         'tgl_bergabung' => 'date',
         'tgl_akhir_percobaan' => 'date',
+        'exit_date' => 'date',
     ];
 
-    public function user(){
+
+    public function user()
+    {
         return $this->belongsTo(User::class);
+    }
+
+    public function pt()
+    {
+        return $this->belongsTo(Pt::class, 'pt_id');
     }
 }
