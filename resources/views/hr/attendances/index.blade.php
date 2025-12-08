@@ -2,18 +2,37 @@
 
     <div class="card" style="margin-bottom:14px;">
         <form method="GET" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+
+            @php
+            $rangeValue = '';
+            if (!empty($date_start) && !empty($date_end)) {
+            $rangeValue = $date_start . ' sampai ' . $date_end;
+            } elseif (!empty($date_start)) {
+            $rangeValue = $date_start;
+            }
+            @endphp
+
             <div>
                 <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Tanggal</label>
-                <input type="date" name="date" value="{{ $date }}"
-                    style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;">
+                <input
+                    type="text"
+                    id="date_range"
+                    name="date_range"
+                    value="{{ $rangeValue }}"
+                    placeholder="Pilih rentang tanggal"
+                    autocomplete="off"
+                    style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:200px;">
+
+                <input type="hidden" name="date_start" id="date_start" value="{{ $date_start ?? '' }}">
+                <input type="hidden" name="date_end" id="date_end" value="{{ $date_end ?? '' }}">
             </div>
 
             <div>
                 <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Status</label>
                 <select name="status" style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:120px;">
                     <option value="">Semua</option>
-                    <option value="HADIR" @selected($status=='HADIR' )>Hadir</option>
-                    <option value="TERLAMBAT" @selected($status=='TERLAMBAT' )>Terlambat</option>
+                    <option value="HADIR" @selected(($status ?? '' )=='HADIR' )>Hadir</option>
+                    <option value="TERLAMBAT" @selected(($status ?? '' )=='TERLAMBAT' )>Terlambat</option>
                 </select>
             </div>
 
@@ -23,11 +42,11 @@
                     name="q"
                     value="{{ $q ?? '' }}"
                     placeholder="Cari nama karyawan..."
-                    style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:200px;">
+                    style="padding:6px 10px;border-radius:8px;border:1px solid:#ddd;font-size:0.85rem;min-width:200px;">
             </div>
 
             <button style="padding:8px 14px;background:#1e4a8d;color:#fff;border:none;
-                           border-radius:999px;cursor:pointer;font-size:0.85rem;white-space:nowrap;">
+                       border-radius:999px;cursor:pointer;font-size:0.85rem;white-space:nowrap;">
                 Filter
             </button>
             <a href="{{ route('hr.attendances.index') }}"
@@ -84,7 +103,7 @@
                             </span>
                         </td>
 
-                        <td style="padding:10px 12px;vertical-align:middle%;">
+                        <td style="padding:10px 12px;vertical-align:middle;">
                             <span style="font-size:0.85rem;color:#374151;">
                                 {{ $at->shift->name ?? '-' }}
                             </span>
@@ -153,7 +172,6 @@
                             @endif
                         </td>
 
-
                         <td style="padding:10px 12px;vertical-align:middle;">
                             @if ($at->status === 'TERLAMBAT')
                             <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:#fee2e2;color:#b91c1c;font-weight:600;font-size:0.78rem;">
@@ -170,7 +188,7 @@
                             @endif
                         </td>
 
-                        <td style="padding:10px 12px;vertical-align:middle%;">
+                        <td style="padding:10px 12px;vertical-align:middle;">
                             @if($at->clock_in_photo)
                             <button type="button"
                                 class="btn-view-photo"
@@ -178,7 +196,7 @@
                                 data-employee-name="{{ $at->user->name }}"
                                 data-datetime="{{ $at->clock_in_at ? $at->clock_in_at->format('d/m/Y H:i') : '' }}"
                                 style="padding:4px 10px;border-radius:999px;background:#1e40af;color:#fff;
-                                                   font-size:0.8rem;border:none;cursor:pointer;white-space:nowrap;">
+                                           font-size:0.8rem;border:none;cursor:pointer;white-space:nowrap;">
                                 View
                             </button>
                             @else
@@ -191,7 +209,7 @@
                             <a href="https://www.google.com/maps?q={{ $at->clock_in_lat }},{{ $at->clock_in_lng }}"
                                 target="_blank"
                                 style="padding:4px 10px;border-radius:999px;background:#0369a1;color:#fff;
-                                              font-size:0.8rem;text-decoration:none;display:inline-block;white-space:nowrap;">
+                                      font-size:0.8rem;text-decoration:none;display:inline-block;white-space:nowrap;">
                                 Maps
                             </a>
                             @else
@@ -199,12 +217,12 @@
                             @endif
                         </td>
 
-                        <td style="padding:10px 12px;vertical-align:middle%;">
+                        <td style="padding:10px 12px;vertical-align:middle;">
                             @if($at->clock_out_lat && $at->clock_out_lng)
                             <a href="https://www.google.com/maps?q={{ $at->clock_out_lat }},{{ $at->clock_out_lng }}"
                                 target="_blank"
                                 style="padding:4px 10px;border-radius:999px;background:#0369a1;color:#fff;
-                                              font-size:0.8rem;text-decoration:none;display:inline-block;white-space:nowrap;">
+                                      font-size:0.8rem;text-decoration:none;display:inline-block;white-space:nowrap;">
                                 Maps
                             </a>
                             @else
@@ -236,11 +254,11 @@
         <div style="display:flex;flex-direction:column;gap:10px;">
             <div id="attendancePhotoMeta" style="font-size:0.85rem;color:#4b5563;">
             </div>
-            <div style="border-radius:10px;overflow:hidden;border:1px solid #e5e7eb;max-height:70vh;">
+            <div style="border-radius:10px;border:1px solid #e5e7eb;max-height:70vh;display:flex;align-items:center;justify-content:center;background:#000;">
                 <img id="attendancePhotoImg"
                     src=""
                     alt="Foto presensi"
-                    style="width:100%;height:auto;display:block;object-fit:contain;background:#000;">
+                    style="max-width:100%;max-height:70vh;width:auto;height:auto;display:block;">
             </div>
         </div>
     </x-modal>
@@ -276,5 +294,44 @@
             });
         });
     </script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            var rangeInput = document.getElementById('date_range');
+            var startHidden = document.getElementById('date_start');
+            var endHidden = document.getElementById('date_end');
+
+            if (typeof flatpickr === 'function' && rangeInput) {
+                flatpickr(rangeInput, {
+                    mode: "range",
+                    dateFormat: "Y-m-d",
+                    allowInput: true,
+                    locale: {
+                        rangeSeparator: " sampai "
+                    },
+                    onChange: function(selectedDates, dateStr) {
+                        if (!dateStr) {
+                            startHidden.value = "";
+                            endHidden.value = "";
+                            return;
+                        }
+
+                        var parts = dateStr.split(" sampai ");
+
+                        if (parts.length === 1) {
+                            startHidden.value = parts[0];
+                            endHidden.value = parts[0];
+                        } else {
+                            startHidden.value = parts[0];
+                            endHidden.value = parts[1];
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+
 
 </x-app>

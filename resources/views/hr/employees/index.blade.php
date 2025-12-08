@@ -115,7 +115,7 @@
                         <th style="text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
                             Status
                         </th>
-                        <th style="text-align:right;padding:9px 12px;border-bottom:1px solid #e5e7eb;width:190px;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
+                        <th style="text-align:right;padding:9px 12px;border-bottom:1px solid #e5e7eb;width:130px;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
                             Aksi
                         </th>
                     </tr>
@@ -148,13 +148,46 @@
                                 $statusBg = '#fee2e2';
                                 $statusColor = '#b91c1c';
                             }
+
+                            $masaKerjaDisplay = '-';
+                            $joinDate = $emp->profile?->tgl_bergabung;
+
+                            if ($joinDate) {
+                                $start = \Carbon\Carbon::parse($joinDate)->startOfDay();
+                                $end = \Carbon\Carbon::today();
+
+                                if ($end->greaterThanOrEqualTo($start)) {
+                                    $diff = $start->diff($end);
+                                    $parts = [];
+
+                                    if ($diff->y > 0) {
+                                        $parts[] = $diff->y.' Tahun';
+                                    }
+
+                                    if ($diff->m > 0) {
+                                        $parts[] = $diff->m.' Bulan';
+                                    }
+
+                                    if ($diff->y === 0 && $diff->m === 0 && $diff->d > 0) {
+                                        $parts[] = $diff->d.' Hari';
+                                    }
+
+                                    if (empty($parts)) {
+                                        $parts[] = '0 Hari';
+                                    }
+
+                                    $masaKerjaDisplay = implode(' ', $parts);
+                                }
+                            }
                         @endphp
                         <tr style="border-bottom:1px solid #f3f4f6;">
                             <td style="padding:9px 12px;vertical-align:middle;">
                                 <div style="display:flex;flex-direction:column;gap:2px;max-width:260px;">
-                                    <span style="font-size:0.9rem;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                        {{ $emp->name }}
-                                    </span>
+                                    <a href="{{ route('hr.employees.show', $emp->id) }}" style="text-decoration:none;color:inherit;">
+                                        <span style="font-size:0.9rem;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                                            {{ $emp->name }}
+                                        </span>
+                                    </a>
                                     @if($emp->division?->name)
                                     <span style="font-size:0.78rem;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                                         {{ $emp->division->name }}
@@ -183,7 +216,7 @@
 
                             <td style="padding:9px 12px;vertical-align:middle;white-space:nowrap;">
                                 <span style="font-size:0.85rem;color:#374151;">
-                                    {{ $emp->masa_kerja_label ?? '-' }}
+                                    {{ $masaKerjaDisplay }}
                                 </span>
                             </td>
 
@@ -206,20 +239,10 @@
                             </td>
 
                             <td style="padding:9px 12px;vertical-align:middle;text-align:right;white-space:nowrap;">
-                                <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;">
-                                    <a href="{{ route('hr.employees.edit', $emp->id) }}"
-                                        style="padding:5px 10px;border-radius:999px;border:1px solid #d1d5db;font-size:.8rem;text-decoration:none;color:#111827;background:#fff;">
-                                        Edit
-                                    </a>
-
-                                    @if(($emp->status ?? 'ACTIVE') === 'ACTIVE')
-                                    <button type="button"
-                                        data-modal-target="exit-employee-{{ $emp->id }}"
-                                        style="padding:5px 10px;border-radius:999px;border:1px solid #fecaca;background:#fee2e2;color:#b91c1c;font-size:.8rem;cursor:pointer;">
-                                        Keluarkan
-                                    </button>
-                                    @endif
-                                </div>
+                                <a href="{{ route('hr.employees.show', $emp->id) }}"
+                                    style="padding:5px 12px;border-radius:999px;border:1px solid #d1d5db;font-size:.8rem;text-decoration:none;color:#111827;background:#f9fafb;">
+                                    Detail
+                                </a>
                             </td>
 
                         </tr>
@@ -235,62 +258,6 @@
 
         </div>
     </div>
-
-    @foreach($items as $emp)
-        @if(($emp->status ?? 'ACTIVE') === 'ACTIVE')
-        <x-modal
-            id="exit-employee-{{ $emp->id }}"
-            title="Keluarkan Karyawan?"
-            type="confirm"
-            confirmLabel="Simpan"
-            cancelLabel="Batal"
-            :confirmFormAction="route('hr.employees.exit', $emp->id)"
-            confirmFormMethod="PUT">
-            <div style="margin-bottom:8px;">
-                <p style="margin:0 0 4px 0;">
-                    Tentukan tanggal dan alasan karyawan berikut keluar dari perusahaan.
-                </p>
-                <p style="margin:0;font-weight:600;">
-                    {{ $emp->name }}
-                </p>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
-                <div>
-                    <div style="font-size:0.85rem;margin-bottom:4px;">Tanggal keluar</div>
-                    <input
-                        type="date"
-                        name="exit_date"
-                        value="{{ $emp->profile?->exit_date?->format('Y-m-d') }}"
-                        style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid #d1d5db;font-size:0.85rem;">
-                </div>
-
-                <div>
-                    <div style="font-size:0.85rem;margin-bottom:4px;">Alasan keluar</div>
-                    <select
-                        name="exit_reason_code"
-                        style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid #d1d5db;font-size:0.85rem;background:#fff;">
-                        <option value="">Pilih alasan</option>
-                        <option value="RESIGN" @selected($emp->profile?->exit_reason_code === 'RESIGN')>Resign</option>
-                        <option value="HABIS_KONTRAK" @selected($emp->profile?->exit_reason_code === 'HABIS_KONTRAK')>Habis kontrak</option>
-                        <option value="PHK" @selected($emp->profile?->exit_reason_code === 'PHK')>PHK</option>
-                        <option value="PENSIUN" @selected($emp->profile?->exit_reason_code === 'PENSIUN')>Pensiun</option>
-                        <option value="MENINGGAL" @selected($emp->profile?->exit_reason_code === 'MENINGGAL')>Meninggal</option>
-                        <option value="LAINNYA" @selected($emp->profile?->exit_reason_code === 'LAINNYA')>Lainnya</option>
-                    </select>
-                </div>
-
-                <div>
-                    <div style="font-size:0.85rem;margin-bottom:4px;">Catatan</div>
-                    <textarea
-                        name="exit_reason_note"
-                        rows="3"
-                        style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid #d1d5db;font-size:0.85rem;resize:vertical;">{{ $emp->profile?->exit_reason_note }}</textarea>
-                </div>
-            </div>
-        </x-modal>
-        @endif
-    @endforeach
 
     <div style="margin-top:12px;">
         <x-pagination :items="$items" />

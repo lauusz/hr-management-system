@@ -1,8 +1,28 @@
 <x-app title="Buat Pengajuan Izin">
+    @php
+        $joinDate = auth()->user()->profile->tgl_bergabung ?? null;
+        $underOneYear = false;
+
+        if ($joinDate) {
+            $start = \Carbon\Carbon::parse($joinDate)->startOfDay();
+            $end = \Carbon\Carbon::today();
+            $underOneYear = $start->diffInYears($end) < 1;
+        }
+
+        $oldStart = old('start_date');
+        $oldEnd = old('end_date');
+        $oldRange = '';
+        if ($oldStart && $oldEnd) {
+            $oldRange = $oldStart . ' sampai ' . $oldEnd;
+        } elseif ($oldStart) {
+            $oldRange = $oldStart;
+        }
+    @endphp
+
     @if ($errors->any())
-    <div class="alert-error">
-        {{ $errors->first() }}
-    </div>
+        <div class="alert-error">
+            {{ $errors->first() }}
+        </div>
     @endif
 
     <form class="card form-leave" method="POST" action="{{ route('leave-requests.store') }}" enctype="multipart/form-data">
@@ -13,40 +33,49 @@
                 <label><b>Jenis Pengajuan:</b></label>
                 <div class="card" style="padding:10px; display:grid; gap:6px">
                     @foreach (\App\Enums\LeaveType::cases() as $case)
-                    <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
-                        <input
-                            type="radio"
-                            name="type"
-                            value="{{ $case->value }}"
-                            @if ($loop->first) required @endif
-                        @checked(old('type') === $case->value)
-                        >
-                        <span style="line-height:1.4">{{ $case->label() }}</span>
-                    </label>
+                        <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer;">
+                            <input
+                                type="radio"
+                                name="type"
+                                value="{{ $case->value }}"
+                                @if ($loop->first) required @endif
+                                @checked(old('type') === $case->value)
+                            >
+                            <span style="line-height:1.4">{{ $case->label() }}</span>
+                        </label>
                     @endforeach
                 </div>
                 @error('type') <div class="error">{{ $message }}</div> @enderror
             </div>
 
-            <div class="field">
-                <label><b>Tanggal Mulai:</b></label>
-                <input type="date" name="start_date" value="{{ old('start_date') }}" required>
+            <div class="field full">
+                <label><b>Periode Izin:</b></label>
+                <input
+                    type="text"
+                    id="date_range"
+                    name="date_range"
+                    value="{{ $oldRange }}"
+                    placeholder="Pilih tanggal mulai sampai selesai"
+                    autocomplete="off">
+                <input type="hidden" name="start_date" id="start_date" value="{{ $oldStart }}">
+                <input type="hidden" name="end_date" id="end_date" value="{{ $oldEnd }}">
                 @error('start_date') <div class="error">{{ $message }}</div> @enderror
+                @error('end_date') <div class="error">{{ $message }}</div> @enderror
             </div>
 
             <div class="field full">
                 <small id="cuti-rule" style="display:none; color:#6b7280;"></small>
                 <div id="h7-warning"
-                    role="alert"
-                    aria-live="polite"
-                    style="display:none; margin-top:6px; background:#fef9c3; color:#854d0e; padding:8px 10px; border-radius:8px;">
+                     role="alert"
+                     aria-live="polite"
+                     style="display:none; margin-top:6px; background:#fef9c3; color:#854d0e; padding:8px 10px; border-radius:8px;">
                 </div>
-            </div>
-
-            <div class="field">
-                <label><b>Tanggal Selesai:</b></label>
-                <input type="date" name="end_date" value="{{ old('end_date') }}" required>
-                @error('end_date') <div class="error">{{ $message }}</div> @enderror
+                <div id="tenure-warning"
+                     role="alert"
+                     aria-live="polite"
+                     data-under-one-year="{{ $underOneYear ? '1' : '0' }}"
+                     style="display:none; margin-top:6px; background:#fef9c3; color:#854d0e; padding:8px 10px; border-radius:8px;">
+                </div>
             </div>
 
             <div class="field full" id="location">
@@ -67,8 +96,15 @@
 
             <div class="field full">
                 <label><b>Bukti Pendukung:</b></label>
-                <input type="file" name="photo" id="photoInput" accept="image/*">
-                <div class="hint">Format gambar (JPG/PNG/WebP), maks 4 MB.</div>
+                <input
+                    type="file"
+                    name="photo"
+                    id="photoInput"
+                    accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx">
+                <div class="hint">
+                    Format: JPG, JPEG, PNG, WebP, HEIC, HEIF, PDF, DOC, DOCX, XLS, XLSX. Maksimal 8 MB.
+                    Untuk izin telat, jika mengupload foto maka sistem akan otomatis mengecilkan ukuran file.
+                </div>
                 @error('photo') <div class="error">{{ $message }}</div> @enderror
 
                 <div id="photoPreviewContainer" class="preview-container">
@@ -249,7 +285,10 @@
                 const show = (val === IZIN_TELAT);
                 section.style.display = show ? 'grid' : 'none';
                 if (!show) {
-                    latEl.value = lngEl.value = accEl.value = tsEl.value = '';
+                    latEl.value = '';
+                    lngEl.value = '';
+                    accEl.value = '';
+                    tsEl.value = '';
                     statusEl.textContent = '';
                     mapDiv.style.display = 'none';
                 }
@@ -347,7 +386,7 @@
 
             input.addEventListener('change', function() {
                 const file = this.files[0];
-                if (file) {
+                if (file && file.type && file.type.startsWith('image/')) {
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         previewImg.src = e.target.result;
@@ -384,126 +423,181 @@
     </x-modal>
 
     @push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            (function() {
-                const CUTI_VALUE = @json(\App\Enums\LeaveType::CUTI->value);
-                const startInput = document.querySelector('input[name="start_date"]');
-                const ruleEl = document.getElementById('cuti-rule');
-                const warnEl = document.getElementById('h7-warning');
-                const typeRadios = document.querySelectorAll('input[name="type"]');
-                var shouldShowIzinTelatPopup = !!@json(session('show_izin_telat_popup'));
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                (function() {
+                    const CUTI_VALUE = @json(\App\Enums\LeaveType::CUTI->value);
+                    const startInput = document.getElementById('start_date');
+                    const ruleEl = document.getElementById('cuti-rule');
+                    const warnEl = document.getElementById('h7-warning');
+                    const tenureWarnEl = document.getElementById('tenure-warning');
+                    const typeRadios = document.querySelectorAll('input[name="type"]');
+                    var shouldShowIzinTelatPopup = !!@json(session('show_izin_telat_popup'));
 
-                function parseYMD(ymd) {
-                    if (!ymd) return null;
-                    const parts = ymd.split('-').map(Number);
-                    const dt = new Date(parts[0], parts[1] - 1, parts[2]);
-                    dt.setHours(0, 0, 0, 0);
-                    return dt;
-                }
+                    const isUnderOneYear = tenureWarnEl
+                        ? tenureWarnEl.getAttribute('data-under-one-year') === '1'
+                        : false;
 
-                function todayStart() {
-                    const t = new Date();
-                    t.setHours(0, 0, 0, 0);
-                    return t;
-                }
-
-                function boundaryDateH7() {
-                    const t = todayStart();
-                    const b = new Date(t);
-                    b.setDate(b.getDate() + 7);
-                    return b;
-                }
-
-                function formatID(d) {
-                    return d.toLocaleDateString('id-ID', {
-                        day: '2-digit',
-                        month: 'long',
-                        year: 'numeric'
-                    });
-                }
-
-                function getSelectedType() {
-                    const r = document.querySelector('input[name="type"]:checked');
-                    return r ? r.value : null;
-                }
-
-                function isCutiSelected() {
-                    return getSelectedType() === CUTI_VALUE;
-                }
-
-                function renderRuleVisibility() {
-                    if (!ruleEl || !warnEl) return;
-
-                    if (isCutiSelected()) {
-                        ruleEl.style.display = 'block';
-                        ruleEl.innerHTML = 'Ketentuan: pengajuan minimal H-7 dari hari ini (≥ <b>' + formatID(boundaryDateH7()) + '</b>).';
-                        updateWarning();
-                    } else {
-                        ruleEl.style.display = 'none';
-                        ruleEl.textContent = '';
-                        warnEl.style.display = 'none';
-                        warnEl.textContent = '';
-                    }
-                }
-
-                function updateWarning() {
-                    if (!isCutiSelected()) {
-                        warnEl.style.display = 'none';
-                        warnEl.textContent = '';
-                        return;
+                    function parseYMD(ymd) {
+                        if (!ymd) return null;
+                        const parts = ymd.split('-').map(Number);
+                        const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+                        dt.setHours(0, 0, 0, 0);
+                        return dt;
                     }
 
-                    const today = todayStart();
-                    const start = parseYMD(startInput ? startInput.value : '');
-                    if (!(start instanceof Date) || isNaN(start)) {
-                        warnEl.style.display = 'none';
-                        warnEl.textContent = '';
-                        return;
+                    function todayStart() {
+                        const t = new Date();
+                        t.setHours(0, 0, 0, 0);
+                        return t;
                     }
 
-                    const diffDays = Math.round((start - today) / (1000 * 60 * 60 * 24));
-                    if (diffDays < 7 && diffDays >= 0) {
-                        warnEl.style.display = 'block';
-                        warnEl.textContent =
-                            'Pengajuan dilakukan ' + diffDays + ' hari sebelum tanggal mulai cuti (kurang dari H-7). ' +
-                            'Pengajuan tetap bisa diproses, namun akan ada potongan sesuai kebijakan perusahaan.';
-                    } else {
-                        warnEl.style.display = 'none';
-                        warnEl.textContent = '';
-                    }
-                }
-
-                if (startInput) {
-                    startInput.addEventListener('input', updateWarning);
-                    startInput.addEventListener('change', updateWarning);
-                    startInput.addEventListener('focus', updateWarning);
-                }
-
-                typeRadios.forEach(function(r) {
-                    r.addEventListener('change', function() {
-                        renderRuleVisibility();
-                    });
-                });
-
-                renderRuleVisibility();
-
-                var modal = document.getElementById('info-izin-telat');
-                if (modal) {
-                    if (shouldShowIzinTelatPopup) {
-                        modal.style.display = 'flex';
-                        document.body.style.overflow = 'hidden';
+                    function boundaryDateH7() {
+                        const t = todayStart();
+                        const b = new Date(t);
+                        b.setDate(b.getDate() + 7);
+                        return b;
                     }
 
-                    var closeButtons = modal.querySelectorAll('[data-modal-close="true"]');
-                    closeButtons.forEach(function(btn) {
-                        btn.addEventListener('click', function() {
-                            window.location.href = '{{ route('leave-requests.index') }}';
+                    function formatID(d) {
+                        return d.toLocaleDateString('id-ID', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric'
+                        });
+                    }
+
+                    function getSelectedType() {
+                        const r = document.querySelector('input[name="type"]:checked');
+                        return r ? r.value : null;
+                    }
+
+                    function isCutiSelected() {
+                        return getSelectedType() === CUTI_VALUE;
+                    }
+
+                    function updateTenureWarning() {
+                        if (!tenureWarnEl) return;
+
+                        if (isCutiSelected() && isUnderOneYear) {
+                            tenureWarnEl.style.display = 'block';
+                            tenureWarnEl.textContent = 'Kurang dari 1 tahun kerja, pengajuan cuti akan dipotong gaji.';
+                        } else {
+                            tenureWarnEl.style.display = 'none';
+                            tenureWarnEl.textContent = '';
+                        }
+                    }
+
+                    function renderRuleVisibility() {
+                        if (!ruleEl || !warnEl) return;
+
+                        if (isCutiSelected()) {
+                            ruleEl.style.display = 'block';
+                            ruleEl.innerHTML = 'Ketentuan: pengajuan minimal H-7 dari hari ini (≥ <b>' + formatID(boundaryDateH7()) + '</b>).';
+                            updateWarning();
+                            updateTenureWarning();
+                        } else {
+                            ruleEl.style.display = 'none';
+                            ruleEl.textContent = '';
+                            warnEl.style.display = 'none';
+                            warnEl.textContent = '';
+                            updateTenureWarning();
+                        }
+                    }
+
+                    function updateWarning() {
+                        if (!isCutiSelected()) {
+                            warnEl.style.display = 'none';
+                            warnEl.textContent = '';
+                            return;
+                        }
+
+                        const today = todayStart();
+                        const start = parseYMD(startInput ? startInput.value : '');
+                        if (!(start instanceof Date) || isNaN(start)) {
+                            warnEl.style.display = 'none';
+                            warnEl.textContent = '';
+                            return;
+                        }
+
+                        const diffDays = Math.round((start - today) / (1000 * 60 * 60 * 24));
+                        if (diffDays < 7 && diffDays >= 0) {
+                            warnEl.style.display = 'block';
+                            warnEl.textContent =
+                                'Pengajuan dilakukan ' + diffDays + ' hari sebelum tanggal mulai cuti (kurang dari H-7). ' +
+                                'Pengajuan tetap bisa diproses, namun akan ada potongan sesuai kebijakan perusahaan.';
+                        } else {
+                            warnEl.style.display = 'none';
+                            warnEl.textContent = '';
+                        }
+                    }
+
+                    if (startInput) {
+                        startInput.addEventListener('input', updateWarning);
+                        startInput.addEventListener('change', updateWarning);
+                        startInput.addEventListener('focus', updateWarning);
+                    }
+
+                    typeRadios.forEach(function(r) {
+                        r.addEventListener('change', function() {
+                            renderRuleVisibility();
                         });
                     });
+
+                    renderRuleVisibility();
+                    updateTenureWarning();
+
+                    var modal = document.getElementById('info-izin-telat');
+                    if (modal) {
+                        if (shouldShowIzinTelatPopup) {
+                            modal.style.display = 'flex';
+                            document.body.style.overflow = 'hidden';
+                        }
+
+                        var closeButtons = modal.querySelectorAll('[data-modal-close="true"]');
+                        closeButtons.forEach(function(btn) {
+                            btn.addEventListener('click', function() {
+                                window.location.href = '{{ route('leave-requests.index') }}';
+                            });
+                        });
+                    }
+                })();
+
+                var rangeInput = document.getElementById('date_range');
+                var startHidden = document.getElementById('start_date');
+                var endHidden = document.getElementById('end_date');
+
+                if (typeof flatpickr === 'function' && rangeInput) {
+                    flatpickr(rangeInput, {
+                        mode: 'range',
+                        dateFormat: 'Y-m-d',
+                        allowInput: true,
+                        locale: {
+                            rangeSeparator: ' sampai '
+                        },
+                        onChange: function(selectedDates, dateStr) {
+                            if (!dateStr) {
+                                startHidden.value = '';
+                                endHidden.value = '';
+                                startHidden.dispatchEvent(new Event('change'));
+                                return;
+                            }
+                            var parts = dateStr.split(' sampai ');
+                            if (parts.length === 1) {
+                                startHidden.value = parts[0];
+                                endHidden.value = parts[0];
+                            } else {
+                                startHidden.value = parts[0];
+                                endHidden.value = parts[1];
+                            }
+                            startHidden.dispatchEvent(new Event('change'));
+                        }
+                    });
                 }
-            })();
-        });
-    </script>
+            });
+        </script>
     @endpush
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </x-app>

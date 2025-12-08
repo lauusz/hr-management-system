@@ -17,7 +17,10 @@
                             Jenis
                         </th>
                         <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            Tanggal
+                            Periode Izin
+                        </th>
+                        <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
+                            Tgl Pengajuan
                         </th>
                         <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
                             Alasan
@@ -40,6 +43,7 @@
                                     </span>
                                 </div>
                             </td>
+
                             <td style="padding:10px 12px;vertical-align:top;">
                                 <span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;font-size:0.78rem;font-weight:500;
                                     background:
@@ -52,6 +56,7 @@
                                     {{ $lv->type_label ?? $lv->type }}
                                 </span>
                             </td>
+
                             <td style="padding:10px 12px;vertical-align:top;">
                                 <div style="font-size:0.85rem;color:#111827;">
                                     {{ $lv->start_date->format('d M Y') }}
@@ -59,15 +64,20 @@
                                         – {{ $lv->end_date->format('d M Y') }}
                                     @endif
                                 </div>
-                                <div style="font-size:0.78rem;color:#6b7280;margin-top:2px;">
-                                    Diajukan: {{ $lv->created_at->format('d M Y H:i') }}
+                            </td>
+
+                            <td style="padding:10px 12px;vertical-align:top;">
+                                <div style="font-size:0.85rem;color:#111827;">
+                                    {{ $lv->created_at->format('d M Y H:i') }}
                                 </div>
                             </td>
+
                             <td style="padding:10px 12px;vertical-align:top;">
                                 <div style="font-size:0.85rem;color:#374151;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                                     {{ Str::limit($lv->reason, 80) }}
                                 </div>
                             </td>
+
                             <td style="padding:10px 12px;vertical-align:middle;text-align:right;">
                                 <a href="{{ route('hr.leave.show', $lv) }}"
                                    style="display:inline-flex;align-items:center;justify-content:center;padding:6px 12px;border-radius:999px;border:1px solid #d1d5db;font-size:0.8rem;text-decoration:none;color:#111827;background:#fff;white-space:nowrap;">
@@ -77,7 +87,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" style="padding:16px;text-align:center;font-size:0.9rem;opacity:.7;">
+                            <td colspan="6" style="padding:16px;text-align:center;font-size:0.9rem;opacity:.7;">
                                 Tidak ada pengajuan menunggu HRD.
                             </td>
                         </tr>

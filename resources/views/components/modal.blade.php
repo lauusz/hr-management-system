@@ -15,6 +15,7 @@ $isSpoofMethod = !in_array($confirmMethod, ['GET', 'POST']);
     'confirmFormMethod' => 'POST',
     'primaryLinkHref' => null,
     'primaryLinkLabel' => null,
+    'hasFile' => false,
 ])
 
 <div
@@ -37,6 +38,7 @@ $isSpoofMethod = !in_array($confirmMethod, ['GET', 'POST']);
             <form
                 method="{{ in_array($confirmMethod, ['GET','POST']) ? $confirmMethod : 'POST' }}"
                 action="{{ $confirmFormAction }}"
+                @if($hasFile) enctype="multipart/form-data" @endif
                 style="margin:0;display:flex;flex-direction:column;flex:1 1 auto;max-height:calc(90vh - 48px);">
                 @csrf
                 @if($isSpoofMethod)

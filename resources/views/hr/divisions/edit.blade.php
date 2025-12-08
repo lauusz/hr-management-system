@@ -11,7 +11,7 @@
             Perbarui nama divisi dan supervisor yang bertanggung jawab.
         </p>
 
-        <a href="{{ route('hr.divisions.index') }}"
+        <a href="{{ route('hr.organization') }}"
            style="font-size:.9rem;padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;text-decoration:none;color:#111827;">
             ← Kembali
         </a>
@@ -59,7 +59,7 @@
                 Simpan Perubahan
             </button>
 
-            <a href="{{ route('hr.divisions.index') }}"
+            <a href="{{ route('hr.organization') }}"
                style="padding:8px 16px;border-radius:999px;border:1px solid #d1d5db;font-size:.9rem;text-decoration:none;color:#111827;display:flex;align-items:center;">
                 Batal
             </a>

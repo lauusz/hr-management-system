@@ -85,6 +85,55 @@
       margin: 14px 8px 4px;
     }
 
+    .menu-group {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 10px 12px;
+      margin: 4px 0;
+      border-radius: 10px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 15px;
+      color: #333;
+    }
+
+    .menu-group-label {
+      text-align: left;
+      flex: 1;
+    }
+
+    .menu-group-icon {
+      font-size: 11px;
+      opacity: .7;
+    }
+
+    .menu-group.open {
+      background: var(--muted);
+      color: var(--navy);
+      font-weight: 600;
+    }
+
+    .submenu {
+      display: none;
+      padding-left: 8px;
+      margin-left: 4px;
+      border-left: 1px solid #eef0f5;
+    }
+
+    .submenu.show {
+      display: block;
+    }
+
+    .submenu a {
+      font-size: 14px;
+      padding: 8px 12px;
+      margin: 2px 0;
+    }
+
     .logout {
       padding: 10px 12px;
       border-top: 1px solid #f0f0f0;
@@ -212,6 +261,9 @@
       display: none;
     }
   </style>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
 </head>
 
 <body>
@@ -237,6 +289,11 @@
           Absensi
         </a>
 
+        <a href="{{ route('employee.loan_requests.index') }}"
+          class="{{ request()->routeIs('employee.loan_requests.*') ? 'active' : '' }}">
+          Hutang Karyawan
+        </a>
+
         <a href="{{ route('settings.password') }}"
           class="{{ request()->routeIs('settings.password') ? 'active' : '' }}">
           Pengaturan Akun
@@ -250,6 +307,13 @@
         @endif
 
         @if(auth()->user()->isHR())
+        @php
+          $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
+          $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*');
+          $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
+          $hrLoanOpen = request()->routeIs('hr.loan_requests.*');
+        @endphp
+
         <h3>HRD Panel</h3>
 
         <a href="{{ route('hr.leave.index') }}"
@@ -257,50 +321,82 @@
           Daftar Pengajuan Izin/Cuti
         </a>
 
-        <a href="{{ route('hr.employees.index') }}"
-          class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">
-          Daftar Karyawan
-        </a>
+        <button type="button"
+          class="menu-group {{ $hrEmployeesOpen ? 'open' : '' }}"
+          data-menu-group="employees">
+          <span class="menu-group-label">Karyawan</span>
+          <span class="menu-group-icon">{{ $hrEmployeesOpen ? '▴' : '▾' }}</span>
+        </button>
+        <div class="submenu {{ $hrEmployeesOpen ? 'show' : '' }}" data-menu-panel="employees">
+          <a href="{{ route('hr.employees.index') }}"
+            class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">
+            Daftar Karyawan
+          </a>
 
-        <a href="{{ route('hr.leave.master') }}"
-          class="{{ request()->routeIs('hr.leave.master') ? 'active' : '' }}">
-          Master Izin/Cuti
-        </a>
+          <a href="{{ route('hr.organization') }}"
+            class="{{ request()->routeIs('hr.organization','hr.divisions.*','hr.positions.*') ? 'active' : '' }}">
+            Divisi &amp; Jabatan
+          </a>
 
-        <a href="{{ route('hr.divisions.index') }}"
-          class="{{ request()->routeIs('hr.divisions.*') ? 'active' : '' }}">
-          Master Divisi
-        </a>
+          <a href="{{ route('hr.pts.index') }}"
+            class="{{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">
+            Master PT
+          </a>
+        </div>
 
-        <a href="{{ route('hr.positions.index') }}"
-          class="{{ request()->routeIs('hr.positions.*') ? 'active' : '' }}">
-          Master Jabatan
-        </a>
+        <button type="button"
+          class="menu-group {{ $hrPresensiOpen ? 'open' : '' }}"
+          data-menu-group="presensi">
+          <span class="menu-group-label">Presensi &amp; Shift</span>
+          <span class="menu-group-icon">{{ $hrPresensiOpen ? '▴' : '▾' }}</span>
+        </button>
+        <div class="submenu {{ $hrPresensiOpen ? 'show' : '' }}" data-menu-panel="presensi">
+          <a href="{{ route('hr.attendances.index') }}"
+            class="{{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">
+            Master Absensi
+          </a>
 
-        <a href="{{ route('hr.shifts.index') }}"
-          class="{{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">
-          Master Shift
-        </a>
+          <a href="{{ route('hr.shifts.index') }}"
+            class="{{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">
+            Master Shift
+          </a>
 
-        <a href="{{ route('hr.locations.index') }}"
-          class="{{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">
-          Master Lokasi Presensi
-        </a>
+          <a href="{{ route('hr.locations.index') }}"
+            class="{{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">
+            Master Lokasi Presensi
+          </a>
 
-        <a href="{{ route('hr.schedules.index') }}"
-          class="{{ request()->routeIs('hr.schedules.*') ? 'active' : '' }}">
-          Master Jadwal Karyawan
-        </a>
+          <a href="{{ route('hr.schedules.index') }}"
+            class="{{ request()->routeIs('hr.schedules.*') ? 'active' : '' }}">
+            Master Jadwal Karyawan
+          </a>
+        </div>
 
-        <a href="{{ route('hr.attendances.index') }}"
-          class="{{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">
-          Master Absensi
-        </a>
+        <button type="button"
+          class="menu-group {{ $hrLeaveMasterOpen ? 'open' : '' }}"
+          data-menu-group="izin">
+          <span class="menu-group-label">Izin &amp; Cuti</span>
+          <span class="menu-group-icon">{{ $hrLeaveMasterOpen ? '▴' : '▾' }}</span>
+        </button>
+        <div class="submenu {{ $hrLeaveMasterOpen ? 'show' : '' }}" data-menu-panel="izin">
+          <a href="{{ route('hr.leave.master') }}"
+            class="{{ request()->routeIs('hr.leave.master') ? 'active' : '' }}">
+            Master Izin/Cuti
+          </a>
+        </div>
 
-        <a href="{{ route('hr.pts.index') }}"
-          class="{{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">
-          Master PT
-        </a>
+        <button type="button"
+          class="menu-group {{ $hrLoanOpen ? 'open' : '' }}"
+          data-menu-group="keuangan">
+          <span class="menu-group-label">Keuangan Karyawan</span>
+          <span class="menu-group-icon">{{ $hrLoanOpen ? '▴' : '▾' }}</span>
+        </button>
+        <div class="submenu {{ $hrLoanOpen ? 'show' : '' }}" data-menu-panel="keuangan">
+          <a href="{{ route('hr.loan_requests.index') }}"
+            class="{{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">
+            Hutang Karyawan
+          </a>
+        </div>
         @endif
 
       </nav>
@@ -417,9 +513,29 @@
           }
         });
       });
+
+      document.querySelectorAll('.menu-group').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var group = this.getAttribute('data-menu-group');
+          var panel = document.querySelector('[data-menu-panel="' + group + '"]');
+          var icon = this.querySelector('.menu-group-icon');
+          var isOpen = this.classList.contains('open');
+
+          if (isOpen) {
+            this.classList.remove('open');
+            if (panel) panel.classList.remove('show');
+            if (icon) icon.textContent = '▾';
+          } else {
+            this.classList.add('open');
+            if (panel) panel.classList.add('show');
+            if (icon) icon.textContent = '▴';
+          }
+        });
+      });
     });
   </script>
   @stack('scripts')
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 </body>
 

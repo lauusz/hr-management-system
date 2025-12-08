@@ -26,38 +26,42 @@
 
     <div class="card" style="margin-bottom:14px;">
         <form method="GET" action="{{ route('leave-requests.index') }}" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+
             <div>
                 <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Tanggal Pengajuan</label>
                 <input
-                    type="date"
-                    name="submitted_date"
-                    value="{{ $submittedDate ?? '' }}"
-                    style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;">
+                    type="text"
+                    id="submitted_range"
+                    name="submitted_range"
+                    value="{{ $submittedRange ?? '' }}"
+                    placeholder="Pilih rentang tanggal"
+                    style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:220px;"
+                    autocomplete="off">
             </div>
 
-           <div>
-              <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Jenis Pengajuan</label>
-              <select
-                  name="type"
-                  style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:200px;">
-                  <option value="">Semua jenis</option>
+            <div>
+                <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Jenis Pengajuan</label>
+                <select
+                    name="type"
+                    style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:200px;">
+                    <option value="">Semua jenis</option>
 
-                  @foreach($typeOptions as $case)
-                      @php
-                          $value = $case->value;
-                          $label = $case->label();
-                          if ($value === \App\Enums\LeaveType::CUTI_KHUSUS->value) {
-                              $label = 'Cuti Khusus';
-                          }
-                      @endphp
+                    @foreach($typeOptions as $case)
+                        @php
+                            $value = $case->value;
+                            $label = $case->label();
+                            if ($value === \App\Enums\LeaveType::CUTI_KHUSUS->value) {
+                                $label = 'Cuti Khusus';
+                            }
+                        @endphp
 
-                      <option value="{{ $value }}" @selected($typeFilter === $value)>
-                          {{ $label }}
-                      </option>
-                  @endforeach
-              </select>
-          </div>
-          
+                        <option value="{{ $value }}" @selected($typeFilter === $value)>
+                            {{ $label }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
             <button type="submit"
                     style="padding:8px 14px;background:#1e4a8d;color:#fff;border:none;
                            border-radius:999px;cursor:pointer;font-size:0.85rem;white-space:nowrap;">
@@ -73,37 +77,42 @@
 
     <div class="card" style="padding:0;overflow:hidden;">
         <div style="width:100%;overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;min-width:640px;">
+            <table style="width:100%;border-collapse:collapse;min-width:900px;">
                 <thead>
                     <tr>
                         <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
                                    text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;width:56px;">
+                                   border-bottom:1px solid:#e5e7eb;width:56px;">
                             #
                         </th>
                         <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
                                    text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;">
+                                   border-bottom:1px solid:#e5e7eb;">
                             Pemohon
                         </th>
                         <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
                                    text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;">
-                            Tanggal
+                                   border-bottom:1px solid:#e5e7eb;">
+                            Tgl Pengajuan
                         </th>
                         <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
                                    text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;">
+                                   border-bottom:1px solid:#e5e7eb;">
+                            Periode Izin
+                        </th>
+                        <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
+                                   text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
+                                   border-bottom:1px solid:#e5e7eb;">
                             Jenis
                         </th>
                         <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
                                    text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;">
+                                   border-bottom:1px solid:#e5e7eb;">
                             Status
                         </th>
                         <th style="padding:10px 12px;text-align:right;font-weight:600;font-size:.8rem;
                                    text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;width:110px;">
+                                   border-bottom:1px solid:#e5e7eb;width:110px;">
                             Aksi
                         </th>
                     </tr>
@@ -111,6 +120,19 @@
 
                 <tbody>
                     @forelse($items as $i => $row)
+                        @php
+                            $rowStatus = $row->status;
+                            if ($rowStatus === \App\Models\LeaveRequest::STATUS_APPROVED) {
+                                $badgeClass = 'badge-disetujui';
+                            } elseif ($rowStatus === \App\Models\LeaveRequest::STATUS_REJECTED) {
+                                $badgeClass = 'badge-ditolak';
+                            } elseif (in_array($rowStatus, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true)) {
+                                $badgeClass = 'badge-menunggu';
+                            } else {
+                                $badgeClass = 'badge-neutral';
+                            }
+                        @endphp
+
                         <tr style="border-bottom:1px solid #f3f4f6;">
                             <td style="padding:10px 12px;color:#6b7280;font-size:0.85rem;vertical-align:middle;">
                                 {{ $items->firstItem() + $i }}
@@ -124,6 +146,10 @@
                                 </div>
                             </td>
 
+                            <td style="padding:10px 12px;vertical-align:middle;font-size:0.85rem;color:#374151;">
+                                {{ $row->created_at?->format('d M Y H:i') ?? '-' }}
+                            </td>
+
                             <td style="padding:10px 12px;vertical-align:middle;font-size:0.85rem;color:#111827;">
                                 {{ $row->start_date->format('d M Y') }}
                                 @if($row->end_date && $row->end_date->ne($row->start_date))
@@ -132,11 +158,11 @@
                             </td>
 
                             <td style="padding:10px 12px;vertical-align:middle;font-size:0.85rem;color:#374151;">
-                                {{ $row->type_label }}
+                                {{ \Illuminate\Support\Str::contains($row->type_label, 'Cuti Khusus') ? 'Cuti Khusus' : $row->type_label }}
                             </td>
 
                             <td style="padding:10px 12px;vertical-align:middle;">
-                                <span class="badge badge-{{ strtolower($row->status_label) }}">
+                                <span class="badge {{ $badgeClass }}">
                                     {{ $row->status_label }}
                                 </span>
                             </td>
@@ -152,7 +178,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6"
+                            <td colspan="7"
                                 style="padding:16px;text-align:center;color:#6b7280;font-size:0.9rem;">
                                 Belum ada pengajuan.
                             </td>
@@ -178,14 +204,49 @@
             white-space:nowrap;
             text-align:center;
         }
-        .badge-disetujui { background:#dcfce7;color:#166534; }
-        .badge-menunggu { background:#fef9c3;color:#854d0e; }
-        .badge-ditolak   { background:#fee2e2;color:#991b1b; }
-        table th, table td { vertical-align:middle; }
-        table tr:hover td { background:#f9fafb; }
+        .badge-disetujui {
+            background:#dcfce7;
+            color:#166534;
+        }
+        .badge-menunggu {
+            background:#fef9c3;
+            color:#854d0e;
+        }
+        .badge-ditolak {
+            background:#fee2e2;
+            color:#991b1b;
+        }
+        .badge-neutral {
+            background:#e5e7eb;
+            color:#374151;
+        }
+        table th,
+        table td {
+            vertical-align:middle;
+        }
+        table tr:hover td {
+            background:#f9fafb;
+        }
         @media(max-width:600px){
-            table th, table td { padding:8px;font-size:13px; }
+            table th,
+            table td {
+                padding:8px;
+                font-size:13px;
+            }
         }
     </style>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        flatpickr("#submitted_range", {
+            mode: "range",
+            dateFormat: "Y-m-d",
+            allowInput: true,
+            locale: {
+                rangeSeparator: " sampai "
+            }
+        });
+    </script>
 
 </x-app>

@@ -7,6 +7,7 @@ use App\Models\Division;
 use App\Models\Position;
 use App\Models\EmployeeProfile;
 use App\Models\Pt;
+use App\Models\EmployeeDocument;
 use App\Enums\UserRole;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -123,6 +124,67 @@ class HREmployeeController extends Controller
             'categoryOptions' => $categoryOptions,
             'totalEmployees' => $totalEmployees,
             'nearExpiry' => $nearExpiry,
+        ]);
+    }
+
+    public function show(User $employee)
+    {
+        $employee->load([
+            'division',
+            'position',
+            'profile.pt',
+            'documents.creator',
+        ]);
+
+        $profile = $employee->profile;
+
+        $joinDateLabel = null;
+        $probationEndLabel = null;
+        $masaKerjaLabel = null;
+
+        if ($profile && $profile->tgl_bergabung) {
+            $joinDateLabel = Carbon::parse($profile->tgl_bergabung)->format('d-m-Y');
+        }
+
+        if ($profile && $profile->tgl_akhir_percobaan) {
+            $probationEndLabel = Carbon::parse($profile->tgl_akhir_percobaan)->format('d-m-Y');
+        }
+
+        if ($profile && $profile->masa_kerja) {
+            $masaKerjaLabel = $profile->masa_kerja;
+        } elseif ($profile && $profile->tgl_bergabung) {
+            $start = Carbon::parse($profile->tgl_bergabung);
+            $end = $profile->exit_date ? Carbon::parse($profile->exit_date) : Carbon::now();
+            $diff = $start->diff($end);
+
+            $parts = [];
+
+            if ($diff->y) {
+                $parts[] = $diff->y . ' th';
+            }
+
+            if ($diff->m) {
+                $parts[] = $diff->m . ' bln';
+            }
+
+            $masaKerjaLabel = $parts ? implode(' ', $parts) : null;
+        }
+
+        $documents = $employee->documents()
+            ->orderByDesc('effective_date')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $documentTypes = EmployeeDocument::types();
+
+        return view('hr.employees.show', [
+            'employee' => $employee,
+            'profile' => $profile,
+            'joinDateLabel' => $joinDateLabel,
+            'probationEndLabel' => $probationEndLabel,
+            'masaKerjaLabel' => $masaKerjaLabel,
+            'documents' => $documents,
+            'documentTypes' => $documentTypes,
         ]);
     }
 
@@ -359,6 +421,114 @@ class HREmployeeController extends Controller
             ->with('success', 'Data karyawan berhasil diperbarui.');
     }
 
+    public function exit(Request $request, User $employee)
+    {
+        $validated = $request->validate([
+            'exit_date' => ['required', 'date'],
+            'exit_reason_code' => ['nullable', 'string', 'max:50'],
+            'exit_reason_note' => ['nullable', 'string'],
+            'exit_document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx', 'max:4096'],
+        ]);
+
+        $employee->update([
+            'status' => 'INACTIVE',
+        ]);
+
+        $documentPath = null;
+
+        if ($request->hasFile('exit_document')) {
+            $file = $request->file('exit_document');
+            $filename = 'exit_' . Str::slug($employee->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
+            $documentPath = $file->storeAs('exit_documents', $filename, 'public');
+        }
+
+        $data = [
+            'exit_date' => $validated['exit_date'],
+            'exit_reason_code' => $validated['exit_reason_code'] ?? null,
+            'exit_reason_note' => $validated['exit_reason_note'] ?? null,
+        ];
+
+        if ($documentPath) {
+            $data['exit_document_path'] = $documentPath;
+        }
+
+        $profile = $employee->profile;
+
+        if ($profile) {
+            $profile->update($data);
+        } else {
+            $data['user_id'] = $employee->id;
+            EmployeeProfile::create($data);
+        }
+
+        return redirect()
+            ->route('hr.employees.index')
+            ->with('success', 'Karyawan berhasil dinonaktifkan dan dokumen keluar telah disimpan.');
+    }
+
+    public function exitDetail(User $employee)
+    {
+        $employee->load(['division', 'position', 'profile.pt']);
+
+        $profile = $employee->profile;
+
+        $joinDateLabel = null;
+        $exitDateLabel = null;
+        $masaKerjaLabel = null;
+
+        if ($profile && $profile->tgl_bergabung) {
+            $joinDateLabel = Carbon::parse($profile->tgl_bergabung)->format('d-m-Y');
+        }
+
+        if ($profile && $profile->exit_date) {
+            $exitDateLabel = Carbon::parse($profile->exit_date)->format('d-m-Y');
+        }
+
+        if ($profile && $profile->masa_kerja) {
+            $masaKerjaLabel = $profile->masa_kerja;
+        } elseif ($profile && $profile->tgl_bergabung && $profile->exit_date) {
+            $start = Carbon::parse($profile->tgl_bergabung);
+            $end = Carbon::parse($profile->exit_date);
+            $diff = $start->diff($end);
+
+            $parts = [];
+
+            if ($diff->y) {
+                $parts[] = $diff->y . ' th';
+            }
+
+            if ($diff->m) {
+                $parts[] = $diff->m . ' bln';
+            }
+
+            $masaKerjaLabel = $parts ? implode(' ', $parts) : null;
+        }
+
+        $reasonLabel = null;
+
+        if ($profile && $profile->exit_reason_code) {
+            $map = [
+                'RESIGN' => 'Resign',
+                'HABIS_KONTRAK' => 'Habis kontrak',
+                'PHK' => 'PHK',
+                'PENSIUN' => 'Pensiun',
+                'MENINGGAL' => 'Meninggal',
+                'LAINNYA' => 'Lainnya',
+            ];
+
+            $reasonLabel = $map[$profile->exit_reason_code] ?? $profile->exit_reason_code;
+        }
+
+        return view('hr.employees.exit_detail', [
+            'employee' => $employee,
+            'profile' => $profile,
+            'joinDateLabel' => $joinDateLabel,
+            'exitDateLabel' => $exitDateLabel,
+            'masaKerjaLabel' => $masaKerjaLabel,
+            'reasonLabel' => $reasonLabel,
+        ]);
+    }
+
     public function destroy(User $employee)
     {
         $employee->update([
@@ -368,39 +538,5 @@ class HREmployeeController extends Controller
         return redirect()
             ->route('hr.employees.index')
             ->with('success', 'Karyawan berhasil dinonaktifkan.');
-    }
-
-    public function exit(Request $request, User $employee)
-    {
-        $validated = $request->validate([
-            'exit_date' => ['required', 'date'],
-            'exit_reason_code' => ['nullable', 'string', 'max:50'],
-            'exit_reason_note' => ['nullable', 'string'],
-        ]);
-
-        $employee->update([
-            'status' => 'INACTIVE',
-        ]);
-
-        $profile = $employee->profile;
-
-        if ($profile) {
-            $profile->update([
-                'exit_date' => $validated['exit_date'],
-                'exit_reason_code' => $validated['exit_reason_code'] ?? null,
-                'exit_reason_note' => $validated['exit_reason_note'] ?? null,
-            ]);
-        } else {
-            EmployeeProfile::create([
-                'user_id' => $employee->id,
-                'exit_date' => $validated['exit_date'],
-                'exit_reason_code' => $validated['exit_reason_code'] ?? null,
-                'exit_reason_note' => $validated['exit_reason_note'] ?? null,
-            ]);
-        }
-
-        return redirect()
-            ->route('hr.employees.index')
-            ->with('success', 'Karyawan berhasil dinonaktifkan dan alasan keluar telah disimpan.');
     }
 }

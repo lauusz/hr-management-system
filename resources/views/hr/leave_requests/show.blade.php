@@ -26,13 +26,6 @@
                 <span class="badge {{ strtolower($item->status) }}">{{ $item->status_label ?? $item->status }}</span>
             </p>
 
-            @php
-            $raw = $item->photo;
-            $rel = $raw ? (\Illuminate\Support\Str::startsWith($raw, 'leave_photos/') ? $raw : ('leave_photos/'.$raw)) : null;
-            $exists = $rel ? \Illuminate\Support\Facades\Storage::disk('public')->exists($rel) : false;
-            $url = $exists ? \Illuminate\Support\Facades\Storage::url($rel) : null;
-            @endphp
-
             @if ($item->latitude && $item->longitude)
             <p><b>Lokasi Pengajuan:</b></p>
             <div class="card" style="margin-top:10px;">
@@ -57,6 +50,12 @@
             </div>
             @endif
 
+            @php
+                $url = $item->photo
+                    ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
+                    : null;
+            @endphp
+
             @if ($url)
             <p><b>Foto:</b></p>
             <div class="photo-box js-view-leave-photo" data-photo-url="{{ $url }}">
@@ -79,7 +78,7 @@
             @endif
 
             @php
-            $needsHrdAction = ($item->status === \App\Models\LeaveRequest::PENDING_HR);
+                $needsHrdAction = ($item->status === \App\Models\LeaveRequest::PENDING_HR);
             @endphp
 
             <div class="actions">

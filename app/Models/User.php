@@ -120,4 +120,8 @@ class User extends Authenticatable
     {
         return $this->hasOne(EmployeeShift::class, 'user_id');
     }
+    public function documents()
+    {
+        return $this->hasMany(EmployeeDocument::class);
+    }
 }

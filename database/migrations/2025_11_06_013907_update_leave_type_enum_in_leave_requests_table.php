@@ -32,7 +32,7 @@ return new class extends Migration
             'IZIN_TENGAH_KERJA',
             'CUTI',
             'SAKIT',
-            'IZIN_KELUARGA_SAKIT',
+            'IZIN',
             'CUTI_KHUSUS',
             'DINAS_LUAR',
         ];

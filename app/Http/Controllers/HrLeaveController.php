@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\LeaveType;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class HrLeaveController extends Controller
 {
@@ -48,14 +49,30 @@ class HrLeaveController extends Controller
             $typeFilter = null;
         }
 
-        $submittedDate = $request->query('submitted_date');
-        if ($submittedDate) {
+        $submittedRange = trim((string) $request->query('submitted_range'));
+
+        if ($submittedRange !== '') {
             try {
-                $start = \Carbon\Carbon::parse($submittedDate)->startOfDay();
-                $end = (clone $start)->endOfDay();
-                $query->whereBetween('created_at', [$start, $end]);
+                $parts = preg_split('/\s+(to|sampai)\s+/i', $submittedRange);
+
+                if (count($parts) === 1) {
+                    $from = Carbon::parse(trim($parts[0]))->startOfDay();
+                    $to = (clone $from)->endOfDay();
+                    $query->whereBetween('created_at', [$from, $to]);
+                } elseif (count($parts) >= 2) {
+                    $from = Carbon::parse(trim($parts[0]))->startOfDay();
+                    $to = Carbon::parse(trim($parts[1]))->endOfDay();
+
+                    if ($from->gt($to)) {
+                        $temp = $from;
+                        $from = $to;
+                        $to = $temp;
+                    }
+
+                    $query->whereBetween('created_at', [$from, $to]);
+                }
             } catch (\Exception $e) {
-                $submittedDate = null;
+                $submittedRange = null;
             }
         }
 
@@ -67,20 +84,20 @@ class HrLeaveController extends Controller
         }
 
         $items = $query->paginate(100)->appends([
-            'status'         => $status,
-            'type'           => $typeFilter,
-            'submitted_date' => $submittedDate,
-            'q'              => $q,
+            'status'          => $status,
+            'type'            => $typeFilter,
+            'submitted_range' => $submittedRange,
+            'q'               => $q,
         ]);
 
         return view('hr.leave_requests.master', [
-            'items'         => $items,
-            'status'        => $status,
-            'statusOptions' => $statusOptions,
-            'typeFilter'    => $typeFilter,
-            'typeOptions'   => LeaveType::cases(),
-            'submittedDate' => $submittedDate,
-            'q'             => $q,
+            'items'          => $items,
+            'status'         => $status,
+            'statusOptions'  => $statusOptions,
+            'typeFilter'     => $typeFilter,
+            'typeOptions'    => LeaveType::cases(),
+            'submittedRange' => $submittedRange,
+            'q'              => $q,
         ]);
     }
 

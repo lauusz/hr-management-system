@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class EmployeeProfile extends Model
 {
@@ -39,17 +40,15 @@ class EmployeeProfile extends Model
         'bpjs_tk',
         'nomor_bpjs_kesehatan',
         'kelas_bpjs',
-        'masa_kerja',
         'tgl_bergabung',
         'tgl_akhir_percobaan',
         'lokasi_kerja',
         'alamat_sesuai_ktp',
-
         'exit_date',
         'exit_reason_code',
         'exit_reason_note',
+        'exit_document_path',
     ];
-
 
     protected $casts = [
         'tgl_lahir' => 'date',
@@ -57,7 +56,6 @@ class EmployeeProfile extends Model
         'tgl_akhir_percobaan' => 'date',
         'exit_date' => 'date',
     ];
-
 
     public function user()
     {
@@ -67,5 +65,40 @@ class EmployeeProfile extends Model
     public function pt()
     {
         return $this->belongsTo(Pt::class, 'pt_id');
+    }
+
+    public function getMasaKerjaAttribute(): ?string
+    {
+        if (! $this->tgl_bergabung) {
+            return null;
+        }
+
+        $start = $this->tgl_bergabung instanceof Carbon
+            ? $this->tgl_bergabung->copy()->startOfDay()
+            : Carbon::parse($this->tgl_bergabung)->startOfDay();
+
+        $end = Carbon::today();
+
+        if ($end->lessThan($start)) {
+            return null;
+        }
+
+        $years = $start->diffInYears($end);
+        $afterYears = $start->copy()->addYears($years);
+        $months = $afterYears->diffInMonths($end);
+
+        if ($years > 0 && $months > 0) {
+            return $years.' Tahun '.$months.' Bulan';
+        }
+
+        if ($years > 0) {
+            return $years.' Tahun';
+        }
+
+        if ($months > 0) {
+            return $months.' Bulan';
+        }
+
+        return '0 Bulan';
     }
 }

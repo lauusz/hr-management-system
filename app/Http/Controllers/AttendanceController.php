@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\EmployeeShift;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class AttendanceController extends Controller
@@ -102,7 +105,7 @@ class AttendanceController extends Controller
             $lateMinutes = $shiftFrom->diffInMinutes($now);
         }
 
-        $photoPath = $request->file('photo')->store('attendance_photos', 'public');
+        $photoPath = $this->storeAttendancePhoto($request->file('photo'));
 
         $attendance = Attendance::updateOrCreate(
             [
@@ -233,5 +236,115 @@ class AttendanceController extends Controller
         );
 
         return $earthRadius * $angle;
+    }
+
+    protected function storeAttendancePhoto(UploadedFile $file): string
+    {
+        $ext = strtolower($file->getClientOriginalExtension());
+        $dir = 'attendance_photos';
+        $disk = Storage::disk('public');
+
+        $canGd = function_exists('imagecreatetruecolor') && function_exists('imagejpeg');
+
+        Log::info('Attendance storeAttendancePhoto called', [
+            'ext' => $ext,
+            'can_gd' => $canGd,
+        ]);
+
+        if ($canGd && in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            try {
+                $sourcePath = $file->getPathname();
+                $info = getimagesize($sourcePath);
+                if ($info === false) {
+                    throw new \RuntimeException('Invalid image.');
+                }
+
+                $width = $info[0];
+                $height = $info[1];
+
+                $maxSide = 720;
+                $scale = min($maxSide / max($width, 1), $maxSide / max($height, 1), 1);
+                $newWidth = (int) round($width * $scale);
+                $newHeight = (int) round($height * $scale);
+
+                switch ($ext) {
+                    case 'jpg':
+                    case 'jpeg':
+                        $srcImage = imagecreatefromjpeg($sourcePath);
+                        break;
+                    case 'png':
+                        $srcImage = imagecreatefrompng($sourcePath);
+                        break;
+                    case 'webp':
+                        if (!function_exists('imagecreatefromwebp')) {
+                            throw new \RuntimeException('WEBP not supported.');
+                        }
+                        $srcImage = imagecreatefromwebp($sourcePath);
+                        break;
+                    default:
+                        $srcImage = null;
+                }
+
+                if (!$srcImage) {
+                    throw new \RuntimeException('Failed to create image resource.');
+                }
+
+                $dstImage = imagecreatetruecolor($newWidth, $newHeight);
+
+                if ($ext === 'png' || $ext === 'webp') {
+                    imagealphablending($dstImage, false);
+                    imagesavealpha($dstImage, true);
+                    $transparent = imagecolorallocatealpha($dstImage, 0, 0, 0, 127);
+                    imagefilledrectangle($dstImage, 0, 0, $newWidth, $newHeight, $transparent);
+                }
+
+                imagecopyresampled(
+                    $dstImage,
+                    $srcImage,
+                    0,
+                    0,
+                    0,
+                    0,
+                    $newWidth,
+                    $newHeight,
+                    $width,
+                    $height
+                );
+
+                $filename = 'att_' . uniqid('', true) . '.jpg';
+
+                ob_start();
+                imagejpeg($dstImage, null, 70);
+                $contents = ob_get_clean();
+
+                imagedestroy($srcImage);
+                imagedestroy($dstImage);
+
+                if ($contents === false) {
+                    throw new \RuntimeException('Failed to encode JPEG.');
+                }
+
+                $disk->put($dir . '/' . $filename, $contents);
+
+                Log::info('Attendance compression success', [
+                    'filename' => $filename,
+                    'size_bytes' => strlen($contents),
+                ]);
+
+                return $dir . '/' . $filename;
+            } catch (\Throwable $e) {
+                Log::warning('Attendance photo compression failed, fallback to original store', [
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $stored = $file->store($dir, 'public');
+
+        Log::info('Attendance store fallback stored', [
+            'stored' => $stored,
+        ]);
+
+        return $stored;
     }
 }

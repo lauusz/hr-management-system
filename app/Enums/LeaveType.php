@@ -9,7 +9,7 @@ enum LeaveType: string
     case IZIN_TENGAH_KERJA   = 'IZIN_TENGAH_KERJA';
     case CUTI                = 'CUTI';
     case SAKIT               = 'SAKIT';
-    case IZIN_KELUARGA_SAKIT = 'IZIN_KELUARGA_SAKIT';
+    case IZIN                = 'IZIN';
     case CUTI_KHUSUS         = 'CUTI_KHUSUS';
     case DINAS_LUAR          = 'DINAS_LUAR';
 
@@ -21,7 +21,7 @@ enum LeaveType: string
             self::IZIN_TENGAH_KERJA   => 'Izin Tengah Kerja',
             self::CUTI                => 'Cuti',
             self::SAKIT               => 'Sakit',
-            self::IZIN_KELUARGA_SAKIT => 'Izin (Keluarga Sakit)',
+            self::IZIN                => 'Izin',
             self::CUTI_KHUSUS         => 'Cuti Khusus (menikah, melahirkan/istri melahirkan/keguguran, mengkhitankan/membaptiskan anak, keluarga meninggal — suami/istri/mertua/orang tua/anak/menantu, anggota keluarga serumah meninggal dunia)',
             self::DINAS_LUAR          => 'Dinas Luar',
         };

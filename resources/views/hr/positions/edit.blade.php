@@ -9,7 +9,7 @@
         <div>
             <p style="font-size:.9rem;opacity:.75;">Perbarui informasi jabatan.</p>
         </div>
-        <a href="{{ route('hr.positions.index') }}"
+        <a href="{{ route('hr.organization') }}"
            style="font-size:.9rem;padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;text-decoration:none;color:#111827;">
             ← Kembali
         </a>
@@ -66,7 +66,8 @@
                     style="padding:8px 16px;border-radius:999px;border:none;background:#1e4a8d;color:white;font-size:.9rem;cursor:pointer;">
                 Simpan Perubahan
             </button>
-            <a href="{{ route('hr.positions.index') }}"
+
+            <a href="{{ route('hr.organization') }}"
                style="padding:8px 16px;border-radius:999px;border:1px solid #d1d5db;font-size:.9rem;text-decoration:none;color:#111827;display:flex;align-items:center;">
                 Batal
             </a>

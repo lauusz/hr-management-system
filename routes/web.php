@@ -15,6 +15,10 @@ use App\Http\Controllers\HR\ScheduleController;
 use App\Http\Controllers\HRAttendanceController;
 use App\Http\Controllers\HREmployeeController;
 use App\Http\Controllers\PtController;
+use App\Http\Controllers\EmployeeDocumentController;
+use App\Http\Controllers\HR\OrganizationController;
+use App\Http\Controllers\EmployeeLoanRequestController;
+use App\Http\Controllers\HrLoanRequestController;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -34,6 +38,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/attendance/clock-out', [AttendanceController::class, 'showClockOutForm'])->name('attendance.clockOut.form');
     Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clockOut');
 
+    Route::get('/loan-requests', [EmployeeLoanRequestController::class, 'index'])->name('employee.loan_requests.index');
+    Route::get('/loan-requests/create', [EmployeeLoanRequestController::class, 'create'])->name('employee.loan_requests.create');
+    Route::post('/loan-requests', [EmployeeLoanRequestController::class, 'store'])->name('employee.loan_requests.store');
+    Route::get('/loan-requests/{loan}', [EmployeeLoanRequestController::class, 'show'])->name('employee.loan_requests.show');
+
     Route::get('/settings/password', [AuthController::class, 'showChangePasswordForm'])->name('settings.password');
     Route::put('/settings/password', [AuthController::class, 'updatePassword'])->name('settings.password.update');
 
@@ -46,7 +55,6 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/hr/leave/master', [HrLeaveController::class, 'master'])->name('hr.leave.master');
 
-
         Route::get('/hr/shifts', [ShiftController::class, 'index'])->name('hr.shifts.index');
         Route::get('/hr/shifts/create', [ShiftController::class, 'create'])->name('hr.shifts.create');
         Route::post('/hr/shifts', [ShiftController::class, 'store'])->name('hr.shifts.store');
@@ -57,14 +65,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/employees', [HREmployeeController::class, 'index'])->name('hr.employees.index');
         Route::get('/hr/employees/create', [HREmployeeController::class, 'create'])->name('hr.employees.create');
         Route::post('/hr/employees', [HREmployeeController::class, 'store'])->name('hr.employees.store');
+
+        Route::get('/hr/employees/{employee}', [HREmployeeController::class, 'show'])->name('hr.employees.show');
         Route::get('/hr/employees/{employee}/edit', [HREmployeeController::class, 'edit'])->name('hr.employees.edit');
         Route::put('/hr/employees/{employee}', [HREmployeeController::class, 'update'])->name('hr.employees.update');
-        Route::put('/hr/employees/{employee}/exit', [HREmployeeController::class, 'exit'])
-            ->name('hr.employees.exit');
+        Route::put('/hr/employees/{employee}/exit', [HREmployeeController::class, 'exit'])->name('hr.employees.exit');
+        Route::get('/hr/employees/{employee}/exit-detail', [HREmployeeController::class, 'exitDetail'])->name('hr.employees.exit_detail');
         Route::delete('/hr/employees/{employee}', [HREmployeeController::class, 'destroy'])->name('hr.employees.destroy');
 
         Route::get('/hr/employees/{user}/shift', [EmployeeShiftController::class, 'edit'])->name('hr.employees.shift.edit');
         Route::put('/hr/employees/{user}/shift', [EmployeeShiftController::class, 'update'])->name('hr.employees.shift.update');
+
+        Route::post('/hr/employees/{user}/documents', [EmployeeDocumentController::class, 'store'])->name('hr.employees.documents.store');
+        Route::delete('/hr/employee-documents/{employeeDocument}', [EmployeeDocumentController::class, 'destroy'])->name('hr.employee_documents.destroy');
 
         Route::get('/hr/locations', [AttendanceLocationController::class, 'index'])->name('hr.locations.index');
         Route::get('/hr/locations/create', [AttendanceLocationController::class, 'create'])->name('hr.locations.create');
@@ -82,14 +95,20 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/hr/attendances', [HRAttendanceController::class, 'index'])->name('hr.attendances.index');
 
-        Route::get('/hr/positions', [PositionController::class, 'index'])->name('hr.positions.index');
+        Route::get('/hr/loan-requests', [HrLoanRequestController::class, 'index'])->name('hr.loan_requests.index');
+        Route::get('/hr/loan-requests/{id}', [HrLoanRequestController::class, 'show'])->name('hr.loan_requests.show');
+        Route::post('/hr/loan-requests/{id}/approve', [HrLoanRequestController::class, 'approve'])->name('hr.loan_requests.approve');
+        Route::post('/hr/loan-requests/{id}/reject', [HrLoanRequestController::class, 'reject'])->name('hr.loan_requests.reject');
+        Route::post('/hr/loan-requests/{id}/repayments', [HrLoanRequestController::class, 'storeRepayment'])->name('hr.loan_requests.repayments.store');
+
+        Route::get('/hr/organization', [OrganizationController::class, 'index'])->name('hr.organization');
+
         Route::get('/hr/positions/create', [PositionController::class, 'create'])->name('hr.positions.create');
         Route::post('/hr/positions', [PositionController::class, 'store'])->name('hr.positions.store');
         Route::get('/hr/positions/{position}/edit', [PositionController::class, 'edit'])->name('hr.positions.edit');
         Route::put('/hr/positions/{position}', [PositionController::class, 'update'])->name('hr.positions.update');
         Route::delete('/hr/positions/{position}', [PositionController::class, 'destroy'])->name('hr.positions.destroy');
 
-        Route::get('/hr/divisions', [DivisionController::class, 'index'])->name('hr.divisions.index');
         Route::get('/hr/divisions/create', [DivisionController::class, 'create'])->name('hr.divisions.create');
         Route::post('/hr/divisions', [DivisionController::class, 'store'])->name('hr.divisions.store');
         Route::get('/hr/divisions/{division}/edit', [DivisionController::class, 'edit'])->name('hr.divisions.edit');
