@@ -15,6 +15,8 @@ class LeaveRequest extends Model
         'type',
         'start_date',
         'end_date',
+        'start_time',
+        'end_time',
         'reason',
         'photo',
         'status',
@@ -29,9 +31,11 @@ class LeaveRequest extends Model
     ];
 
     protected $casts = [
-        'type'        => LeaveType::class,
-        'start_date'  => 'date',
-        'end_date'    => 'date',
+        'type' => LeaveType::class,
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'start_time' => 'datetime:H:i',
+        'end_time' => 'datetime:H:i',
         'approved_at' => 'datetime',
         'supervisor_ack_at' => 'datetime',
         'latitude' => 'float',
@@ -39,10 +43,11 @@ class LeaveRequest extends Model
         'accuracy_m' => 'float',
         'location_captured_at' => 'datetime',
     ];
+
     public const PENDING_SUPERVISOR = 'PENDING_SUPERVISOR';
     public const PENDING_HR = 'PENDING_HR';
 
-    public const STATUS_PENDING  = 'PENDING';
+    public const STATUS_PENDING = 'PENDING';
     public const STATUS_APPROVED = 'APPROVED';
     public const STATUS_REJECTED = 'REJECTED';
 
@@ -50,12 +55,12 @@ class LeaveRequest extends Model
 
     public const TYPE_OPTIONS = [
         'LEAVE' => 'Cuti',
-        'SICK'  => 'Sakit',
+        'SICK' => 'Sakit',
         'OTHER' => 'Lainnya',
     ];
 
     public const STATUS_OPTIONS = [
-        'PENDING'  => 'Menunggu',
+        'PENDING' => 'Menunggu',
         'APPROVED' => 'Disetujui',
         'REJECTED' => 'Ditolak',
     ];
@@ -92,6 +97,7 @@ class LeaveRequest extends Model
     {
         return $q->where('status', self::PENDING_SUPERVISOR);
     }
+
     public function scopePendingHr($q)
     {
         return $q->where('status', self::PENDING_HR);

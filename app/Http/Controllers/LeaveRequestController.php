@@ -4,16 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Enums\LeaveType;
 use App\Models\LeaveRequest;
+use App\Models\EmployeeShift;
+use App\Services\Image\ImageCompressor;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class LeaveRequestController extends Controller
 {
+    protected ImageCompressor $imageCompressor;
+
+    public function __construct(ImageCompressor $imageCompressor)
+    {
+        $this->imageCompressor = $imageCompressor;
+    }
+
     public function index(Request $request)
     {
         $userId = Auth::id();
@@ -45,8 +52,8 @@ class LeaveRequestController extends Controller
 
                     if ($from->gt($to)) {
                         $temp = $from;
-                        $from = $to;
-                        $to = $temp;
+                        $from  = $to;
+                        $to    = $temp;
                     }
 
                     $query->whereBetween('created_at', [$from, $to]);
@@ -72,7 +79,25 @@ class LeaveRequestController extends Controller
     public function create()
     {
         $this->authorize('create', LeaveRequest::class);
-        return view('leave_requests.create');
+
+        $userId = Auth::id();
+        $shiftEndTime = null;
+
+        $employeeShift = EmployeeShift::with('shift')
+            ->where('user_id', $userId)
+            ->first();
+
+        if ($employeeShift && $employeeShift->shift && $employeeShift->shift->end_time) {
+            try {
+                $shiftEndTime = Carbon::parse($employeeShift->shift->end_time)->format('H:i');
+            } catch (\Throwable $e) {
+                $shiftEndTime = null;
+            }
+        }
+
+        return view('leave_requests.create', [
+            'shiftEndTime' => $shiftEndTime,
+        ]);
     }
 
     public function store(Request $request)
@@ -81,6 +106,8 @@ class LeaveRequestController extends Controller
             'type'       => ['required', 'string'],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time'   => ['nullable', 'date_format:H:i'],
             'reason'     => ['required', 'string'],
             'photo'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
             'latitude'   => ['nullable', 'numeric', 'between:-90,90'],
@@ -121,14 +148,80 @@ class LeaveRequestController extends Controller
             return back()->withErrors('Lokasi harus diisi untuk izin telat.')->withInput();
         }
 
+        $isIzinTengahKerja = $validated['type'] === LeaveType::IZIN_TENGAH_KERJA->value;
+        $isIzinPulangAwal  = $validated['type'] === LeaveType::IZIN_PULANG_AWAL->value;
+
+        $rawStartTime = $request->input('start_time');
+        $rawEndTime   = $request->input('end_time');
+
+        if ($isIzinTengahKerja) {
+            if (!$rawStartTime || !$rawEndTime) {
+                return back()->withErrors('Jam mulai dan jam selesai wajib diisi untuk izin tengah kerja.')->withInput();
+            }
+
+            try {
+                $startTimeObj = Carbon::createFromFormat('H:i', $rawStartTime);
+                $endTimeObj   = Carbon::createFromFormat('H:i', $rawEndTime);
+            } catch (\Exception $e) {
+                return back()->withErrors('Format jam tidak valid.')->withInput();
+            }
+
+            if ($endTimeObj->lessThanOrEqualTo($startTimeObj)) {
+                return back()->withErrors('Jam selesai harus lebih besar dari jam mulai.')->withInput();
+            }
+        }
+
+        if ($isIzinPulangAwal) {
+            if (!$rawStartTime) {
+                return back()->withErrors('Jam pulang wajib diisi untuk izin pulang awal.')->withInput();
+            }
+
+            $employeeShift = EmployeeShift::with('shift')
+                ->where('user_id', Auth::id())
+                ->first();
+
+            $shiftEndRaw = $employeeShift && $employeeShift->shift
+                ? $employeeShift->shift->end_time
+                : null;
+
+            if (!$shiftEndRaw) {
+                return back()->withErrors('Konfigurasi jam pulang shift tidak valid, hubungi HRD.')->withInput();
+            }
+
+            try {
+                $reqTimeObj = Carbon::createFromFormat('H:i', $rawStartTime);
+
+                if ($shiftEndRaw instanceof Carbon) {
+                    $shiftTimeObj = $shiftEndRaw->copy();
+                } else {
+                    $shiftTimeObj = Carbon::parse($shiftEndRaw);
+                }
+
+                $shiftTimeObj->setDate($reqTimeObj->year, $reqTimeObj->month, $reqTimeObj->day);
+                $diffMinutes = $reqTimeObj->diffInMinutes($shiftTimeObj, false);
+            } catch (\Throwable $e) {
+                return back()->withErrors('Format jam pulang shift tidak valid, hubungi HRD.')->withInput();
+            }
+
+            if ($diffMinutes <= 0) {
+                return back()->withErrors('Jam pulang izin harus sebelum jam pulang shift.')->withInput();
+            }
+
+            if ($diffMinutes > 60) {
+                return back()->withErrors('Waktu izin pulang awal maksimal 1 jam sebelum jam pulang shift.')->withInput();
+            }
+        }
+
         $photoBasename = null;
         if ($request->hasFile('photo')) {
-            $photoBasename = $this->storeSupportingFile($request->file('photo'), $isIzinTelat);
+            $photoBasename = $this->imageCompressor
+                ->storeLeaveSupportingFile($request->file('photo'), $isIzinTelat);
         }
 
         $type = $validated['type'];
         $initialStatus = match ($type) {
-            LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value => LeaveRequest::PENDING_SUPERVISOR,
+            LeaveType::CUTI->value,
+            LeaveType::CUTI_KHUSUS->value => LeaveRequest::PENDING_SUPERVISOR,
             default => LeaveRequest::PENDING_HR,
         };
 
@@ -137,6 +230,8 @@ class LeaveRequestController extends Controller
             'type'       => $type,
             'start_date' => $validated['start_date'],
             'end_date'   => $validated['end_date'],
+            'start_time' => ($isIzinTengahKerja || $isIzinPulangAwal) ? $rawStartTime : null,
+            'end_time'   => $isIzinTengahKerja ? $rawEndTime : null,
             'reason'     => $validated['reason'],
             'photo'      => $photoBasename,
             'status'     => $initialStatus,
@@ -189,6 +284,8 @@ class LeaveRequestController extends Controller
             'type'       => ['required', Rule::in(LeaveType::values())],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time'   => ['nullable', 'date_format:H:i'],
             'reason'     => ['nullable', 'string', 'max:5000'],
             'photo'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
             'status'     => ['nullable', Rule::in([
@@ -208,11 +305,83 @@ class LeaveRequestController extends Controller
             return back()->withErrors('Lokasi harus diisi untuk izin telat.')->withInput();
         }
 
+        $isIzinTengahKerja = $validated['type'] === LeaveType::IZIN_TENGAH_KERJA->value;
+        $isIzinPulangAwal  = $validated['type'] === LeaveType::IZIN_PULANG_AWAL->value;
+
+        $rawStartTime = $request->input('start_time');
+        $rawEndTime   = $request->input('end_time');
+
+        if ($isIzinTengahKerja) {
+            if (!$rawStartTime || !$rawEndTime) {
+                return back()->withErrors('Jam mulai dan jam selesai wajib diisi untuk izin tengah kerja.')->withInput();
+            }
+
+            try {
+                $startTimeObj = Carbon::createFromFormat('H:i', $rawStartTime);
+                $endTimeObj   = Carbon::createFromFormat('H:i', $rawEndTime);
+            } catch (\Exception $e) {
+                return back()->withErrors('Format jam tidak valid.')->withInput();
+            }
+
+            if ($endTimeObj->lessThanOrEqualTo($startTimeObj)) {
+                return back()->withErrors('Jam selesai harus lebih besar dari jam mulai.')->withInput();
+            }
+
+            $validated['start_time'] = $rawStartTime;
+            $validated['end_time']   = $rawEndTime;
+        } elseif ($isIzinPulangAwal) {
+            if (!$rawStartTime) {
+                return back()->withErrors('Jam pulang wajib diisi untuk izin pulang awal.')->withInput();
+            }
+
+            $employeeShift = EmployeeShift::with('shift')
+                ->where('user_id', $leaveRequest->user_id)
+                ->first();
+
+            $shiftEndRaw = $employeeShift && $employeeShift->shift
+                ? $employeeShift->shift->end_time
+                : null;
+
+            if (!$shiftEndRaw) {
+                return back()->withErrors('Konfigurasi jam pulang shift tidak valid, hubungi HRD.')->withInput();
+            }
+
+            try {
+                $reqTimeObj = Carbon::createFromFormat('H:i', $rawStartTime);
+
+                if ($shiftEndRaw instanceof Carbon) {
+                    $shiftTimeObj = $shiftEndRaw->copy();
+                } else {
+                    $shiftTimeObj = Carbon::parse($shiftEndRaw);
+                }
+
+                $shiftTimeObj->setDate($reqTimeObj->year, $reqTimeObj->month, $reqTimeObj->day);
+                $diffMinutes = $reqTimeObj->diffInMinutes($shiftTimeObj, false);
+            } catch (\Throwable $e) {
+                return back()->withErrors('Format jam pulang shift tidak valid, hubungi HRD.')->withInput();
+            }
+
+            if ($diffMinutes <= 0) {
+                return back()->withErrors('Jam pulang izin harus sebelum jam pulang shift.')->withInput();
+            }
+
+            if ($diffMinutes > 60) {
+                return back()->withErrors('Waktu izin pulang awal maksimal 1 jam sebelum jam pulang shift.')->withInput();
+            }
+
+            $validated['start_time'] = $rawStartTime;
+            $validated['end_time']   = null;
+        } else {
+            $validated['start_time'] = null;
+            $validated['end_time']   = null;
+        }
+
         if ($request->hasFile('photo')) {
             if ($leaveRequest->photo) {
                 Storage::disk('public')->delete('leave_photos/' . $leaveRequest->photo);
             }
-            $validated['photo'] = $this->storeSupportingFile($request->file('photo'), $isIzinTelat);
+            $validated['photo'] = $this->imageCompressor
+                ->storeLeaveSupportingFile($request->file('photo'), $isIzinTelat);
         }
 
         $leaveRequest->update($validated);
@@ -244,127 +413,5 @@ class LeaveRequestController extends Controller
         ]);
 
         return back()->with('ok', 'Pengajuan ditolak.');
-    }
-
-    protected function storeSupportingFile(UploadedFile $file, bool $compress = false): string
-    {
-        $ext = strtolower($file->getClientOriginalExtension());
-        $dir = 'leave_photos';
-        $disk = Storage::disk('public');
-        $gdLoaded = extension_loaded('gd');
-
-        Log::info('Leave storeSupportingFile called', [
-            'compress_flag' => $compress,
-            'ext' => $ext,
-            'gd_loaded' => $gdLoaded,
-        ]);
-
-        if (
-            $compress
-            && $gdLoaded
-            && in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)
-        ) {
-            Log::info('Leave compression branch entered', [
-                'ext' => $ext,
-            ]);
-
-            try {
-                $sourcePath = $file->getPathname();
-                $info = getimagesize($sourcePath);
-                if ($info === false) {
-                    throw new \RuntimeException('Invalid image.');
-                }
-
-                $width = $info[0];
-                $height = $info[1];
-
-                $maxSide = 720;
-                $scale = min($maxSide / max($width, 1), $maxSide / max($height, 1), 1);
-                $newWidth = (int) round($width * $scale);
-                $newHeight = (int) round($height * $scale);
-
-                switch ($ext) {
-                    case 'jpg':
-                    case 'jpeg':
-                        $srcImage = imagecreatefromjpeg($sourcePath);
-                        break;
-                    case 'png':
-                        $srcImage = imagecreatefrompng($sourcePath);
-                        break;
-                    case 'webp':
-                        if (!function_exists('imagecreatefromwebp')) {
-                            throw new \RuntimeException('WEBP not supported.');
-                        }
-                        $srcImage = imagecreatefromwebp($sourcePath);
-                        break;
-                    default:
-                        $srcImage = null;
-                }
-
-                if (!$srcImage) {
-                    throw new \RuntimeException('Failed to create image resource.');
-                }
-
-                $dstImage = imagecreatetruecolor($newWidth, $newHeight);
-
-                if ($ext === 'png' || $ext === 'webp') {
-                    imagealphablending($dstImage, false);
-                    imagesavealpha($dstImage, true);
-                    $transparent = imagecolorallocatealpha($dstImage, 0, 0, 0, 127);
-                    imagefilledrectangle($dstImage, 0, 0, $newWidth, $newHeight, $transparent);
-                }
-
-                imagecopyresampled(
-                    $dstImage,
-                    $srcImage,
-                    0,
-                    0,
-                    0,
-                    0,
-                    $newWidth,
-                    $newHeight,
-                    $width,
-                    $height
-                );
-
-                $filename = 'leave_' . uniqid('', true) . '.jpg';
-
-                ob_start();
-                imagejpeg($dstImage, null, 70);
-                $contents = ob_get_clean();
-
-                imagedestroy($srcImage);
-                imagedestroy($dstImage);
-
-                if ($contents === false) {
-                    throw new \RuntimeException('Failed to encode JPEG.');
-                }
-
-                $disk->put($dir . '/' . $filename, $contents);
-
-                Log::info('Leave compression success', [
-                    'filename' => $filename,
-                    'size_bytes' => strlen($contents),
-                ]);
-
-                return $filename;
-            } catch (\Throwable $e) {
-                Log::warning('Leave photo GD compression failed, fallback to original store', [
-                    'message' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        Log::info('Leave store fallback original', [
-            'ext' => $ext,
-        ]);
-
-        $stored = $file->store($dir, 'public');
-
-        Log::info('Leave store fallback stored', [
-            'stored' => $stored,
-        ]);
-
-        return basename($stored);
     }
 }

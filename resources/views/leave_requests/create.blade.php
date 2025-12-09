@@ -17,6 +17,18 @@
         } elseif ($oldStart) {
             $oldRange = $oldStart;
         }
+
+        $shiftEndDisplay = null;
+        try {
+            $empShift = \App\Models\EmployeeShift::with('shift')
+                ->where('user_id', auth()->id())
+                ->first();
+            if ($empShift && $empShift->shift && $empShift->shift->end_time) {
+                $shiftEndDisplay = \Carbon\Carbon::parse($empShift->shift->end_time)->format('H:i');
+            }
+        } catch (\Throwable $e) {
+            $shiftEndDisplay = null;
+        }
     @endphp
 
     @if ($errors->any())
@@ -27,6 +39,8 @@
 
     <form class="card form-leave" method="POST" action="{{ route('leave-requests.store') }}" enctype="multipart/form-data">
         @csrf
+
+        <input type="hidden" id="shift_end_time" value="{{ $shiftEndDisplay }}">
 
         <div class="grid-form">
             <div class="field full">
@@ -61,6 +75,30 @@
                 <input type="hidden" name="end_date" id="end_date" value="{{ $oldEnd }}">
                 @error('start_date') <div class="error">{{ $message }}</div> @enderror
                 @error('end_date') <div class="error">{{ $message }}</div> @enderror
+            </div>
+
+            <div class="field full" id="worktime-field" style="display:none;">
+                <label id="worktime-label"><b>Jam Izin Tengah Kerja:</b></label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <div style="flex:1;min-width:120px;">
+                        <input
+                            type="time"
+                            name="start_time"
+                            id="start_time_input"
+                            value="{{ old('start_time') }}">
+                    </div>
+                    <span id="worktime-separator" style="font-size:0.9rem;">sampai</span>
+                    <div id="end_time_wrapper" style="flex:1;min-width:120px;">
+                        <input
+                            type="time"
+                            name="end_time"
+                            id="end_time_input"
+                            value="{{ old('end_time') }}">
+                    </div>
+                </div>
+                <div id="pulang-info" class="hint" style="display:none;margin-top:4px;"></div>
+                @error('start_time') <div class="error">{{ $message }}</div> @enderror
+                @error('end_time') <div class="error">{{ $message }}</div> @enderror
             </div>
 
             <div class="field full">
@@ -185,7 +223,8 @@
         input[type=date],
         select,
         textarea,
-        input[type=file] {
+        input[type=file],
+        input[type=time] {
             width: 100%;
             padding: 10px 12px;
             border: 1px solid #ddd;
@@ -263,6 +302,9 @@
         (function() {
             const typeRadios = document.querySelectorAll('input[name="type"]');
             const IZIN_TELAT = @json(\App\Enums\LeaveType::IZIN_TELAT->value);
+            const IZIN_TENGAH_KERJA = @json(\App\Enums\LeaveType::IZIN_TENGAH_KERJA->value);
+            const IZIN_PULANG_AWAL = @json(\App\Enums\LeaveType::IZIN_PULANG_AWAL->value);
+
             const section = document.getElementById('location');
             const btn = document.getElementById('btn-get-location');
             const statusEl = document.getElementById('loc-status');
@@ -273,6 +315,15 @@
             const accEl = document.getElementById('accuracy_m');
             const tsEl = document.getElementById('location_captured_at');
 
+            const worktimeField = document.getElementById('worktime-field');
+            const worktimeLabel = document.getElementById('worktime-label');
+            const startTimeInput = document.getElementById('start_time_input');
+            const endTimeInput = document.getElementById('end_time_input');
+            const endTimeWrapper = document.getElementById('end_time_wrapper');
+            const worktimeSeparator = document.getElementById('worktime-separator');
+            const pulangInfo = document.getElementById('pulang-info');
+            const shiftEndInput = document.getElementById('shift_end_time');
+
             let map, marker, circle;
 
             function selectedType() {
@@ -282,15 +333,98 @@
 
             function toggleSection() {
                 const val = selectedType();
-                const show = (val === IZIN_TELAT);
-                section.style.display = show ? 'grid' : 'none';
-                if (!show) {
+
+                const showLocation = (val === IZIN_TELAT);
+                if (section) {
+                    section.style.display = showLocation ? 'grid' : 'none';
+                }
+                if (!showLocation) {
                     latEl.value = '';
                     lngEl.value = '';
                     accEl.value = '';
                     tsEl.value = '';
                     statusEl.textContent = '';
                     mapDiv.style.display = 'none';
+                }
+
+                const isTengahKerja = (val === IZIN_TENGAH_KERJA);
+                const isPulangAwal = (val === IZIN_PULANG_AWAL);
+                const showWorktime = isTengahKerja || isPulangAwal;
+
+                if (worktimeField) {
+                    worktimeField.style.display = showWorktime ? 'block' : 'none';
+                }
+
+                if (!startTimeInput || !endTimeInput) {
+                    return;
+                }
+
+                if (isTengahKerja) {
+                    if (worktimeLabel) {
+                        worktimeLabel.innerHTML = '<b>Jam Izin Tengah Kerja:</b>';
+                    }
+                    if (worktimeSeparator) {
+                        worktimeSeparator.style.display = 'inline';
+                    }
+                    if (endTimeWrapper) {
+                        endTimeWrapper.style.display = 'block';
+                    }
+
+                    startTimeInput.required = true;
+                    endTimeInput.required = true;
+
+                    if (pulangInfo) {
+                        pulangInfo.style.display = 'none';
+                        pulangInfo.textContent = '';
+                    }
+                } else if (isPulangAwal) {
+                    if (worktimeLabel) {
+                        worktimeLabel.innerHTML = '<b>Jam Pulang:</b>';
+                    }
+                    if (worktimeSeparator) {
+                        worktimeSeparator.style.display = 'none';
+                    }
+                    if (endTimeWrapper) {
+                        endTimeWrapper.style.display = 'none';
+                    }
+
+                    startTimeInput.required = true;
+                    endTimeInput.required = false;
+                    endTimeInput.value = '';
+
+                    if (pulangInfo) {
+                        const shiftEnd = shiftEndInput ? shiftEndInput.value : '';
+                        if (shiftEnd) {
+                            pulangInfo.style.display = 'block';
+                            pulangInfo.textContent =
+                                'Jam pulang shift Anda: ' + shiftEnd +
+                                '. Izin pulang awal maksimal 1 jam sebelum jam pulang.';
+                        } else {
+                            pulangInfo.style.display = 'block';
+                            pulangInfo.textContent =
+                                'Izin pulang awal maksimal 1 jam sebelum jam pulang shift.';
+                        }
+                    }
+                } else {
+                    if (worktimeLabel) {
+                        worktimeLabel.innerHTML = '<b>Jam Izin Tengah Kerja:</b>';
+                    }
+                    if (worktimeSeparator) {
+                        worktimeSeparator.style.display = 'inline';
+                    }
+                    if (endTimeWrapper) {
+                        endTimeWrapper.style.display = 'block';
+                    }
+
+                    startTimeInput.required = false;
+                    endTimeInput.required = false;
+                    startTimeInput.value = '';
+                    endTimeInput.value = '';
+
+                    if (pulangInfo) {
+                        pulangInfo.style.display = 'none';
+                        pulangInfo.textContent = '';
+                    }
                 }
             }
 
@@ -406,19 +540,12 @@
         title="Izin Terlambat"
         type="info"
         cancelLabel="Tutup"
-        primaryLinkHref="https://wa.me/6289686786066?text=Saya%20ingin%20mengajukan%20izin%20terlambat."
-        primaryLinkLabel="Chat HRD via WhatsApp"
     >
         <p style="margin:0 0 6px 0;">
-            Harap menghubungi HRD di nomor berikut untuk mengajukan izin keterlambatan.
+            Pengajuan izin terlambat Anda sudah dikirim ke HRD.
         </p>
-        <p style="margin:0;font-size:0.9rem;">
-            Nomor HRD:
-            <a href="https://wa.me/6289686786066?text=Saya%20ingin%20mengajukan%20izin%20terlambat."
-               target="_blank"
-               style="color:#16a34a;text-decoration:none;font-weight:600;">
-                089686786066
-            </a>
+        <p style="margin:0;font-size:0.9rem;opacity:.9;">
+            Silakan menunggu proses pengecekan. Status pengajuan dapat Anda lihat pada daftar riwayat pengajuan izin.
         </p>
     </x-modal>
 
