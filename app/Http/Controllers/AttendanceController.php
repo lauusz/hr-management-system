@@ -138,8 +138,9 @@ class AttendanceController extends Controller
         $yesterday = $now->copy()->subDay()->toDateString();
 
         $request->validate([
-            'lat' => ['required', 'numeric'],
-            'lng' => ['required', 'numeric'],
+            'photo' => ['required', 'image', 'max:4096'],
+            'lat'   => ['required', 'numeric'],
+            'lng'   => ['required', 'numeric'],
         ]);
 
         $schedule = EmployeeShift::where('user_id', $user->id)
@@ -204,10 +205,14 @@ class AttendanceController extends Controller
             ], 400);
         }
 
+        $photoPath = $this->storeAttendancePhoto($request->file('photo'));
+
         $attendance->update([
-            'clock_out_at'  => $now,
-            'clock_out_lat' => $request->lat,
-            'clock_out_lng' => $request->lng,
+            'clock_out_at'         => $now,
+            'clock_out_lat'        => $request->lat,
+            'clock_out_lng'        => $request->lng,
+            'clock_out_distance_m' => $distance,
+            'clock_out_photo'      => $photoPath,
         ]);
 
         return response()->json([

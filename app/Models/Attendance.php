@@ -32,10 +32,10 @@ class Attendance extends Model
     ];
 
     protected $casts = [
-        'date'                     => 'date',
-        'clock_in_at'              => 'datetime',
-        'clock_out_at'             => 'datetime',
-        'clock_in_photo_deleted_at'=> 'datetime',
+        'date'                      => 'date',
+        'clock_in_at'               => 'datetime',
+        'clock_out_at'              => 'datetime',
+        'clock_in_photo_deleted_at' => 'datetime',
         'clock_out_photo_deleted_at'=> 'datetime',
     ];
 

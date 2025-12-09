@@ -31,11 +31,13 @@ class HRAttendanceController extends Controller
         if ($dateStart && $dateEnd) {
             $from = Carbon::parse($dateStart)->toDateString();
             $to   = Carbon::parse($dateEnd)->toDateString();
+
             if ($from > $to) {
                 $tmp  = $from;
                 $from = $to;
                 $to   = $tmp;
             }
+
             $query->whereBetween('date', [$from, $to]);
             $dateStart = $from;
             $dateEnd   = $to;

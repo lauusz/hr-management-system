@@ -51,9 +51,9 @@
             @endif
 
             @php
-                $url = $item->photo
-                    ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
-                    : null;
+            $url = $item->photo
+            ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
+            : null;
             @endphp
 
             @if ($url)
@@ -78,7 +78,7 @@
             @endif
 
             @php
-                $needsHrdAction = ($item->status === \App\Models\LeaveRequest::PENDING_HR);
+            $needsHrdAction = ($item->status === \App\Models\LeaveRequest::PENDING_HR);
             @endphp
 
             <div class="actions">
@@ -103,27 +103,45 @@
         id="leave-photo-modal"
         title="Foto Pengajuan Izin"
         type="info"
-        cancelLabel="Tutup"
-    >
+        cancelLabel="Tutup">
         <div style="display:flex;flex-direction:column;gap:10px;">
             <div style="font-size:0.85rem;color:#4b5563;">
                 Foto saat karyawan mengajukan izin.
             </div>
-            <div style="border-radius:10px;overflow:hidden;border:1px solid #e5e7eb;max-height:70vh;">
-                <img id="leave-photo-img"
-                     src=""
-                     alt="Foto Pengajuan Izin"
-                     style="width:100%;height:auto;display:block;object-fit:contain;background:#000;">
+
+            <div style="
+            border-radius:10px;
+            overflow:hidden;
+            border:1px solid #e5e7eb;
+            max-height:70vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:#000;
+        ">
+                <img
+                    id="leave-photo-img"
+                    src=""
+                    alt="Foto Pengajuan Izin"
+                    style="
+                    max-width:100%;
+                    max-height:70vh;
+                    width:auto;
+                    height:auto;
+                    display:block;
+                    object-fit:contain;
+                ">
             </div>
         </div>
     </x-modal>
+
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        document.querySelectorAll('.js-confirm').forEach(function (f) {
-            f.addEventListener('submit', function (e) {
+        document.querySelectorAll('.js-confirm').forEach(function(f) {
+            f.addEventListener('submit', function(e) {
                 var msg = f.dataset.msg || 'Lanjutkan aksi?';
                 if (!confirm(msg)) {
                     e.preventDefault();
@@ -140,8 +158,8 @@
         var leavePhotoModal = document.getElementById('leave-photo-modal');
         var leavePhotoImg = document.getElementById('leave-photo-img');
 
-        document.querySelectorAll('.js-view-leave-photo').forEach(function (box) {
-            box.addEventListener('click', function () {
+        document.querySelectorAll('.js-view-leave-photo').forEach(function(box) {
+            box.addEventListener('click', function() {
                 var url = box.getAttribute('data-photo-url');
                 if (!url || !leavePhotoModal || !leavePhotoImg) return;
                 leavePhotoImg.src = url;
