@@ -5,15 +5,13 @@
         </div>
 
         @php
-            $raw = $item->photo;
-            $isFull = \Illuminate\Support\Str::startsWith($raw, 'leave_photos/');
-            $rel = $raw ? ($isFull ? $raw : ('leave_photos/' . $raw)) : null;
-            $exists = $rel ? \Illuminate\Support\Facades\Storage::disk('public')->exists($rel) : false;
-            $url = $exists ? \Illuminate\Support\Facades\Storage::url($rel) : null;
+        $url = $item->photo
+        ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
+        : null;
 
-            $isIzinTengahKerja = $item->type === \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value;
-            $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
-            $endTimeLabel = $item->end_time ? $item->end_time->format('H:i') : null;
+        $isIzinTengahKerja = $item->type === \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value;
+        $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
+        $endTimeLabel = $item->end_time ? $item->end_time->format('H:i') : null;
         @endphp
 
         <div class="card lr-card">
@@ -48,89 +46,89 @@
                     <div class="lr-value">
                         {{ $item->start_date->format('d M Y') }}
                         @if($item->end_date && !$item->start_date->equalTo($item->end_date))
-                            – {{ $item->end_date->format('d M Y') }}
+                        – {{ $item->end_date->format('d M Y') }}
                         @endif
                     </div>
                 </div>
 
                 @if($isIzinTengahKerja && $startTimeLabel && $endTimeLabel)
-                    <div class="lr-row">
-                        <div class="lr-label">Jam Izin</div>
-                        <div class="lr-value">
-                            {{ $startTimeLabel }} – {{ $endTimeLabel }}
-                        </div>
+                <div class="lr-row">
+                    <div class="lr-label">Jam Izin</div>
+                    <div class="lr-value">
+                        {{ $startTimeLabel }} – {{ $endTimeLabel }}
                     </div>
+                </div>
                 @endif
 
                 @if($item->approved_by)
-                    <div class="lr-row">
-                        <div class="lr-label">Disetujui / Diputus</div>
-                        <div class="lr-value">
-                            {{ $item->approver?->name }}
-                            @if($item->approved_at)
-                                <div class="lr-muted">
-                                    pada {{ $item->approved_at->format('d M Y H:i') }}
-                                </div>
-                            @endif
+                <div class="lr-row">
+                    <div class="lr-label">Disetujui / Diputus</div>
+                    <div class="lr-value">
+                        {{ $item->approver?->name }}
+                        @if($item->approved_at)
+                        <div class="lr-muted">
+                            pada {{ $item->approved_at->format('d M Y H:i') }}
                         </div>
+                        @endif
                     </div>
+                </div>
                 @endif
             </div>
 
             @if($item->notes)
-                <div class="lr-section lr-section-note">
-                    <div class="lr-note-title">Catatan Sistem</div>
-                    <div class="lr-note-body">
-                        {!! nl2br(e($item->notes)) !!}
-                    </div>
+            <div class="lr-section lr-section-note">
+                <div class="lr-note-title">Catatan Sistem</div>
+                <div class="lr-note-body">
+                    {!! nl2br(e($item->notes)) !!}
                 </div>
+            </div>
             @endif
 
             @if($item->reason)
-                <div class="lr-section">
-                    <div class="lr-label">Alasan</div>
-                    <div class="lr-reason">
-                        {{ $item->reason }}
-                    </div>
+            <div class="lr-section">
+                <div class="lr-label">Alasan</div>
+                <div class="lr-reason">
+                    {{ $item->reason }}
                 </div>
+            </div>
             @endif
 
             @if ($url)
-                <div class="lr-section">
-                    <div class="lr-label">Lampiran</div>
-                    <div class="lr-attachment">
-                        <div class="photo-box">
-                            <a href="{{ $url }}" target="_blank" rel="noopener">
-                                <img src="{{ $url }}" alt="Lampiran Pengajuan Izin">
-                            </a>
-                        </div>
+            <div class="lr-section">
+                <div class="lr-label">Lampiran</div>
+                <div class="lr-attachment">
+                    <div class="photo-box">
+                        <a href="{{ $url }}" target="_blank" rel="noopener">
+                            <img src="{{ $url }}" alt="Lampiran Pengajuan Izin">
+                        </a>
                     </div>
                 </div>
+            </div>
             @elseif ($item->photo)
-                <div class="lr-section">
-                    <div class="lr-alert-error">
-                        File lampiran tidak ditemukan di storage. ({{ $item->photo }})
-                    </div>
+            <div class="lr-section">
+                <div class="lr-alert-error">
+                    File lampiran tidak ditemukan di storage. ({{ $item->photo }})
                 </div>
+            </div>
             @endif
 
             <div class="actions">
                 @can('approve', $item)
-                    <form class="inline" method="POST" action="{{ route('leave-requests.approve',$item) }}">
-                        @csrf
-                        <button class="btn btn-success" type="submit">Approve</button>
-                    </form>
-                    <form class="inline" method="POST" action="{{ route('leave-requests.reject',$item) }}">
-                        @csrf
-                        <button class="btn btn-danger" type="submit">Reject</button>
-                    </form>
+                <form class="inline" method="POST" action="{{ route('leave-requests.approve',$item) }}">
+                    @csrf
+                    <button class="btn btn-success" type="submit">Approve</button>
+                </form>
+                <form class="inline" method="POST" action="{{ route('leave-requests.reject',$item) }}">
+                    @csrf
+                    <button class="btn btn-danger" type="submit">Reject</button>
+                </form>
                 @endcan
 
                 @can('delete', $item)
-                    <form class="inline" method="POST" action="{{ route('leave-requests.destroy',$item) }}">
-                        @csrf @method('DELETE')
-                        <button class="btn btn-danger-outline" type="submit">Hapus</button>
-                    </form>
+                <form class="inline" method="POST" action="{{ route('leave-requests.destroy',$item) }}">
+                    @csrf @method('DELETE')
+                    <button class="btn btn-danger-outline" type="submit">Hapus</button>
+                </form>
                 @endcan
             </div>
         </div>
