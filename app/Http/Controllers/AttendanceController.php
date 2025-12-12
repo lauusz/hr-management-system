@@ -18,7 +18,7 @@ class AttendanceController extends Controller
         $user  = Auth::user();
         $today = now()->toDateString();
 
-        $attendance = Attendance::with(['shift', 'location'])
+        $attendance = Attendance::with(['shift', 'location', 'employeeShift'])
             ->where('user_id', $user->id)
             ->where('date', $today)
             ->first();
@@ -40,8 +40,9 @@ class AttendanceController extends Controller
 
     public function clockIn(Request $request)
     {
-        $user  = Auth::user();
-        $today = now()->toDateString();
+        $user = Auth::user();
+        $now = now();
+        $today = $now->toDateString();
 
         $request->validate([
             'photo' => ['required', 'image', 'max:4096'],
@@ -49,20 +50,52 @@ class AttendanceController extends Controller
             'lng'   => ['required', 'numeric'],
         ]);
 
-        $schedule = EmployeeShift::where('user_id', $user->id)
-            ->with(['shift', 'location'])
+        $employeeShift = EmployeeShift::with(['location', 'shift'])
+            ->where('user_id', $user->id)
             ->first();
 
-        if (!$schedule || !$schedule->shift) {
+        if (!$employeeShift || !$employeeShift->shift) {
             return response()->json([
-                'error' => 'Anda belum memiliki jadwal shift. Silakan hubungi HR.',
+                'error' => 'Jadwal shift belum diatur. Silakan hubungi HR.',
             ], 400);
         }
 
-        if (!$schedule->location) {
+        if (!$employeeShift->location) {
             return response()->json([
                 'error' => 'Lokasi presensi belum diatur. Silakan hubungi HR.',
             ], 400);
+        }
+
+        $dayOfWeek = Carbon::parse($today)->dayOfWeek;
+
+        $pattern = $employeeShift->shift
+            ->patternDays()
+            ->where('day_of_week', $dayOfWeek)
+            ->first();
+
+        if (!$pattern) {
+            return response()->json([
+                'error' => 'Anda belum memiliki jadwal shift untuk hari ini. Silakan hubungi HR.',
+            ], 400);
+        }
+
+        if ($pattern->is_holiday) {
+            return response()->json([
+                'error' => 'Hari ini merupakan hari libur pada jadwal Anda.',
+            ], 400);
+        }
+
+        if (!$pattern->start_time || !$pattern->end_time) {
+            return response()->json([
+                'error' => 'Jam masuk atau pulang shift belum diatur dengan benar. Silakan hubungi HR.',
+            ], 400);
+        }
+
+        $shiftStart = Carbon::parse($today . ' ' . $pattern->start_time);
+        $shiftEnd = Carbon::parse($today . ' ' . $pattern->end_time);
+
+        if ($shiftEnd->lessThanOrEqualTo($shiftStart)) {
+            $shiftEnd->addDay();
         }
 
         $existing = Attendance::where('user_id', $user->id)
@@ -75,7 +108,7 @@ class AttendanceController extends Controller
             ], 400);
         }
 
-        $location = $schedule->location;
+        $location = $employeeShift->location;
 
         $distance = (int) round($this->calculateDistance(
             $request->lat,
@@ -90,19 +123,12 @@ class AttendanceController extends Controller
             ], 400);
         }
 
-        $now   = now();
-        $shift = $schedule->shift;
-
-        $shiftFrom = $shift->start_time instanceof Carbon
-            ? $shift->start_time
-            : Carbon::parse($shift->start_time);
-
-        $status      = 'HADIR';
+        $status = 'HADIR';
         $lateMinutes = 0;
 
-        if ($now->gt($shiftFrom)) {
-            $status      = 'TERLAMBAT';
-            $lateMinutes = $shiftFrom->diffInMinutes($now);
+        if ($now->gt($shiftStart)) {
+            $status = 'TERLAMBAT';
+            $lateMinutes = $shiftStart->diffInMinutes($now);
         }
 
         $photoPath = $this->storeAttendancePhoto($request->file('photo'));
@@ -113,14 +139,20 @@ class AttendanceController extends Controller
                 'date'    => $today,
             ],
             [
-                'shift_id'       => $schedule->shift_id,
-                'location_id'    => $schedule->location_id,
-                'clock_in_at'    => $now,
-                'late_minutes'   => $lateMinutes,
-                'status'         => $status,
-                'clock_in_photo' => $photoPath,
-                'clock_in_lat'   => $request->lat,
-                'clock_in_lng'   => $request->lng,
+                'shift_id'            => $employeeShift->shift_id,
+                'employee_shift_id'   => $employeeShift->id,
+                'normal_start_time'   => $shiftStart,
+                'normal_end_time'     => $shiftEnd,
+                'location_id'         => $employeeShift->location_id,
+                'clock_in_at'         => $now,
+                'clock_in_photo'      => $photoPath,
+                'clock_in_lat'        => $request->lat,
+                'clock_in_lng'        => $request->lng,
+                'clock_in_distance_m' => $distance,
+                'late_minutes'        => $lateMinutes,
+                'early_leave_minutes' => 0,
+                'overtime_minutes'    => 0,
+                'status'              => $status,
             ]
         );
 
@@ -142,16 +174,6 @@ class AttendanceController extends Controller
             'lat'   => ['required', 'numeric'],
             'lng'   => ['required', 'numeric'],
         ]);
-
-        $schedule = EmployeeShift::where('user_id', $user->id)
-            ->with(['shift', 'location'])
-            ->first();
-
-        if (!$schedule || !$schedule->shift || !$schedule->location) {
-            return response()->json([
-                'error' => 'Jadwal shift atau lokasi belum diatur. Silakan hubungi HR.',
-            ], 400);
-        }
 
         $attendanceTodayOpen = Attendance::where('user_id', $user->id)
             ->where('date', $today)
@@ -190,7 +212,26 @@ class AttendanceController extends Controller
             ], 400);
         }
 
-        $location = $schedule->location;
+        $attendanceDate = $attendance->date instanceof Carbon
+            ? $attendance->date->toDateString()
+            : (string) $attendance->date;
+
+        $employeeShiftQuery = EmployeeShift::with(['location', 'shift'])
+            ->where('user_id', $user->id);
+
+        if ($attendance->employee_shift_id) {
+            $employeeShiftQuery->where('id', $attendance->employee_shift_id);
+        }
+
+        $employeeShift = $employeeShiftQuery->first();
+
+        if (!$employeeShift || !$employeeShift->location) {
+            return response()->json([
+                'error' => 'Jadwal shift atau lokasi belum diatur. Silakan hubungi HR.',
+            ], 400);
+        }
+
+        $location = $employeeShift->location;
 
         $distance = (int) round($this->calculateDistance(
             $request->lat,
@@ -205,7 +246,48 @@ class AttendanceController extends Controller
             ], 400);
         }
 
+        $normalEnd = null;
+
+        if ($attendance->normal_end_time) {
+            $normalEnd = $attendance->normal_end_time instanceof Carbon
+                ? $attendance->normal_end_time
+                : Carbon::parse($attendance->normal_end_time);
+        } elseif ($employeeShift->shift) {
+            $dayOfWeek = Carbon::parse($attendanceDate)->dayOfWeek;
+            $pattern = $employeeShift->shift
+                ->patternDays()
+                ->where('day_of_week', $dayOfWeek)
+                ->first();
+
+            if ($pattern && !$pattern->is_holiday && $pattern->end_time) {
+                $normalEnd = Carbon::parse($attendanceDate . ' ' . $pattern->end_time);
+            }
+        }
+
+        if (!$normalEnd) {
+            return response()->json([
+                'error' => 'Format jam pulang shift tidak valid, hubungi HR.',
+            ], 400);
+        }
+
+        $clockIn = $attendance->clock_in_at instanceof Carbon
+            ? $attendance->clock_in_at
+            : Carbon::parse($attendance->clock_in_at);
+
+        if ($normalEnd->lessThanOrEqualTo($clockIn)) {
+            $normalEnd->addDay();
+        }
+
         $photoPath = $this->storeAttendancePhoto($request->file('photo'));
+
+        $earlyLeaveMinutes = 0;
+        $overtimeMinutes = 0;
+
+        if ($now->lt($normalEnd)) {
+            $earlyLeaveMinutes = $normalEnd->diffInMinutes($now);
+        } elseif ($now->gt($normalEnd)) {
+            $overtimeMinutes = $now->diffInMinutes($normalEnd);
+        }
 
         $attendance->update([
             'clock_out_at'         => $now,
@@ -213,6 +295,8 @@ class AttendanceController extends Controller
             'clock_out_lng'        => $request->lng,
             'clock_out_distance_m' => $distance,
             'clock_out_photo'      => $photoPath,
+            'early_leave_minutes'  => $earlyLeaveMinutes,
+            'overtime_minutes'     => $overtimeMinutes,
         ]);
 
         return response()->json([

@@ -116,16 +116,7 @@
                 </div>
             </div>
 
-            <div class="field full" id="location">
-                <label for="lokasi"><b>Lokasi:</b></label>
-                <button type="button" id="btn-get-location">
-                    Ambil Lokasi Saat Ini
-                </button>
-
-                <div id="loc-status"></div>
-                <div id="map-preview" style="width:100%;height:240px;margin-top:8px;border-radius:8px;display:none;">
-                </div>
-
+            <div class="field full" id="location" style="display:none;">
                 <input type="hidden" name="latitude" id="latitude">
                 <input type="hidden" name="longitude" id="longitude">
                 <input type="hidden" name="accuracy_m" id="accuracy_m">
@@ -177,17 +168,6 @@
         .form-leave {
             max-width: 520px;
             margin: auto;
-        }
-
-        #btn-get-location {
-            display: inline-block;
-            font-weight: 600;
-            font-size: 15px;
-            padding: 10px 18px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.25s ease;
         }
 
         .grid-form {
@@ -281,9 +261,6 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
         }
 
-        #map-preview { height: 240px; }
-        #map-preview .leaflet-container { height: 100% !important; }
-
         @media (max-width: 600px) {
             .grid-form {
                 grid-template-columns: 1fr;
@@ -295,9 +272,6 @@
         }
     </style>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <script>
         (function() {
             const typeRadios = document.querySelectorAll('input[name="type"]');
@@ -305,11 +279,7 @@
             const IZIN_TENGAH_KERJA = @json(\App\Enums\LeaveType::IZIN_TENGAH_KERJA->value);
             const IZIN_PULANG_AWAL = @json(\App\Enums\LeaveType::IZIN_PULANG_AWAL->value);
 
-            const section = document.getElementById('location');
-            const btn = document.getElementById('btn-get-location');
-            const statusEl = document.getElementById('loc-status');
-            const mapDiv = document.getElementById('map-preview');
-
+            const locationWrapper = document.getElementById('location');
             const latEl = document.getElementById('latitude');
             const lngEl = document.getElementById('longitude');
             const accEl = document.getElementById('accuracy_m');
@@ -324,27 +294,62 @@
             const pulangInfo = document.getElementById('pulang-info');
             const shiftEndInput = document.getElementById('shift_end_time');
 
-            let map, marker, circle;
+            let isRequestingLocation = false;
 
             function selectedType() {
                 const r = document.querySelector('input[name="type"]:checked');
                 return r ? r.value : null;
             }
 
+            function clearLocationValues() {
+                if (!locationWrapper) return;
+                if (latEl) latEl.value = '';
+                if (lngEl) lngEl.value = '';
+                if (accEl) accEl.value = '';
+                if (tsEl) tsEl.value = '';
+            }
+
+            function requestLocationIfNeeded() {
+                if (!locationWrapper) return;
+                if (!latEl || !lngEl || !accEl || !tsEl) return;
+                if (latEl.value && lngEl.value) return;
+                if (isRequestingLocation) return;
+                if (!('geolocation' in navigator)) return;
+
+                isRequestingLocation = true;
+
+                navigator.geolocation.getCurrentPosition(
+                    function(pos) {
+                        const latitude = pos.coords.latitude;
+                        const longitude = pos.coords.longitude;
+                        const accuracy = pos.coords.accuracy ?? 0;
+
+                        latEl.value = latitude.toFixed(7);
+                        lngEl.value = longitude.toFixed(7);
+                        accEl.value = accuracy.toFixed(2);
+                        tsEl.value = new Date(pos.timestamp).toISOString().slice(0, 19).replace('T', ' ');
+
+                        isRequestingLocation = false;
+                    },
+                    function() {
+                        isRequestingLocation = false;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
+                    }
+                );
+            }
+
             function toggleSection() {
                 const val = selectedType();
 
-                const showLocation = (val === IZIN_TELAT);
-                if (section) {
-                    section.style.display = showLocation ? 'grid' : 'none';
-                }
-                if (!showLocation) {
-                    latEl.value = '';
-                    lngEl.value = '';
-                    accEl.value = '';
-                    tsEl.value = '';
-                    statusEl.textContent = '';
-                    mapDiv.style.display = 'none';
+                const isTelat = (val === IZIN_TELAT);
+                if (isTelat) {
+                    requestLocationIfNeeded();
+                } else {
+                    clearLocationValues();
                 }
 
                 const isTengahKerja = (val === IZIN_TENGAH_KERJA);
@@ -432,83 +437,6 @@
                 r.addEventListener('change', toggleSection);
             });
             toggleSection();
-
-            btn?.addEventListener('click', function() {
-                if (!('geolocation' in navigator)) {
-                    statusEl.textContent = 'Geolocation is not supported in this browser.';
-                    return;
-                }
-
-                statusEl.textContent = 'Mengambil lokasi...';
-                mapDiv.style.display = 'block';
-
-                navigator.geolocation.getCurrentPosition(
-                    function(pos) {
-                        const latitude = pos.coords.latitude;
-                        const longitude = pos.coords.longitude;
-                        const accuracy = pos.coords.accuracy;
-
-                        latEl.value = latitude.toFixed(7);
-                        lngEl.value = longitude.toFixed(7);
-                        accEl.value = (accuracy ?? 0).toFixed(2);
-                        tsEl.value = new Date(pos.timestamp).toISOString().slice(0, 19).replace('T', ' ');
-
-                        statusEl.textContent = 'Lokasi berhasil diambil ' + latitude.toFixed(5) + ', ' + longitude.toFixed(5) + ' (±' + Math.round(accuracy) + 'm)';
-
-                        mapDiv.style.display = 'block';
-
-                        if (!map) {
-                            map = L.map('map-preview', {
-                                zoomControl: true
-                            });
-                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                                attribution: '© OpenStreetMap contributors'
-                            }).addTo(map);
-                        }
-                        map.setView([latitude, longitude], 18);
-
-                        if (marker) {
-                            marker.setLatLng([latitude, longitude]);
-                        } else {
-                            marker = L.marker([latitude, longitude]).addTo(map);
-                        }
-
-                        if (circle) {
-                            circle.setLatLng([latitude, longitude]).setRadius(accuracy);
-                        } else {
-                            circle = L.circle([latitude, longitude], {
-                                radius: accuracy,
-                                color: '#1b3e7f',
-                                fillColor: '#1b3e7f',
-                                fillOpacity: 0.2
-                            }).addTo(map);
-                        }
-
-                        setTimeout(function() {
-                            map.invalidateSize();
-                        }, 100);
-
-                        const gmapsUrl = 'https://www.google.com/maps/search/?api=1&query=' + latitude + ',' + longitude;
-                        mapDiv.style.cursor = 'pointer';
-                        mapDiv.onclick = function() {
-                            window.open(gmapsUrl, '_blank', 'noopener');
-                        };
-                    },
-                    function(err) {
-                        const mapErr = {
-                            1: 'Permission denied',
-                            2: 'Position unavailable',
-                            3: 'Timeout'
-                        };
-                        statusEl.textContent = 'Gagal mengambil lokasi: ' + (mapErr[err.code] || 'Unknown error');
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        timeout: 10000,
-                        maximumAge: 0
-                    }
-                );
-            });
         })();
     </script>
 

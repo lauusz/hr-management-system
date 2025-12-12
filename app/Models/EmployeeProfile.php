@@ -48,6 +48,7 @@ class EmployeeProfile extends Model
         'exit_reason_code',
         'exit_reason_note',
         'exit_document_path',
+        'shift_pattern_id',
     ];
 
     protected $casts = [
@@ -65,6 +66,11 @@ class EmployeeProfile extends Model
     public function pt()
     {
         return $this->belongsTo(Pt::class, 'pt_id');
+    }
+
+    public function shiftPattern()
+    {
+        return $this->belongsTo(ShiftPattern::class, 'shift_pattern_id');
     }
 
     public function getMasaKerjaAttribute(): ?string

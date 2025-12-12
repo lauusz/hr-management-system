@@ -25,8 +25,11 @@ class HRAttendanceController extends Controller
             $dateStart = $dateEnd;
         }
 
-        $query = Attendance::with(['user', 'shift'])
-            ->orderBy('clock_in_at');
+        $query = Attendance::with([
+            'user',
+            'shift',
+            'employeeShift', // penting supaya HR bisa lihat shift pada hari itu
+        ])->orderBy('clock_in_at');
 
         if ($dateStart && $dateEnd) {
             $from = Carbon::parse($dateStart)->toDateString();

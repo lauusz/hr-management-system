@@ -67,7 +67,11 @@ class ScheduleController extends Controller
 
         $ptOptions = \App\Models\Pt::orderBy('name')->get();
         $positionOptions = Position::orderBy('name')->get();
-        $shiftOptions = Shift::orderBy('start_time')->get();
+
+        $shiftOptions = Shift::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return view('hr.schedules.index', [
             'items' => $items,
@@ -81,12 +85,18 @@ class ScheduleController extends Controller
         ]);
     }
 
-
     public function create()
     {
         $users = User::orderBy('name')->get();
-        $shifts = Shift::orderBy('start_time')->get();
-        $locations = AttendanceLocation::where('is_active', true)->orderBy('name')->get();
+
+        $shifts = Shift::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $locations = AttendanceLocation::where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return view('hr.schedules.create', compact('users', 'shifts', 'locations'));
     }
@@ -119,8 +129,15 @@ class ScheduleController extends Controller
     public function edit(EmployeeShift $schedule)
     {
         $users = User::orderBy('name')->get();
-        $shifts = Shift::orderBy('start_time')->get();
-        $locations = AttendanceLocation::where('is_active', true)->orderBy('name')->get();
+
+        $shifts = Shift::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $locations = AttendanceLocation::where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return view('hr.schedules.edit', compact('schedule', 'users', 'shifts', 'locations'));
     }

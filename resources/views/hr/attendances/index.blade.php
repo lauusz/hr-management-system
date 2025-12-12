@@ -113,12 +113,16 @@
                     </td>
 
                     <td style="padding:10px 12px;vertical-align:middle;">
-                        @if($at->shift)
-                        <span style="font-size:0.85rem;color:#111827;">
-                            {{ $at->shift->start_time_label }} - {{ $at->shift->end_time_label }}
-                        </span>
+                        @if($at->normal_start_time && $at->normal_end_time)
+                            <span style="font-size:0.85rem;color:#111827;">
+                                {{ $at->normal_start_time->format('H:i') }} - {{ $at->normal_end_time->format('H:i') }}
+                            </span>
+                        @elseif($at->shift)
+                            <span style="font-size:0.85rem;color:#111827;">
+                                {{ $at->shift->start_time_label }} - {{ $at->shift->end_time_label }}
+                            </span>
                         @else
-                        <span style="opacity:.6;">-</span>
+                            <span style="opacity:.6;">-</span>
                         @endif
                     </td>
 
@@ -356,7 +360,5 @@
         }
     });
 </script>
-
-
 
 </x-app>

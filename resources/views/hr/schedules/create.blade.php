@@ -43,7 +43,7 @@
                     <option value="">-- pilih shift --</option>
                     @foreach($shifts as $s)
                         <option value="{{ $s->id }}" @selected(old('shift_id') == $s->id)>
-                            {{ $s->name }} ({{ $s->start_time }} - {{ $s->end_time }})
+                            {{ $s->name }}
                         </option>
                     @endforeach
                 </select>

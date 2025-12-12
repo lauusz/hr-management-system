@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\LeaveType;
 use App\Models\LeaveRequest;
 use App\Models\EmployeeShift;
+use App\Models\ShiftDay;
 use App\Services\Image\ImageCompressor;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -83,15 +84,23 @@ class LeaveRequestController extends Controller
         $userId = Auth::id();
         $shiftEndTime = null;
 
-        $employeeShift = EmployeeShift::with('shift')
-            ->where('user_id', $userId)
-            ->first();
+        $employeeShift = EmployeeShift::where('user_id', $userId)->first();
 
-        if ($employeeShift && $employeeShift->shift && $employeeShift->shift->end_time) {
-            try {
-                $shiftEndTime = Carbon::parse($employeeShift->shift->end_time)->format('H:i');
-            } catch (\Throwable $e) {
-                $shiftEndTime = null;
+        if ($employeeShift && $employeeShift->shift_id) {
+            $today = now();
+            $dayOfWeek = (int) $today->dayOfWeekIso;
+
+            $shiftDay = ShiftDay::where('shift_id', $employeeShift->shift_id)
+                ->where('day_of_week', $dayOfWeek)
+                ->where('is_holiday', false)
+                ->first();
+
+            if ($shiftDay && $shiftDay->end_time) {
+                try {
+                    $shiftEndTime = Carbon::parse($shiftDay->end_time)->format('H:i');
+                } catch (\Throwable $e) {
+                    $shiftEndTime = null;
+                }
             }
         }
 
@@ -176,13 +185,23 @@ class LeaveRequestController extends Controller
                 return back()->withErrors('Jam pulang wajib diisi untuk izin pulang awal.')->withInput();
             }
 
-            $employeeShift = EmployeeShift::with('shift')
-                ->where('user_id', Auth::id())
-                ->first();
+            $izinDate = Carbon::parse($validated['start_date']);
+            $dayOfWeek = (int) $izinDate->dayOfWeekIso;
 
-            $shiftEndRaw = $employeeShift && $employeeShift->shift
-                ? $employeeShift->shift->end_time
-                : null;
+            $employeeShift = EmployeeShift::where('user_id', Auth::id())->first();
+
+            $shiftEndRaw = null;
+
+            if ($employeeShift && $employeeShift->shift_id) {
+                $shiftDay = ShiftDay::where('shift_id', $employeeShift->shift_id)
+                    ->where('day_of_week', $dayOfWeek)
+                    ->where('is_holiday', false)
+                    ->first();
+
+                if ($shiftDay && $shiftDay->end_time) {
+                    $shiftEndRaw = $shiftDay->end_time;
+                }
+            }
 
             if (!$shiftEndRaw) {
                 return back()->withErrors('Konfigurasi jam pulang shift tidak valid, hubungi HRD.')->withInput();
@@ -194,10 +213,13 @@ class LeaveRequestController extends Controller
                 if ($shiftEndRaw instanceof Carbon) {
                     $shiftTimeObj = $shiftEndRaw->copy();
                 } else {
-                    $shiftTimeObj = Carbon::parse($shiftEndRaw);
+                    $format = strlen($shiftEndRaw) === 5 ? 'H:i' : 'H:i:s';
+                    $shiftTimeObj = Carbon::createFromFormat($format, $shiftEndRaw);
                 }
 
-                $shiftTimeObj->setDate($reqTimeObj->year, $reqTimeObj->month, $reqTimeObj->day);
+                $reqTimeObj->setDate($izinDate->year, $izinDate->month, $izinDate->day);
+                $shiftTimeObj->setDate($izinDate->year, $izinDate->month, $izinDate->day);
+
                 $diffMinutes = $reqTimeObj->diffInMinutes($shiftTimeObj, false);
             } catch (\Throwable $e) {
                 return back()->withErrors('Format jam pulang shift tidak valid, hubungi HRD.')->withInput();
@@ -334,13 +356,23 @@ class LeaveRequestController extends Controller
                 return back()->withErrors('Jam pulang wajib diisi untuk izin pulang awal.')->withInput();
             }
 
-            $employeeShift = EmployeeShift::with('shift')
-                ->where('user_id', $leaveRequest->user_id)
-                ->first();
+            $izinDate = Carbon::parse($validated['start_date']);
+            $dayOfWeek = (int) $izinDate->dayOfWeekIso;
 
-            $shiftEndRaw = $employeeShift && $employeeShift->shift
-                ? $employeeShift->shift->end_time
-                : null;
+            $employeeShift = EmployeeShift::where('user_id', $leaveRequest->user_id)->first();
+
+            $shiftEndRaw = null;
+
+            if ($employeeShift && $employeeShift->shift_id) {
+                $shiftDay = ShiftDay::where('shift_id', $employeeShift->shift_id)
+                    ->where('day_of_week', $dayOfWeek)
+                    ->where('is_holiday', false)
+                    ->first();
+
+                if ($shiftDay && $shiftDay->end_time) {
+                    $shiftEndRaw = $shiftDay->end_time;
+                }
+            }
 
             if (!$shiftEndRaw) {
                 return back()->withErrors('Konfigurasi jam pulang shift tidak valid, hubungi HRD.')->withInput();
@@ -352,10 +384,13 @@ class LeaveRequestController extends Controller
                 if ($shiftEndRaw instanceof Carbon) {
                     $shiftTimeObj = $shiftEndRaw->copy();
                 } else {
-                    $shiftTimeObj = Carbon::parse($shiftEndRaw);
+                    $format = strlen($shiftEndRaw) === 5 ? 'H:i' : 'H:i:s';
+                    $shiftTimeObj = Carbon::createFromFormat($format, $shiftEndRaw);
                 }
 
-                $shiftTimeObj->setDate($reqTimeObj->year, $reqTimeObj->month, $reqTimeObj->day);
+                $reqTimeObj->setDate($izinDate->year, $izinDate->month, $izinDate->day);
+                $shiftTimeObj->setDate($izinDate->year, $izinDate->month, $izinDate->day);
+
                 $diffMinutes = $reqTimeObj->diffInMinutes($shiftTimeObj, false);
             } catch (\Throwable $e) {
                 return back()->withErrors('Format jam pulang shift tidak valid, hubungi HRD.')->withInput();

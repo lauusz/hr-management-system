@@ -25,7 +25,7 @@
                         style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #ddd;font-size:0.9rem;">
                     @foreach($shifts as $s)
                         <option value="{{ $s->id }}" @selected($schedule->shift_id == $s->id)>
-                            {{ $s->name }} ({{ $s->start_time }} - {{ $s->end_time }})
+                            {{ $s->name }}
                         </option>
                     @endforeach
                 </select>
@@ -52,7 +52,7 @@
                     Update Jadwal
                 </button>
 
-                <a href="{{ route('hr.schedules.index') }}"
+            <a href="{{ route('hr.schedules.index') }}"
                    style="padding:8px 18px;border-radius:999px;border:1px solid #d1d5db;font-size:.9rem;text-decoration:none;color:#111827;display:flex;align-items:center;">
                     Batal
                 </a>

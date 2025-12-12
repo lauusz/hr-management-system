@@ -11,28 +11,41 @@ class Shift extends Model
 
     protected $fillable = [
         'name',
-        'start_time',
-        'end_time',
+        'description',
+        'is_active',
     ];
 
     protected $casts = [
-        'start_time' => 'datetime',
-        'end_time' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
-    public function getStartTimeLabelAttribute(): string {
-        return $this->start_time ? $this->start_time->format('H:i') : '-';
+    public function days()
+    {
+        return $this->hasMany(ShiftDay::class);
     }
 
-    public function getEndTimeLabelAttribute(): string{
-        return $this->end_time ? $this->end_time->format('H:i') : '-';
+    public function patternDays()
+    {
+        return $this->hasMany(ShiftDay::class);
     }
 
-    public function schedules(){
+    public function schedules()
+    {
         return $this->hasMany(EmployeeShift::class);
     }
 
-    public function attendances() {
+    public function attendances()
+    {
         return $this->hasMany(Attendance::class);
+    }
+
+    public function getStatusLabelAttribute(): string
+    {
+        return $this->is_active ? 'Aktif' : 'Nonaktif';
+    }
+
+    public function getDaysCountAttribute(): int
+    {
+        return $this->days()->count();
     }
 }

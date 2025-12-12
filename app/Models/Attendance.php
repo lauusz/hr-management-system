@@ -13,7 +13,12 @@ class Attendance extends Model
         'user_id',
         'date',
         'shift_id',
+        'employee_shift_id',
+        'normal_start_time',
+        'normal_end_time',
         'late_minutes',
+        'early_leave_minutes',
+        'overtime_minutes',
         'location_id',
         'clock_in_at',
         'clock_in_photo',
@@ -37,6 +42,8 @@ class Attendance extends Model
         'clock_out_at'              => 'datetime',
         'clock_in_photo_deleted_at' => 'datetime',
         'clock_out_photo_deleted_at'=> 'datetime',
+        'normal_start_time'         => 'datetime:H:i',
+        'normal_end_time'           => 'datetime:H:i',
     ];
 
     public function user()
@@ -49,8 +56,33 @@ class Attendance extends Model
         return $this->belongsTo(Shift::class);
     }
 
+    public function employeeShift()
+    {
+        return $this->belongsTo(EmployeeShift::class, 'employee_shift_id');
+    }
+
     public function location()
     {
         return $this->belongsTo(AttendanceLocation::class, 'location_id');
+    }
+
+    public function getNormalStartLabelAttribute(): string
+    {
+        return $this->normal_start_time ? $this->normal_start_time->format('H:i') : '-';
+    }
+
+    public function getNormalEndLabelAttribute(): string
+    {
+        return $this->normal_end_time ? $this->normal_end_time->format('H:i') : '-';
+    }
+
+    public function getClockInLabelAttribute(): string
+    {
+        return $this->clock_in_at ? $this->clock_in_at->format('H:i') : '-';
+    }
+
+    public function getClockOutLabelAttribute(): string
+    {
+        return $this->clock_out_at ? $this->clock_out_at->format('H:i') : '-';
     }
 }
