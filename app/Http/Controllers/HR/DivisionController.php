@@ -31,7 +31,10 @@ class DivisionController extends Controller
     public function create()
     {
         $supervisors = User::query()
-            ->where('role', UserRole::SUPERVISOR->value)
+            ->whereIn('role', [
+                UserRole::SUPERVISOR->value,
+                UserRole::HRD->value,
+            ])
             ->orderBy('name')
             ->get();
 
@@ -41,26 +44,29 @@ class DivisionController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'          => ['required', 'string', 'max:255', 'unique:divisions,name'],
+            'name' => ['required', 'string', 'max:255', 'unique:divisions,name'],
             'supervisor_id' => ['nullable', 'exists:users,id'],
         ]);
 
         Division::create($data);
 
         return redirect()
-            ->route('hr.divisions.index')
+            ->route('hr.organization')
             ->with('success', 'Divisi baru berhasil ditambahkan.');
     }
 
     public function edit(Division $division)
     {
         $supervisors = User::query()
-            ->where('role', UserRole::SUPERVISOR->value)
+            ->whereIn('role', [
+                UserRole::SUPERVISOR->value,
+                UserRole::HRD->value,
+            ])
             ->orderBy('name')
             ->get();
 
         return view('hr.divisions.edit', [
-            'item'        => $division,
+            'item' => $division,
             'supervisors' => $supervisors,
         ]);
     }
@@ -68,7 +74,7 @@ class DivisionController extends Controller
     public function update(Request $request, Division $division)
     {
         $data = $request->validate([
-            'name'          => [
+            'name' => [
                 'required',
                 'string',
                 'max:255',
@@ -80,7 +86,7 @@ class DivisionController extends Controller
         $division->update($data);
 
         return redirect()
-            ->route('hr.divisions.index')
+            ->route('hr.organization')
             ->with('success', 'Data divisi berhasil diperbarui.');
     }
 
@@ -88,14 +94,14 @@ class DivisionController extends Controller
     {
         if ($division->users()->exists()) {
             return redirect()
-                ->route('hr.divisions.index')
+                ->route('hr.organization')
                 ->with('error', 'Divisi masih memiliki karyawan dan tidak dapat dihapus.');
         }
 
         $division->delete();
 
         return redirect()
-            ->route('hr.divisions.index')
+            ->route('hr.organization')
             ->with('success', 'Divisi berhasil dihapus.');
     }
 }

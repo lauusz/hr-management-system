@@ -18,7 +18,7 @@
         </div>
 
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <form method="GET" action="{{ route('hr.divisions.index') }}" style="display:flex;gap:6px;align-items:center;">
+            <form method="GET" action="{{ route('hr.organization.index') }}" style="display:flex;gap:6px;align-items:center;">
                 <input
                     type="text"
                     name="q"

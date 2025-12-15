@@ -12,14 +12,17 @@ class PositionController extends Controller
 {
     public function index()
     {
-
         $positions = Position::with('division')
             ->orderBy('division_id')
             ->orderBy('name')
             ->paginate(100);
 
-        return view('hr.positions.index', [
+        $divisions = Division::orderBy('name')->get();
+
+        return view('hr.organization.index', [
             'positions' => $positions,
+            'divisions' => $divisions,
+            'activeTab' => 'positions',
         ]);
     }
 
@@ -60,7 +63,7 @@ class PositionController extends Controller
         Position::create($data);
 
         return redirect()
-            ->route('hr.positions.index')
+            ->route('hr.organization', ['tab' => 'positions'])
             ->with('success', 'Jabatan berhasil ditambahkan.');
     }
 
@@ -104,7 +107,7 @@ class PositionController extends Controller
         $position->update($data);
 
         return redirect()
-            ->route('hr.positions.index')
+            ->route('hr.organization', ['tab' => 'positions'])
             ->with('success', 'Jabatan berhasil diperbarui.');
     }
 
@@ -113,7 +116,7 @@ class PositionController extends Controller
         $position->delete();
 
         return redirect()
-            ->route('hr.positions.index')
+            ->route('hr.organization', ['tab' => 'positions'])
             ->with('success', 'Jabatan berhasil dihapus.');
     }
 }
