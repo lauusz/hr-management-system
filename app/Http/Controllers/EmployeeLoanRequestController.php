@@ -10,9 +10,7 @@ class EmployeeLoanRequestController extends Controller
 {
     public function index()
     {
-        $userId = Auth::id();
-
-        $loans = LoanRequest::where('user_id', $userId)
+        $loans = LoanRequest::where('user_id', Auth::id())
             ->orderByDesc('created_at')
             ->get();
 
@@ -21,14 +19,26 @@ class EmployeeLoanRequestController extends Controller
 
     public function create()
     {
-        $user = Auth::user();
+        $user = Auth::user()->load([
+            'profile.pt',
+            'division',
+            'position',
+        ]);
 
-        return view('loan_requests.create', compact('user'));
+        $snapshot = [
+            'name' => $user->name,
+            'nik' => $user->profile?->nik,
+            'position' => $user->position?->name,
+            'division' => $user->division?->name,
+            'pt' => $user->profile?->pt?->name,
+        ];
+
+        return view('loan_requests.create', compact('user', 'snapshot'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'amount' => ['required', 'numeric', 'min:1'],
             'purpose' => ['nullable', 'string'],
             'installment_months' => ['nullable', 'integer', 'min:1', 'max:12'],
@@ -37,29 +47,31 @@ class EmployeeLoanRequestController extends Controller
             'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
         ]);
 
-        $user = Auth::user();
+        $user = Auth::user()->load([
+            'profile.pt',
+            'division',
+            'position',
+        ]);
 
         $documentPath = null;
         if ($request->hasFile('document')) {
             $documentPath = $request->file('document')->store('loan_documents', 'public');
         }
 
-        $installmentMonths = $request->installment_months;
-
         LoanRequest::create([
             'user_id' => $user->id,
             'snapshot_name' => $user->name,
-            'snapshot_nik' => $user->employee_profile?->nik,
-            'snapshot_position' => $user->employee_profile?->position?->name,
-            'snapshot_division' => $user->employee_profile?->division?->name,
-            'snapshot_company' => $user->employee_profile?->pt?->name,
+            'snapshot_nik' => $user->profile?->nik,
+            'snapshot_position' => $user->position?->name,
+            'snapshot_division' => $user->division?->name,
+            'snapshot_pt' => $user->profile?->pt?->name,
             'submitted_at' => now()->toDateString(),
             'document_path' => $documentPath,
-            'amount' => $request->amount,
-            'purpose' => $request->purpose,
-            'repayment_term' => $installmentMonths ? (string) $installmentMonths : null,
-            'disbursement_date' => $request->disbursement_date,
-            'payment_method' => $request->payment_method,
+            'amount' => $validated['amount'],
+            'purpose' => $validated['purpose'] ?? null,
+            'repayment_term' => $validated['installment_months'] ?? null,
+            'disbursement_date' => $validated['disbursement_date'] ?? null,
+            'payment_method' => $validated['payment_method'],
             'status' => 'PENDING_HRD',
         ]);
 

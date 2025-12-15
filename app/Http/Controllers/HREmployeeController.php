@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class HREmployeeController extends Controller
@@ -67,7 +68,6 @@ class HREmployeeController extends Controller
         }
 
         $totalEmployees = (clone $query)->count();
-
         $items = $query->paginate(100)->withQueryString();
 
         $items->getCollection()->transform(function ($user) {
@@ -206,13 +206,13 @@ class HREmployeeController extends Controller
 
     public function store(Request $request)
     {
-        $roleValues = array_map(fn(UserRole $r) => $r->value, UserRole::cases());
+        $roleValues = array_map(fn (UserRole $r) => $r->value, UserRole::cases());
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'username'    => ['nullable', 'string', 'max:255', 'unique:users,username'],
-            'phone'       => ['required', 'string', 'max:255'],
-            'role'        => ['required', Rule::in($roleValues)],
+            'name' => ['required', 'string', 'max:255'],
+            'username' => ['nullable', 'string', 'max:255', 'unique:users,username'],
+            'phone' => ['required', 'string', 'max:255'],
+            'role' => ['required', Rule::in($roleValues)],
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'pt_id' => ['nullable', 'exists:pts,id'],
@@ -249,65 +249,73 @@ class HREmployeeController extends Controller
             'exit_reason_note' => ['nullable', 'string'],
         ]);
 
-        $userData = Arr::only($validated, [
-            'name',
-            'username',
-            'phone',
-            'role',
-            'division_id',
-            'position_id',
-            'email',
-        ]);
+        return DB::transaction(function () use ($request, $validated) {
+            $userData = Arr::only($validated, [
+                'name',
+                'username',
+                'phone',
+                'role',
+                'division_id',
+                'position_id',
+                'email',
+            ]);
 
-        $userData['status'] = 'ACTIVE';
-        $userData['password'] = Hash::make('123456');
+            $userData['status'] = 'ACTIVE';
+            $userData['password'] = Hash::make('123456');
 
-        $user = User::create($userData);
+            $user = User::create($userData);
 
-        $profileData = Arr::except($validated, [
-            'name',
-            'username',
-            'phone',
-            'role',
-            'division_id',
-            'position_id',
-            'path_kartu_keluarga',
-            'path_ktp',
-        ]);
+            $profileData = Arr::except($validated, [
+                'name',
+                'username',
+                'phone',
+                'role',
+                'division_id',
+                'position_id',
+                'path_kartu_keluarga',
+                'path_ktp',
+                'email',
+            ]);
 
-        $kkPath = null;
-        $ktpPath = null;
+            $profileData['email'] = $validated['email'] ?? null;
+            $profileData['pt_id'] = $validated['pt_id'] ?? null;
 
-        if ($request->hasFile('path_kartu_keluarga')) {
-            $file = $request->file('path_kartu_keluarga');
-            $filename = 'kk_' . Str::slug($user->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-            $kkPath = $file->storeAs('employee_docs', $filename, 'public');
-        }
+            $kkPath = null;
+            $ktpPath = null;
 
-        if ($request->hasFile('path_ktp')) {
-            $file = $request->file('path_ktp');
-            $filename = 'ktp_' . Str::slug($user->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-            $ktpPath = $file->storeAs('employee_docs', $filename, 'public');
-        }
+            if ($request->hasFile('path_kartu_keluarga')) {
+                $file = $request->file('path_kartu_keluarga');
+                $filename = 'kk_' . Str::slug($user->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
+                $kkPath = $file->storeAs('employee_docs', $filename, 'public');
+            }
 
-        if ($kkPath) {
-            $profileData['path_kartu_keluarga'] = $kkPath;
-        }
+            if ($request->hasFile('path_ktp')) {
+                $file = $request->file('path_ktp');
+                $filename = 'ktp_' . Str::slug($user->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
+                $ktpPath = $file->storeAs('employee_docs', $filename, 'public');
+            }
 
-        if ($ktpPath) {
-            $profileData['path_ktp'] = $ktpPath;
-        }
+            if ($kkPath) {
+                $profileData['path_kartu_keluarga'] = $kkPath;
+            }
 
-        $profileData['user_id'] = $user->id;
+            if ($ktpPath) {
+                $profileData['path_ktp'] = $ktpPath;
+            }
 
-        EmployeeProfile::create($profileData);
+            $profileData['user_id'] = $user->id;
 
-        return redirect()->route('hr.employees.index')
-            ->with('success', 'Karyawan baru berhasil ditambahkan.');
+            EmployeeProfile::create($profileData);
+
+            return redirect()->route('hr.employees.index')
+                ->with('success', 'Karyawan baru berhasil ditambahkan.');
+        });
     }
 
     public function edit(User $employee)
     {
+        $employee->load(['profile']);
+
         $divisions = Division::orderBy('name')->get();
         $positions = Position::orderBy('name')->get();
         $roles = UserRole::cases();
@@ -324,13 +332,13 @@ class HREmployeeController extends Controller
 
     public function update(Request $request, User $employee)
     {
-        $roleValues = array_map(fn(UserRole $r) => $r->value, UserRole::cases());
+        $roleValues = array_map(fn (UserRole $r) => $r->value, UserRole::cases());
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
-            'username'    => ['nullable', 'string', 'max:255', Rule::unique('users', 'username')->ignore($employee->id)],
-            'phone'       => ['required', 'string', 'max:255'],
-            'role'        => ['required', Rule::in($roleValues)],
+            'name' => ['required', 'string', 'max:255'],
+            'username' => ['nullable', 'string', 'max:255', Rule::unique('users', 'username')->ignore($employee->id)],
+            'phone' => ['required', 'string', 'max:255'],
+            'role' => ['required', Rule::in($roleValues)],
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'pt_id' => ['nullable', 'exists:pts,id'],
@@ -367,61 +375,67 @@ class HREmployeeController extends Controller
             'exit_reason_note' => ['nullable', 'string'],
         ]);
 
-        $userData = Arr::only($validated, [
-            'name',
-            'username',
-            'phone',
-            'role',
-            'division_id',
-            'position_id',
-            'email',
-        ]);
+        return DB::transaction(function () use ($request, $employee, $validated) {
+            $userData = Arr::only($validated, [
+                'name',
+                'username',
+                'phone',
+                'role',
+                'division_id',
+                'position_id',
+                'email',
+            ]);
 
-        $employee->update($userData);
+            $employee->update($userData);
 
-        $profileData = Arr::except($validated, [
-            'name',
-            'username',
-            'phone',
-            'role',
-            'division_id',
-            'position_id',
-            'path_kartu_keluarga',
-            'path_ktp',
-        ]);
+            $profileData = Arr::except($validated, [
+                'name',
+                'username',
+                'phone',
+                'role',
+                'division_id',
+                'position_id',
+                'path_kartu_keluarga',
+                'path_ktp',
+                'email',
+            ]);
 
-        $kkPath = null;
-        $ktpPath = null;
+            $profileData['email'] = $validated['email'] ?? null;
+            $profileData['pt_id'] = $validated['pt_id'] ?? null;
 
-        if ($request->hasFile('path_kartu_keluarga')) {
-            $file = $request->file('path_kartu_keluarga');
-            $filename = 'kk_' . Str::slug($employee->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-            $kkPath = $file->storeAs('employee_docs', $filename, 'public');
-        }
+            $kkPath = null;
+            $ktpPath = null;
 
-        if ($request->hasFile('path_ktp')) {
-            $file = $request->file('path_ktp');
-            $filename = 'ktp_' . Str::slug($employee->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-            $ktpPath = $file->storeAs('employee_docs', $filename, 'public');
-        }
+            if ($request->hasFile('path_kartu_keluarga')) {
+                $file = $request->file('path_kartu_keluarga');
+                $filename = 'kk_' . Str::slug($employee->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
+                $kkPath = $file->storeAs('employee_docs', $filename, 'public');
+            }
 
-        if ($kkPath) {
-            $profileData['path_kartu_keluarga'] = $kkPath;
-        }
+            if ($request->hasFile('path_ktp')) {
+                $file = $request->file('path_ktp');
+                $filename = 'ktp_' . Str::slug($employee->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
+                $ktpPath = $file->storeAs('employee_docs', $filename, 'public');
+            }
 
-        if ($ktpPath) {
-            $profileData['path_ktp'] = $ktpPath;
-        }
+            if ($kkPath) {
+                $profileData['path_kartu_keluarga'] = $kkPath;
+            }
 
-        if ($employee->profile) {
-            $employee->profile->update($profileData);
-        } else {
-            $profileData['user_id'] = $employee->id;
-            EmployeeProfile::create($profileData);
-        }
+            if ($ktpPath) {
+                $profileData['path_ktp'] = $ktpPath;
+            }
 
-        return redirect()->route('hr.employees.index')
-            ->with('success', 'Data karyawan berhasil diperbarui.');
+            if ($employee->profile) {
+                $employee->profile->update($profileData);
+            } else {
+                $profileData['user_id'] = $employee->id;
+                EmployeeProfile::create($profileData);
+            }
+
+            return redirect()->route('hr.employees.index')
+                ->with('success', 'Data karyawan berhasil diperbarui.');
+        });
     }
 
     public function exit(Request $request, User $employee)

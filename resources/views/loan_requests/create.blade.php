@@ -33,7 +33,7 @@
                 <label style="font-size:.85rem;font-weight:500;">Nama</label>
                 <input
                     type="text"
-                    value="{{ $user->name }}"
+                    value="{{ $snapshot['name'] ?? $user->name }}"
                     readonly
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:.9rem;">
             </div>
@@ -42,7 +42,7 @@
                 <label style="font-size:.85rem;font-weight:500;">Nomor Induk Karyawan (NIK)</label>
                 <input
                     type="text"
-                    value="{{ optional($user->employee_profile)->nik }}"
+                    value="{{ $snapshot['nik'] ?? '' }}"
                     readonly
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:.9rem;">
             </div>
@@ -51,7 +51,7 @@
                 <label style="font-size:.85rem;font-weight:500;">Jabatan</label>
                 <input
                     type="text"
-                    value="{{ optional(optional($user->employee_profile)->position)->name }}"
+                    value="{{ $snapshot['position'] ?? '' }}"
                     readonly
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:.9rem;">
             </div>
@@ -60,7 +60,7 @@
                 <label style="font-size:.85rem;font-weight:500;">Departemen / Divisi</label>
                 <input
                     type="text"
-                    value="{{ optional(optional($user->employee_profile)->division)->name }}"
+                    value="{{ $snapshot['division'] ?? '' }}"
                     readonly
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:.9rem;">
             </div>
@@ -69,7 +69,7 @@
                 <label style="font-size:.85rem;font-weight:500;">Perusahaan</label>
                 <input
                     type="text"
-                    value="{{ optional(optional($user->employee_profile)->pt)->name }}"
+                    value="{{ $snapshot['pt'] ?? '' }}"
                     readonly
                     style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;background:#f9fafb;font-size:.9rem;">
             </div>

@@ -9,7 +9,7 @@ class EmployeeProfile extends Model
 {
     protected $fillable = [
         'user_id',
-        'pt',
+        'pt_id',
         'kategori',
         'nik',
         'email',
@@ -94,15 +94,15 @@ class EmployeeProfile extends Model
         $months = $afterYears->diffInMonths($end);
 
         if ($years > 0 && $months > 0) {
-            return $years.' Tahun '.$months.' Bulan';
+            return $years . ' Tahun ' . $months . ' Bulan';
         }
 
         if ($years > 0) {
-            return $years.' Tahun';
+            return $years . ' Tahun';
         }
 
         if ($months > 0) {
-            return $months.' Bulan';
+            return $months . ' Bulan';
         }
 
         return '0 Bulan';
