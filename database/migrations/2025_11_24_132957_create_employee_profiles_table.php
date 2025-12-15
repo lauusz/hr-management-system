@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('pt', 150)->nullable();
             $table->string('kategori', 50)->nullable();
             $table->string('nik', 50)->nullable();
-            $table->string('work_email', 150)->nullable();
+            $table->string('email', 150)->nullable();
             $table->string('jabatan', 150)->nullable();
             $table->string('kewarganegaraan', 50)->nullable();
             $table->string('agama', 50)->nullable();

@@ -152,7 +152,6 @@
           name="username"
           type="text"
           value="{{ old('username') }}"
-          required
           autofocus>
       </div>
 

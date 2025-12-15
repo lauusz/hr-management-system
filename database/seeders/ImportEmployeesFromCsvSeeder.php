@@ -80,7 +80,7 @@ class ImportEmployeesFromCsvSeeder extends Seeder
                 );
             }
 
-            $rawEmail = trim($data['work_email'] ?? '');
+            $rawEmail = trim($data['email'] ?? '');
             $email = $rawEmail !== '' && strtolower($rawEmail) !== 'tidak ada email'
                 ? $rawEmail
                 : null;
@@ -120,7 +120,7 @@ class ImportEmployeesFromCsvSeeder extends Seeder
                 'pt' => trim($data['PT'] ?? ''),
                 'kategori' => trim($data['Kategori'] ?? ''),
                 'nik' => trim($data['NIK'] ?? ''),
-                'work_email' => $email,
+                'email' => $email,
                 'jabatan' => $positionName,
                 'kewarganegaraan' => trim($data['Kewarganegaraan'] ?? ''),
                 'agama' => trim($data['Agama'] ?? ''),

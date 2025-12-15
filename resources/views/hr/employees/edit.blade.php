@@ -24,7 +24,6 @@
                 type="text"
                 name="name"
                 value="{{ old('name', $item->name) }}"
-                required
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 
@@ -164,12 +163,12 @@
         </div>
 
         <div style="display:flex;flex-direction:column;gap:4px;">
-            <label for="work_email" style="font-size:.9rem;font-weight:500;">Work Email</label>
+            <label for="email" style="font-size:.9rem;font-weight:500;">Work Email</label>
             <input
-                id="work_email"
+                id="email"
                 type="email"
-                name="work_email"
-                value="{{ old('work_email', optional($profile)->work_email) }}"
+                name="email"
+                value="{{ old('email', optional($profile)->email) }}"
                 style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.9rem;">
         </div>
 

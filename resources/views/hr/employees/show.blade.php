@@ -144,7 +144,7 @@
                     <div>
                         <div style="opacity:.7;">Email Kerja</div>
                         <div style="font-weight:500;">
-                            {{ $profile?->work_email ?? '-' }}
+                            {{ $profile?->email ?? '-' }}
                         </div>
                     </div>
                     <div>

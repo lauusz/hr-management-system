@@ -12,7 +12,7 @@ class EmployeeProfile extends Model
         'pt',
         'kategori',
         'nik',
-        'work_email',
+        'email',
         'jabatan',
         'kewarganegaraan',
         'agama',

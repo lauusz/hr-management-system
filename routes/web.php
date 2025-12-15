@@ -130,7 +130,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/leave-requests/{leave}/supervisor/reject', [SupervisorLeaveController::class, 'reject'])->name('supervisor.leave.reject');
     });
 
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::post('/logout', [AuthController::class,'logout'])->name('logout');
 });
 
 Route::get('/', fn() => redirect()->route('login'));

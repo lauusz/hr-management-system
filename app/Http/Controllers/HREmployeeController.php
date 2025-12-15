@@ -32,7 +32,8 @@ class HREmployeeController extends Controller
             $query->where(function ($q2) use ($search) {
                 $q2->where('name', 'like', "%{$search}%")
                     ->orWhere('username', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -217,7 +218,7 @@ class HREmployeeController extends Controller
             'pt_id' => ['nullable', 'exists:pts,id'],
             'kategori' => ['nullable', 'string', 'max:50'],
             'nik' => ['nullable', 'string', 'max:50'],
-            'work_email' => ['nullable', 'email', 'max:150'],
+            'email' => ['nullable', 'email', 'max:150', 'unique:users,email'],
             'kewarganegaraan' => ['nullable', 'string', 'max:50'],
             'agama' => ['nullable', 'string', 'max:50'],
             'path_kartu_keluarga' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
@@ -255,6 +256,7 @@ class HREmployeeController extends Controller
             'role',
             'division_id',
             'position_id',
+            'email',
         ]);
 
         $userData['status'] = 'ACTIVE';
@@ -334,7 +336,7 @@ class HREmployeeController extends Controller
             'pt_id' => ['nullable', 'exists:pts,id'],
             'kategori' => ['nullable', 'string', 'max:50'],
             'nik' => ['nullable', 'string', 'max:50'],
-            'work_email' => ['nullable', 'email', 'max:150'],
+            'email' => ['nullable', 'email', 'max:150', Rule::unique('users', 'email')->ignore($employee->id)],
             'kewarganegaraan' => ['nullable', 'string', 'max:50'],
             'agama' => ['nullable', 'string', 'max:50'],
             'path_kartu_keluarga' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
@@ -372,6 +374,7 @@ class HREmployeeController extends Controller
             'role',
             'division_id',
             'position_id',
+            'email',
         ]);
 
         $employee->update($userData);
