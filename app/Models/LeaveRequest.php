@@ -3,8 +3,8 @@
 namespace App\Models;
 
 use App\Enums\LeaveType;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class LeaveRequest extends Model
 {
@@ -51,18 +51,12 @@ class LeaveRequest extends Model
     public const STATUS_APPROVED = 'APPROVED';
     public const STATUS_REJECTED = 'REJECTED';
 
-    public const TYPES = ['LEAVE', 'SICK', 'OTHER'];
-
-    public const TYPE_OPTIONS = [
-        'LEAVE' => 'Cuti',
-        'SICK' => 'Sakit',
-        'OTHER' => 'Lainnya',
-    ];
-
     public const STATUS_OPTIONS = [
-        'PENDING' => 'Menunggu',
-        'APPROVED' => 'Disetujui',
-        'REJECTED' => 'Ditolak',
+        self::PENDING_SUPERVISOR => 'Menunggu Atasan',
+        self::PENDING_HR => 'Menunggu HRD',
+        self::STATUS_PENDING => 'Menunggu',
+        self::STATUS_APPROVED => 'Disetujui',
+        self::STATUS_REJECTED => 'Ditolak',
     ];
 
     public function getStatusLabelAttribute(): string
@@ -80,6 +74,7 @@ class LeaveRequest extends Model
         if ($this->type instanceof LeaveType) {
             return $this->type->label();
         }
+
         return LeaveType::tryFrom((string) $this->type)?->label() ?? 'Tidak diketahui';
     }
 

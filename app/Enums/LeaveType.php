@@ -12,6 +12,7 @@ enum LeaveType: string
     case IZIN                = 'IZIN';
     case CUTI_KHUSUS         = 'CUTI_KHUSUS';
     case DINAS_LUAR          = 'DINAS_LUAR';
+    case OFF_SPV             = 'OFF_SPV';
 
     public function label(): string
     {
@@ -24,6 +25,7 @@ enum LeaveType: string
             self::IZIN                => 'Izin',
             self::CUTI_KHUSUS         => 'Cuti Khusus (menikah, melahirkan/istri melahirkan/keguguran, mengkhitankan/membaptiskan anak, keluarga meninggal — suami/istri/mertua/orang tua/anak/menantu, anggota keluarga serumah meninggal dunia)',
             self::DINAS_LUAR          => 'Dinas Luar',
+            self::OFF_SPV             => 'Off SPV',
         };
     }
 

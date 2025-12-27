@@ -104,15 +104,35 @@ class LeaveRequestController extends Controller
             }
         }
 
+        $user = Auth::user();
+        $canOffSpv = $this->isSpvUser($user);
+
+        $offInfo = null;
+        if ($canOffSpv) {
+            $month = now()->startOfMonth();
+            $limit = $this->offSpvMonthlyLimitByMonth($month);
+            $approvedCount = $this->offSpvApprovedCountInMonth($userId, $month);
+            $remaining = max(0, $limit - $approvedCount);
+
+            $offInfo = [
+                'limit' => $limit,
+                'approved' => $approvedCount,
+                'remaining' => $remaining,
+                'month' => $month->format('Y-m'),
+            ];
+        }
+
         return view('leave_requests.create', [
             'shiftEndTime' => $shiftEndTime,
+            'canOffSpv' => $canOffSpv,
+            'offSpvInfo' => $offInfo,
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'type'       => ['required', 'string'],
+            'type'       => ['required', Rule::in(LeaveType::values())],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
             'start_time' => ['nullable', 'date_format:H:i'],
@@ -125,18 +145,48 @@ class LeaveRequestController extends Controller
             'location_captured_at' => ['nullable', 'date'],
         ]);
 
+        $user = Auth::user();
+        $userId = Auth::id();
+        $type = $validated['type'];
+
+        $isOffSpv = $type === LeaveType::OFF_SPV->value;
+
+        if ($isOffSpv) {
+            if (!$this->isSpvUser($user)) {
+                return back()->withErrors('Tipe pengajuan OFF hanya tersedia untuk Supervisor.')->withInput();
+            }
+
+            $startDate = Carbon::parse($validated['start_date'])->startOfDay();
+            $weekStart = $startDate->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+            $weekEnd = $weekStart->copy()->addDays(6)->endOfDay();
+
+            $alreadyInWeek = LeaveRequest::query()
+                ->where('user_id', $userId)
+                ->where('type', LeaveType::OFF_SPV->value)
+                ->whereBetween('start_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+                ->where('status', '!=', LeaveRequest::STATUS_REJECTED)
+                ->exists();
+
+            if ($alreadyInWeek) {
+                return back()->withErrors('Pengajuan OFF Supervisor maksimal 1 kali dalam 1 minggu.')->withInput();
+            }
+
+            $validated['end_date'] = $validated['start_date'];
+            $validated['start_time'] = null;
+            $validated['end_time'] = null;
+        }
+
         $start = Carbon::parse($validated['start_date'])->startOfDay();
         $today = now()->startOfDay();
         $daysDiff = $today->diffInDays($start, false);
 
         $notesParts = [];
 
-        if ($validated['type'] === LeaveType::CUTI->value) {
+        if ($type === LeaveType::CUTI->value) {
             if ($daysDiff < 7 && $daysDiff >= 0) {
                 $notesParts[] = "Pengajuan dilakukan {$daysDiff} hari sebelum tanggal mulai cuti (kurang dari H-7). Pengajuan tetap bisa diproses, namun akan ada potongan sesuai kebijakan perusahaan.";
             }
 
-            $user = Auth::user();
             $profile = $user?->profile;
             if ($profile && $profile->tgl_bergabung) {
                 $joinStart = Carbon::parse($profile->tgl_bergabung)->startOfDay();
@@ -152,13 +202,13 @@ class LeaveRequestController extends Controller
             $notes = implode("\n", $notesParts);
         }
 
-        $isIzinTelat = $validated['type'] === LeaveType::IZIN_TELAT->value;
+        $isIzinTelat = $type === LeaveType::IZIN_TELAT->value;
         if ($isIzinTelat && !$request->filled(['latitude', 'longitude'])) {
             return back()->withErrors('Lokasi harus diisi untuk izin telat.')->withInput();
         }
 
-        $isIzinTengahKerja = $validated['type'] === LeaveType::IZIN_TENGAH_KERJA->value;
-        $isIzinPulangAwal  = $validated['type'] === LeaveType::IZIN_PULANG_AWAL->value;
+        $isIzinTengahKerja = $type === LeaveType::IZIN_TENGAH_KERJA->value;
+        $isIzinPulangAwal  = $type === LeaveType::IZIN_PULANG_AWAL->value;
 
         $rawStartTime = $request->input('start_time');
         $rawEndTime   = $request->input('end_time');
@@ -188,7 +238,7 @@ class LeaveRequestController extends Controller
             $izinDate = Carbon::parse($validated['start_date']);
             $dayOfWeek = (int) $izinDate->dayOfWeekIso;
 
-            $employeeShift = EmployeeShift::where('user_id', Auth::id())->first();
+            $employeeShift = EmployeeShift::where('user_id', $userId)->first();
 
             $shiftEndRaw = null;
 
@@ -240,7 +290,6 @@ class LeaveRequestController extends Controller
                 ->storeLeaveSupportingFile($request->file('photo'), $isIzinTelat);
         }
 
-        $type = $validated['type'];
         $initialStatus = match ($type) {
             LeaveType::CUTI->value,
             LeaveType::CUTI_KHUSUS->value => LeaveRequest::PENDING_SUPERVISOR,
@@ -248,7 +297,7 @@ class LeaveRequestController extends Controller
         };
 
         LeaveRequest::create([
-            'user_id'    => Auth::id(),
+            'user_id'    => $userId,
             'type'       => $type,
             'start_date' => $validated['start_date'],
             'end_date'   => $validated['end_date'],
@@ -263,8 +312,6 @@ class LeaveRequestController extends Controller
             'accuracy_m' => $validated['accuracy_m'] ?? null,
             'location_captured_at' => $validated['location_captured_at'] ?? now(),
         ]);
-
-        $isIzinTelat = $type === LeaveType::IZIN_TELAT->value;
 
         if ($isIzinTelat) {
             return redirect()
@@ -322,13 +369,43 @@ class LeaveRequestController extends Controller
             'location_captured_at' => ['nullable', 'date'],
         ]);
 
-        $isIzinTelat = $validated['type'] === LeaveType::IZIN_TELAT->value;
+        $type = $validated['type'];
+        $isOffSpv = $type === LeaveType::OFF_SPV->value;
+
+        if ($isOffSpv) {
+            $user = Auth::user();
+            if (!$this->isSpvUser($user)) {
+                return back()->withErrors('Tipe pengajuan OFF hanya tersedia untuk Supervisor.')->withInput();
+            }
+
+            $validated['end_date'] = $validated['start_date'];
+            $validated['start_time'] = null;
+            $validated['end_time'] = null;
+
+            $startDate = Carbon::parse($validated['start_date'])->startOfDay();
+            $weekStart = $startDate->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
+            $weekEnd = $weekStart->copy()->addDays(6)->endOfDay();
+
+            $existsOther = LeaveRequest::query()
+                ->where('id', '!=', $leaveRequest->id)
+                ->where('user_id', $leaveRequest->user_id)
+                ->where('type', LeaveType::OFF_SPV->value)
+                ->whereBetween('start_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+                ->where('status', '!=', LeaveRequest::STATUS_REJECTED)
+                ->exists();
+
+            if ($existsOther) {
+                return back()->withErrors('Pengajuan OFF Supervisor maksimal 1 kali dalam 1 minggu.')->withInput();
+            }
+        }
+
+        $isIzinTelat = $type === LeaveType::IZIN_TELAT->value;
         if ($isIzinTelat && !$request->filled(['latitude', 'longitude'])) {
             return back()->withErrors('Lokasi harus diisi untuk izin telat.')->withInput();
         }
 
-        $isIzinTengahKerja = $validated['type'] === LeaveType::IZIN_TENGAH_KERJA->value;
-        $isIzinPulangAwal  = $validated['type'] === LeaveType::IZIN_PULANG_AWAL->value;
+        $isIzinTengahKerja = $type === LeaveType::IZIN_TENGAH_KERJA->value;
+        $isIzinPulangAwal  = $type === LeaveType::IZIN_PULANG_AWAL->value;
 
         $rawStartTime = $request->input('start_time');
         $rawEndTime   = $request->input('end_time');
@@ -428,6 +505,23 @@ class LeaveRequestController extends Controller
     {
         $this->authorize('approve', $leave_request);
 
+        $type = $leave_request->type instanceof LeaveType ? $leave_request->type->value : (string) $leave_request->type;
+
+        if ($type === LeaveType::OFF_SPV->value) {
+            $month = Carbon::parse($leave_request->start_date)->startOfMonth();
+            $limit = $this->offSpvMonthlyLimitByMonth($month);
+
+            $approvedCount = LeaveRequest::query()
+                ->where('type', LeaveType::OFF_SPV->value)
+                ->where('status', LeaveRequest::STATUS_APPROVED)
+                ->whereBetween('start_date', [$month->toDateString(), $month->copy()->endOfMonth()->toDateString()])
+                ->count();
+
+            if ($approvedCount >= $limit) {
+                return back()->withErrors("Kuota OFF Supervisor bulan {$month->format('F Y')} sudah habis.")->withInput();
+            }
+        }
+
         $leave_request->update([
             'status'      => LeaveRequest::STATUS_APPROVED,
             'approved_by' => Auth::id(),
@@ -448,5 +542,66 @@ class LeaveRequestController extends Controller
         ]);
 
         return back()->with('ok', 'Pengajuan ditolak.');
+    }
+
+    private function isSpvUser($user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if (method_exists($user, 'isSupervisor')) {
+            try {
+                return (bool) $user->isSupervisor();
+            } catch (\Throwable $e) {
+            }
+        }
+
+        if (method_exists($user, 'isSpv')) {
+            try {
+                return (bool) $user->isSpv();
+            } catch (\Throwable $e) {
+            }
+        }
+
+        $role = null;
+        if (isset($user->role)) {
+            $role = is_string($user->role) ? $user->role : (string) $user->role;
+        }
+
+        $role = strtoupper((string) $role);
+
+        return in_array($role, ['SUPERVISOR', 'SPV'], true);
+    }
+
+    private function offSpvMonthlyLimitByMonth(Carbon $monthStart): int
+    {
+        $start = $monthStart->copy()->startOfMonth()->startOfDay();
+        $end = $monthStart->copy()->endOfMonth()->startOfDay();
+
+        $mondayCount = 0;
+        $cursor = $start->copy();
+
+        while ($cursor->lte($end)) {
+            if ((int) $cursor->dayOfWeekIso === 1) {
+                $mondayCount++;
+            }
+            $cursor->addDay();
+        }
+
+        return $mondayCount >= 5 ? 3 : 2;
+    }
+
+    private function offSpvApprovedCountInMonth(int $userId, Carbon $monthStart): int
+    {
+        $start = $monthStart->copy()->startOfMonth()->toDateString();
+        $end = $monthStart->copy()->endOfMonth()->toDateString();
+
+        return LeaveRequest::query()
+            ->where('user_id', $userId)
+            ->where('type', LeaveType::OFF_SPV->value)
+            ->where('status', LeaveRequest::STATUS_APPROVED)
+            ->whereBetween('start_date', [$start, $end])
+            ->count();
     }
 }
