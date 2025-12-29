@@ -5,6 +5,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ $title ?? 'HRD System' }}</title>
+
+  <meta name="theme-color" content="#1e4a8d">
+  <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+  <link rel="icon" href="{{ asset('favicon.ico') }}">
+  <link rel="apple-touch-icon" href="{{ asset('pwa/icon-180.png') }}">
+
   <style>
     :root {
       --navy: #1e4a8d;
@@ -263,7 +269,6 @@
   </style>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-
 </head>
 
 <body>
@@ -308,10 +313,10 @@
 
         @if(auth()->user()->isHR())
         @php
-          $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
-          $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*');
-          $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
-          $hrLoanOpen = request()->routeIs('hr.loan_requests.*');
+        $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
+        $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*');
+        $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
+        $hrLoanOpen = request()->routeIs('hr.loan_requests.*');
         @endphp
 
         <h3>HRD Panel</h3>
@@ -430,8 +435,7 @@
     confirmLabel="Logout"
     cancelLabel="Batal"
     :confirmFormAction="route('logout')"
-    confirmFormMethod="POST"
-  >
+    confirmFormMethod="POST">
     <p style="margin:0 0 4px 0;">Yakin ingin keluar dari sistem?</p>
     <p style="margin:0;font-size:0.85rem;opacity:.8;">Sesi Anda akan diakhiri dan perlu login kembali untuk mengakses HRD System.</p>
   </x-modal>
@@ -467,7 +471,7 @@
       if (!isMobile()) closeMobile();
     });
 
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
       function openModal(id) {
         var modal = document.getElementById(id);
         if (!modal) return;
@@ -481,8 +485,8 @@
         document.body.style.overflow = '';
       }
 
-      document.querySelectorAll('[data-modal-target]').forEach(function (trigger) {
-        trigger.addEventListener('click', function () {
+      document.querySelectorAll('[data-modal-target]').forEach(function(trigger) {
+        trigger.addEventListener('click', function() {
           var targetId = this.getAttribute('data-modal-target');
           if (targetId) {
             openModal(targetId);
@@ -490,32 +494,32 @@
         });
       });
 
-      document.querySelectorAll('.modal-backdrop').forEach(function (backdropEl) {
-        backdropEl.addEventListener('click', function (e) {
+      document.querySelectorAll('.modal-backdrop').forEach(function(backdropEl) {
+        backdropEl.addEventListener('click', function(e) {
           if (e.target === backdropEl) {
             closeModal(backdropEl);
           }
         });
       });
 
-      document.addEventListener('click', function (e) {
+      document.addEventListener('click', function(e) {
         var closeButton = e.target.closest('[data-modal-close]');
         if (!closeButton) return;
         var modal = closeButton.closest('.modal-backdrop');
         closeModal(modal);
       });
 
-      document.addEventListener('keydown', function (e) {
+      document.addEventListener('keydown', function(e) {
         if (e.key !== 'Escape') return;
-        document.querySelectorAll('.modal-backdrop').forEach(function (modal) {
+        document.querySelectorAll('.modal-backdrop').forEach(function(modal) {
           if (modal.style.display === 'flex') {
             closeModal(modal);
           }
         });
       });
 
-      document.querySelectorAll('.menu-group').forEach(function (btn) {
-        btn.addEventListener('click', function () {
+      document.querySelectorAll('.menu-group').forEach(function(btn) {
+        btn.addEventListener('click', function() {
           var group = this.getAttribute('data-menu-group');
           var panel = document.querySelector('[data-menu-panel="' + group + '"]');
           var icon = this.querySelector('.menu-group-icon');
@@ -534,9 +538,25 @@
       });
     });
   </script>
-  @stack('scripts')
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
+  <script>
+    (function() {
+      if (!('serviceWorker' in navigator)) return;
+
+      const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+      const isSecure = location.protocol === 'https:' || isLocalhost;
+
+      if (!isSecure) return;
+
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('{{ asset('
+          service - worker.js ') }}');
+      });
+    })();
+  </script>
+
+  @stack('scripts')
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </body>
 
 </html>

@@ -156,6 +156,15 @@ class LeaveRequestController extends Controller
                 return back()->withErrors('Tipe pengajuan OFF hanya tersedia untuk Supervisor.')->withInput();
             }
 
+            $monthRef = Carbon::parse($validated['start_date'])->startOfMonth();
+            $limit = $this->offSpvMonthlyLimitByMonth($monthRef);
+            $approvedCount = $this->offSpvApprovedCountInMonth($userId, $monthRef);
+            $remaining = max(0, $limit - $approvedCount);
+
+            if ($remaining <= 0) {
+                return back()->withErrors('Kuota OFF Supervisor bulan ini sudah habis.')->withInput();
+            }
+
             $startDate = Carbon::parse($validated['start_date'])->startOfDay();
             $weekStart = $startDate->copy()->startOfWeek(Carbon::MONDAY)->startOfDay();
             $weekEnd = $weekStart->copy()->addDays(6)->endOfDay();
@@ -310,7 +319,7 @@ class LeaveRequestController extends Controller
             'latitude'   => $validated['latitude'] ?? null,
             'longitude'  => $validated['longitude'] ?? null,
             'accuracy_m' => $validated['accuracy_m'] ?? null,
-            'location_captured_at' => $validated['location_captured_at'] ?? now(),
+            'location_captured_at' => $validated['location_captured_at'] ?? null,
         ]);
 
         if ($isIzinTelat) {
@@ -376,6 +385,15 @@ class LeaveRequestController extends Controller
             $user = Auth::user();
             if (!$this->isSpvUser($user)) {
                 return back()->withErrors('Tipe pengajuan OFF hanya tersedia untuk Supervisor.')->withInput();
+            }
+
+            $monthRef = Carbon::parse($validated['start_date'])->startOfMonth();
+            $limit = $this->offSpvMonthlyLimitByMonth($monthRef);
+            $approvedCount = $this->offSpvApprovedCountInMonth((int) $leaveRequest->user_id, $monthRef);
+            $remaining = max(0, $limit - $approvedCount);
+
+            if ($leaveRequest->status !== LeaveRequest::STATUS_APPROVED && $remaining <= 0) {
+                return back()->withErrors('Kuota OFF Supervisor bulan ini sudah habis.')->withInput();
             }
 
             $validated['end_date'] = $validated['start_date'];
@@ -512,6 +530,7 @@ class LeaveRequestController extends Controller
             $limit = $this->offSpvMonthlyLimitByMonth($month);
 
             $approvedCount = LeaveRequest::query()
+                ->where('user_id', $leave_request->user_id)
                 ->where('type', LeaveType::OFF_SPV->value)
                 ->where('status', LeaveRequest::STATUS_APPROVED)
                 ->whereBetween('start_date', [$month->toDateString(), $month->copy()->endOfMonth()->toDateString()])
@@ -579,17 +598,17 @@ class LeaveRequestController extends Controller
         $start = $monthStart->copy()->startOfMonth()->startOfDay();
         $end = $monthStart->copy()->endOfMonth()->startOfDay();
 
-        $mondayCount = 0;
+        $fridayCount = 0;
         $cursor = $start->copy();
 
         while ($cursor->lte($end)) {
-            if ((int) $cursor->dayOfWeekIso === 1) {
-                $mondayCount++;
+            if ((int) $cursor->dayOfWeekIso === 5) {
+                $fridayCount++;
             }
             $cursor->addDay();
         }
 
-        return $mondayCount >= 5 ? 3 : 2;
+        return max(0, $fridayCount - 2);
     }
 
     private function offSpvApprovedCountInMonth(int $userId, Carbon $monthStart): int

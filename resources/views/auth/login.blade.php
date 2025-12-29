@@ -1,9 +1,16 @@
 <!doctype html>
 <html lang="id">
+
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Login HRD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>HRD Triguna</title>
+
+  <meta name="theme-color" content="#1e4a8d">
+  <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+  <link rel="icon" href="{{ asset('favicon.ico') }}">
+  <link rel="apple-touch-icon" href="{{ asset('pwa/icon-180.png') }}">
+
   <style>
     :root {
       --navy: #1e4a8d;
@@ -11,16 +18,15 @@
       --text: #333;
     }
 
-    *,
-    *::before,
-    *::after {
+    * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
-      font-family: system-ui, Arial, sans-serif;
-      background: var(--bg);
       margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+      background: var(--bg);
       color: var(--text);
     }
 
@@ -29,87 +35,97 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 20px 16px env(safe-area-inset-bottom);
     }
 
     .card {
-      background: #fff;
-      padding: 28px 24px;
       width: 100%;
       max-width: 380px;
-      border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-      animation: fadeIn 0.3s ease;
+      background: #fff;
+      border-radius: 18px;
+      padding: 26px 20px 28px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08);
+      animation: fadeUp .25s ease;
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     h2 {
-      margin-top: 0;
-      margin-bottom: 20px;
+      margin: 0 0 22px;
       text-align: center;
+      font-size: 20px;
       font-weight: 700;
       color: var(--navy);
-      font-size: 20px;
-    }
-
-    label {
-      display: block;
-      font-size: 14px;
-      color: #444;
-      margin-bottom: 6px;
-    }
-
-    input[type=text],
-    input[type=password] {
-      width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #d0d0d0;
-      border-radius: 8px;
-      font-size: 15px;
-      transition: border 0.2s, box-shadow 0.2s;
-      background: #fff;
-      display: block;
-    }
-
-    input[type=text]:focus,
-    input[type=password]:focus {
-      outline: none;
-      border-color: var(--navy);
-      box-shadow: 0 0 0 2px rgba(30, 74, 141, 0.15);
+      letter-spacing: .3px;
     }
 
     .row {
       margin-bottom: 16px;
     }
 
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #444;
+    }
+
+    input[type=text],
+    input[type=password] {
+      width: 100%;
+      height: 46px;
+      padding: 0 14px;
+      font-size: 15px;
+      border-radius: 10px;
+      border: 1px solid #d0d0d0;
+      background: #fff;
+      transition: border .2s, box-shadow .2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--navy);
+      box-shadow: 0 0 0 2px rgba(30, 74, 141, .15);
+    }
+
     .remember {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 20px;
+      gap: 10px;
+      margin: 18px 0 22px;
+      font-size: 14px;
     }
 
-    .remember input[type=checkbox] {
-      width: 16px;
-      height: 16px;
+    .remember input {
+      width: 18px;
+      height: 18px;
       accent-color: var(--navy);
     }
 
     .btn {
       width: 100%;
-      padding: 12px;
-      border: 0;
-      border-radius: 8px;
+      height: 48px;
+      border-radius: 12px;
+      border: none;
       background: var(--navy);
       color: #fff;
-      font-weight: 600;
       font-size: 15px;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s ease;
+      transition: background .2s ease, transform .1s ease;
+    }
+
+    .btn:active {
+      transform: scale(.98);
     }
 
     .btn:hover {
@@ -119,27 +135,30 @@
     .err {
       background: #ffe9e9;
       color: #a40000;
-      padding: 10px 12px;
-      border-radius: 8px;
-      margin-bottom: 16px;
+      padding: 12px 14px;
+      border-radius: 10px;
       font-size: 14px;
       line-height: 1.4;
+      margin-bottom: 18px;
     }
 
-    @media (max-width: 480px) {
-      .card {
-        padding: 22px 18px;
+    @media (max-width: 360px) {
+      h2 {
+        font-size: 18px;
       }
-      h2 { font-size: 18px; }
-      input, .btn { font-size: 14px; }
+      .card {
+        padding: 22px 16px 26px;
+      }
     }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <form class="card" method="POST" action="{{ route('login.store') }}">
       @csrf
-      <h2>Login HRD</h2>
+
+      <h2>HRD Triguna</h2>
 
       @if ($errors->any())
       <div class="err">{{ $errors->first() }}</div>
@@ -152,12 +171,19 @@
           name="username"
           type="text"
           value="{{ old('username') }}"
+          inputmode="email"
+          autocomplete="username"
           autofocus>
       </div>
 
       <div class="row">
         <label for="password">Password</label>
-        <input id="password" name="password" type="password" required>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autocomplete="current-password"
+          required>
       </div>
 
       <div class="remember">
@@ -168,5 +194,22 @@
       <button class="btn" type="submit">Masuk</button>
     </form>
   </div>
+
+  <script>
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
+
+      const isLocalhost =
+        location.hostname === 'localhost' ||
+        location.hostname === '127.0.0.1';
+
+      if (!(location.protocol === 'https:' || isLocalhost)) return;
+
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('{{ asset('service-worker.js') }}');
+      });
+    })();
+  </script>
 </body>
+
 </html>
