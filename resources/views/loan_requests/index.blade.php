@@ -1,117 +1,252 @@
 <x-app title="Pengajuan Hutang Saya">
 
     @if(session('success'))
-        <div class="card" style="margin-bottom:12px;background:#e6ffec;color:#065f46;padding:8px 10px;border-radius:8px;">
-            {{ session('success') }}
-        </div>
+    <div class="alert-success">
+        {{ session('success') }}
+    </div>
     @endif
 
-    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
-        <div style="opacity:.75;font-size:.9rem;">
-            Daftar pengajuan hutang yang Anda ajukan kepada HRD.
+    <div class="card">
+        <div class="card-header">
+            <div class="header-info">
+                <h3 class="card-title">Riwayat Hutang</h3>
+                <p class="card-subtitle">Daftar pengajuan pinjaman Anda ke perusahaan.</p>
+            </div>
+            <a href="{{ route('employee.loan_requests.create') }}" class="btn-add">
+                + Ajukan Hutang
+            </a>
         </div>
 
-        <a href="{{ route('employee.loan_requests.create') }}"
-           style="padding:6px 12px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:.85rem;text-decoration:none;white-space:nowrap;">
-            + Ajukan Hutang
-        </a>
-    </div>
-
-    <div class="card" style="padding:0;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;font-size:.85rem;">
-            <thead>
-            <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-                <th style="text-align:left;padding:10px 12px;font-weight:600;color:#4b5563;">Tanggal Pengajuan</th>
-                <th style="text-align:left;padding:10px 12px;font-weight:600;color:#4b5563;">Besar Pinjaman</th>
-                <th style="text-align:left;padding:10px 12px;font-weight:600;color:#4b5563;">Jangka Waktu</th>
-                <th style="text-align:left;padding:10px 12px;font-weight:600;color:#4b5563;">Cara Pengembalian</th>
-                <th style="text-align:left;padding:10px 12px;font-weight:600;color:#4b5563;">Status</th>
-                <th style="text-align:left;padding:10px 12px;font-weight:600;color:#4b5563;">Aksi</th>
-            </tr>
-            </thead>
-            <tbody>
-            @forelse($loans as $loan)
-                <tr style="border-bottom:1px solid #f1f5f9;">
-                    <td style="padding:8px 12px;vertical-align:top;color:#111827;">
-                        <div style="font-weight:500;">
-                            {{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->format('d/m/Y') }}
-                        </div>
-                        <div style="font-size:.75rem;color:#6b7280;">
-                            Dibuat: {{ $loan->created_at->format('d/m/Y H:i') }}
-                        </div>
-                    </td>
-                    <td style="padding:8px 12px;vertical-align:top;color:#111827;">
-                        <div style="font-weight:600;">
-                            Rp {{ number_format($loan->amount, 0, ',', '.') }}
-                        </div>
-                    </td>
-                    <td style="padding:8px 12px;vertical-align:top;color:#111827;">
-                        @if($loan->repayment_term)
-                            {{ $loan->repayment_term }} bulan
-                        @else
-                            -
-                        @endif
-                    </td>
-                    <td style="padding:8px 12px;vertical-align:top;color:#111827;">
-                        @if($loan->payment_method === 'TUNAI')
-                            Tunai
-                        @elseif($loan->payment_method === 'CICILAN')
-                            Cicilan (transfer ke rekening perusahaan)
-                        @elseif($loan->payment_method === 'POTONG_GAJI')
-                            Pemotongan gaji
-                        @else
-                            -
-                        @endif
-                    </td>
-                    <td style="padding:8px 12px;vertical-align:top;">
+        <div class="table-wrapper">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="min-width: 140px;">Tanggal Pengajuan</th>
+                        <th>Besar Pinjaman</th>
+                        <th>Jangka Waktu</th>
+                        <th>Metode Bayar</th>
+                        <th>Status</th>
+                        <th class="text-right" style="width: 100px;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($loans as $loan)
                         @php
-                            $statusLabel = $loan->status;
-                            $bg = '#e5e7eb';
-                            $color = '#374151';
+                            // Logic Status Badge
+                            $st = $loan->status;
+                            $badgeClass = 'badge-gray';
+                            $statusLabel = $st;
 
-                            if ($loan->status === 'PENDING_HRD') {
-                                $statusLabel = 'Menunggu persetujuan HRD';
-                                $bg = '#fef3c7';
-                                $color = '#92400e';
-                            } elseif ($loan->status === 'APPROVED') {
-                                $statusLabel = 'Disetujui HRD';
-                                $bg = '#dcfce7';
-                                $color = '#166534';
-                            } elseif ($loan->status === 'REJECTED') {
-                                $statusLabel = 'Ditolak HRD';
-                                $bg = '#fee2e2';
-                                $color = '#b91c1c';
-                            } elseif ($loan->status === 'LUNAS') {
+                            if ($st === 'PENDING_HRD') {
+                                $badgeClass = 'badge-yellow';
+                                $statusLabel = 'Menunggu HRD';
+                            } elseif ($st === 'APPROVED') {
+                                $badgeClass = 'badge-green';
+                                $statusLabel = 'Disetujui';
+                            } elseif ($st === 'REJECTED') {
+                                $badgeClass = 'badge-red';
+                                $statusLabel = 'Ditolak';
+                            } elseif ($st === 'LUNAS') {
+                                $badgeClass = 'badge-green';
                                 $statusLabel = 'Lunas';
-                                $bg = '#bbf7d0';
-                                $color = '#166534';
                             }
+
+                            // Logic Metode Label
+                            $method = $loan->payment_method;
+                            $methodLabel = '-';
+                            if ($method === 'TUNAI') $methodLabel = 'Tunai';
+                            elseif ($method === 'CICILAN') $methodLabel = 'Cicilan';
+                            elseif ($method === 'POTONG_GAJI') $methodLabel = 'Potong Gaji';
                         @endphp
-                        <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:.75rem;font-weight:500;background:{{ $bg }};color:{{ $color }};">
-                            {{ $statusLabel }}
-                        </span>
-                        @if($loan->hrd_decided_at)
-                            <div style="font-size:.75rem;color:#6b7280;margin-top:4px;">
-                                Diproses: {{ $loan->hrd_decided_at->format('d/m/Y H:i') }}
-                            </div>
-                        @endif
-                    </td>
-                    <td style="padding:8px 12px;vertical-align:top;">
-                        <a href="{{ route('employee.loan_requests.show', $loan->id) }}"
-                           style="font-size:.8rem;padding:6px 10px;border-radius:8px;border:1px solid #d1d5db;text-decoration:none;color:#111827;display:inline-block;">
-                            Detail
-                        </a>
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="6" style="padding:16px 12px;text-align:center;font-size:.85rem;color:#6b7280;">
-                        Belum ada pengajuan hutang. Klik tombol "Ajukan Hutang" untuk membuat pengajuan baru.
-                    </td>
-                </tr>
-            @endforelse
-            </tbody>
-        </table>
+
+                        <tr>
+                            <td>
+                                <div class="date-block">
+                                    <span class="main-date">{{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->format('d M Y') }}</span>
+                                    <span class="sub-date">Pukul {{ $loan->created_at->format('H:i') }}</span>
+                                </div>
+                            </td>
+
+                            <td>
+                                <span class="money-amount">Rp {{ number_format($loan->amount, 0, ',', '.') }}</span>
+                            </td>
+
+                            <td>
+                                @if($loan->repayment_term)
+                                    {{ $loan->repayment_term }} Bulan
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </td>
+
+                            <td>
+                                <span class="badge-basic">{{ $methodLabel }}</span>
+                            </td>
+
+                            <td>
+                                <div style="display:flex; flex-direction:column; gap:2px;">
+                                    <span class="badge-status {{ $badgeClass }}">
+                                        {{ $statusLabel }}
+                                    </span>
+                                    @if($loan->hrd_decided_at)
+                                        <span class="sub-date">Diproses: {{ $loan->hrd_decided_at->format('d/m/y') }}</span>
+                                    @endif
+                                </div>
+                            </td>
+
+                            <td class="text-right">
+                                <a href="{{ route('employee.loan_requests.show', $loan->id) }}" class="btn-action">
+                                    Detail
+                                </a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                Belum ada riwayat pengajuan hutang.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
+
+    <div style="margin-top: 20px;">
+        @if(method_exists($loans, 'links'))
+            {{ $loans->links() }}
+        @endif
+    </div>
+
+    <style>
+        /* --- UTILITY --- */
+        .fw-bold { font-weight: 600; color: #111827; }
+        .text-muted { color: #9ca3af; font-size: 13px; }
+        .text-right { text-align: right; }
+
+        /* --- ALERT --- */
+        .alert-success {
+            background: #ecfdf5;
+            color: #065f46;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #a7f3d0;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        /* --- CARD --- */
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            border: 1px solid #f3f4f6;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f3f4f6;
+            background: #fff;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .header-info h3 { margin: 0; font-size: 16px; font-weight: 700; color: #1f2937; }
+        .header-info p { margin: 2px 0 0 0; font-size: 13px; color: #6b7280; }
+
+        .btn-add {
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: #1e4a8d;
+            color: #fff;
+            font-size: 13.5px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        .btn-add:hover { background: #163a75; }
+
+        /* --- TABLE --- */
+        .table-wrapper { width: 100%; overflow-x: auto; }
+        .custom-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+
+        .custom-table th {
+            background: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .custom-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 13.5px;
+            color: #1f2937;
+            vertical-align: top;
+        }
+        .custom-table tr:last-child td { border-bottom: none; }
+        .custom-table tr:hover td { background: #fdfdfd; }
+
+        /* --- CONTENT STYLES --- */
+        .date-block { display: flex; flex-direction: column; }
+        .main-date { font-weight: 500; color: #111827; }
+        .sub-date { font-size: 11px; color: #9ca3af; }
+
+        .money-amount { font-weight: 700; color: #1e4a8d; font-size: 14px; }
+
+        /* --- BADGES --- */
+        .badge-basic {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid #e5e7eb;
+            display: inline-block;
+        }
+
+        .badge-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            align-self: flex-start;
+        }
+        
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-yellow { background: #fef9c3; color: #854d0e; }
+        .badge-gray { background: #f3f4f6; color: #374151; }
+
+        /* --- ACTION BUTTON --- */
+        .btn-action {
+            padding: 6px 14px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #374151;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+        .btn-action:hover { background: #f3f4f6; border-color: #9ca3af; }
+
+        .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
+    </style>
 
 </x-app>

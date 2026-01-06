@@ -1,266 +1,377 @@
 <x-app title="Daftar Karyawan">
 
     @if(session('success'))
-    <div class="card" style="margin-bottom:12px;background:#e6ffec;color:#065f46;padding:8px 10px;">
+    <div class="alert-success">
         {{ session('success') }}
     </div>
     @endif
 
-    <div class="card" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;flex-wrap:wrap;">
-        <div style="font-size:0.9rem;opacity:.7;">
-            Daftar karyawan yang terdaftar di sistem. HR dapat mengelola data karyawan.
-        </div>
-        <div style="font-size:0.9rem;opacity:.7;">
-            Total Karyawan: {{ $totalEmployees }}
-        </div>
-
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <form method="GET" action="{{ route('hr.employees.index') }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                <input
-                    type="text"
-                    name="q"
-                    value="{{ $search ?? '' }}"
-                    placeholder="Cari nama..."
-                    style="padding:6px 10px;border-radius:999px;border:1px solid #ddd;font-size:0.85rem;min-width:160px;">
-
-                <select
-                    name="pt_id"
-                    style="padding:6px 10px;border-radius:999px;border:1px solid #ddd;font-size:0.85rem;min-width:160px;background:#fff;">
-                    <option value="">Semua PT</option>
-                    @foreach($ptOptions as $ptOption)
-                    <option value="{{ $ptOption->id }}" @selected(($ptId ?? '' )==$ptOption->id)>
-                        {{ $ptOption->name }}
-                    </option>
-                    @endforeach
-                </select>
-
-                <select
-                    name="kategori"
-                    style="padding:6px 10px;border-radius:999px;border:1px solid #ddd;font-size:0.85rem;min-width:150px;background:#fff;">
-                    <option value="">Semua Kategori</option>
-                    <option value="Karyawan Tetap" @selected(($kategori ?? '' )==='Karyawan Tetap')>Karyawan Tetap</option>
-                    <option value="Karyawan Kontrak" @selected(($kategori ?? '' )==='Karyawan Kontrak')>Karyawan Kontrak</option>
-                </select>
-
-                <select
-                    name="position_id"
-                    style="padding:6px 10px;border-radius:999px;border:1px solid #ddd;font-size:0.85rem;min-width:180px;background:#fff;">
-                    <option value="">Semua Jabatan</option>
-                    @foreach($positionOptions as $position)
-                    <option value="{{ $position->id }}" @selected(($positionId ?? '' )==$position->id)>
-                        {{ $position->name }}
-                    </option>
-                    @endforeach
-                </select>
-
-                <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.8rem;padding:4px 10px;border-radius:999px;border:1px solid #ddd;background:#f9fafb;cursor:pointer;">
-                    <input
-                        type="checkbox"
-                        name="near_expiry"
-                        value="1"
-                        onchange="this.form.submit()"
-                        @checked($nearExpiry ?? false)
-                        style="margin:0;width:14px;height:14px;cursor:pointer;">
-                    <span>Kontrak mendekati habis</span>
-                </label>
-
-                <button
-                    type="submit"
-                    style="padding:6px 10px;border-radius:999px;border:none;background:#1e4a8d;color:#fff;font-size:0.85rem;cursor:pointer;white-space:nowrap;">
-                    Cari
-                </button>
-
-                @if(($search ?? null) || ($pt ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false))
-                <a href="{{ route('hr.employees.index') }}"
-                    style="padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#374151;font-size:0.8rem;text-decoration:none;white-space:nowrap;">
-                    Reset
+    <div class="card mb-4">
+        <div class="filter-container">
+            <div class="filter-info">
+                <h4>Total Karyawan: {{ $totalEmployees }}</h4>
+                <p>Kelola data karyawan yang terdaftar dalam sistem.</p>
+            </div>
+            
+            <div class="filter-actions">
+                <a href="{{ route('hr.employees.create') }}" class="btn-add">
+                    + Tambah Karyawan
                 </a>
-                @endif
-            </form>
-
-            <a href="{{ route('hr.employees.create') }}"
-                style="padding:6px 12px;border-radius:999px;background:#1e4a8d;color:#fff;font-size:0.85rem;text-decoration:none;white-space:nowrap;">
-                + Tambah Karyawan
-            </a>
+            </div>
         </div>
 
+        <hr class="divider">
+
+        <form method="GET" action="{{ route('hr.employees.index') }}" class="search-form">
+            <div class="form-group search-input">
+                <input type="text" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama karyawan..." class="form-control">
+                <svg class="search-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+
+            <select name="pt_id" class="form-control">
+                <option value="">Semua PT</option>
+                @foreach($ptOptions as $ptOption)
+                <option value="{{ $ptOption->id }}" @selected(($ptId ?? '' )==$ptOption->id)>
+                    {{ $ptOption->name }}
+                </option>
+                @endforeach
+            </select>
+
+            <select name="kategori" class="form-control">
+                <option value="">Semua Kategori</option>
+                <option value="Karyawan Tetap" @selected(($kategori ?? '' )==='Karyawan Tetap')>Karyawan Tetap</option>
+                <option value="Karyawan Kontrak" @selected(($kategori ?? '' )==='Karyawan Kontrak')>Karyawan Kontrak</option>
+            </select>
+
+            <select name="position_id" class="form-control">
+                <option value="">Semua Jabatan</option>
+                @foreach($positionOptions as $position)
+                <option value="{{ $position->id }}" @selected(($positionId ?? '' )==$position->id)>
+                    {{ $position->name }}
+                </option>
+                @endforeach
+            </select>
+
+            <label class="checkbox-wrapper">
+                <input type="checkbox" name="near_expiry" value="1" onchange="this.form.submit()" @checked($nearExpiry ?? false)>
+                <span>Kontrak mau habis</span>
+            </label>
+
+            <div class="btn-group">
+                <button type="submit" class="btn-primary">Cari</button>
+                
+                @if(($search ?? null) || ($pt ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false))
+                <a href="{{ route('hr.employees.index') }}" class="btn-reset">Reset</a>
+                @endif
+            </div>
+        </form>
     </div>
 
-    <div class="card" style="padding:0;overflow:hidden;">
-        <div style="width:100%;overflow-x:auto;white-space:nowrap;">
-            <table style="min-width:1200px;width:100%;border-collapse:collapse;table-layout:auto;">
+    <div class="card">
+        <div class="table-wrapper">
+            <table class="custom-table">
                 <thead>
                     <tr>
-                        <th style="text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            Nama
-                        </th>
-                        <th style="text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            Jabatan
-                        </th>
-                        <th style="text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            PT
-                        </th>
-                        <th style="text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            Kategori
-                        </th>
-                        <th style="text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            Masa Kerja
-                        </th>
-                        <th style="text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            Tgl Bergabung
-                        </th>
-                        <th style="text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            Selesai Percobaan
-                        </th>
-                        <th style="text-align:left;padding:9px 12px;border-bottom:1px solid #e5e7eb;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            Status
-                        </th>
-                        <th style="text-align:right;padding:9px 12px;border-bottom:1px solid #e5e7eb;width:130px;font-size:0.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                            Aksi
-                        </th>
+                        <th style="min-width: 200px;">Nama / Divisi</th>
+                        <th>Jabatan</th>
+                        <th>PT</th>
+                        <th>Kategori</th>
+                        <th>Masa Kerja</th>
+                        <th>Bergabung</th>
+                        <th>Akhir Kontrak</th>
+                        <th>Status</th>
+                        <th class="text-right">Aksi</th>
                     </tr>
                 </thead>
 
                 <tbody>
                     @forelse($items as $emp)
                         @php
+                            // Logic Status Warna
                             $statusRaw = $emp->status ?? '-';
                             $statusText = $statusRaw;
-                            $statusBg = '#e5f3ff';
-                            $statusColor = '#1d4ed8';
+                            $statusBg = '#eef2ff'; // Default Blue soft
+                            $statusColor = '#1e4a8d';
 
                             if ($statusRaw === 'INACTIVE') {
                                 $labelMap = [
                                     'RESIGN' => 'Resign',
-                                    'HABIS_KONTRAK' => 'Habis kontrak',
+                                    'HABIS_KONTRAK' => 'Habis Kontrak',
                                     'PHK' => 'PHK',
                                     'PENSIUN' => 'Pensiun',
                                     'MENINGGAL' => 'Meninggal',
                                     'LAINNYA' => 'Nonaktif',
                                 ];
                                 $code = $emp->profile?->exit_reason_code;
-                                if ($code) {
-                                    $reasonLabel = $labelMap[$code] ?? $code;
-                                    $statusText = 'INACTIVE (' . $reasonLabel . ')';
-                                } else {
-                                    $statusText = 'INACTIVE';
-                                }
-                                $statusBg = '#fee2e2';
+                                $reasonLabel = $code ? ($labelMap[$code] ?? $code) : 'INACTIVE';
+                                $statusText = $reasonLabel;
+                                $statusBg = '#fee2e2'; // Red soft
                                 $statusColor = '#b91c1c';
                             }
 
+                            // Logic Masa Kerja
                             $masaKerjaDisplay = '-';
                             $joinDate = $emp->profile?->tgl_bergabung;
-
                             if ($joinDate) {
                                 $start = \Carbon\Carbon::parse($joinDate)->startOfDay();
                                 $end = \Carbon\Carbon::today();
-
                                 if ($end->greaterThanOrEqualTo($start)) {
                                     $diff = $start->diff($end);
                                     $parts = [];
-
-                                    if ($diff->y > 0) {
-                                        $parts[] = $diff->y.' Tahun';
-                                    }
-
-                                    if ($diff->m > 0) {
-                                        $parts[] = $diff->m.' Bulan';
-                                    }
-
-                                    if ($diff->y === 0 && $diff->m === 0 && $diff->d > 0) {
-                                        $parts[] = $diff->d.' Hari';
-                                    }
-
-                                    if (empty($parts)) {
-                                        $parts[] = '0 Hari';
-                                    }
-
-                                    $masaKerjaDisplay = implode(' ', $parts);
+                                    if ($diff->y > 0) $parts[] = $diff->y.' Thn';
+                                    if ($diff->m > 0) $parts[] = $diff->m.' Bln';
+                                    if (empty($parts)) $parts[] = $diff->d.' Hari';
+                                    // Ambil 2 unit terbesar saja agar tidak terlalu panjang
+                                    $masaKerjaDisplay = implode(' ', array_slice($parts, 0, 2));
                                 }
                             }
                         @endphp
-                        <tr style="border-bottom:1px solid #f3f4f6;">
-                            <td style="padding:9px 12px;vertical-align:middle;">
-                                <div style="display:flex;flex-direction:column;gap:2px;max-width:260px;">
-                                    <a href="{{ route('hr.employees.show', $emp->id) }}" style="text-decoration:none;color:inherit;">
-                                        <span style="font-size:0.9rem;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                            {{ $emp->name }}
-                                        </span>
+                        <tr>
+                            <td>
+                                <div class="user-info">
+                                    <a href="{{ route('hr.employees.show', $emp->id) }}" class="user-name">
+                                        {{ $emp->name }}
                                     </a>
                                     @if($emp->division?->name)
-                                    <span style="font-size:0.78rem;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                        {{ $emp->division->name }}
-                                    </span>
+                                        <span class="user-sub">{{ $emp->division->name }}</span>
                                     @endif
                                 </div>
                             </td>
-
-                            <td style="padding:9px 12px;vertical-align:middle;">
-                                <span style="font-size:0.85rem;color:#374151;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;display:inline-block;">
-                                    {{ $emp->position?->name ?? '-' }}
-                                </span>
+                            <td>{{ $emp->position?->name ?? '-' }}</td>
+                            <td>
+                                <span class="badge-pt">{{ $emp->profile?->pt?->name ?? '-' }}</span>
                             </td>
-
-                            <td style="padding:9px 12px;vertical-align:middle;white-space:nowrap;">
-                                <span style="font-size:0.85rem;color:#374151;">
-                                    {{ $emp->profile?->pt?->name ?? '-' }}
-                                </span>
-                            </td>
-
-                            <td style="padding:9px 12px;vertical-align:middle;white-space:nowrap;">
-                                <span style="font-size:0.85rem;color:#374151;">
-                                    {{ $emp->profile?->kategori ?? '-' }}
-                                </span>
-                            </td>
-
-                            <td style="padding:9px 12px;vertical-align:middle;white-space:nowrap;">
-                                <span style="font-size:0.85rem;color:#374151;">
-                                    {{ $masaKerjaDisplay }}
-                                </span>
-                            </td>
-
-                            <td style="padding:9px 12px;vertical-align:middle;white-space:nowrap;">
-                                <span style="font-size:0.85rem;color:#374151;">
-                                    {{ $emp->join_date_label ?? '-' }}
-                                </span>
-                            </td>
-
-                            <td style="padding:9px 12px;vertical-align:middle;white-space:nowrap;">
-                                <span style="font-size:0.85rem;color:#374151;">
-                                    {{ $emp->probation_end_label ?? '-' }}
-                                </span>
-                            </td>
-
-                            <td style="padding:9px 12px;vertical-align:middle;white-space:nowrap;">
-                                <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:.78rem;font-weight:500;background:{{ $statusBg }};color:{{ $statusColor }};">
+                            <td>{{ $emp->profile?->kategori ?? '-' }}</td>
+                            <td class="text-muted">{{ $masaKerjaDisplay }}</td>
+                            <td class="text-muted">{{ $emp->join_date_label ?? '-' }}</td>
+                            <td class="text-muted">{{ $emp->probation_end_label ?? '-' }}</td>
+                            <td>
+                                <span class="badge-status" style="background: {{ $statusBg }}; color: {{ $statusColor }};">
                                     {{ $statusText }}
                                 </span>
                             </td>
-
-                            <td style="padding:9px 12px;vertical-align:middle;text-align:right;white-space:nowrap;">
-                                <a href="{{ route('hr.employees.show', $emp->id) }}"
-                                    style="padding:5px 12px;border-radius:999px;border:1px solid #d1d5db;font-size:.8rem;text-decoration:none;color:#111827;background:#f9fafb;">
+                            <td class="text-right">
+                                <a href="{{ route('hr.employees.show', $emp->id) }}" class="btn-detail">
                                     Detail
                                 </a>
                             </td>
-
                         </tr>
                     @empty
                     <tr>
-                        <td colspan="9" style="padding:16px;text-align:center;font-size:0.9rem;opacity:.7;">
-                            Belum ada karyawan terdaftar.
+                        <td colspan="9" class="empty-state">
+                            Belum ada data karyawan yang ditemukan.
                         </td>
                     </tr>
                     @endforelse
                 </tbody>
             </table>
-
         </div>
     </div>
 
-    <div style="margin-top:12px;">
+    <div style="margin-top: 20px;">
         <x-pagination :items="$items" />
     </div>
+
+    <style>
+        /* --- UTILITY & CARD --- */
+        .mb-4 { margin-bottom: 16px; }
+        .text-muted { color: #6b7280; font-size: 13px; }
+        .text-right { text-align: right; }
+        
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            border: 1px solid #f3f4f6;
+            overflow: hidden;
+            padding: 0;
+        }
+
+        .alert-success {
+            background: #ecfdf5;
+            color: #065f46;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #a7f3d0;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        /* --- HEADER & FILTERS --- */
+        .filter-container {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .filter-info h4 { margin: 0 0 4px; font-size: 16px; color: #111827; }
+        .filter-info p { margin: 0; font-size: 13px; color: #6b7280; }
+
+        .btn-add {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            background: #1e4a8d;
+            color: #fff;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .btn-add:hover { background: #163a75; }
+
+        .divider { border: 0; border-top: 1px solid #f3f4f6; margin: 0; }
+
+        .search-form {
+            padding: 16px 20px;
+            background: #f9fafb;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .form-control {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 13.5px;
+            color: #374151;
+            background: #fff;
+            min-width: 140px;
+            outline: none;
+        }
+        .form-control:focus { border-color: #1e4a8d; box-shadow: 0 0 0 2px rgba(30,74,141,0.1); }
+
+        .search-input { position: relative; }
+        .search-input input { padding-left: 34px; min-width: 200px; }
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9ca3af;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            color: #374151;
+            cursor: pointer;
+            padding: 8px 12px;
+            background: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+        }
+        
+        .btn-group { display: flex; gap: 8px; }
+        
+        .btn-primary {
+            padding: 8px 16px;
+            background: #1e4a8d;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13.5px;
+            font-weight: 500;
+        }
+        
+        .btn-reset {
+            padding: 8px 16px;
+            background: #fff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13.5px;
+            display: inline-block;
+        }
+
+        /* --- TABLE STYLING --- */
+        .table-wrapper { width: 100%; overflow-x: auto; }
+        
+        .custom-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px; /* Agar kolom tidak gepeng */
+        }
+
+        .custom-table th {
+            background: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .custom-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 13.5px;
+            color: #1f2937;
+            vertical-align: middle;
+        }
+
+        .custom-table tr:last-child td { border-bottom: none; }
+        .custom-table tr:hover td { background: #fdfdfd; }
+
+        /* --- CONTENT FORMATTING --- */
+        .user-info { display: flex; flex-direction: column; gap: 2px; }
+        .user-name { font-weight: 600; color: #111827; text-decoration: none; }
+        .user-name:hover { color: #1e4a8d; text-decoration: underline; }
+        .user-sub { font-size: 12px; color: #6b7280; }
+
+        .badge-pt {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid #e5e7eb;
+        }
+
+        .badge-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .btn-detail {
+            padding: 6px 14px;
+            border: 1px solid #e5e7eb;
+            background: #fff;
+            color: #374151;
+            border-radius: 20px;
+            font-size: 12px;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-detail:hover { background: #f9fafb; border-color: #d1d5db; }
+
+        .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
+
+        /* Mobile tweaks */
+        @media(max-width: 768px) {
+            .search-form { flex-direction: column; align-items: stretch; }
+            .form-control, .search-input input { width: 100%; min-width: 0; }
+            .btn-group { width: 100%; }
+            .btn-primary, .btn-reset { flex: 1; text-align: center; }
+        }
+    </style>
 
 </x-app>

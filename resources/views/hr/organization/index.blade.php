@@ -1,181 +1,339 @@
 <x-app title="Divisi & Jabatan">
 
-        <div style="display:flex;gap:24px;border-bottom:1px solid #e5e7eb;">
-            
-            <button
-                class="org-tab-btn active"
-                data-target="#tab-divisi"
-                style="
-                    padding:10px 0;
-                    background:none;
-                    border:none;
-                    font-size:.9rem;
-                    cursor:pointer;
-                    color:#1e4a8d;
-                    font-weight:600;
-                    border-bottom:3px solid #1e4a8d;
-                ">
-                Divisi
-            </button>
+  <div class="tabs-container">
+    <button class="tab-btn active" data-target="#tab-divisi">
+      Divisi
+    </button>
+    <button class="tab-btn" data-target="#tab-jabatan">
+      Jabatan
+    </button>
+  </div>
 
-            <button
-                class="org-tab-btn"
-                data-target="#tab-jabatan"
-                style="
-                    padding:10px 0;
-                    background:none;
-                    border:none;
-                    font-size:.9rem;
-                    cursor:pointer;
-                    color:#6b7280;
-                ">
-                Jabatan
-            </button>
+  <div id="tab-divisi" class="tab-content active">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Daftar Divisi</h3>
+        <a href="{{ route('hr.divisions.create') }}" class="btn-add">
+          + Tambah Divisi
+        </a>
+      </div>
 
+      <div class="table-wrapper">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Nama Divisi</th>
+              <th>Supervisor</th>
+              <th class="text-center" style="width: 140px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            @forelse($divisions as $division)
+            <tr>
+              <td class="fw-bold">{{ $division->name }}</td>
+              <td>
+                @if($division->supervisor)
+                  <div class="user-info">
+                    <span>{{ $division->supervisor->name }}</span>
+                  </div>
+                @else
+                  <span class="text-muted">-</span>
+                @endif
+              </td>
+              <td>
+                <div class="action-buttons">
+                  <a href="{{ route('hr.divisions.edit', $division->id) }}" class="btn-action edit">
+                    Edit
+                  </a>
+                  
+                  <form method="POST" action="{{ route('hr.divisions.destroy', $division->id) }}" onsubmit="return confirm('Hapus divisi ini?')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn-action delete">
+                      Hapus
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            @empty
+            <tr>
+              <td colspan="3" class="empty-state">
+                Belum ada data divisi.
+              </td>
+            </tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div>
     </div>
+  </div>
 
-    <div id="tab-divisi" class="org-tab-content" style="display:block;">
-        <div class="card" style="margin-bottom:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="margin:0;font-size:1rem;">Daftar Divisi</h3>
+  <div id="tab-jabatan" class="tab-content" style="display: none;">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Daftar Jabatan</h3>
+        <a href="{{ route('hr.positions.create') }}" class="btn-add">
+          + Tambah Jabatan
+        </a>
+      </div>
 
-                <a href="{{ route('hr.divisions.create') }}"
-                   style="padding:8px 12px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:.85rem;text-decoration:none;">
-                   + Tambah Divisi
-                </a>
-            </div>
-        </div>
+      <div class="table-wrapper">
+        <table class="custom-table">
+          <thead>
+            <tr>
+              <th>Nama Jabatan</th>
+              <th>Divisi</th>
+              <th class="text-center" style="width: 140px;">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            @forelse($positions as $position)
+            <tr>
+              <td class="fw-bold">{{ $position->name }}</td>
+              <td>
+                <span class="badge-divisi">{{ $position->division?->name ?? '-' }}</span>
+              </td>
+              <td>
+                <div class="action-buttons">
+                  <a href="{{ route('hr.positions.edit', $position->id) }}" class="btn-action edit">
+                    Edit
+                  </a>
 
-        <div class="card" style="padding:0;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nama Divisi</th>
-                        <th>Supervisor</th>
-                        <th style="width:150px;text-align:right;">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($divisions as $division)
-                        <tr>
-                            <td>{{ $division->name }}</td>
-                            <td>{{ $division->supervisor?->name ?? '-' }}</td>
-                            <td style="text-align:right;">
-                                <a href="{{ route('hr.divisions.edit', $division->id) }}"
-                                   style="padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.8rem;text-decoration:none;">
-                                    Edit
-                                </a>
-
-                                <form method="POST"
-                                      action="{{ route('hr.divisions.destroy', $division->id) }}"
-                                      style="display:inline-block;margin-left:4px;"
-                                      onsubmit="return confirm('Hapus divisi ini?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                        style="padding:5px 10px;border-radius:8px;border:1px solid #fecaca;background:#fee2e2;color:#b91c1c;font-size:.8rem;cursor:pointer;">
-                                        Hapus
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="3" style="text-align:center;padding:16px;opacity:.7;">
-                                Belum ada divisi.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                  <form method="POST" action="{{ route('hr.positions.destroy', $position->id) }}" onsubmit="return confirm('Hapus jabatan ini?')">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="btn-action delete">
+                      Hapus
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            @empty
+            <tr>
+              <td colspan="3" class="empty-state">
+                Belum ada data jabatan.
+              </td>
+            </tr>
+            @endforelse
+          </tbody>
+        </table>
+      </div>
     </div>
+  </div>
 
+  <style>
+    /* --- TABS --- */
+    .tabs-container {
+      display: flex;
+      gap: 24px;
+      border-bottom: 1px solid #e5e7eb;
+      margin-bottom: 20px;
+    }
 
-    <div id="tab-jabatan" class="org-tab-content" style="display:none;">
-        <div class="card" style="margin-bottom:12px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <h3 style="margin:0;font-size:1rem;">Daftar Jabatan</h3>
+    .tab-btn {
+      padding: 12px 4px;
+      background: none;
+      border: none;
+      font-size: 15px;
+      cursor: pointer;
+      color: #6b7280;
+      font-weight: 500;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
 
-                <a href="{{ route('hr.positions.create') }}"
-                   style="padding:8px 12px;border-radius:8px;background:#1e4a8d;color:#fff;font-size:.85rem;text-decoration:none;">
-                   + Tambah Jabatan
-                </a>
-            </div>
-        </div>
+    .tab-btn:hover {
+      color: #1e4a8d;
+    }
 
-        <div class="card" style="padding:0;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Nama Jabatan</th>
-                        <th>Divisi</th>
-                        <th style="width:150px;text-align:right;">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($positions as $position)
-                        <tr>
-                            <td>{{ $position->name }}</td>
-                            <td>{{ $position->division?->name ?? '-' }}</td>
-                            <td style="text-align:right;">
-                                <a href="{{ route('hr.positions.edit', $position->id) }}"
-                                   style="padding:5px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.8rem;text-decoration:none;">
-                                    Edit
-                                </a>
+    .tab-btn.active {
+      color: #1e4a8d;
+      font-weight: 700;
+      border-bottom-color: #1e4a8d;
+    }
 
-                                <form method="POST"
-                                      action="{{ route('hr.positions.destroy', $position->id) }}"
-                                      style="display:inline-block;margin-left:4px;"
-                                      onsubmit="return confirm('Hapus jabatan ini?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                        style="padding:5px 10px;border-radius:8px;border:1px solid #fecaca;background:#fee2e2;color:#b91c1c;font-size:.8rem;cursor:pointer;">
-                                        Hapus
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="3" style="text-align:center;padding:16px;opacity:.7;">
-                                Belum ada jabatan.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
+    /* --- CARD & HEADER --- */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+      border: 1px solid #f3f4f6;
+      overflow: hidden; /* Supaya sudut tabel ikut rounded */
+    }
 
-    @push('scripts')
-    <script>
-        document.querySelectorAll('.org-tab-btn').forEach(btn => {
-            btn.addEventListener('click', function () {
+    .card-header {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #f3f4f6;
+      background: #fff;
+    }
 
-                document.querySelectorAll('.org-tab-btn').forEach(b => {
-                    b.classList.remove('active');
-                    b.style.color = '#6b7280';
-                    b.style.borderBottom = 'none';
-                    b.style.fontWeight = 'normal';
-                });
+    .card-title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #1f2937;
+    }
 
-                this.classList.add('active');
-                this.style.color = '#1e4a8d';
-                this.style.fontWeight = '600';
-                this.style.borderBottom = '3px solid #1e4a8d';
+    .btn-add {
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: #1e4a8d;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
 
-                const target = this.getAttribute('data-target');
+    .btn-add:hover {
+      background: #163a75;
+    }
 
-                document.querySelectorAll('.org-tab-content').forEach(c => {
-                    c.style.display = 'none';
-                });
+    /* --- TABLE STYLING --- */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto; /* Agar bisa discroll di HP */
+    }
 
-                document.querySelector(target).style.display = 'block';
-            });
+    .custom-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 600px; /* Min width agar tabel tidak gepeng di HP */
+    }
+
+    .custom-table th,
+    .custom-table td {
+      padding: 14px 20px;
+      text-align: left;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 14px;
+    }
+
+    .custom-table th {
+      background: #f9fafb;
+      font-weight: 600;
+      color: #4b5563;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+    }
+
+    .custom-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .custom-table tr:hover td {
+      background: #fdfdfd;
+    }
+
+    .fw-bold {
+      font-weight: 600;
+      color: #1f2937;
+    }
+
+    .text-muted {
+      color: #9ca3af;
+      font-style: italic;
+    }
+    
+    .text-center {
+        text-align: center !important;
+    }
+
+    .badge-divisi {
+        background: #eef2ff;
+        color: #1e4a8d;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    /* --- ACTION BUTTONS --- */
+    .action-buttons {
+      display: flex;
+      justify-content: flex-end; /* Tombol rata kanan */
+      gap: 8px;
+    }
+
+    .btn-action {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      display: inline-block;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .btn-action.edit {
+      background: #fff;
+      border-color: #d1d5db;
+      color: #374151;
+    }
+
+    .btn-action.edit:hover {
+      background: #f3f4f6;
+      border-color: #9ca3af;
+    }
+
+    .btn-action.delete {
+      background: #fee2e2;
+      border-color: #fecaca;
+      color: #b91c1c;
+    }
+
+    .btn-action.delete:hover {
+      background: #fecaca;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px !important;
+      color: #9ca3af;
+    }
+  </style>
+
+  @push('scripts')
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tabs = document.querySelectorAll('.tab-btn');
+      const contents = document.querySelectorAll('.tab-content');
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Reset Active State
+          tabs.forEach(t => t.classList.remove('active'));
+          contents.forEach(c => c.style.display = 'none');
+
+          // Set New Active State
+          tab.classList.add('active');
+          const targetId = tab.getAttribute('data-target');
+          const targetContent = document.querySelector(targetId);
+          
+          if(targetContent) {
+              targetContent.style.display = 'block';
+              // Add slight fade in effect
+              targetContent.style.opacity = 0;
+              setTimeout(() => targetContent.style.opacity = 1, 50);
+          }
         });
-    </script>
-    @endpush
+      });
+      
+      // Init fade effect style
+      contents.forEach(c => {
+          c.style.transition = 'opacity 0.2s ease';
+          if(c.style.display === 'none') c.style.opacity = 0;
+      });
+    });
+  </script>
+  @endpush
 
 </x-app>

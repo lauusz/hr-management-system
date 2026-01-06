@@ -1,364 +1,486 @@
 <x-app title="Master Absensi">
 
-    <div class="card" style="margin-bottom:14px;">
-    <form method="GET" style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
+    <div class="card mb-4">
+        <form method="GET" class="filter-container">
+            @php
+            $rangeValue = '';
+            if (!empty($date_start) && !empty($date_end)) {
+                $rangeValue = $date_start . ' sampai ' . $date_end;
+            } elseif (!empty($date_start)) {
+                $rangeValue = $date_start;
+            }
+            @endphp
 
-        @php
-        $rangeValue = '';
-        if (!empty($date_start) && !empty($date_end)) {
-            $rangeValue = $date_start . ' sampai ' . $date_end;
-        } elseif (!empty($date_start)) {
-            $rangeValue = $date_start;
+            <div class="filter-group">
+                <label>Rentang Tanggal</label>
+                <div class="input-with-icon">
+                    <input type="text"
+                        id="date_range"
+                        name="date_range"
+                        value="{{ $rangeValue }}"
+                        placeholder="Pilih tanggal..."
+                        autocomplete="off"
+                        class="form-control">
+                    <input type="hidden" name="date_start" id="date_start" value="{{ $date_start ?? '' }}">
+                    <input type="hidden" name="date_end" id="date_end" value="{{ $date_end ?? '' }}">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="">Semua Status</option>
+                    <option value="HADIR" @selected(($status ?? '' )=='HADIR' )>Hadir</option>
+                    <option value="TERLAMBAT" @selected(($status ?? '' )=='TERLAMBAT' )>Terlambat</option>
+                </select>
+            </div>
+
+            <div class="filter-group flex-grow">
+                <label>Cari Karyawan</label>
+                <div class="search-input">
+                    <input type="text"
+                        name="q"
+                        value="{{ $q ?? '' }}"
+                        placeholder="Nama karyawan..."
+                        class="form-control">
+                </div>
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="btn-primary">Filter</button>
+                @if(($q ?? null) || ($status ?? null) || ($date_start ?? null))
+                <a href="{{ route('hr.attendances.index') }}" class="btn-reset">Reset</a>
+                @endif
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="table-wrapper">
+            <table class="custom-table">
+                <thead>
+                    <tr>
+                        <th style="min-width: 180px;">Nama Karyawan</th>
+                        <th>Shift</th>
+                        <th>Jam Kerja</th>
+                        <th>Check In</th>
+                        <th>Check Out</th>
+                        <th>Terlambat</th>
+                        <th>Status</th>
+                        <th class="text-center">Foto</th>
+                        <th class="text-center">Lokasi</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @forelse($items as $at)
+                    <tr>
+                        <td>
+                            <div class="user-info">
+                                <span class="fw-bold">{{ $at->user->name }}</span>
+                            </div>
+                        </td>
+
+                        <td>
+                            <span class="text-muted">{{ $at->shift->name ?? '-' }}</span>
+                        </td>
+
+                        <td>
+                            @if($at->normal_start_time && $at->normal_end_time)
+                                <span class="text-small">{{ $at->normal_start_time->format('H:i') }} - {{ $at->normal_end_time->format('H:i') }}</span>
+                            @elseif($at->shift)
+                                <span class="text-small">{{ $at->shift->start_time_label }} - {{ $at->shift->end_time_label }}</span>
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
+                        </td>
+
+                        <td>
+                            @if($at->clock_in_at)
+                            <div class="time-block">
+                                <span class="time-date">{{ $at->clock_in_at->format('d/m/y') }}</span>
+                                <span class="time-clock">{{ $at->clock_in_at->format('H:i') }}</span>
+                            </div>
+                            @else
+                            <span class="text-muted">-</span>
+                            @endif
+                        </td>
+
+                        <td>
+                            @if($at->clock_out_at)
+                            <div class="time-block">
+                                <span class="time-date">{{ $at->clock_out_at->format('d/m/y') }}</span>
+                                <span class="time-clock">{{ $at->clock_out_at->format('H:i') }}</span>
+                            </div>
+                            @else
+                            <span class="text-muted">-</span>
+                            @endif
+                        </td>
+
+                        <td>
+                            @if($at->late_minutes > 0)
+                                @php
+                                    $jam = floor($at->late_minutes / 60);
+                                    $menit = $at->late_minutes % 60;
+                                    $hasil = '';
+                                    if($jam > 0) $hasil .= $jam . 'j ';
+                                    if($menit > 0) $hasil .= $menit . 'm';
+                                @endphp
+                                <span class="badge-late">{{ $hasil }}</span>
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
+                        </td>
+
+                        <td>
+                            @if ($at->status === 'TERLAMBAT')
+                                <span class="badge-status bg-red">Terlambat</span>
+                            @elseif ($at->status === 'HADIR')
+                                <span class="badge-status bg-green">Hadir</span>
+                            @else
+                                <span class="badge-status bg-gray">{{ $at->status ?? '-' }}</span>
+                            @endif
+                        </td>
+
+                        <td class="text-center">
+                            <div class="btn-group-pill">
+                                @if($at->clock_in_photo)
+                                <button type="button"
+                                    class="btn-pill btn-blue"
+                                    data-photo-url="{{ asset('storage/'.$at->clock_in_photo) }}"
+                                    data-employee-name="{{ $at->user->name }}"
+                                    data-datetime="{{ $at->clock_in_at ? $at->clock_in_at->format('d/m/Y H:i') : '' }}"
+                                    data-label="Clock-in">
+                                    In
+                                </button>
+                                @endif
+
+                                @if($at->clock_out_photo)
+                                <button type="button"
+                                    class="btn-pill btn-blue"
+                                    data-photo-url="{{ asset('storage/'.$at->clock_out_photo) }}"
+                                    data-employee-name="{{ $at->user->name }}"
+                                    data-datetime="{{ $at->clock_out_at ? $at->clock_out_at->format('d/m/Y H:i') : '' }}"
+                                    data-label="Clock-out">
+                                    Out
+                                </button>
+                                @endif
+                                
+                                @if(!$at->clock_in_photo && !$at->clock_out_photo)
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </div>
+                        </td>
+
+                        <td class="text-center">
+                             <div class="btn-group-pill">
+                                @if($at->clock_in_lat && $at->clock_in_lng)
+                                <a href="https://www.google.com/maps/search/?api=1&query={{ $at->clock_in_lat }},{{ $at->clock_in_lng }}"
+                                    target="_blank"
+                                    class="btn-pill btn-sky">
+                                    In
+                                </a>
+                                @endif
+
+                                @if($at->clock_out_lat && $at->clock_out_lng)
+                                <a href="https://www.google.com/maps/search/?api=1&query={{ $at->clock_out_lat }},{{ $at->clock_out_lng }}"
+                                    target="_blank"
+                                    class="btn-pill btn-sky">
+                                    Out
+                                </a>
+                                @endif
+
+                                @if(!$at->clock_in_lat && !$at->clock_out_lat)
+                                    <span class="text-muted">-</span>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="9" class="empty-state">
+                            Tidak ada data absensi yang ditemukan.
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+        <x-pagination :items="$items" />
+    </div>
+
+    <x-modal
+        id="attendance-photo-modal"
+        title="Foto Presensi"
+        type="info"
+        cancelLabel="Tutup">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+            <div id="attendancePhotoMeta" style="font-size:14px; color:#374151; background:#f3f4f6; padding:8px 12px; border-radius:8px;">
+            </div>
+            <div style="border-radius:12px; border:1px solid #e5e7eb; overflow:hidden; background:#000; display:flex; justify-content:center;">
+                <img id="attendancePhotoImg"
+                    src=""
+                    alt="Foto presensi"
+                    style="max-width:100%; max-height:60vh; object-fit:contain; display:block;">
+            </div>
+        </div>
+    </x-modal>
+
+    <style>
+        /* --- UTILITY --- */
+        .mb-4 { margin-bottom: 16px; }
+        .text-center { text-align: center; }
+        .fw-bold { font-weight: 600; color: #111827; }
+        .text-muted { color: #9ca3af; font-size: 13px; font-style: italic; }
+        .text-small { font-size: 13px; color: #4b5563; }
+
+        /* --- CARD --- */
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            border: 1px solid #f3f4f6;
+            overflow: hidden;
+            padding: 0;
         }
-        @endphp
 
-        <div>
-            <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Tanggal</label>
-            <input
-                type="text"
-                id="date_range"
-                name="date_range"
-                value="{{ $rangeValue }}"
-                placeholder="Pilih rentang tanggal"
-                autocomplete="off"
-                style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:200px;">
+        /* --- FILTER SECTION --- */
+        .filter-container {
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-end;
+        }
 
-            <input type="hidden" name="date_start" id="date_start" value="{{ $date_start ?? '' }}">
-            <input type="hidden" name="date_end" id="date_end" value="{{ $date_end ?? '' }}">
-        </div>
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        
+        .filter-group.flex-grow { flex: 1; min-width: 200px; }
 
-        <div>
-            <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Status</label>
-            <select name="status" style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:120px;">
-                <option value="">Semua</option>
-                <option value="HADIR" @selected(($status ?? '' )=='HADIR' )>Hadir</option>
-                <option value="TERLAMBAT" @selected(($status ?? '' )=='TERLAMBAT' )>Terlambat</option>
-            </select>
-        </div>
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
 
-        <div>
-            <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Nama</label>
-            <input type="text"
-                name="q"
-                value="{{ $q ?? '' }}"
-                placeholder="Cari nama karyawan..."
-                style="padding:6px 10px;border-radius:8px;border:1px solid:#ddd;font-size:0.85rem;min-width:200px;">
-        </div>
+        .form-control {
+            padding: 9px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 13.5px;
+            color: #374151;
+            background: #fff;
+            min-width: 160px;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        .form-control:focus { border-color: #1e4a8d; }
 
-        <button style="padding:8px 14px;background:#1e4a8d;color:#fff;border:none;
-                   border-radius:999px;cursor:pointer;font-size:0.85rem;white-space:nowrap;">
-            Filter
-        </button>
-        <a href="{{ route('hr.attendances.index') }}"
-            style="padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#374151;font-size:0.8rem;text-decoration:none;white-space:nowrap;">
-            Reset
-        </a>
-    </form>
-</div>
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            padding-bottom: 2px; /* Alignment fix */
+        }
 
-<div class="card" style="padding:0;overflow:hidden;">
-    <div style="overflow-x:auto;">
-        <table class="table" style="width:100%;min-width:1200px;border-collapse:collapse;">
-            <thead>
-                <tr>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Nama
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Shift
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Jam Kerja
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Clock-in
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Clock-out
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Telat
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Status
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Foto In
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Foto Out
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Lokasi In
-                    </th>
-                    <th style="text-align:left;padding:10px 12px;border-bottom:1px solid #e5e7eb;font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6b7280;">
-                        Lokasi Out
-                    </th>
-                </tr>
-            </thead>
+        .btn-primary {
+            padding: 9px 18px;
+            background: #1e4a8d;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13.5px;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        .btn-primary:hover { background: #163a75; }
+        
+        .btn-reset {
+            padding: 9px 16px;
+            background: #fff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13.5px;
+            font-weight: 500;
+            display: inline-block;
+        }
+        .btn-reset:hover { background: #f9fafb; }
 
-            <tbody>
-                @forelse($items as $at)
-                <tr style="border-bottom:1px solid #f3f4f6;">
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        <span style="font-size:0.9rem;font-weight:500;color:#111827;">
-                            {{ $at->user->name }}
-                        </span>
-                    </td>
+        /* --- TABLE --- */
+        .table-wrapper { width: 100%; overflow-x: auto; }
+        .custom-table { width: 100%; border-collapse: collapse; min-width: 1000px; }
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        <span style="font-size:0.85rem;color:#374151;">
-                            {{ $at->shift->name ?? '-' }}
-                        </span>
-                    </td>
+        .custom-table th {
+            background: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e5e7eb;
+        }
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        @if($at->normal_start_time && $at->normal_end_time)
-                            <span style="font-size:0.85rem;color:#111827;">
-                                {{ $at->normal_start_time->format('H:i') }} - {{ $at->normal_end_time->format('H:i') }}
-                            </span>
-                        @elseif($at->shift)
-                            <span style="font-size:0.85rem;color:#111827;">
-                                {{ $at->shift->start_time_label }} - {{ $at->shift->end_time_label }}
-                            </span>
-                        @else
-                            <span style="opacity:.6;">-</span>
-                        @endif
-                    </td>
+        .custom-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 13.5px;
+            color: #1f2937;
+            vertical-align: middle;
+        }
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        @if($at->clock_in_at)
-                        <div style="font-size:0.83rem;color:#111827;line-height:1.3;">
-                            <div style="font-weight:600;">
-                                {{ $at->clock_in_at->format('d/m/Y') }}
-                            </div>
-                            <div style="opacity:.8;">
-                                {{ $at->clock_in_at->format('H:i') }}
-                            </div>
-                        </div>
-                        @else
-                        <span style="opacity:.6;font-size:0.85rem;">-</span>
-                        @endif
-                    </td>
+        .custom-table tr:last-child td { border-bottom: none; }
+        .custom-table tr:hover td { background: #fdfdfd; }
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        @if($at->clock_out_at)
-                        <div style="font-size:0.83rem;color:#111827;line-height:1.3;">
-                            <div style="font-weight:600;">
-                                {{ $at->clock_out_at->format('d/m/Y') }}
-                            </div>
-                            <div style="opacity:.8;">
-                                {{ $at->clock_out_at->format('H:i') }}
-                            </div>
-                        </div>
-                        @else
-                        <span style="opacity:.6;font-size:0.85rem;">-</span>
-                        @endif
-                    </td>
+        /* --- CUSTOM COLUMNS --- */
+        .time-block { display: flex; flex-direction: column; line-height: 1.2; }
+        .time-date { font-size: 11px; color: #6b7280; }
+        .time-clock { font-weight: 600; color: #111827; }
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        @if($at->late_minutes > 0)
-                        @php
-                        $jam = floor($at->late_minutes / 60);
-                        $menit = $at->late_minutes % 60;
-                        $hasil = '';
+        .badge-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .bg-green { background: #dcfce7; color: #166534; }
+        .bg-red { background: #fee2e2; color: #991b1b; }
+        .bg-gray { background: #f3f4f6; color: #4b5563; }
 
-                        if($jam > 0){
-                            $hasil .= $jam . ' jam';
-                        }
-                        if($menit > 0){
-                            $hasil .= ($hasil ? ' ' : '') . $menit . ' menit';
-                        }
-                        @endphp
+        .badge-late {
+            color: #b91c1c;
+            font-weight: 600;
+            font-size: 12px;
+            background: #fef2f2;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
 
-                        <span style="color:#b91c1c;font-weight:600;font-size:0.85rem;">
-                            {{ $hasil }}
-                        </span>
-                        @else
-                        <span style="opacity:.6;font-size:0.85rem;">-</span>
-                        @endif
-                    </td>
+        /* --- PILL BUTTONS (View/Maps) --- */
+        .btn-group-pill {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        @if ($at->status === 'TERLAMBAT')
-                        <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:#fee2e2;color:#b91c1c;font-weight:600;font-size:0.78rem;">
-                            TERLAMBAT
-                        </span>
-                        @elseif ($at->status === 'HADIR')
-                        <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;background:#dcfce7;color:#166534;font-weight:600;font-size:0.78rem;">
-                            HADIR
-                        </span>
-                        @else
-                        <span style="opacity:.6;font-size:0.85rem;">
-                            {{ $at->status ?? '-' }}
-                        </span>
-                        @endif
-                    </td>
+        .btn-pill {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+        
+        .btn-blue {
+            background: #eef2ff;
+            color: #1e4a8d;
+            border-color: #e0e7ff;
+        }
+        .btn-blue:hover { background: #1e4a8d; color: #fff; }
+        
+        .btn-sky {
+            background: #f0f9ff;
+            color: #0369a1;
+            border-color: #e0f2fe;
+        }
+        .btn-sky:hover { background: #0369a1; color: #fff; }
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        @if($at->clock_in_photo)
-                        <button type="button"
-                            class="btn-view-photo"
-                            data-photo-url="{{ asset('storage/'.$at->clock_in_photo) }}"
-                            data-employee-name="{{ $at->user->name }}"
-                            data-datetime="{{ $at->clock_in_at ? $at->clock_in_at->format('d/m/Y H:i') : '' }}"
-                            data-label="Clock-in"
-                            style="padding:4px 10px;border-radius:999px;background:#1e40af;color:#fff;
-                                       font-size:0.8rem;border:none;cursor:pointer;white-space:nowrap;">
-                            View
-                        </button>
-                        @else
-                        <span style="opacity:.6;font-size:0.85rem;">-</span>
-                        @endif
-                    </td>
+        .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        @if($at->clock_out_photo)
-                        <button type="button"
-                            class="btn-view-photo"
-                            data-photo-url="{{ asset('storage/'.$at->clock_out_photo) }}"
-                            data-employee-name="{{ $at->user->name }}"
-                            data-datetime="{{ $at->clock_out_at ? $at->clock_out_at->format('d/m/Y H:i') : '' }}"
-                            data-label="Clock-out"
-                            style="padding:4px 10px;border-radius:999px;background:#1e40af;color:#fff;
-                                       font-size:0.8rem;border:none;cursor:pointer;white-space:nowrap;">
-                            View
-                        </button>
-                        @else
-                        <span style="opacity:.6;font-size:0.85rem;">-</span>
-                        @endif
-                    </td>
+        @media(max-width: 768px) {
+            .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
+            .filter-group, .form-control { width: 100%; min-width: 0; }
+            .filter-actions { margin-top: 4px; }
+            .btn-primary, .btn-reset { flex: 1; text-align: center; }
+        }
+    </style>
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        @if($at->clock_in_lat && $at->clock_in_lng)
-                        <a href="https://www.google.com/maps?q={{ $at->clock_in_lat }},{{ $at->clock_in_lng }}"
-                            target="_blank"
-                            style="padding:4px 10px;border-radius:999px;background:#0369a1;color:#fff;
-                                  font-size:0.8rem;text-decoration:none;display:inline-block;white-space:nowrap;">
-                            Maps
-                        </a>
-                        @else
-                        <span style="opacity:.6;font-size:0.85rem;">-</span>
-                        @endif
-                    </td>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- Modal Logic ---
+            const modal = document.getElementById('attendance-photo-modal');
+            const modalImg = document.getElementById('attendancePhotoImg');
+            const modalMeta = document.getElementById('attendancePhotoMeta');
 
-                    <td style="padding:10px 12px;vertical-align:middle;">
-                        @if($at->clock_out_lat && $at->clock_out_lng)
-                        <a href="https://www.google.com/maps?q={{ $at->clock_out_lat }},{{ $at->clock_out_lng }}"
-                            target="_blank"
-                            style="padding:4px 10px;border-radius:999px;background:#0369a1;color:#fff;
-                                  font-size:0.8rem;text-decoration:none;display:inline-block;white-space:nowrap;">
-                            Maps
-                        </a>
-                        @else
-                        <span style="opacity:.6;font-size:0.85rem;">-</span>
-                        @endif
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="11" style="text-align:center;opacity:.7;padding:12px;font-size:0.9rem;">
-                        Tidak ada data absensi pada tanggal ini.
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-</div>
+            // Kita gunakan event delegation agar aman jika ada re-render (walau di sini statis)
+            document.body.addEventListener('click', function(e) {
+                if (e.target && e.target.classList.contains('btn-pill') && e.target.hasAttribute('data-photo-url')) {
+                    const btn = e.target;
+                    const url = btn.getAttribute('data-photo-url');
+                    const name = btn.getAttribute('data-employee-name') || '';
+                    const datetime = btn.getAttribute('data-datetime') || '';
+                    const label = btn.getAttribute('data-label') || '';
 
-<div style="margin-top:12px;">
-    <x-pagination :items="$items" />
-</div>
+                    if (!url) return;
 
-<x-modal
-    id="attendance-photo-modal"
-    title="Foto Presensi"
-    type="info"
-    cancelLabel="Tutup">
-    <div style="display:flex;flex-direction:column;gap:10px;">
-        <div id="attendancePhotoMeta" style="font-size:0.85rem;color:#4b5563;">
-        </div>
-        <div style="border-radius:10px;border:1px solid #e5e7eb;max-height:70vh;display:flex;align-items:center;justify-content:center;background:#000;">
-            <img id="attendancePhotoImg"
-                src=""
-                alt="Foto presensi"
-                style="max-width:100%;max-height:70vh;width:auto;height:auto;display:block;">
-        </div>
-    </div>
-</x-modal>
+                    modalImg.src = url;
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var modal = document.getElementById('attendance-photo-modal');
-        var modalImg = document.getElementById('attendancePhotoImg');
-        var modalMeta = document.getElementById('attendancePhotoMeta');
+                    let metaText = `<strong>${name}</strong>`;
+                    if (datetime) {
+                        metaText += ` • ${label}: ${datetime}`;
+                    }
+                    modalMeta.innerHTML = metaText;
 
-        document.querySelectorAll('.btn-view-photo').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var url = this.getAttribute('data-photo-url');
-                var name = this.getAttribute('data-employee-name') || '';
-                var datetime = this.getAttribute('data-datetime') || '';
-                var label = this.getAttribute('data-label') || '';
-
-                if (!url) return;
-
-                modalImg.src = url;
-
-                var metaText = '';
-                if (name) {
-                    metaText += '<div><strong>' + name + '</strong></div>';
+                    // Trigger open modal function from app layout if exists, or manual
+                    const modalEl = document.getElementById('attendance-photo-modal');
+                    if(modalEl) {
+                        modalEl.style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
+                    }
                 }
-                if (datetime && label) {
-                    metaText += '<div style="opacity:.8;">' + label + ': ' + datetime + '</div>';
-                } else if (datetime) {
-                    metaText += '<div style="opacity:.8;">' + datetime + '</div>';
-                }
-                modalMeta.innerHTML = metaText;
-
-                modal.style.display = 'flex';
-                document.body.style.overflow = 'hidden';
             });
+
+            // --- Flatpickr Logic ---
+            const rangeInput = document.getElementById('date_range');
+            const startHidden = document.getElementById('date_start');
+            const endHidden = document.getElementById('date_end');
+
+            if (typeof flatpickr === 'function' && rangeInput) {
+                flatpickr(rangeInput, {
+                    mode: "range",
+                    dateFormat: "Y-m-d",
+                    allowInput: true,
+                    locale: { rangeSeparator: " sampai " },
+                    onChange: function(selectedDates, dateStr) {
+                        if (!dateStr) {
+                            startHidden.value = "";
+                            endHidden.value = "";
+                            return;
+                        }
+                        const parts = dateStr.split(" sampai ");
+                        if (parts.length === 1) {
+                            startHidden.value = parts[0];
+                            endHidden.value = parts[0];
+                        } else {
+                            startHidden.value = parts[0];
+                            endHidden.value = parts[1];
+                        }
+                    }
+                });
+            }
         });
-    });
-</script>
-
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        var rangeInput = document.getElementById('date_range');
-        var startHidden = document.getElementById('date_start');
-        var endHidden = document.getElementById('date_end');
-
-        if (typeof flatpickr === 'function' && rangeInput) {
-            flatpickr(rangeInput, {
-                mode: "range",
-                dateFormat: "Y-m-d",
-                allowInput: true,
-                locale: {
-                    rangeSeparator: " sampai "
-                },
-                onChange: function(selectedDates, dateStr) {
-                    if (!dateStr) {
-                        startHidden.value = "";
-                        endHidden.value = "";
-                        return;
-                    }
-
-                    var parts = dateStr.split(" sampai ");
-
-                    if (parts.length === 1) {
-                        startHidden.value = parts[0];
-                        endHidden.value = parts[0];
-                    } else {
-                        startHidden.value = parts[0];
-                        endHidden.value = parts[1];
-                    }
-                }
-            });
-        }
-    });
-</script>
+    </script>
 
 </x-app>

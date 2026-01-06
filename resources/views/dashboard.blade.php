@@ -2,7 +2,7 @@
   <div class="dashboard">
 
     <div class="grid-cards">
-      <div class="card">
+      <div class="card card-welcome">
         <div class="label">Selamat datang</div>
         <div class="value">{{ auth()->user()->name }}!</div>
       </div>
@@ -10,8 +10,7 @@
         <div class="label">Role</div>
         <div class="value">{{ auth()->user()->role }}</div>
       </div>
-      <divdiv class="card">
-        <div class="label">Divisi</div>
+      <div class="card"> <div class="label">Divisi</div>
         <div class="value">{{ auth()->user()->division?->name ?? '-' }}</div>
       </div>
     </div>
@@ -177,184 +176,214 @@
 
 
   <style>
-  .dashboard{
-    display:flex;
-    flex-direction:column;
-    gap:20px;
+  /* --- LAYOUT UTAMA --- */
+  .dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 24px; /* Gap diperbesar agar antar section tidak mepet */
+    padding-bottom: 24px;
   }
 
-  .grid-cards{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:14px;
-    margin-bottom:12px;
-  }
-
-  .card{
-    background:#fff;
-    border-radius:14px;
-    box-shadow:0 4px 14px rgba(0,0,0,.04);
-    padding:18px;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    transition:transform .15s ease, box-shadow .15s ease;
-  }
-
-  .card:hover{
-    transform:translateY(-2px);
-    box-shadow:0 6px 18px rgba(0,0,0,.08);
-  }
-
-  .label{
-    font-size:13px;
-    color:#666;
-    margin-bottom:6px;
-  }
-
-  .value{
-    font-size:18px;
-    font-weight:700;
-    color:#1e4a8d;
-    line-height:1.2;
-  }
-
-  .quick-wrap{
-    background:#fff;
-    border-radius:14px;
-    box-shadow:0 4px 14px rgba(0,0,0,.04);
-    padding:18px;
-    margin-top:14px;
-  }
-
-  .quick-head{
-    margin-bottom:12px;
-  }
-
-  .quick-title{
-    font-size:15px;
-    font-weight:800;
-    color:#1e4a8d;
-    line-height:1.2;
-  }
-
-  .quick-sub{
-    margin-top:4px;
-    font-size:13px;
-    color:#666;
-  }
-
-  .quick-grid{
-    display:grid;
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-    gap:12px;
-  }
-
-  .qbtn{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    text-decoration:none;
-    color:inherit;
-    background:#f6f7fb;
-    border:1px solid rgba(30,74,141,.10);
-    border-radius:14px;
-    padding:12px 12px;
-    min-height:60px;
-    transition:transform .12s ease, box-shadow .12s ease, border-color .12s ease;
-  }
-
-  .qbtn:hover{
-    transform:translateY(-1px);
-    border-color:rgba(30,74,141,.20);
-    box-shadow:0 6px 16px rgba(0,0,0,.06);
-  }
-
-  .qbtn:active{
-    transform:scale(.99);
-  }
-
-  .qicon{
-    width: 42px;
-    height: 42px;
+  /* --- GRID INFO CARDS --- */
+  .grid-cards {
     display: grid;
-    place-items: center;
-    flex: 0 0 42px;
+    grid-template-columns: repeat(3, 1fr); /* Default desktop 3 kolom */
+    gap: 20px;
   }
 
-  .qicon img{
-    width: 42px;
-    height: 42px;
-    max-width: 42px;
-    max-height: 42px;
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: transform .2s ease, box-shadow .2s ease;
+    border: 1px solid #f3f4f6;
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  }
+
+  .label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1e4a8d;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* --- WRAPPER QUICK ACCESS --- */
+  .quick-wrap {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    padding: 24px;
+    border: 1px solid #f3f4f6;
+  }
+
+  .quick-head {
+    margin-bottom: 18px;
+  }
+
+  .quick-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .quick-sub {
+    margin-top: 4px;
+    font-size: 13.5px;
+    color: #6b7280;
+  }
+
+  /* --- GRID BUTTONS --- */
+  .quick-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .qbtn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    color: inherit;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 16px; /* Padding diperbesar agar tidak sesak */
+    transition: all .2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .qbtn:hover {
+    background: #fff;
+    border-color: #1e4a8d;
+    box-shadow: 0 4px 12px rgba(30, 74, 141, 0.08);
+    transform: translateY(-2px);
+  }
+
+  .qbtn:active {
+    transform: scale(0.98);
+  }
+
+  .qicon {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #f0f0f0;
+  }
+
+  .qicon img {
+    width: 48px;
+    height: 48px;
     object-fit: contain;
-    display: block;
   }
 
-  .qtext{
-    min-width:0;
-    flex:1;
+  .qtext {
+    flex: 1;
+    min-width: 0;
   }
 
-  .qname{
-    font-weight:800;
-    font-size:13px;
-    color:#1e4a8d;
-    line-height:1.2;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+  .qname {
+    font-weight: 700;
+    font-size: 14px;
+    color: #1f2937;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .qdesc{
-    margin-top:3px;
-    font-size:12px;
-    color:#666;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
+  .qdesc {
+    font-size: 12.5px;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .qgo{
-    font-size:18px;
-    color:#1e4a8d;
-    opacity:.55;
-    flex:0 0 auto;
+  .qgo {
+    font-size: 20px;
+    color: #9ca3af;
+    transition: transform 0.2s;
+  }
+  
+  .qbtn:hover .qgo {
+    color: #1e4a8d;
+    transform: translateX(2px);
   }
 
-  @media (max-width:600px){
-    .dashboard{
-      gap:18px;
+  /* --- MOBILE RESPONSIVE --- */
+  @media (max-width: 768px) {
+    .dashboard {
+      gap: 20px; /* Jarak antar container */
+    }
+    
+    .grid-cards {
+      /* Ubah layout kartu atas:
+         Nama (full width)
+         Role & Divisi (sebelahan)
+      */
+      grid-template-columns: 1fr 1fr;
     }
 
-    .grid-cards{
-      grid-template-columns:1fr;
-      gap:12px;
-      margin-bottom:2px;
+    .card-welcome {
+      grid-column: span 2; /* Nama user memanjang penuh */
     }
 
-    .card{
-      padding:16px;
+    .card {
+      padding: 16px; /* Sedikit compact tapi tetap lega */
     }
 
-    .value{
-      font-size:16px;
+    .value {
+      font-size: 16px; /* Font value sedikit dikecilkan agar muat */
     }
 
-    .quick-wrap{
-      padding:16px;
-      margin-top:0;
+    .quick-wrap {
+      padding: 20px 16px; /* Padding kiri-kanan container */
     }
 
-    .quick-grid{
-      grid-template-columns:1fr;
-      gap:10px;
+    .quick-grid {
+      grid-template-columns: 1fr; /* 1 Kolom ke bawah */
+      gap: 12px;
     }
 
-    .qbtn{
-      min-height:58px;
+    .qbtn {
+      padding: 14px;
+    }
+    
+    .qicon {
+        width: 42px;
+        height: 42px;
+    }
+    
+    .qicon img {
+        width: 48px;
+        height: 48px;
     }
   }
-</style>
-
+  </style>
 </x-app>

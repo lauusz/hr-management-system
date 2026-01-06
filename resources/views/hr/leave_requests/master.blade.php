@@ -1,204 +1,158 @@
 <x-app title="Master Izin / Cuti">
 
     @if(session('success'))
-        <div class="card" style="margin-bottom:12px;background:#e6ffec;color:#065f46;padding:8px 10px;border-radius:8px;">
-            {{ session('success') }}
-        </div>
+    <div class="alert-success">
+        {{ session('success') }}
+    </div>
     @endif
 
-    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
-        <div style="font-size:0.9rem;opacity:.7;">
-            Data seluruh pengajuan izin/cuti karyawan. HR dapat melakukan pengecekan riwayat dan rekap.
+    <div class="card mb-4">
+        <div class="card-header-simple">
+            <h4 class="card-title-sm">Filter Data</h4>
+            <p class="card-subtitle-sm">Cari riwayat pengajuan izin dan cuti karyawan.</p>
         </div>
-    </div>
-
-    @php
-        $statusLabels = [
-            \App\Models\LeaveRequest::PENDING_SUPERVISOR => 'Menunggu Supervisor',
-            \App\Models\LeaveRequest::PENDING_HR         => 'Menunggu HRD',
-            \App\Models\LeaveRequest::STATUS_APPROVED    => 'Disetujui',
-            \App\Models\LeaveRequest::STATUS_REJECTED    => 'Ditolak',
-        ];
-    @endphp
-
-    <div class="card" style="margin-bottom:14px;">
-        <form method="GET"
-              action="{{ route('hr.leave.master') }}"
-              style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">
-
-            <div>
-                <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Tanggal Pengajuan</label>
-                <input
-                    type="text"
+        
+        <form method="GET" action="{{ route('hr.leave.master') }}" class="filter-container">
+            <div class="filter-group">
+                <label>Tanggal Pengajuan</label>
+                <input type="text"
                     id="submitted_range"
                     name="submitted_range"
                     value="{{ $submittedRange ?? '' }}"
-                    placeholder="Pilih rentang tanggal"
-                    style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:220px;"
+                    placeholder="Rentang tanggal..."
+                    class="form-control"
                     autocomplete="off">
             </div>
 
-            <div>
-                <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Jenis Pengajuan</label>
-                <select name="type"
-                        style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:200px;">
-                    <option value="">Semua jenis</option>
+            <div class="filter-group">
+                <label>Jenis</label>
+                <select name="type" class="form-control">
+                    <option value="">Semua Jenis</option>
                     @foreach($typeOptions as $case)
                         @php
-                            $value = $case->value;
-                            $label = $case->label();
-                            if ($value === \App\Enums\LeaveType::CUTI_KHUSUS->value) {
-                                $label = 'Cuti Khusus';
-                            }
+                            $val = $case->value;
+                            $lbl = ($val === \App\Enums\LeaveType::CUTI_KHUSUS->value) ? 'Cuti Khusus' : $case->label();
                         @endphp
-                        <option value="{{ $value }}" @selected($typeFilter === $value)>
-                            {{ $label }}
+                        <option value="{{ $val }}" @selected($typeFilter === $val)>
+                            {{ $lbl }}
                         </option>
                     @endforeach
                 </select>
             </div>
 
-            <div>
-                <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Status</label>
-                <select name="status"
-                        style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:180px;">
-                    <option value="">Semua status</option>
+            @php
+                $statusLabels = [
+                    \App\Models\LeaveRequest::PENDING_SUPERVISOR => 'Menunggu Supervisor',
+                    \App\Models\LeaveRequest::PENDING_HR         => 'Menunggu HRD',
+                    \App\Models\LeaveRequest::STATUS_APPROVED    => 'Disetujui',
+                    \App\Models\LeaveRequest::STATUS_REJECTED    => 'Ditolak',
+                ];
+            @endphp
+            <div class="filter-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="">Semua Status</option>
                     @foreach($statusOptions as $opt)
-                        <option value="{{ $opt }}" @selected($status === $opt)">
+                        <option value="{{ $opt }}" @selected($status === $opt)>
                             {{ $statusLabels[$opt] ?? $opt }}
                         </option>
                     @endforeach
                 </select>
             </div>
 
-            <div>
-                <label style="font-size:0.85rem;display:block;margin-bottom:4px;">Nama Karyawan</label>
+            <div class="filter-group flex-grow">
+                <label>Karyawan</label>
                 <input type="text"
                        name="q"
                        value="{{ $q ?? '' }}"
-                       placeholder="Cari nama..."
-                       style="padding:6px 10px;border-radius:8px;border:1px solid #ddd;font-size:0.85rem;min-width:200px;">
+                       placeholder="Cari nama karyawan..."
+                       class="form-control">
             </div>
 
-            <button type="submit"
-                    style="padding:8px 14px;background:#1e4a8d;color:#fff;border:none;
-                           border-radius:999px;cursor:pointer;font-size:0.85rem;white-space:nowrap;">
-                Filter
-            </button>
-
-            <a href="{{ route('hr.leave.master') }}"
-               style="padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;background:#fff;color:#374151;font-size:0.8rem;text-decoration:none;white-space:nowrap;">
-                Reset
-            </a>
+            <div class="filter-actions">
+                <button type="submit" class="btn-primary">Filter</button>
+                
+                @if(($q ?? null) || ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null))
+                <a href="{{ route('hr.leave.master') }}" class="btn-reset">Reset</a>
+                @endif
+            </div>
         </form>
     </div>
 
-    <div class="card" style="padding:0;overflow:hidden;">
-        <div style="width:100%;overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;min-width:900px;">
+    <div class="card">
+        <div class="table-wrapper">
+            <table class="custom-table">
                 <thead>
                     <tr>
-                        <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
-                                   text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;width:56px;">
-                            #
-                        </th>
-                        <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
-                                   text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;">
-                            Karyawan
-                        </th>
-                        <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
-                                   text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;">
-                            Tgl Pengajuan
-                        </th>
-                        <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
-                                   text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;">
-                            Periode Izin
-                        </th>
-                        <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
-                                   text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;">
-                            Jenis
-                        </th>
-                        <th style="padding:10px 12px;text-align:left;font-weight:600;font-size:.8rem;
-                                   text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;">
-                            Status
-                        </th>
-                        <th style="padding:10px 12px;text-align:right;font-weight:600;font-size:.8rem;
-                                   text-transform:uppercase;letter-spacing:.04em;color:#6b7280;
-                                   border-bottom:1px solid #e5e7eb;width:110px;">
-                            Aksi
-                        </th>
+                        <th style="width: 50px;">#</th>
+                        <th>Karyawan</th>
+                        <th>Tgl Pengajuan</th>
+                        <th>Periode Izin</th>
+                        <th>Jenis</th>
+                        <th>Status</th>
+                        <th class="text-right" style="width: 100px;">Aksi</th>
                     </tr>
                 </thead>
-
                 <tbody>
                     @forelse($items as $i => $row)
                         @php
-                            $rowStatus = $row->status;
-                            if ($rowStatus === \App\Models\LeaveRequest::STATUS_APPROVED) {
-                                $badgeClass = 'badge-disetujui';
-                            } elseif ($rowStatus === \App\Models\LeaveRequest::STATUS_REJECTED) {
-                                $badgeClass = 'badge-ditolak';
-                            } elseif (in_array($rowStatus, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true)) {
-                                $badgeClass = 'badge-menunggu';
-                            } else {
-                                $badgeClass = 'badge-neutral';
+                            // Logic Badge Status
+                            $st = $row->status;
+                            $badgeClass = 'badge-gray'; // Default
+                            
+                            if ($st === \App\Models\LeaveRequest::STATUS_APPROVED) {
+                                $badgeClass = 'badge-green';
+                            } elseif ($st === \App\Models\LeaveRequest::STATUS_REJECTED) {
+                                $badgeClass = 'badge-red';
+                            } elseif (in_array($st, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR])) {
+                                $badgeClass = 'badge-yellow';
                             }
                         @endphp
 
-                        <tr style="border-bottom:1px solid #f3f4f6;">
-                            <td style="padding:10px 12px;color:#6b7280;font-size:0.85rem;vertical-align:middle;">
+                        <tr>
+                            <td class="text-muted" style="text-align: center;">
                                 {{ $items->firstItem() + $i }}
                             </td>
 
-                            <td style="padding:10px 12px;vertical-align:middle;">
-                                <div style="display:flex;flex-direction:column;gap:2px;max-width:220px;">
-                                    <span style="font-size:0.9rem;font-weight:500;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                                        {{ $row->user->name }}
-                                    </span>
-                                </div>
+                            <td>
+                                <span class="fw-bold">{{ $row->user->name }}</span>
                             </td>
 
-                            <td style="padding:10px 12px;vertical-align:middle;font-size:0.85rem;color:#374151;">
+                            <td class="text-muted">
                                 {{ $row->created_at?->format('d M Y H:i') ?? '-' }}
                             </td>
 
-                            <td style="padding:10px 12px;vertical-align:middle;font-size:0.85rem;color:#111827;">
-                                {{ $row->start_date->format('d M Y') }}
-                                @if($row->end_date && $row->end_date->ne($row->start_date))
-                                    – {{ $row->end_date->format('d M Y') }}
-                                @endif
+                            <td>
+                                <span class="text-date">
+                                    {{ $row->start_date->format('d M Y') }}
+                                    @if($row->end_date && $row->end_date->ne($row->start_date))
+                                        – {{ $row->end_date->format('d M Y') }}
+                                    @endif
+                                </span>
                             </td>
 
-                            <td style="padding:10px 12px;vertical-align:middle;font-size:0.85rem;color:#374151;">
-                                {{ \Illuminate\Support\Str::contains($row->type_label, 'Cuti Khusus') ? 'Cuti Khusus' : $row->type_label }}
+                            <td>
+                                <span class="badge-basic">
+                                    {{ \Illuminate\Support\Str::contains($row->type_label, 'Cuti Khusus') ? 'Cuti Khusus' : $row->type_label }}
+                                </span>
                             </td>
 
-                            <td style="padding:10px 12px;vertical-align:middle;">
-                                <span class="badge {{ $badgeClass }}">
+                            <td>
+                                <span class="badge-status {{ $badgeClass }}">
                                     {{ $row->status_label }}
                                 </span>
                             </td>
 
-                            <td style="padding:10px 12px;vertical-align:middle;text-align:right;">
-                                <a href="{{ route('hr.leave.show', $row) }}"
-                                   style="text-decoration:none;display:inline-flex;align-items:center;
-                                          padding:6px 12px;border-radius:999px;border:1px solid #d1d5db;
-                                          font-size:.8rem;color:#111827;background:#fff;">
+                            <td class="text-right">
+                                <a href="{{ route('hr.leave.show', $row) }}" class="btn-action">
                                     Detail
                                 </a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7"
-                                style="padding:16px;text-align:center;color:#6b7280;font-size:0.9rem;">
-                                Belum ada data izin/cuti.
+                            <td colspan="7" class="empty-state">
+                                Belum ada data pengajuan izin/cuti.
                             </td>
                         </tr>
                     @endforelse
@@ -207,70 +161,193 @@
         </div>
     </div>
 
-    <div style="margin-top:12px;">
+    <div style="margin-top: 20px;">
         <x-pagination :items="$items" />
     </div>
 
     <style>
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 9999px;
+        /* --- UTILITY --- */
+        .mb-4 { margin-bottom: 16px; }
+        .fw-bold { font-weight: 600; color: #111827; }
+        .text-muted { color: #6b7280; font-size: 13px; }
+        .text-right { text-align: right; }
+        .text-date { font-weight: 500; color: #1f2937; }
+
+        /* --- ALERT --- */
+        .alert-success {
+            background: #ecfdf5;
+            color: #065f46;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #a7f3d0;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+
+        /* --- CARD --- */
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+            border: 1px solid #f3f4f6;
+            overflow: hidden;
+            padding: 0;
+        }
+
+        .card-header-simple {
+            padding: 16px 20px 0;
+            margin-bottom: 8px;
+        }
+        
+        .card-title-sm { margin: 0; font-size: 15px; font-weight: 700; color: #1f2937; }
+        .card-subtitle-sm { margin: 2px 0 0; font-size: 13px; color: #6b7280; }
+
+        /* --- FILTER SECTION --- */
+        .filter-container {
+            padding: 16px 20px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .filter-group { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
+        .filter-group.flex-grow { flex: 1.5; min-width: 200px; }
+
+        .filter-group label {
+            font-size: 12px;
             font-weight: 600;
-            font-size: 13px;
-            min-width: 90px;
-            white-space: nowrap;
-            text-align: center;
+            color: #6b7280;
+            text-transform: uppercase;
         }
 
-        .badge-disetujui {
-            background: #dcfce7;
-            color: #166534;
-        }
-
-        .badge-menunggu {
-            background: #fef9c3;
-            color: #854d0e;
-        }
-
-        .badge-ditolak {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .badge-neutral {
-            background: #e5e7eb;
+        .form-control {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 13.5px;
             color: #374151;
+            background: #fff;
+            width: 100%;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-control:focus { border-color: #1e4a8d; }
+
+        .filter-actions { display: flex; gap: 8px; padding-bottom: 2px; }
+
+        .btn-primary {
+            padding: 9px 18px;
+            background: #1e4a8d;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .btn-primary:hover { background: #163a75; }
+
+        .btn-reset {
+            padding: 9px 16px;
+            background: #fff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13.5px;
+            font-weight: 500;
+            display: inline-block;
+        }
+        .btn-reset:hover { background: #f9fafb; }
+
+        /* --- TABLE --- */
+        .table-wrapper { width: 100%; overflow-x: auto; }
+        .custom-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+
+        .custom-table th {
+            background: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e5e7eb;
         }
 
-        table th,
-        table td {
+        .custom-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 13.5px;
+            color: #1f2937;
             vertical-align: middle;
         }
+        .custom-table tr:last-child td { border-bottom: none; }
+        .custom-table tr:hover td { background: #fdfdfd; }
 
-        table tr:hover td {
-            background: #f9fafb;
+        /* --- BADGES --- */
+        .badge-basic {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid #e5e7eb;
         }
 
-        @media(max-width:600px) {
-            table th,
-            table td {
-                padding: 8px;
-                font-size: 13px;
-            }
+        .badge-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .badge-green { background: #dcfce7; color: #166534; }   /* Approved */
+        .badge-red { background: #fee2e2; color: #991b1b; }     /* Rejected */
+        .badge-yellow { background: #fef9c3; color: #854d0e; }  /* Pending */
+        .badge-gray { background: #e5e7eb; color: #374151; }    /* Default */
+
+        /* --- ACTION BUTTONS --- */
+        .btn-action {
+            padding: 6px 14px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #374151;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+        .btn-action:hover { background: #f3f4f6; border-color: #9ca3af; }
+
+        .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
+
+        @media(max-width: 768px) {
+            .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
+            .filter-group, .form-control { width: 100%; min-width: 0; }
+            .filter-actions { margin-top: 4px; }
+            .btn-primary, .btn-reset { flex: 1; text-align: center; }
         }
     </style>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        flatpickr("#submitted_range", {
-            mode: "range",
-            dateFormat: "Y-m-d",
-            allowInput: true,
-            locale: {
-                rangeSeparator: " sampai "
-            }
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr("#submitted_range", {
+                mode: "range",
+                dateFormat: "Y-m-d",
+                allowInput: true,
+                locale: { rangeSeparator: " sampai " }
+            });
         });
     </script>
 
