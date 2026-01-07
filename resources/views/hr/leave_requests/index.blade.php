@@ -27,16 +27,34 @@
                 <tbody>
                     @forelse($leaves as $lv)
                         @php
-                            // Logic Warna Badge Jenis
+                            // Ambil value jenis cuti
                             $type = $lv->type;
                             $badgeClass = 'badge-gray';
                             
-                            if ($type === \App\Enums\LeaveType::CUTI->value) {
-                                $badgeClass = 'badge-blue'; // Cuti Tahunan -> Biru
-                            } elseif ($type === \App\Enums\LeaveType::SAKIT->value) {
-                                $badgeClass = 'badge-yellow'; // Sakit -> Kuning
-                            } elseif ($type === \App\Enums\LeaveType::IZIN_TELAT->value || $type === \App\Enums\LeaveType::IZIN_PULANG_CEPAT->value) {
-                                $badgeClass = 'badge-orange'; // Telat/Pulang Cepat -> Orange
+                            // Logika Warna Badge berdasarkan Enum LeaveType
+                            if (in_array($type, [
+                                \App\Enums\LeaveType::CUTI->value, 
+                                \App\Enums\LeaveType::CUTI_KHUSUS->value
+                            ])) {
+                                // Cuti & Cuti Khusus -> Biru
+                                $badgeClass = 'badge-blue'; 
+                            } 
+                            elseif ($type === \App\Enums\LeaveType::SAKIT->value) {
+                                // Sakit -> Kuning
+                                $badgeClass = 'badge-yellow'; 
+                            } 
+                            elseif (in_array($type, [
+                                \App\Enums\LeaveType::IZIN_TELAT->value, 
+                                \App\Enums\LeaveType::IZIN_PULANG_AWAL->value,
+                                \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value,
+                                \App\Enums\LeaveType::IZIN->value
+                            ])) {
+                                // Izin Terkait Waktu -> Orange
+                                $badgeClass = 'badge-orange';
+                            }
+                            elseif ($type === \App\Enums\LeaveType::DINAS_LUAR->value) {
+                                // Dinas Luar -> Ungu (Opsional/Bisa custom style lain)
+                                $badgeClass = 'badge-purple';
                             }
                         @endphp
 
@@ -183,7 +201,8 @@
         
         .badge-blue { background: #eff6ff; color: #1d4ed8; }   /* Cuti */
         .badge-yellow { background: #fefce8; color: #a16207; } /* Sakit */
-        .badge-orange { background: #fff7ed; color: #c2410c; } /* Telat */
+        .badge-orange { background: #fff7ed; color: #c2410c; } /* Izin Waktu */
+        .badge-purple { background: #f3e8ff; color: #7e22ce; } /* Dinas Luar */
         .badge-gray { background: #f3f4f6; color: #374151; }   /* Lainnya */
 
         /* --- ACTION BUTTONS --- */
@@ -198,7 +217,6 @@
             text-decoration: none;
             display: inline-block;
             transition: all 0.2s;
-            white-space: nowrap;
         }
         .btn-action:hover { background: #f3f4f6; border-color: #9ca3af; }
 

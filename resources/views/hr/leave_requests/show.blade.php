@@ -1,53 +1,71 @@
 <x-app title="Detail Pengajuan">
-    <div class="lr-detail">
-        <div class="back-btn">
-            <a href="{{ route('hr.leave.index') }}" class="btn-back">← Kembali</a>
-        </div>
 
-        @php
-            $url = $item->photo
-                ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
-                : null;
+    @if(session('success'))
+    <div class="alert-success">
+        {{ session('success') }}
+    </div>
+    @endif
 
-            $isIzinTengahKerja = $item->type === \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value;
-            $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
-            $endTimeLabel = $item->end_time ? $item->end_time->format('H:i') : null;
+    @if($errors->any())
+    <div class="alert-error">
+        {{ $errors->first() }}
+    </div>
+    @endif
 
-            $needsHrdAction = ($item->status === \App\Models\LeaveRequest::PENDING_HR);
-        @endphp
-
-        <div class="card lr-card">
-            <div class="lr-header">
-                <div>
-                    <div class="lr-title">Detail Pengajuan Izin</div>
-                    <div class="lr-subtitle">
-                        Diajukan pada {{ $item->created_at?->format('d M Y H:i') }}
-                    </div>
+    <div class="card">
+        <div class="profile-header">
+            <div class="profile-main">
+                <div class="profile-avatar">
+                    {{ substr($item->user->name, 0, 1) }}
                 </div>
-                <div class="lr-status">
-                    <span class="badge {{ strtolower($item->status) }}">
-                        {{ $item->status_label ?? $item->status }}
-                    </span>
+                <div class="profile-info">
+                    <h2 class="profile-name">{{ $item->user->name }}</h2>
+                    <div class="profile-meta">
+                        <span class="chip-role">{{ $item->user->role }}</span>
+                        <span class="dot">•</span>
+                        <span>Diajukan: {{ $item->created_at->format('d M Y H:i') }}</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="lr-section">
-                <div class="lr-row">
-                    <div class="lr-label">Pemohon</div>
-                    <div class="lr-value">
-                        {{ $item->user->name }}
-                        <span class="lr-chip-role">{{ $item->user->role }}</span>
+            @php
+                $status = $item->status;
+                $badgeClass = 'badge-gray';
+                
+                if ($status === \App\Models\LeaveRequest::STATUS_APPROVED) {
+                    $badgeClass = 'badge-green';
+                } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
+                    $badgeClass = 'badge-red';
+                } elseif ($status === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
+                    $badgeClass = 'badge-yellow';
+                } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
+                    $badgeClass = 'badge-blue';
+                }
+            @endphp
+            <div class="status-wrapper">
+                <span class="badge-status {{ $badgeClass }}">
+                    {{ $item->status_label ?? $status }}
+                </span>
+            </div>
+        </div>
+
+        <div class="divider-full"></div>
+
+        <div class="detail-container">
+            
+            <div class="detail-section">
+                <h4 class="section-title">Informasi Pengajuan</h4>
+
+                <div class="info-row">
+                    <div class="info-label">Jenis Pengajuan</div>
+                    <div class="info-value">
+                        <span class="badge-basic">{{ $item->type_label ?? $item->type }}</span>
                     </div>
                 </div>
 
-                <div class="lr-row">
-                    <div class="lr-label">Jenis</div>
-                    <div class="lr-value">{{ $item->type_label ?? $item->type }}</div>
-                </div>
-
-                <div class="lr-row">
-                    <div class="lr-label">Periode</div>
-                    <div class="lr-value">
+                <div class="info-row">
+                    <div class="info-label">Periode</div>
+                    <div class="info-value">
                         {{ $item->start_date->format('d M Y') }}
                         @if($item->end_date && $item->end_date->ne($item->start_date))
                             – {{ $item->end_date->format('d M Y') }}
@@ -55,469 +73,259 @@
                     </div>
                 </div>
 
-                @if($isIzinTengahKerja && $startTimeLabel && $endTimeLabel)
-                    <div class="lr-row">
-                        <div class="lr-label">Jam Izin</div>
-                        <div class="lr-value">
-                            {{ $startTimeLabel }} – {{ $endTimeLabel }}
-                        </div>
-                    </div>
+                @php
+                     $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
+                     $endTimeLabel = $item->end_time ? $item->end_time->format('H:i') : null;
+                @endphp
+
+                @if($startTimeLabel && $endTimeLabel)
+                <div class="info-row">
+                    <div class="info-label">Jam Izin</div>
+                    <div class="info-value">{{ $startTimeLabel }} – {{ $endTimeLabel }}</div>
+                </div>
                 @endif
 
                 @if($item->approved_by)
-                    <div class="lr-row">
-                        <div class="lr-label">Diputus Oleh</div>
-                        <div class="lr-value">
-                            {{ $item->approver?->name }}
-                            @if($item->approved_at)
-                                <div class="lr-muted">
-                                    pada {{ $item->approved_at->format('d M Y H:i') }}
-                                </div>
-                            @endif
-                        </div>
+                <div class="info-row">
+                    <div class="info-label">Diputus Oleh</div>
+                    <div class="info-value">
+                        {{ $item->approver?->name }}
+                        @if($item->approved_at)
+                            <div class="text-muted" style="font-size:12px; margin-top:2px;">
+                                {{ $item->approved_at->format('d M Y H:i') }}
+                            </div>
+                        @endif
                     </div>
+                </div>
+                @endif
+
+                @if($item->notes)
+                <div class="system-note-box">
+                    <div class="note-label">Catatan Sistem:</div>
+                    <div class="note-content">{!! nl2br(e($item->notes)) !!}</div>
+                </div>
                 @endif
             </div>
 
-            @if($item->notes)
-                <div class="lr-section lr-section-note">
-                    <div class="lr-note-title">Catatan Sistem</div>
-                    <div class="lr-note-body">
-                        {!! nl2br(e($item->notes)) !!}
-                    </div>
-                </div>
-            @endif
+            <div class="detail-section">
+                <h4 class="section-title">Keterangan & Bukti</h4>
 
-            @if($item->reason)
-                <div class="lr-section">
-                    <div class="lr-label">Alasan</div>
-                    <div class="lr-reason">
+                <div class="info-row">
+                    <div class="info-label">Alasan</div>
+                    <div class="info-value box-reason">
                         {{ $item->reason }}
                     </div>
                 </div>
-            @endif
 
-            @if($item->latitude && $item->longitude)
-                <div class="lr-section">
-                    <div class="lr-label">Lokasi Pengajuan</div>
-                    <div class="lr-location-block">
-                        <div class="lr-location-meta">
-                            Location captured {{ $item->location_captured_at?->format('Y-m-d H:i') }}
-                            (±{{ (int) $item->accuracy_m }}m)
-                        </div>
+                @php
+                    $url = $item->photo
+                        ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
+                        : null;
+                @endphp
 
-                        <div class="map-embed">
-                            <iframe
-                                src="https://www.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed"
-                                loading="lazy"
-                                allowfullscreen
-                                referrerpolicy="no-referrer-when-downgrade">
-                            </iframe>
-                        </div>
-
-                        <div class="lr-location-link">
-                            <a href="https://www.google.com/maps/search/?api=1&query={{ $item->latitude }},{{ $item->longitude }}"
-                               target="_blank"
-                               rel="noopener">
-                                Buka di Google Maps
-                            </a>
-                        </div>
+                <div class="info-row">
+                    <div class="info-label">Lampiran Foto</div>
+                    <div class="info-value">
+                        @if($url)
+                            <div class="photo-preview js-view-photo" data-url="{{ $url }}">
+                                <img src="{{ $url }}" alt="Bukti Izin">
+                                <div class="overlay">
+                                    <span>Klik untuk memperbesar</span>
+                                </div>
+                            </div>
+                        @else
+                            <span class="text-muted" style="font-style:italic;">Tidak ada lampiran foto.</span>
+                        @endif
                     </div>
                 </div>
-            @endif
 
-            @if ($url)
-                <div class="lr-section">
-                    <div class="lr-label">Lampiran</div>
-                    <div class="lr-attachment">
-                        <div class="photo-box js-view-leave-photo" data-photo-url="{{ $url }}">
-                            <img src="{{ $url }}" alt="Foto Izin">
-                        </div>
+                @if($item->latitude && $item->longitude)
+                <div class="info-row" style="margin-top:20px;">
+                    <div class="info-label">
+                        Lokasi Pengajuan
+                        <span style="font-weight:400; color:#6b7280; font-size:11px;">(±{{ (int)$item->accuracy_m }}m)</span>
+                    </div>
+                    <div class="map-container">
+                        <iframe
+                            src="https://www.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed"
+                            loading="lazy"
+                            allowfullscreen>
+                        </iframe>
+                    </div>
+                    <div style="margin-top:6px;">
+                        <a href="https://www.google.com/maps/search/?api=1&query={{ $item->latitude }},{{ $item->longitude }}" 
+                           target="_blank" class="link-map">
+                           Buka di Google Maps ↗
+                        </a>
                     </div>
                 </div>
-            @elseif ($item->photo)
-                <div class="lr-section">
-                    <div class="lr-alert-error">
-                        File foto tidak ditemukan di storage. ({{ $item->photo }})
-                    </div>
-                </div>
-            @endif
+                @endif
+            </div>
+        </div>
 
-            
+        <div class="action-footer">
+            <div class="left-action">
+                <a href="{{ route('hr.leave.index') }}" class="btn-modern btn-back">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    Kembali
+                </a>
+            </div>
 
-            <div class="actions">
-                @if ($needsHrdAction)
-                    <form
-                        class="inline js-confirm"
-                        method="POST"
-                        action="{{ route('hr.leave.approve', $item) }}"
-                        data-msg="Setujui pengajuan ini?">
-                        @csrf
-                        <button class="btn btn-success" type="submit">Setujui</button>
-                    </form>
+            <div class="right-action">
+                @if($item->status === \App\Models\LeaveRequest::PENDING_HR)
+                    
+                    <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        Tolak
+                    </button>
 
-                    <form
-                        class="inline js-confirm"
-                        method="POST"
-                        action="{{ route('hr.leave.reject', $item) }}"
-                        data-msg="Tolak pengajuan ini?">
-                        @csrf
-                        <button class="btn btn-danger" type="submit">Tolak</button>
-                    </form>
+                    <button type="button" data-modal-target="modal-approve" class="btn-modern btn-approve">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Setujui
+                    </button>
+
                 @else
-                    <em style="opacity:.7;">Tidak ada aksi untuk HRD pada pengajuan ini.</em>
+                    <div class="processed-info">
+                        Status: <strong>{{ $item->status_label }}</strong>
+                    </div>
                 @endif
             </div>
         </div>
     </div>
 
-    <x-modal
-        id="leave-photo-modal"
-        title="Foto Pengajuan Izin"
-        type="info"
-        cancelLabel="Tutup">
-        <div style="display:flex;flex-direction:column;gap:10px;">
-            <div style="font-size:0.85rem;color:#4b5563;">
-                Foto saat karyawan mengajukan izin.
-            </div>
-
-            <div style="
-                border-radius:10px;
-                overflow:hidden;
-                border:1px solid #e5e7eb;
-                max-height:70vh;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                background:#000;
-            ">
-                <img
-                    id="leave-photo-img"
-                    src=""
-                    alt="Foto Pengajuan Izin"
-                    style="
-                        max-width:100%;
-                        max-height:70vh;
-                        width:auto;
-                        height:auto;
-                        display:block;
-                        object-fit:contain;
-                    ">
-            </div>
+    <x-modal id="photo-modal" title="Lampiran Foto" type="info" cancelLabel="Tutup">
+        <div style="display:flex; justify-content:center; background:#000; border-radius:8px; overflow:hidden;">
+            <img id="modal-img-preview" src="" style="max-width:100%; max-height:80vh; object-fit:contain;">
         </div>
     </x-modal>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <x-modal
+        id="modal-reject"
+        title="Tolak Pengajuan?"
+        type="confirm"
+        confirmLabel="Tolak Pengajuan"
+        cancelLabel="Batal"
+        :confirmFormAction="route('hr.leave.reject', $item)"
+        confirmFormMethod="POST">
+        <p style="margin:0; color:#374151;">
+            Apakah Anda yakin ingin menolak pengajuan izin dari <strong>{{ $item->user->name }}</strong>?
+        </p>
+        <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
+            Status akan berubah menjadi Ditolak dan tidak dapat dikembalikan.
+        </p>
+    </x-modal>
+
+    <x-modal
+        id="modal-approve"
+        title="Setujui Pengajuan?"
+        type="confirm"
+        confirmLabel="Ya, Setujui"
+        cancelLabel="Batal"
+        :confirmFormAction="route('hr.leave.approve', $item)"
+        confirmFormMethod="POST">
+        <p style="margin:0; color:#374151;">
+            Anda akan menyetujui pengajuan izin ini.
+        </p>
+        <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
+            Pastikan data sudah benar. Sistem akan mencatat persetujuan ini atas nama Anda.
+        </p>
+    </x-modal>
 
     <script>
-        document.querySelectorAll('.js-confirm').forEach(function(f) {
-            f.addEventListener('submit', function(e) {
-                var msg = f.dataset.msg || 'Lanjutkan aksi?';
-                if (!confirm(msg)) {
-                    e.preventDefault();
-                    return;
-                }
-                var b = f.querySelector('button[type="submit"]');
-                if (b) {
-                    b.disabled = true;
-                    b.style.opacity = '.7';
-                }
-            });
-        });
-
-        var leavePhotoModal = document.getElementById('leave-photo-modal');
-        var leavePhotoImg = document.getElementById('leave-photo-img');
-
-        document.querySelectorAll('.js-view-leave-photo').forEach(function(box) {
-            box.addEventListener('click', function() {
-                var url = box.getAttribute('data-photo-url');
-                if (!url || !leavePhotoModal || !leavePhotoImg) return;
-                leavePhotoImg.src = url;
-                leavePhotoModal.style.display = 'flex';
-                document.body.style.overflow = 'hidden';
+        document.addEventListener('DOMContentLoaded', () => {
+            // Logic Modal Foto
+            const modal = document.getElementById('photo-modal');
+            const modalImg = document.getElementById('modal-img-preview');
+            
+            document.querySelectorAll('.js-view-photo').forEach(el => {
+                el.addEventListener('click', () => {
+                    const url = el.getAttribute('data-url');
+                    if(url && modal && modalImg) {
+                        modalImg.src = url;
+                        // Trigger modal display manually if needed or rely on app.js listener
+                        if(modal) modal.style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
+                    }
+                });
             });
         });
     </script>
 
     <style>
-        .lr-detail {
-            max-width: 720px;
-            margin: 0 auto;
-        }
+        /* --- ALERTS --- */
+        .alert-success { background: #ecfdf5; color: #065f46; padding: 12px 16px; border-radius: 8px; border: 1px solid #a7f3d0; margin-bottom: 16px; font-size: 14px; }
+        .alert-error { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px; font-size: 14px; }
 
-        .back-btn {
-            margin-bottom: 12px;
-        }
+        /* --- CARD --- */
+        .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f3f4f6; overflow: hidden; }
 
-        .btn-back {
-            display: inline-flex;
-            align-items: center;
-            font-size: 13px;
-            padding: 6px 10px;
-            border-radius: 999px;
-            border: 1px solid #d1d5db;
-            background: #ffffff;
-            color: #374151;
-            text-decoration: none;
-            gap: 4px;
-            transition: background .15s ease, color .15s ease, border-color .15s ease, transform .1s ease;
-        }
+        /* --- HEADER --- */
+        .profile-header { padding: 24px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; background: #fff; }
+        .profile-main { display: flex; gap: 16px; align-items: center; }
+        .profile-avatar { width: 56px; height: 56px; background: #e0e7ff; color: #1e4a8d; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; }
+        .profile-name { margin: 0 0 4px 0; font-size: 18px; font-weight: 700; color: #111827; }
+        .profile-meta { font-size: 13px; color: #6b7280; display: flex; align-items: center; gap: 8px; }
+        .dot { color: #d1d5db; }
+        .chip-role { background: #f3f4f6; padding: 2px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        
+        .divider-full { height: 1px; background: #f3f4f6; width: 100%; }
 
-        .btn-back:hover {
-            background: #f3f4f6;
-            color: #1e4a8d;
-            border-color: #cbd5e1;
-            transform: translateX(-1px);
-        }
+        /* --- GRID DETAIL --- */
+        .detail-container { padding: 24px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 40px; }
+        @media(max-width: 768px) { .detail-container { grid-template-columns: 1fr; gap: 24px; } }
 
-        .lr-card {
-            padding: 18px 18px 16px;
-        }
+        .section-title { font-size: 14px; font-weight: 700; color: #111827; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #f3f4f6; display: inline-block; }
 
-        .lr-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 12px;
-            margin-bottom: 14px;
-        }
+        .info-row { margin-bottom: 16px; }
+        .info-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 500; }
+        .info-value { font-size: 14.5px; color: #1f2937; font-weight: 500; line-height: 1.5; }
 
-        .lr-title {
-            font-weight: 600;
-            font-size: 1.05rem;
-            color: #111827;
-        }
+        .box-reason { background: #f9fafb; padding: 12px; border-radius: 8px; border: 1px solid #f3f4f6; color: #374151; font-size: 14px; }
+        
+        /* --- SYSTEM NOTE --- */
+        .system-note-box { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 12px; margin-top: 10px; }
+        .note-label { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 4px; text-transform: uppercase; }
+        .note-content { font-size: 13.5px; color: #b45309; line-height: 1.4; }
 
-        .lr-subtitle {
-            font-size: 0.8rem;
-            color: #6b7280;
-            margin-top: 2px;
-        }
+        /* --- BADGES --- */
+        .badge-basic { background: #f3f4f6; color: #374151; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid #e5e7eb; display: inline-block; }
+        .badge-status { padding: 6px 14px; border-radius: 30px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-yellow { background: #fefce8; color: #a16207; border: 1px solid #fef08a; }
+        .badge-blue { background: #eff6ff; color: #1d4ed8; }
+        .badge-gray { background: #f3f4f6; color: #374151; }
 
-        .lr-status {
-            display: flex;
-            align-items: center;
-        }
+        /* --- PHOTO PREVIEW --- */
+        .photo-preview { position: relative; width: 100%; max-width: 300px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; cursor: pointer; }
+        .photo-preview img { width: 100%; height: auto; display: block; }
+        .photo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+        .photo-preview:hover .overlay { opacity: 1; }
+        .photo-preview .overlay span { color: #fff; font-size: 12px; font-weight: 600; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 20px; }
 
-        .lr-section {
-            border-top: 1px solid #e5e7eb;
-            padding-top: 12px;
-            margin-top: 10px;
-        }
+        /* --- MAPS --- */
+        .map-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 4px; }
+        .map-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+        .link-map { font-size: 13px; color: #1e4a8d; text-decoration: none; font-weight: 500; }
+        .link-map:hover { text-decoration: underline; }
 
-        .lr-row {
-            display: grid;
-            grid-template-columns: 110px minmax(0, 1fr);
-            column-gap: 12px;
-            row-gap: 4px;
-            font-size: 0.9rem;
-            padding: 4px 0;
-        }
+        /* --- FOOTER ACTIONS --- */
+        .action-footer { background: #f9fafb; padding: 16px 24px; border-top: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+        .right-action { display: flex; gap: 12px; align-items: center; }
 
-        .lr-label {
-            font-weight: 600;
-            color: #4b5563;
-            font-size: 0.85rem;
-        }
+        /* --- BUTTONS --- */
+        .btn-modern { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; text-decoration: none; line-height: 1; }
+        
+        .btn-back { background: #fff; border-color: #d1d5db; color: #374151; }
+        .btn-back:hover { background: #f3f4f6; border-color: #9ca3af; color: #111827; }
 
-        .lr-value {
-            color: #111827;
-        }
+        .btn-approve { background: #1e4a8d; color: #fff; box-shadow: 0 2px 4px rgba(30, 74, 141, 0.2); }
+        .btn-approve:hover { background: #163a75; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(30, 74, 141, 0.3); }
 
-        .lr-chip-role {
-            display: inline-flex;
-            margin-left: 6px;
-            padding: 2px 8px;
-            border-radius: 999px;
-            font-size: 0.7rem;
-            background: #eef2ff;
-            color: #3730a3;
-            text-transform: uppercase;
-            letter-spacing: .04em;
-        }
+        .btn-reject { background: #fff; border-color: #fee2e2; color: #dc2626; }
+        .btn-reject:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
 
-        .lr-muted {
-            font-size: 0.8rem;
-            color: #6b7280;
-            margin-top: 2px;
-        }
-
-        .lr-section-note {
-            background: #fffbeb;
-            border-radius: 10px;
-            border: 1px solid #fef3c7;
-            padding: 10px 12px;
-            margin-top: 14px;
-        }
-
-        .lr-note-title {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #92400e;
-            margin-bottom: 4px;
-        }
-
-        .lr-note-body {
-            font-size: 0.85rem;
-            color: #92400e;
-            white-space: pre-line;
-        }
-
-        .lr-location-block {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .lr-location-meta {
-            font-size: 0.8rem;
-            color: #6b7280;
-        }
-
-        .lr-location-link a {
-            font-size: 0.8rem;
-            color: #1e40af;
-            text-decoration: none;
-        }
-
-        .lr-location-link a:hover {
-            text-decoration: underline;
-        }
-
-        .lr-attachment {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .photo-box {
-            margin: 4px 0;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 3px 14px rgba(15, 23, 42, .15);
-            max-width: 360px;
-            cursor: pointer;
-        }
-
-        .photo-box img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .lr-link {
-            font-size: 0.8rem;
-            color: #1e40af;
-            text-decoration: none;
-        }
-
-        .lr-link:hover {
-            text-decoration: underline;
-        }
-
-        .lr-reason {
-            margin-top: 4px;
-            font-size: 0.9rem;
-            line-height: 1.5;
-            color: #111827;
-            padding: 8px 10px;
-            border-radius: 8px;
-            background: #f9fafb;
-        }
-
-        .lr-alert-error {
-            background: #fef2f2;
-            color: #b91c1c;
-            border-radius: 8px;
-            padding: 8px 10px;
-            font-size: 0.85rem;
-            border: 1px solid #fecaca;
-        }
-
-        .actions {
-            margin-top: 18px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .actions .btn {
-            font-size: 0.85rem;
-        }
-
-        .btn.btn-success {
-            background: #169b62;
-            color: #fff;
-            border-color: #169b62;
-        }
-
-        .btn.btn-success:hover {
-            background: #128054;
-            border-color: #128054;
-        }
-
-        .btn.btn-danger {
-            background: #c62828;
-            color: #fff;
-            border-color: #c62828;
-        }
-
-        .btn.btn-danger:hover {
-            background: #b71c1c;
-            border-color: #b71c1c;
-        }
-
-        .btn.btn-danger-outline {
-            background: #fff;
-            color: #c62828;
-            border-color: #e3a4a4;
-        }
-
-        .btn.btn-danger-outline:hover {
-            background: #fff5f5;
-        }
-
-        .map-embed {
-            position: relative;
-            padding-bottom: 56.25%;
-            height: 0;
-            overflow: hidden;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
-            margin-top: 6px;
-        }
-
-        .map-embed iframe {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            border: 0;
-            display: block;
-        }
-
-        @media(max-width: 600px) {
-            .lr-detail {
-                padding: 0 8px;
-            }
-
-            .lr-card {
-                padding: 14px;
-            }
-
-            .lr-row {
-                grid-template-columns: 96px minmax(0, 1fr);
-            }
-
-            .actions {
-                flex-direction: column;
-                align-items: stretch;
-            }
-
-            .actions .btn {
-                width: 100%;
-            }
-        }
+        .processed-info { font-size: 13.5px; color: #6b7280; background: #fff; padding: 8px 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
     </style>
+
 </x-app>

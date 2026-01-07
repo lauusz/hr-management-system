@@ -1,322 +1,459 @@
 <x-app title="Clock-out">
-    <div class="card" style="max-width:520px;margin:0 auto;">
-        <div style="margin-bottom:14px;">
-            <h2 style="margin:0 0 4px 0;font-size:1.1rem;font-weight:700;">Presensi Pulang</h2>
-            <p style="font-size:0.9rem;opacity:.8;margin:0;">
-                Pastikan mengizinkan akses <b>kamera</b> dan <b>lokasi</b> pada perangkat Anda saat melakukan clock-out.
-            </p>
+    {{-- CSS Custom (Sama persis dengan Clock-in agar konsisten) --}}
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --gray: #94a3b8;
+        }
+
+        .attendance-card {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            background: white;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .btn-back {
+            background: #f1f5f9;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: var(--dark);
+            transition: 0.2s;
+        }
+
+        .btn-back:hover {
+            background: #e2e8f0;
+        }
+
+        .header-title {
+            margin-left: 15px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .camera-wrapper {
+            position: relative;
+            width: 100%;
+            background: black;
+            height: 400px; /* Tinggi kamera fix */
+            overflow: hidden;
+        }
+
+        #video, #capturePreview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        #capturePreview {
+            display: none; /* Hidden by default */
+        }
+
+        /* Overlay Status GPS */
+        .gps-badge {
+            position: absolute;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            padding: 6px 14px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 10;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .gps-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--danger);
+            animation: pulse 1.5s infinite;
+        }
+
+        .gps-text {
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .controls-area {
+            padding: 20px;
+            background: white;
+        }
+
+        .status-message {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--gray);
+            margin-bottom: 15px;
+            min-height: 20px;
+        }
+
+        /* Tombol Utama */
+        .btn-main {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Warna khusus Clock-out (Opsional: bisa diganti warna lain jika mau beda) */
+        .btn-capture {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        }
+
+        .btn-capture:active {
+            transform: scale(0.98);
+        }
+
+        .action-buttons {
+            display: none; /* Hidden by default */
+            gap: 10px;
+        }
+
+        .btn-secondary {
+            background: #f1f5f9;
+            color: var(--dark);
+            flex: 1;
+        }
+
+        .btn-success {
+            background: var(--success); /* Tetap hijau untuk konfirmasi */
+            color: white;
+            flex: 1;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+        }
+
+        /* Loading & Disabled States */
+        .btn-main:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            filter: grayscale(1);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.7; }
+        }
+
+        /* Flash Effect */
+        .flash {
+            position: absolute;
+            inset: 0;
+            background: white;
+            z-index: 20;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .flash-anim {
+            animation: flashEffect 0.4s ease-out;
+        }
+        @keyframes flashEffect {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+
+    <div class="attendance-card">
+        
+        <div class="header-nav">
+            <a href="{{ url('/attendance') }}" class="btn-back">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            </a>
+            <div class="header-title">Presensi Pulang</div>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;">
-            <div id="locationStatusBadge"
-                 style="font-size:0.8rem;padding:4px 10px;border-radius:999px;background:#fef3c7;color:#92400e;display:inline-flex;align-items:center;gap:6px;">
-                <span style="width:8px;height:8px;border-radius:999px;background:#f97316;display:inline-block;"></span>
-                <span>Menunggu lokasi...</span>
+        <div class="camera-wrapper">
+            <div class="gps-badge">
+                <div class="gps-dot" id="gpsIndicator"></div>
+                <span class="gps-text" id="gpsText">Mencari Lokasi...</span>
             </div>
-            <div id="cameraStatusText" style="font-size:0.8rem;opacity:.75;">
-                Kamera: menyiapkan...
+
+            <video id="video" autoplay playsinline muted></video>
+            
+            <img id="capturePreview" alt="Hasil Foto">
+            
+            <div id="flashOverlay" class="flash"></div>
+            
+            <canvas id="canvas" style="display:none;"></canvas>
+        </div>
+
+        <div class="controls-area">
+            <div class="status-message" id="statusMessage">
+                Menyiapkan kamera dan lokasi...
             </div>
-        </div>
 
-        <div style="border-radius:12px;overflow:hidden;background:#000;margin-bottom:12px;position:relative;">
-            <video id="video" autoplay playsinline style="width:100%;max-height:360px;object-fit:cover;"></video>
-            <div id="videoOverlayLoading"
-                 style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:linear-gradient(to bottom,rgba(15,23,42,0.55),rgba(15,23,42,0.85));color:#e5e7eb;font-size:0.9rem;">
-                <div style="text-align:center;">
-                    <div style="margin-bottom:6px;">Mengaktifkan kamera...</div>
-                    <div style="font-size:0.8rem;opacity:.8;">Jika diminta izin kamera, pilih <b>Allow / Izinkan</b>.</div>
-                </div>
+            <input type="hidden" id="lat">
+            <input type="hidden" id="lng">
+
+            <div id="btnGroupCapture">
+                <button type="button" id="btnCapture" class="btn-main btn-capture" disabled>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Ambil Foto
+                </button>
             </div>
-        </div>
 
-        <div id="capturePreviewWrapper" style="display:none;margin-bottom:12px;">
-            <p style="font-size:0.85rem;margin-bottom:6px;">Foto yang akan dikirim:</p>
-            <img id="capturePreview" src="" alt="Captured" style="width:100%;border-radius:12px;border:1px solid #e5e7eb;">
-        </div>
-
-        <canvas id="canvas" style="display:none;"></canvas>
-
-        <div id="statusBox" style="font-size:0.9rem;margin-bottom:14px;color:#4b5563;">
-            Mengambil lokasi Anda. Mohon tunggu dan izinkan akses lokasi di browser.
-        </div>
-
-        <input type="hidden" id="hiddenLat">
-        <input type="hidden" id="hiddenLng">
-
-        <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;">
-            <button id="btnCapture" type="button"
-                style="width:100%;padding:11px 16px;border:none;border-radius:999px;background:#2563eb;color:#fff;cursor:not-allowed;font-size:0.95rem;font-weight:600;opacity:.6;">
-                📍 Menunggu lokasi...
-            </button>
-
-            <button id="btnClockOut" type="button"
-                style="width:100%;padding:11px 16px;border:none;border-radius:999px;background:#16a34a;color:#fff;cursor:not-allowed;font-size:0.95rem;font-weight:600;opacity:.6;">
-                ✅ Clock-out
-            </button>
+            <div id="btnGroupAction" class="action-buttons">
+                <button type="button" id="btnRetake" class="btn-main btn-secondary">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    Ulangi
+                </button>
+                <button type="button" id="btnSubmit" class="btn-main btn-success">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    Clock-out
+                </button>
+            </div>
         </div>
     </div>
 
-    <x-modal
-        id="clockout-success"
-        title="Berhasil Clock-out"
-        type="info"
-        cancelLabel="Tutup"
-    >
-        <p style="margin:0 0 4px 0;">
-            Clock-out berhasil tercatat.
-        </p>
-        <p style="margin:0;font-size:0.9rem;opacity:.85;">
-            Anda akan diarahkan kembali ke halaman presensi setelah menekan tombol tutup.
-        </p>
+    <x-modal id="clockout-success" title="Berhasil!" type="info" cancelLabel="Tutup">
+        <div style="text-align: center;">
+            <p style="font-size: 1.1rem; font-weight: 600;">Presensi Pulang Tercatat</p>
+        </div>
     </x-modal>
 
+    {{-- Javascript Logic --}}
     <script>
+        // DOM Elements
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
-        const capturePreviewWrapper = document.getElementById('capturePreviewWrapper');
-        const capturePreview = document.getElementById('capturePreview');
-        const statusBox = document.getElementById('statusBox');
-        const hiddenLat = document.getElementById('hiddenLat');
-        const hiddenLng = document.getElementById('hiddenLng');
+        const imgPreview = document.getElementById('capturePreview');
+        const flashOverlay = document.getElementById('flashOverlay');
+        const statusMsg = document.getElementById('statusMessage');
+        const gpsText = document.getElementById('gpsText');
+        const gpsDot = document.getElementById('gpsIndicator');
+        
+        // Buttons
         const btnCapture = document.getElementById('btnCapture');
-        const btnClockOut = document.getElementById('btnClockOut');
-        const locationStatusBadge = document.getElementById('locationStatusBadge');
-        const cameraStatusText = document.getElementById('cameraStatusText');
-        const videoOverlayLoading = document.getElementById('videoOverlayLoading');
+        const btnRetake = document.getElementById('btnRetake');
+        const btnSubmit = document.getElementById('btnSubmit');
+        const groupCapture = document.getElementById('btnGroupCapture');
+        const groupAction = document.getElementById('btnGroupAction');
 
-        let stream = null;
-        let currentBlob = null;
-        let currentLat = null;
-        let currentLng = null;
-        let isSubmitting = false;
-        let isCameraActive = false;
-        let isLocationReady = false;
+        // Data Variables
+        let currentStream = null;
+        let imageBlob = null;
+        let userLat = null;
+        let userLng = null;
+        let isLocationValid = false;
 
-        function setButtonsDisabled(disabled, reason) {
-            btnCapture.disabled = disabled;
-            btnClockOut.disabled = disabled;
-
-            const opacity = disabled ? 0.6 : 1;
-            const cursor = disabled ? 'not-allowed' : 'pointer';
-
-            btnCapture.style.opacity = opacity;
-            btnClockOut.style.opacity = opacity;
-            btnCapture.style.cursor = cursor;
-            btnClockOut.style.cursor = cursor;
-
-            if (disabled && reason === 'location') {
-                btnCapture.textContent = '📍 Menunggu lokasi...';
-            } else if (!disabled) {
-                btnCapture.textContent = isCameraActive ? '📸 Ambil Foto' : '📸 Ambil Foto';
-            }
-        }
-
-        async function initCamera() {
+        // 1. Inisialisasi Kamera
+        async function startCamera() {
             try {
-                cameraStatusText.textContent = 'Kamera: mengaktifkan...';
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user' },
-                    audio: false
+                // Constraint: Kamera depan (user), Resolusi 720p ideal
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }, 
+                    audio: false 
                 });
-
                 video.srcObject = stream;
-                video.style.display = 'block';
-                isCameraActive = true;
-                cameraStatusText.textContent = 'Kamera: siap digunakan';
-                if (videoOverlayLoading) {
-                    videoOverlayLoading.style.display = 'none';
-                }
-                if (isLocationReady) {
-                    setButtonsDisabled(false);
-                    statusBox.textContent = 'Lokasi dan kamera siap. Silakan ambil foto lalu Clock-out.';
-                    btnCapture.textContent = '📸 Ambil Foto';
-                }
+                currentStream = stream;
+                
+                // Event saat video siap play
+                video.onloadedmetadata = () => {
+                    checkReadiness();
+                };
             } catch (err) {
-                cameraStatusText.textContent = 'Kamera: gagal diakses';
-                statusBox.textContent = 'Gagal mengakses kamera. Izinkan akses kamera di browser.';
+                console.error("Camera Error:", err);
+                statusMsg.textContent = "Gagal akses kamera. Pastikan izin diberikan.";
+                statusMsg.style.color = "var(--danger)";
             }
         }
 
-        function stopCamera() {
-            if (stream) {
-                const tracks = stream.getTracks();
-                tracks.forEach(track => track.stop());
-            }
-            isCameraActive = false;
-            cameraStatusText.textContent = 'Kamera: nonaktif';
-        }
+        // 2. Logic GPS (High Accuracy)
+        function initGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.watchPosition(
+                    (position) => {
+                        userLat = position.coords.latitude;
+                        userLng = position.coords.longitude;
+                        const acc = position.coords.accuracy;
 
-        function setLocationBadge(state, text) {
-            if (state === 'loading') {
-                locationStatusBadge.style.background = '#fef3c7';
-                locationStatusBadge.style.color = '#92400e';
-                locationStatusBadge.querySelector('span:nth-child(1)').style.background = '#f97316';
-            } else if (state === 'ready') {
-                locationStatusBadge.style.background = '#dcfce7';
-                locationStatusBadge.style.color = '#166534';
-                locationStatusBadge.querySelector('span:nth-child(1)').style.background = '#22c55e';
-            } else if (state === 'error') {
-                locationStatusBadge.style.background = '#fee2e2';
-                locationStatusBadge.style.color = '#b91c1c';
-                locationStatusBadge.querySelector('span:nth-child(1)').style.background = '#ef4444';
-            }
+                        // Update Hidden Input
+                        document.getElementById('lat').value = userLat;
+                        document.getElementById('lng').value = userLng;
 
-            const labelSpan = locationStatusBadge.querySelector('span:nth-child(2)');
-            if (labelSpan) {
-                labelSpan.textContent = text;
-            }
-        }
-
-        function initLocation() {
-            setLocationBadge('loading', 'Menunggu lokasi...');
-            statusBox.textContent = 'Mengambil lokasi Anda. Mohon tunggu dan izinkan akses lokasi di browser.';
-
-            if (!navigator.geolocation) {
-                setLocationBadge('error', 'Lokasi tidak didukung');
-                statusBox.textContent = 'Browser tidak mendukung geolokasi.';
-                setButtonsDisabled(true, 'location');
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    currentLat = pos.coords.latitude;
-                    currentLng = pos.coords.longitude;
-                    hiddenLat.value = currentLat;
-                    hiddenLng.value = currentLng;
-                    isLocationReady = true;
-
-                    setLocationBadge('ready', 'Lokasi terkunci');
-                    if (isCameraActive) {
-                        setButtonsDisabled(false);
-                        statusBox.textContent = 'Lokasi dan kamera siap. Silakan ambil foto lalu Clock-out.';
-                        btnCapture.textContent = '📸 Ambil Foto';
-                    } else {
-                        statusBox.textContent = 'Lokasi siap. Menunggu kamera aktif.';
+                        // Visual Feedback
+                        if (acc <= 100) {
+                            isLocationValid = true;
+                            gpsText.textContent = `Akurat (±${Math.round(acc)}m)`;
+                            gpsDot.style.backgroundColor = "var(--success)"; // Hijau
+                        } else {
+                            isLocationValid = true; // Tetap boleh absen tapi warning
+                            gpsText.textContent = `Lemah (±${Math.round(acc)}m)`;
+                            gpsDot.style.backgroundColor = "#f59e0b"; // Kuning
+                        }
+                        checkReadiness();
+                    },
+                    (error) => {
+                        console.error("GPS Error:", error);
+                        gpsText.textContent = "GPS Error";
+                        gpsDot.style.backgroundColor = "var(--danger)";
+                        statusMsg.textContent = "Aktifkan GPS & Izin Lokasi di Browser.";
+                    },
+                    {
+                        enableHighAccuracy: true, // Wajib ON
+                        timeout: 15000,
+                        maximumAge: 0
                     }
-                },
-                () => {
-                    setLocationBadge('error', 'Lokasi gagal');
-                    statusBox.textContent = 'Gagal mengambil lokasi. Izinkan akses lokasi di browser untuk melakukan presensi.';
-                    setButtonsDisabled(true, 'location');
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
+                );
+            } else {
+                statusMsg.textContent = "Browser tidak support GPS.";
+            }
         }
 
-        function captureFrame() {
-            if (!isCameraActive) {
-                capturePreviewWrapper.style.display = 'none';
-                video.style.display = 'block';
-                initCamera();
-                btnCapture.textContent = '📸 Ambil Foto';
-                return;
+        // 3. Cek Kesiapan (Kamera + Lokasi)
+        function checkReadiness() {
+            if (video.srcObject && isLocationValid) {
+                btnCapture.disabled = false;
+                btnCapture.innerHTML = `
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    Ambil Foto
+                `;
+                statusMsg.textContent = "Siap untuk Clock-out.";
             }
+        }
 
-            const videoWidth = video.videoWidth || 640;
-            const videoHeight = video.videoHeight || 480;
+        // 4. Fungsi Capture (FIX LAYAR HITAM & MIRROR)
+        btnCapture.addEventListener('click', () => {
+            if (!video.srcObject) return;
 
-            canvas.width = videoWidth;
-            canvas.height = videoHeight;
+            // Efek Flash
+            flashOverlay.classList.add('flash-anim');
+            setTimeout(() => flashOverlay.classList.remove('flash-anim'), 500);
+
+            // Force Resize Canvas to Video Stream (Anti Black Screen)
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
 
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
 
+            // Mirroring (Flip Horizontal)
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+
+            // Gambar video ke canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert ke Blob untuk dikirim
             canvas.toBlob((blob) => {
-                if (!blob) {
-                    statusBox.textContent = 'Gagal mengambil gambar.';
-                    return;
-                }
-
-                currentBlob = blob;
-                capturePreview.src = URL.createObjectURL(blob);
-                capturePreviewWrapper.style.display = 'block';
+                imageBlob = blob;
+                const url = URL.createObjectURL(blob);
+                
+                // Tampilkan hasil
+                imgPreview.src = url;
+                imgPreview.style.display = 'block';
                 video.style.display = 'none';
-                statusBox.textContent = 'Foto diambil. Silakan Clock-out atau ambil ulang.';
 
-                stopCamera();
-                btnCapture.textContent = '🔁 Ambil Ulang';
-            }, 'image/jpeg', 0.9);
-        }
+                // Ganti tombol
+                groupCapture.style.display = 'none';
+                groupAction.style.display = 'flex';
+                statusMsg.textContent = "Konfirmasi Clock-out.";
+            }, 'image/jpeg', 0.85); // Quality 85%
+        });
 
-        async function sendAttendance() {
-            if (isSubmitting) return;
+        // 5. Fungsi Ulangi (Retake)
+        btnRetake.addEventListener('click', () => {
+            imgPreview.style.display = 'none';
+            video.style.display = 'block';
+            imageBlob = null;
 
-            if (!isLocationReady || currentLat === null || currentLng === null) {
-                statusBox.textContent = 'Lokasi belum tersedia. Pastikan izin lokasi sudah diberikan.';
-                return;
-            }
+            groupCapture.style.display = 'block';
+            groupAction.style.display = 'none';
+            statusMsg.textContent = "Silakan ambil foto wajah Anda.";
+        });
 
-            if (!currentBlob) {
-                statusBox.textContent = 'Silakan ambil foto terlebih dahulu untuk Clock-out.';
-                return;
-            }
+        // 6. Fungsi Submit (Clock-out)
+        btnSubmit.addEventListener('click', async () => {
+            if (!imageBlob || !userLat) return;
 
-            const url = '{{ url('/attendance/clock-out') }}';
+            // Loading state
+            const originalText = btnSubmit.innerHTML;
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = "Mengirim...";
+            btnRetake.disabled = true;
 
             const formData = new FormData();
             formData.append('_token', '{{ csrf_token() }}');
-            formData.append('lat', currentLat);
-            formData.append('lng', currentLng);
-            formData.append('photo', currentBlob, 'attendance.jpg');
-
-            isSubmitting = true;
-            setButtonsDisabled(true);
-            statusBox.textContent = 'Mengirim data clock-out...';
+            formData.append('lat', userLat);
+            formData.append('lng', userLng);
+            formData.append('photo', imageBlob, 'clock-out.jpg'); // Nama file clock-out
 
             try {
-                const res = await fetch(url, { method: 'POST', body: formData });
-                let data = null;
-
-                try {
-                    data = await res.json();
-                } catch (e) {
-                    statusBox.textContent = 'Respon server tidak valid.';
-                    return;
-                }
-
-                if (!res.ok) {
-                    statusBox.textContent = data.error || data.message || 'Clock-out gagal.';
-                    setButtonsDisabled(false);
-                    return;
-                }
-
-                statusBox.textContent = data.message || 'Clock-out berhasil.';
-
-                const successModal = document.getElementById('clockout-success');
-                if (successModal) {
-                    successModal.style.display = 'flex';
-                    document.body.style.overflow = 'hidden';
-                }
-            } catch (e) {
-                statusBox.textContent = 'Terjadi kesalahan jaringan.';
-                setButtonsDisabled(false);
-            } finally {
-                isSubmitting = false;
-            }
-        }
-
-        btnCapture.addEventListener('click', captureFrame);
-        btnClockOut.addEventListener('click', () => sendAttendance());
-
-        document.addEventListener('DOMContentLoaded', () => {
-            setButtonsDisabled(true, 'location');
-            initCamera();
-            initLocation();
-
-            const modal = document.getElementById('clockout-success');
-            if (modal) {
-                const closeButtons = modal.querySelectorAll('[data-modal-close="true"]');
-                closeButtons.forEach(function (btn) {
-                    btn.addEventListener('click', function () {
-                        window.location.href = '{{ url('/attendance') }}';
-                    });
+                // Perhatikan URL endpoint untuk clock-out
+                const response = await fetch('{{ url("/attendance/clock-out") }}', {
+                    method: 'POST',
+                    body: formData
                 });
+                
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Tampilkan modal sukses
+                    const modal = document.getElementById('clockout-success');
+                    modal.style.display = 'flex';
+                    
+                    // Redirect saat tutup modal
+                    const closeBtns = modal.querySelectorAll('[data-modal-close="true"]');
+                    closeBtns.forEach(btn => {
+                        btn.onclick = () => window.location.href = '{{ url("/attendance") }}';
+                    });
+                } else {
+                    alert(data.message || "Gagal melakukan clock-out.");
+                    btnSubmit.disabled = false;
+                    btnSubmit.innerHTML = originalText;
+                    btnRetake.disabled = false;
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Terjadi kesalahan koneksi.");
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = originalText;
+                btnRetake.disabled = false;
             }
+        });
+
+        // Jalankan saat load
+        document.addEventListener('DOMContentLoaded', () => {
+            startCamera();
+            initGPS();
         });
     </script>
 </x-app>

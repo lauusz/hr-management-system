@@ -283,11 +283,22 @@ class AttendanceController extends Controller
         $earlyLeaveMinutes = 0;
         $overtimeMinutes = 0;
 
+        // Hitung selisih menit (mengembalikan integer secara default di Carbon)
         if ($now->lt($normalEnd)) {
+            // Pulang lebih awal (Cek selisih absolut)
             $earlyLeaveMinutes = $normalEnd->diffInMinutes($now);
         } elseif ($now->gt($normalEnd)) {
+            // Pulang terlambat/Lembur (Cek selisih absolut)
             $overtimeMinutes = $now->diffInMinutes($normalEnd);
         }
+
+        // SAFETY NET (PENTING):
+        // 1. round(): Bulatkan jika ada koma (desimal) agar tidak error di kolom Integer.
+        // 2. max(0, ...): Pastikan tidak pernah ada angka negatif (misal -1) yang masuk.
+        // 3. (int): Casting tipe data eksplisit ke integer.
+        $earlyLeaveMinutes = (int) max(0, round($earlyLeaveMinutes));
+        $overtimeMinutes   = (int) max(0, round($overtimeMinutes));
+        // --- SELESAI PERBAIKAN ---
 
         $attendance->update([
             'clock_out_at'         => $now,
