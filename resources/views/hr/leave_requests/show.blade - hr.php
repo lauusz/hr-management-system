@@ -1,4 +1,4 @@
-<x-app title="Detail Pengajuan Izin">
+<x-app title="Detail Pengajuan">
 
     @if(session('success'))
     <div class="alert-success">
@@ -147,7 +147,7 @@
                     </div>
                     <div class="map-container">
                         <iframe
-                            src="https://maps.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed"
+                            src="https://www.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed"
                             loading="lazy"
                             allowfullscreen>
                         </iframe>
@@ -165,23 +165,15 @@
 
         <div class="action-footer">
             <div class="left-action">
-                <a href="{{ route('leave-requests.index') }}" class="btn-modern btn-back">
+                <a href="{{ route('hr.leave.index') }}" class="btn-modern btn-back">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     Kembali
                 </a>
             </div>
 
             <div class="right-action">
-                {{-- Aksi Hapus (Membatalkan) untuk Pemilik --}}
-                @can('delete', $item)
-                    <button type="button" data-modal-target="modal-delete" class="btn-modern btn-danger-outline">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                        Batalkan Pengajuan
-                    </button>
-                @endcan
-
-                {{-- Aksi Approval untuk Supervisor/HR --}}
-                @can('approve', $item)
+                @if($item->status === \App\Models\LeaveRequest::PENDING_HR)
+                    
                     <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         Tolak
@@ -191,9 +183,8 @@
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         Setujui
                     </button>
-                @endcan
 
-                @if(!$item->is_pending && !auth()->user()->can('approve', $item))
+                @else
                     <div class="processed-info">
                         Status: <strong>{{ $item->status_label }}</strong>
                     </div>
@@ -208,35 +199,19 @@
         </div>
     </x-modal>
 
-    @can('delete', $item)
-    <x-modal
-        id="modal-delete"
-        title="Batalkan Pengajuan?"
-        type="confirm"
-        confirmLabel="Ya, Batalkan"
-        cancelLabel="Tidak"
-        :confirmFormAction="route('leave-requests.destroy', $item)"
-        confirmFormMethod="DELETE">
-        <p style="margin:0; color:#374151;">
-            Apakah Anda yakin ingin membatalkan dan menghapus pengajuan izin ini?
-        </p>
-        <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
-            Data yang dihapus tidak dapat dikembalikan.
-        </p>
-    </x-modal>
-    @endcan
-
-    @can('approve', $item)
     <x-modal
         id="modal-reject"
         title="Tolak Pengajuan?"
         type="confirm"
         confirmLabel="Tolak Pengajuan"
         cancelLabel="Batal"
-        :confirmFormAction="route('leave-requests.reject', $item)"
+        :confirmFormAction="route('hr.leave.reject', $item)"
         confirmFormMethod="POST">
         <p style="margin:0; color:#374151;">
-            Apakah Anda yakin ingin menolak pengajuan ini?
+            Apakah Anda yakin ingin menolak pengajuan izin dari <strong>{{ $item->user->name }}</strong>?
+        </p>
+        <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
+            Status akan berubah menjadi Ditolak dan tidak dapat dikembalikan.
         </p>
     </x-modal>
 
@@ -246,13 +221,15 @@
         type="confirm"
         confirmLabel="Ya, Setujui"
         cancelLabel="Batal"
-        :confirmFormAction="route('leave-requests.approve', $item)"
+        :confirmFormAction="route('hr.leave.approve', $item)"
         confirmFormMethod="POST">
         <p style="margin:0; color:#374151;">
-            Apakah Anda yakin ingin menyetujui pengajuan ini?
+            Anda akan menyetujui pengajuan izin ini.
+        </p>
+        <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
+            Pastikan data sudah benar. Sistem akan mencatat persetujuan ini atas nama Anda.
         </p>
     </x-modal>
-    @endcan
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -265,10 +242,9 @@
                     const url = el.getAttribute('data-url');
                     if(url && modal && modalImg) {
                         modalImg.src = url;
-                        // Manual trigger jika x-modal tidak otomatis handle click diluar tombol
-                        if(modal.style.display === 'none' || modal.style.display === '') {
-                             // trigger modal open logic from x-modal component usually handles this via data-modal-target
-                        }
+                        // Trigger modal display manually if needed or rely on app.js listener
+                        if(modal) modal.style.display = 'flex';
+                        document.body.style.overflow = 'hidden';
                     }
                 });
             });
@@ -348,9 +324,6 @@
 
         .btn-reject { background: #fff; border-color: #fee2e2; color: #dc2626; }
         .btn-reject:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
-
-        .btn-danger-outline { background: #fff; border-color: #fca5a5; color: #dc2626; }
-        .btn-danger-outline:hover { background: #fef2f2; border-color: #dc2626; color: #b91c1c; }
 
         .processed-info { font-size: 13.5px; color: #6b7280; background: #fff; padding: 8px 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
     </style>

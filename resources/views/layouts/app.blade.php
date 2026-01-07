@@ -11,176 +11,188 @@
   <link rel="icon" href="{{ asset('favicon.ico') }}">
   <link rel="apple-touch-icon" href="{{ asset('pwa/icon-180.png') }}">
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
     :root {
       --navy: #1e4a8d;
-      --bg: #f6f7fb;
-      --text: #222;
-      --muted: #eef3ff;
+      --navy-light: #eef4ff;
+      --bg: #f3f4f6;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --sidebar-width: 280px;
     }
 
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      font-family: system-ui, Arial, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
       background: var(--bg);
       color: var(--text);
+      -webkit-font-smoothing: antialiased;
     }
 
     .app {
       display: flex;
       min-height: 100vh;
-      /* Mobile fix: gunakan dvh jika support untuk hindari address bar browser hp */
       min-height: 100dvh;
     }
 
-    /* --- SIDEBAR STRUCTURE --- */
+    /* --- SIDEBAR MODERN --- */
     .sidenav {
       background: #fff;
-      border-right: 1px solid #eee;
-      width: 260px; /* Sedikit dilebarkan agar lebih lega */
+      border-right: 1px solid var(--border);
+      width: var(--sidebar-width);
       flex-shrink: 0;
       display: flex;
-      flex-direction: column; /* Susunan vertikal: Brand -> Menu -> Logout */
+      flex-direction: column;
       z-index: 1000;
       position: sticky;
       top: 0;
       height: 100vh;
       height: 100dvh;
-      transition: transform .3s ease;
+      transition: transform .3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .brand {
-      padding: 20px;
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--navy);
-      border-bottom: 1px solid #f0f0f0;
-      flex-shrink: 0; /* Jangan mengecil */
-    }
-
-    /* Bagian Menu (Scrollable Area) */
-    .menu {
-      flex: 1; /* Mengisi sisa ruang antara brand dan logout */
-      overflow-y: auto; /* Hanya bagian ini yang scroll */
-      padding: 12px;
-      -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain; /* Mencegah scroll body saat menu mentok */
-    }
-
-    /* Styling Item Menu */
-    .menu a {
+      height: 70px;
       display: flex;
       align-items: center;
-      padding: 11px 12px;
-      margin: 2px 0;
+      padding: 0 24px;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--navy);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      letter-spacing: -0.025em;
+    }
+
+    /* Scrollable Menu Area */
+    .menu {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      scrollbar-width: thin;
+      scrollbar-color: #d1d5db transparent;
+    }
+
+    .menu::-webkit-scrollbar { width: 4px; }
+    .menu::-webkit-scrollbar-track { background: transparent; }
+    .menu::-webkit-scrollbar-thumb { background-color: #d1d5db; border-radius: 20px; }
+
+    .menu h3 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 24px 12px 8px;
+    }
+    .menu h3:first-child { margin-top: 0; }
+
+    .menu a, .menu-group {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 4px;
       border-radius: 8px;
       color: #4b5563;
       text-decoration: none;
-      font-size: 14px;
+      font-size: 0.9rem;
       font-weight: 500;
       transition: all 0.2s;
-    }
-
-    .menu a.active,
-    .menu a:hover {
-      background: var(--muted);
-      color: var(--navy);
-      font-weight: 600;
-    }
-
-    .menu h3 {
-      font-size: 11px;
-      font-weight: 700;
-      color: #9ca3af;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      margin: 20px 12px 8px;
-    }
-
-    /* Accordion / Dropdown Menu */
-    .menu-group {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 11px 12px;
-      margin: 2px 0;
-      border-radius: 8px;
-      border: none;
+      border: 1px solid transparent;
       background: transparent;
       cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      color: #4b5563;
-      transition: background 0.2s;
     }
 
-    .menu-group:hover {
-      background: #f9fafb;
-      color: var(--navy);
+    .menu a:hover, .menu-group:hover {
+      background-color: #f9fafb;
+      color: #111827;
     }
 
-    .menu-group.open {
-      background: #f8faff;
+    .menu a.active {
+      background-color: var(--navy-light);
       color: var(--navy);
       font-weight: 600;
     }
 
-    .menu-group-label {
-      flex: 1;
-      text-align: left;
+    .menu-group { justify-content: space-between; }
+    
+    .menu-group.open {
+      background-color: #f9fafb;
+      color: #111827;
     }
 
     .menu-group-icon {
-      font-size: 10px;
+      width: 16px;
+      height: 16px;
       transition: transform 0.2s;
+      color: #9ca3af;
     }
     
     .menu-group.open .menu-group-icon {
       transform: rotate(180deg);
+      color: var(--navy);
     }
 
     .submenu {
       display: none;
-      padding-left: 12px; /* Indentasi submenu */
-      margin-bottom: 4px;
+      padding-left: 22px;
+      margin-top: 2px;
+      margin-bottom: 8px;
+      position: relative;
     }
 
-    .submenu.show {
-      display: block;
-      animation: slideDown 0.2s ease-out;
+    .submenu::before {
+        content: '';
+        position: absolute;
+        left: 20px;
+        top: 0;
+        bottom: 10px;
+        width: 1px;
+        background: #e5e7eb;
     }
-    
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-5px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+
+    .submenu.show { display: block; }
 
     .submenu a {
-      font-size: 13.5px;
+      font-size: 0.85rem;
       padding: 8px 12px;
-      border-left: 2px solid transparent;
-      border-radius: 0 8px 8px 0;
-    }
-    
-    .submenu a.active {
-      border-left-color: var(--navy);
-      background: white; 
+      color: #6b7280;
+      margin-bottom: 2px;
     }
 
-    /* Bagian Logout (Fixed Bottom) */
+    .submenu a:hover { color: #111827; background: transparent; }
+    
+    .submenu a.active {
+      color: var(--navy);
+      background: transparent;
+      position: relative;
+    }
+    
+    .submenu a.active::before {
+        content: '';
+        position: absolute;
+        left: -8px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--navy);
+    }
+
     .logout {
-      flex-shrink: 0; /* Jangan mengecil */
+      flex-shrink: 0;
       padding: 16px;
-      border-top: 1px solid #eee;
+      border-top: 1px solid var(--border);
       background: #fff;
-      /* Safe area untuk iPhone X ke atas */
       padding-bottom: calc(16px + env(safe-area-inset-bottom));
     }
 
@@ -188,149 +200,90 @@
       width: 100%;
       padding: 10px;
       border-radius: 8px;
-      border: 1px solid #e5e7eb;
-      background: #fff;
-      color: #ef4444; /* Merah soft untuk logout */
+      border: 1px solid #fee2e2;
+      background: #fef2f2;
+      color: #b91c1c;
       font-weight: 600;
+      font-size: 0.9rem;
       cursor: pointer;
-      transition: background 0.2s;
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 8px;
+      transition: all 0.2s;
     }
 
     .btn-logout:hover {
-      background: #fef2f2;
-      border-color: #fecaca;
+      background: #fee2e2;
+      border-color: #fca5a5;
     }
 
-    /* --- CONTENT AREA --- */
+    /* --- CONTENT --- */
     .content {
       flex: 1;
-      padding: 24px;
-      min-width: 0; /* Mencegah overflow flex child */
+      padding: 32px;
+      min-width: 0;
       height: 100vh;
       height: 100dvh;
-      overflow-y: auto; /* Content scroll terpisah dari sidebar */
+      overflow-y: auto;
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 1100px;
       margin-inline: auto;
-      padding-bottom: 40px;
+      padding-bottom: 60px;
     }
 
     .topbar {
       display: flex;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 24px;
-      background: #fff;
-      padding: 12px 16px;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+      justify-content: space-between;
+      margin-bottom: 32px;
     }
     
     .page-title {
-        font-size: 1.25rem;
+        font-size: 1.5rem;
         margin: 0;
         font-weight: 700;
-        flex: 1;
+        color: #111827;
+        letter-spacing: -0.025em;
     }
 
-    .userchip {
-      font-size: 13px;
-      color: #6b7280;
-      background: #f3f4f6;
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-weight: 500;
-    }
+    .user-info { display: flex; align-items: center; gap: 12px; }
+    .userchip { text-align: right; }
+    .user-name { font-size: 0.9rem; font-weight: 600; color: #111827; display: block; }
+    .user-role { font-size: 0.75rem; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; display: block; }
 
     .burger {
-      display: none; /* Hidden on Desktop */
+      display: none;
       border: none;
-      background: transparent;
-      padding: 4px;
+      background: #fff;
+      padding: 8px;
+      border-radius: 8px;
       cursor: pointer;
       color: var(--navy);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      border: 1px solid var(--border);
     }
 
-    /* --- MOBILE RESPONSIVE --- */
-    @media (max-width: 960px) {
-      .sidenav {
-        position: fixed;
-        left: 0;
-        transform: translateX(-100%);
-        box-shadow: none;
-        width: 80%; /* Lebar sidebar di HP */
-        max-width: 300px;
-      }
-
-      .sidenav.open {
-        transform: translateX(0);
-        box-shadow: 4px 0 24px rgba(0,0,0,0.15);
-      }
-
-      .content {
-        padding: 16px;
-      }
-      
-      .topbar {
-        padding: 10px;
-        margin-bottom: 16px;
-      }
-
-      .burger {
-        display: block;
-      }
-
-      .backdrop {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.4);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.3s;
-        z-index: 990; /* Di bawah sidebar (1000) */
-        backdrop-filter: blur(2px);
-      }
-
-      .backdrop.show {
-        opacity: 1;
-        pointer-events: auto;
-      }
+    /* --- MOBILE --- */
+    @media (max-width: 1024px) {
+      .sidenav { position: fixed; left: 0; transform: translateX(-100%); box-shadow: none; }
+      .sidenav.open { transform: translateX(0); box-shadow: 10px 0 30px rgba(0,0,0,0.1); }
+      .content { padding: 20px; }
+      .topbar { margin-bottom: 24px; align-items: center; gap: 16px; justify-content: flex-start; }
+      .page-title { font-size: 1.25rem; flex: 1; }
+      .user-info { display: none; }
+      .burger { display: block; }
+      .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 990; backdrop-filter: blur(2px); }
+      .backdrop.show { opacity: 1; pointer-events: auto; }
     }
 
     /* Components */
-    .card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-      border: 1px solid #f3f4f6;
-    }
-
-    .modal-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-      z-index: 2000;
-      padding: 20px;
-    }
-    
-    .modal-content {
-        background: #fff;
-        padding: 24px;
-        border-radius: 12px;
-        width: 100%;
-        max-width: 400px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    }
+    .card { background: #fff; padding: 24px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #f3f4f6; }
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; padding: 20px; backdrop-filter: blur(2px); }
+    .modal-content { background: #fff; padding: 24px; border-radius: 16px; width: 100%; max-width: 420px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); animation: modalPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes modalPop { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
   </style>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -342,141 +295,100 @@
 
     <aside class="sidenav" id="sidenav" aria-label="Sidenav">
       
-      <div class="brand">HRD System</div>
+      <div class="brand">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:10px; color:#1e4a8d;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          HRD System
+      </div>
       
       <nav class="menu" role="navigation">
         <h3>General</h3>
-        <a href="{{ route('dashboard') }}"
-          class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
-          Dashboard
+        <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span> Dashboard
         </a>
 
-        <a href="{{ route('leave-requests.index') }}"
-          class="{{ request()->routeIs('leave-requests.*') ? 'active' : '' }}">
-          Izin / Cuti
+        <a href="{{ route('leave-requests.index') }}" class="{{ request()->routeIs('leave-requests.*') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span> Izin / Cuti
         </a>
 
-        <a href="{{ route('attendance.dashboard') }}"
-          class="{{ request()->routeIs('attendance.dashboard') ? 'active' : '' }}">
-          Absensi
+        <a href="{{ route('attendance.dashboard') }}" class="{{ request()->routeIs('attendance.dashboard') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span> Absensi
         </a>
 
-        <a href="{{ route('employee.loan_requests.index') }}"
-          class="{{ request()->routeIs('employee.loan_requests.*') ? 'active' : '' }}">
-          Hutang Karyawan
+        <a href="{{ route('employee.loan_requests.index') }}" class="{{ request()->routeIs('employee.loan_requests.*') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span> Hutang Karyawan
         </a>
 
-        <a href="{{ route('settings.password') }}"
-          class="{{ request()->routeIs('settings.password') ? 'active' : '' }}">
-          Pengaturan Akun
+        <a href="{{ route('settings.password') }}" class="{{ request()->routeIs('settings.password') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span> Pengaturan Akun
         </a>
 
         @if(auth()->user()->isSupervisor())
         <h3>Supervisor</h3>
         <a href="{{ route('supervisor.leave.index') }}">
-          Mengetahui Pengajuan
+          <span style="margin-right:10px;"></span> Mengetahui Pengajuan
         </a>
         @endif
 
         @if(auth()->user()->isHR())
         @php
-        $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
-        $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*');
-        $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
-        $hrLoanOpen = request()->routeIs('hr.loan_requests.*');
+            $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
+            $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*');
+            $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
+            $hrLoanOpen = request()->routeIs('hr.loan_requests.*');
         @endphp
 
         <h3>HRD Panel</h3>
 
-        <a href="{{ route('hr.leave.index') }}"
-          class="{{ request()->routeIs('hr.leave.index','hr.leave.show','hr.leave.approve','hr.leave.reject') ? 'active' : '' }}">
-          Daftar Pengajuan Izin/Cuti
+        <a href="{{ route('hr.leave.index') }}" class="{{ request()->routeIs('hr.leave.index','hr.leave.show','hr.leave.approve','hr.leave.reject') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span> Approval Izin/Cuti
         </a>
 
-        <button type="button"
-          class="menu-group {{ $hrEmployeesOpen ? 'open' : '' }}"
-          data-menu-group="employees">
-          <span class="menu-group-label">Karyawan</span>
-          <span class="menu-group-icon">▾</span>
+        <button type="button" class="menu-group {{ $hrEmployeesOpen ? 'open' : '' }}" data-menu-group="employees">
+          <span class="menu-group-label"><span style="margin-right:10px;"></span> Karyawan</span>
+          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
         </button>
         <div class="submenu {{ $hrEmployeesOpen ? 'show' : '' }}" data-menu-panel="employees">
-          <a href="{{ route('hr.employees.index') }}"
-            class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">
-            Daftar Karyawan
-          </a>
-
-          <a href="{{ route('hr.organization') }}"
-            class="{{ request()->routeIs('hr.organization','hr.divisions.*','hr.positions.*') ? 'active' : '' }}">
-            Divisi &amp; Jabatan
-          </a>
-
-          <a href="{{ route('hr.pts.index') }}"
-            class="{{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">
-            Master PT
-          </a>
+          <a href="{{ route('hr.employees.index') }}" class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">Daftar Karyawan</a>
+          <a href="{{ route('hr.organization') }}" class="{{ request()->routeIs('hr.organization','hr.divisions.*','hr.positions.*') ? 'active' : '' }}">Divisi &amp; Jabatan</a>
+          <a href="{{ route('hr.pts.index') }}" class="{{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">Master PT</a>
         </div>
 
-        <button type="button"
-          class="menu-group {{ $hrPresensiOpen ? 'open' : '' }}"
-          data-menu-group="presensi">
-          <span class="menu-group-label">Presensi &amp; Shift</span>
-          <span class="menu-group-icon">▾</span>
+        <button type="button" class="menu-group {{ $hrPresensiOpen ? 'open' : '' }}" data-menu-group="presensi">
+          <span class="menu-group-label"><span style="margin-right:10px;"></span> Presensi &amp; Shift</span>
+          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
         </button>
         <div class="submenu {{ $hrPresensiOpen ? 'show' : '' }}" data-menu-panel="presensi">
-          <a href="{{ route('hr.attendances.index') }}"
-            class="{{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">
-            Master Absensi
-          </a>
-
-          <a href="{{ route('hr.shifts.index') }}"
-            class="{{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">
-            Master Shift
-          </a>
-
-          <a href="{{ route('hr.locations.index') }}"
-            class="{{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">
-            Master Lokasi Presensi
-          </a>
-
-          <a href="{{ route('hr.schedules.index') }}"
-            class="{{ request()->routeIs('hr.schedules.*') ? 'active' : '' }}">
-            Master Jadwal Karyawan
-          </a>
+          <a href="{{ route('hr.attendances.index') }}" class="{{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">Master Absensi</a>
+          <a href="{{ route('hr.shifts.index') }}" class="{{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">Master Shift</a>
+          <a href="{{ route('hr.locations.index') }}" class="{{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">Lokasi Presensi</a>
+          <a href="{{ route('hr.schedules.index') }}" class="{{ request()->routeIs('hr.schedules.*') ? 'active' : '' }}">Jadwal Karyawan</a>
         </div>
 
-        <button type="button"
-          class="menu-group {{ $hrLeaveMasterOpen ? 'open' : '' }}"
-          data-menu-group="izin">
-          <span class="menu-group-label">Izin &amp; Cuti</span>
-          <span class="menu-group-icon">▾</span>
+        <button type="button" class="menu-group {{ $hrLeaveMasterOpen ? 'open' : '' }}" data-menu-group="izin">
+          <span class="menu-group-label"><span style="margin-right:10px;"></span> Pengaturan Izin</span>
+          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
         </button>
         <div class="submenu {{ $hrLeaveMasterOpen ? 'show' : '' }}" data-menu-panel="izin">
-          <a href="{{ route('hr.leave.master') }}"
-            class="{{ request()->routeIs('hr.leave.master') ? 'active' : '' }}">
-            Master Izin/Cuti
-          </a>
+          <a href="{{ route('hr.leave.master') }}" class="{{ request()->routeIs('hr.leave.master') ? 'active' : '' }}">Master Jenis Izin</a>
         </div>
 
-        <button type="button"
-          class="menu-group {{ $hrLoanOpen ? 'open' : '' }}"
-          data-menu-group="keuangan">
-          <span class="menu-group-label">Keuangan Karyawan</span>
-          <span class="menu-group-icon">▾</span>
+        <button type="button" class="menu-group {{ $hrLoanOpen ? 'open' : '' }}" data-menu-group="keuangan">
+          <span class="menu-group-label"><span style="margin-right:10px;"></span> Keuangan</span>
+          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
         </button>
         <div class="submenu {{ $hrLoanOpen ? 'show' : '' }}" data-menu-panel="keuangan">
-          <a href="{{ route('hr.loan_requests.index') }}"
-            class="{{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">
-            Hutang Karyawan
-          </a>
+          <a href="{{ route('hr.loan_requests.index') }}" class="{{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">Hutang Karyawan</a>
         </div>
         @endif
         
         <div style="height: 20px;"></div>
 
-      </nav> <div class="logout">
+      </nav> 
+      
+      <div class="logout">
         <button class="btn-logout" type="button" data-modal-target="confirm-logout">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
-          Logout
+          Keluar Sistem
         </button>
       </div>
       
@@ -493,9 +405,14 @@
           
           <h2 class="page-title">{{ $title ?? 'Dashboard' }}</h2>
           
-          <div class="userchip">
-             {{ auth()->user()->name }}
-             <span style="opacity:0.6; margin-left:4px;">({{ auth()->user()->role }})</span>
+          <div class="user-info">
+             <div class="userchip">
+                 <span class="user-name">{{ auth()->user()->name }}</span>
+                 <span class="user-role">{{ auth()->user()->role }}</span>
+             </div>
+             <div style="width:36px; height:36px; background:#e0e7ff; color:#1e4a8d; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">
+                 {{ substr(auth()->user()->name, 0, 1) }}
+             </div>
           </div>
         </div>
 
@@ -508,12 +425,11 @@
     id="confirm-logout"
     title="Konfirmasi Logout"
     type="confirm"
-    confirmLabel="Logout"
+    confirmLabel="Ya, Keluar"
     cancelLabel="Batal"
     :confirmFormAction="route('logout')"
     confirmFormMethod="POST">
-    <p style="margin:0 0 4px 0;">Yakin ingin keluar dari sistem?</p>
-    <p style="margin:0;font-size:0.85rem;opacity:.8;">Sesi Anda akan diakhiri dan perlu login kembali.</p>
+    <p style="margin:0; color:#374151;">Apakah Anda yakin ingin mengakhiri sesi ini?</p>
   </x-modal>
 
   <script>
@@ -533,8 +449,8 @@
         }
     }
 
-    burger?.addEventListener('click', toggleMobile);
-    backdrop?.addEventListener('click', toggleMobile);
+    if(burger) burger.addEventListener('click', toggleMobile);
+    if(backdrop) backdrop.addEventListener('click', toggleMobile);
 
     // Logic Modal
     document.addEventListener('DOMContentLoaded', function() {
@@ -550,7 +466,7 @@
         btn.addEventListener('click', () => toggleModal(btn.dataset.modalTarget, true));
       });
 
-      // Tutup Modal (Klik Backdrop atau Tombol Close)
+      // Tutup Modal
       document.querySelectorAll('.modal-backdrop').forEach(modal => {
         modal.addEventListener('click', (e) => {
           if (e.target === modal || e.target.closest('[data-modal-close]')) {
@@ -559,26 +475,46 @@
         });
       });
 
-      // Logic Dropdown Menu Sidebar
-      document.querySelectorAll('.menu-group').forEach(btn => {
-        // Set icon awal berdasarkan class open
+      // Logic Dropdown Menu Sidebar (Accordion Style)
+      const menuGroups = document.querySelectorAll('.menu-group');
+
+      menuGroups.forEach(btn => {
         const icon = btn.querySelector('.menu-group-icon');
-        if(btn.classList.contains('open')) {
-             if(icon) icon.style.transform = 'rotate(180deg)';
+        
+        // Initialize state
+        if(btn.classList.contains('open') && icon) {
+             icon.style.transform = 'rotate(180deg)';
         }
 
         btn.addEventListener('click', function() {
-          const group = this.getAttribute('data-menu-group');
-          const panel = document.querySelector(`[data-menu-panel="${group}"]`);
-          
-          this.classList.toggle('open');
-          
-          if (this.classList.contains('open')) {
-            panel.classList.add('show');
-            if(icon) icon.style.transform = 'rotate(180deg)';
+          const targetGroup = this.getAttribute('data-menu-group');
+          const targetPanel = document.querySelector(`[data-menu-panel="${targetGroup}"]`);
+          const isOpen = this.classList.contains('open');
+
+          // 1. Close ALL other menus first
+          menuGroups.forEach(otherBtn => {
+              if (otherBtn !== this) {
+                  otherBtn.classList.remove('open');
+                  const otherIcon = otherBtn.querySelector('.menu-group-icon');
+                  if(otherIcon) otherIcon.style.transform = 'rotate(0deg)';
+
+                  const otherGroupAttr = otherBtn.getAttribute('data-menu-group');
+                  const otherPanel = document.querySelector(`[data-menu-panel="${otherGroupAttr}"]`);
+                  if(otherPanel) otherPanel.classList.remove('show');
+              }
+          });
+
+          // 2. Toggle the CURRENT menu
+          if (isOpen) {
+              // Close if it was open
+              this.classList.remove('open');
+              if(targetPanel) targetPanel.classList.remove('show');
+              if(icon) icon.style.transform = 'rotate(0deg)';
           } else {
-            panel.classList.remove('show');
-            if(icon) icon.style.transform = 'rotate(0deg)';
+              // Open if it was closed
+              this.classList.add('open');
+              if(targetPanel) targetPanel.classList.add('show');
+              if(icon) icon.style.transform = 'rotate(180deg)';
           }
         });
       });

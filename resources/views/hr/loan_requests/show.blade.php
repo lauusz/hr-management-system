@@ -1,378 +1,337 @@
 <x-app title="Detail Hutang Karyawan">
 
     @if(session('success'))
-        <div class="card" style="margin-bottom:12px;background:#e6ffec;color:#065f46;padding:8px 10px;border-radius:8px;">
+        <div class="alert-success">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
             {{ session('success') }}
         </div>
     @endif
 
     @if($errors->any())
-        <div class="card" style="margin-bottom:12px;background:#ffecec;color:#a40000;padding:8px 10px;border-radius:8px;">
+        <div class="alert-error">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             {{ $errors->first() }}
         </div>
     @endif
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-        <p style="font-size:.9rem;opacity:.75;margin:0;">
-            Detail pengajuan hutang karyawan beserta riwayat cicilan yang telah dicatat.
-        </p>
-
-        <a href="{{ route('hr.loan_requests.index') }}"
-           style="font-size:.85rem;padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;text-decoration:none;color:#111827;">
-            ← Kembali
+    {{-- Header Page --}}
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">Detail Pengajuan Hutang</h1>
+            <p class="page-subtitle">Kelola pengajuan, persetujuan, dan pencatatan cicilan karyawan.</p>
+        </div>
+        <a href="{{ route('hr.loan_requests.index') }}" class="btn-back">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Kembali
         </a>
     </div>
 
     @php
         $months = $loan->repayment_term ? (int) $loan->repayment_term : 0;
         $monthlyInstallment = $months > 0 ? floor($loan->amount / $months) : null;
+        $totalPaid = $loan->repayments->sum('amount');
+        $remaining = max(0, $loan->amount - $totalPaid);
+        $percentage = $loan->amount > 0 ? min(100, round(($totalPaid / $loan->amount) * 100)) : 0;
+
+        // Badge Logic
+        $statusLabel = $loan->status;
+        $badgeClass = 'badge-gray';
+        if ($loan->status === 'PENDING_HRD') {
+            $statusLabel = 'Menunggu Persetujuan HRD';
+            $badgeClass = 'badge-yellow';
+        } elseif ($loan->status === 'APPROVED') {
+            $statusLabel = 'Disetujui HRD';
+            $badgeClass = 'badge-blue';
+        } elseif ($loan->status === 'REJECTED') {
+            $statusLabel = 'Ditolak';
+            $badgeClass = 'badge-red';
+        } elseif ($loan->status === 'LUNAS') {
+            $statusLabel = 'Lunas';
+            $badgeClass = 'badge-green';
+        }
     @endphp
 
-    <div style="display:grid;grid-template-columns:2fr 1.5fr;gap:12px;align-items:flex-start;flex-wrap:wrap;">
-        <div class="card" style="padding:14px;display:flex;flex-direction:column;gap:10px;">
-            <div style="font-size:.9rem;font-weight:600;margin-bottom:4px;">
-                Data Karyawan
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr;gap:6px;font-size:.85rem;">
-                <div>
-                    <div style="font-weight:500;">Nama</div>
-                    <div>{{ $loan->snapshot_name }}</div>
+    <div class="detail-grid">
+        
+        {{-- KOLOM KIRI: Informasi Utama --}}
+        <div class="left-column">
+            
+            {{-- Card Data Karyawan --}}
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Data Karyawan</h3>
                 </div>
-                <div>
-                    <div style="font-weight:500;">Nomor Induk Karyawan (NIK)</div>
-                    <div>{{ $loan->snapshot_nik ?? '-' }}</div>
-                </div>
-                <div>
-                    <div style="font-weight:500;">Jabatan</div>
-                    <div>{{ $loan->snapshot_position ?? '-' }}</div>
-                </div>
-                <div>
-                    <div style="font-weight:500;">Departemen / Divisi</div>
-                    <div>{{ $loan->snapshot_division ?? '-' }}</div>
-                </div>
-                <div>
-                    <div style="font-weight:500;">Perusahaan</div>
-                    <div>{{ $loan->snapshot_company ?? '-' }}</div>
-                </div>
-            </div>
-
-            <hr style="border:none;border-top:1px solid #e5e7eb;margin:10px 0;">
-
-            <div style="font-size:.9rem;font-weight:600;margin-bottom:4px;">
-                Detail Pengajuan Hutang
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr;gap:6px;font-size:.85rem;">
-                <div>
-                    <div style="font-weight:500;">Tanggal Pengajuan</div>
-                    <div>{{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->format('d/m/Y') }}</div>
-                </div>
-
-                <div>
-                    <div style="font-weight:500;">Besar Pinjaman</div>
-                    <div style="font-weight:600;">
-                        Rp {{ number_format($loan->amount, 0, ',', '.') }}
+                <div class="divider"></div>
+                <div class="info-group">
+                    <div class="info-row">
+                        <div class="label">Nama Karyawan</div>
+                        <div class="value font-bold">{{ $loan->snapshot_name }}</div>
                     </div>
-                </div>
-
-                <div>
-                    <div style="font-weight:500;">Keperluan</div>
-                    <div>{{ $loan->purpose ?: '-' }}</div>
-                </div>
-
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;">
-                    <div>
-                        <div style="font-weight:500;">Tanggal Pinjam</div>
-                        <div>
-                            @if($loan->disbursement_date)
-                                {{ \Illuminate\Support\Carbon::parse($loan->disbursement_date)->format('d/m/Y') }}
-                            @else
-                                -
-                            @endif
+                    <div class="info-grid-2">
+                        <div class="info-row">
+                            <div class="label">NIK</div>
+                            <div class="value">{{ $loan->snapshot_nik ?? '-' }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="label">Jabatan</div>
+                            <div class="value">{{ $loan->snapshot_position ?? '-' }}</div>
                         </div>
                     </div>
-                    <div>
-                        <div style="font-weight:500;">Jangka Waktu Cicilan</div>
-                        <div>
-                            @if($months > 0)
-                                {{ $months }} bulan
-                            @else
-                                -
-                            @endif
+                    <div class="info-row">
+                        <div class="label">Divisi / Departemen</div>
+                        <div class="value">{{ $loan->snapshot_division ?? '-' }}</div>
+                    </div>
+                    <div class="info-row">
+                        <div class="label">Perusahaan</div>
+                        <div class="value">{{ $loan->snapshot_company ?? '-' }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Card Detail Pinjaman --}}
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Detail Pinjaman</h3>
+                    <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
+                </div>
+                <div class="divider"></div>
+                <div class="info-group">
+                    <div class="info-grid-2">
+                        <div class="info-row">
+                            <div class="label">Tgl. Pengajuan</div>
+                            <div class="value">{{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->format('d/m/Y') }}</div>
+                        </div>
+                        <div class="info-row">
+                            <div class="label">Tgl. Diproses</div>
+                            <div class="value">
+                                @if($loan->hrd_decided_at)
+                                    {{ $loan->hrd_decided_at->format('d/m/Y H:i') }}
+                                @else - @endif
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div>
-                    <div style="font-weight:500;">Perkiraan Cicilan Per Bulan</div>
-                    <div>
-                        @if($monthlyInstallment)
-                            Rp {{ number_format($monthlyInstallment, 0, ',', '.') }} per bulan
-                        @else
-                            -
-                        @endif
+                    <div class="info-row">
+                        <div class="label">Besar Pinjaman</div>
+                        <div class="value highlight-text">Rp {{ number_format($loan->amount, 0, ',', '.') }}</div>
                     </div>
-                </div>
 
-                <div>
-                    <div style="font-weight:500;">Cara Pengembalian</div>
-                    <div>
-                        @if($loan->payment_method === 'TUNAI')
-                            Tunai
-                        @elseif($loan->payment_method === 'CICILAN')
-                            Cicilan (transfer ke rekening perusahaan)
-                        @elseif($loan->payment_method === 'POTONG_GAJI')
-                            Pemotongan gaji
-                        @else
-                            -
-                        @endif
+                    <div class="info-row">
+                        <div class="label">Keperluan</div>
+                        <div class="value">{{ $loan->purpose ?: '-' }}</div>
                     </div>
-                </div>
 
-                <div>
-                    <div style="font-weight:500;">Status</div>
-                    @php
-                        $statusLabel = $loan->status;
-                        $bg = '#e5e7eb';
-                        $color = '#374151';
-
-                        if ($loan->status === 'PENDING_HRD') {
-                            $statusLabel = 'Menunggu persetujuan HRD';
-                            $bg = '#fef3c7';
-                            $color = '#92400e';
-                        } elseif ($loan->status === 'APPROVED') {
-                            $statusLabel = 'Disetujui HRD';
-                            $bg = '#dcfce7';
-                            $color = '#166534';
-                        } elseif ($loan->status === 'REJECTED') {
-                            $statusLabel = 'Ditolak HRD';
-                            $bg = '#fee2e2';
-                            $color = '#b91c1c';
-                        } elseif ($loan->status === 'LUNAS') {
-                            $statusLabel = 'Lunas';
-                            $bg = '#bbf7d0';
-                            $color = '#166534';
-                        }
-                    @endphp
-                    <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:.75rem;font-weight:500;background:{{ $bg }};color:{{ $color }};">
-                        {{ $statusLabel }}
-                    </span>
-                    @if($loan->hrd_decided_at)
-                        <div style="font-size:.8rem;color:#6b7280;margin-top:4px;">
-                            Diproses: {{ $loan->hrd_decided_at->format('d/m/Y H:i') }}
+                    <div class="info-grid-2">
+                        <div class="info-row">
+                            <div class="label">Tgl. Cair</div>
+                            <div class="value">
+                                @if($loan->disbursement_date)
+                                    {{ \Illuminate\Support\Carbon::parse($loan->disbursement_date)->format('d/m/Y') }}
+                                @else - @endif
+                            </div>
                         </div>
-                    @endif
-                </div>
+                        <div class="info-row">
+                            <div class="label">Tenor</div>
+                            <div class="value">
+                                @if($months > 0) {{ $months }} Bulan @else - @endif
+                            </div>
+                        </div>
+                    </div>
 
-                <div>
-                    <div style="font-weight:500;">Bukti Dokumen</div>
+                    <div class="info-row">
+                        <div class="label">Estimasi Cicilan</div>
+                        <div class="value">
+                            @if($monthlyInstallment)
+                                Rp {{ number_format($monthlyInstallment, 0, ',', '.') }} / bulan
+                            @else - @endif
+                        </div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="label">Metode Pembayaran</div>
+                        <div class="value">
+                            @if($loan->payment_method === 'TUNAI') Tunai
+                            @elseif($loan->payment_method === 'CICILAN') Transfer
+                            @elseif($loan->payment_method === 'POTONG_GAJI') Potong Gaji
+                            @else - @endif
+                        </div>
+                    </div>
+                    
                     @if($loan->document_path)
-                        <a href="{{ asset('storage/' . $loan->document_path) }}"
-                           target="_blank"
-                           style="font-size:.8rem;color:#1e4a8d;text-decoration:underline;">
-                            Lihat dokumen
+                    <div class="info-row" style="margin-top:10px;">
+                        <a href="{{ asset('storage/' . $loan->document_path) }}" target="_blank" class="btn-download">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            Lihat Dokumen Pendukung
                         </a>
-                    @else
-                        <span>-</span>
+                    </div>
                     @endif
-                </div>
-
-                <div>
-                    <div style="font-weight:500;">Catatan HRD</div>
-                    <div>{{ $loan->hrd_note ?: '-' }}</div>
                 </div>
             </div>
         </div>
 
-        @php
-            $totalPaid = $loan->repayments->sum('amount');
-            $remaining = max(0, $loan->amount - $totalPaid);
-        @endphp
-
-        <div style="display:flex;flex-direction:column;gap:12px;">
-            <div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px;">
-                <div style="font-size:.9rem;font-weight:600;margin-bottom:4px;">
-                    Tindakan HRD
-                </div>
-
-                @if($loan->status === 'PENDING_HRD')
-                    <form action="{{ route('hr.loan_requests.approve', $loan->id) }}" method="POST" style="margin-bottom:8px;">
+        {{-- KOLOM KANAN: Aksi & History --}}
+        <div class="right-column">
+            
+            {{-- CARD ACTION: APPROVAL (Only if Pending) --}}
+            @if($loan->status === 'PENDING_HRD')
+            <div class="card action-card">
+                <h3 class="card-title-sm">Tindakan HRD</h3>
+                <div class="divider"></div>
+                <div class="action-body">
+                    
+                    <form action="{{ route('hr.loan_requests.approve', $loan->id) }}" method="POST" class="form-action">
                         @csrf
-                        <div style="display:flex;flex-direction:column;gap:6px;font-size:.85rem;margin-bottom:8px;">
-                            <label for="hrd_note_approve" style="font-weight:500;">Catatan (opsional)</label>
-                            <textarea id="hrd_note_approve"
-                                      name="hrd_note"
-                                      rows="2"
-                                      style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.85rem;resize:vertical;"></textarea>
+                        <div class="form-group">
+                            <label for="hrd_note_approve">Catatan Persetujuan (Opsional)</label>
+                            <textarea id="hrd_note_approve" name="hrd_note" rows="2" class="form-control" placeholder="Contoh: Disetujui, cair tanggal..."></textarea>
                         </div>
-                        <button type="submit"
-                                style="width:100%;padding:8px 12px;border-radius:8px;border:none;background:#16a34a;color:#fff;font-size:.85rem;cursor:pointer;">
+                        <button type="submit" class="btn-approve-full">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             Setujui Pengajuan
                         </button>
                     </form>
 
-                    <form action="{{ route('hr.loan_requests.reject', $loan->id) }}" method="POST">
+                    <div class="divider-dashed"></div>
+
+                    <form action="{{ route('hr.loan_requests.reject', $loan->id) }}" method="POST" class="form-action">
                         @csrf
-                        <div style="display:flex;flex-direction:column;gap:6px;font-size:.85rem;margin-bottom:8px;">
-                            <label for="hrd_note_reject" style="font-weight:500;">Alasan penolakan</label>
-                            <textarea id="hrd_note_reject"
-                                      name="hrd_note"
-                                      rows="2"
-                                      required
-                                      style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;font-size:.85rem;resize:vertical;"></textarea>
+                        <div class="form-group">
+                            <label for="hrd_note_reject">Alasan Penolakan <span class="req">*</span></label>
+                            <textarea id="hrd_note_reject" name="hrd_note" rows="2" class="form-control" required placeholder="Wajib diisi..."></textarea>
                         </div>
-                        <button type="submit"
-                                style="width:100%;padding:8px 12px;border-radius:8px;border:none;background:#b91c1c;color:#fff;font-size:.85rem;cursor:pointer;">
+                        <button type="submit" class="btn-reject-full">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             Tolak Pengajuan
                         </button>
                     </form>
-                @else
-                    <div style="font-size:.85rem;color:#4b5563;">
-                        Status pengajuan sudah diproses. Jika diperlukan perubahan, lakukan melalui prosedur internal HRD.
-                    </div>
-                @endif
+                </div>
             </div>
+            @endif
 
-            <div class="card" style="padding:12px;display:flex;flex-direction:column;gap:8px;">
-                <div style="font-size:.9rem;font-weight:600;margin-bottom:4px;">
-                    Riwayat Cicilan / Potongan
-                </div>
-
-                <div style="display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:6px;">
-                    <div>
-                        <div style="font-weight:500;">Total dibayar</div>
-                        <div>Rp {{ number_format($totalPaid, 0, ',', '.') }}</div>
-                    </div>
-                    <div>
-                        <div style="font-weight:500;">Sisa hutang (per catatan sistem)</div>
-                        <div>Rp {{ number_format($remaining, 0, ',', '.') }}</div>
-                    </div>
-                </div>
-
-                @if($loan->status === 'LUNAS')
-                    <div style="margin-bottom:6px;font-size:.8rem;color:#16a34a;">
-                        Hutang ini sudah dinyatakan lunas. Tidak dapat mencatat cicilan atau potongan tambahan.
-                    </div>
-                @endif
-
-                <div style="margin-top:6px;margin-bottom:8px;">
-                    @if($loan->repayments->isEmpty())
-                        <div style="font-size:.8rem;color:#6b7280;">
-                            Belum ada cicilan atau potongan yang dicatat.
+            {{-- CARD SUMMARY & REPAYMENT (If Approved/Lunas) --}}
+            @if(in_array($loan->status, ['APPROVED', 'LUNAS']))
+            <div class="card">
+                <h3 class="card-title-sm">Status Pembayaran</h3>
+                <div class="card-body-padded">
+                    
+                    {{-- Progress Bar --}}
+                    <div class="progress-container">
+                        <div class="progress-labels">
+                            <span>Lunas: {{ $percentage }}%</span>
                         </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" style="width: {{ $percentage }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="summary-list">
+                        <div class="summary-item">
+                            <span>Total Pinjaman</span>
+                            <strong>Rp {{ number_format($loan->amount, 0, ',', '.') }}</strong>
+                        </div>
+                        <div class="summary-item text-green">
+                            <span>Total Dibayar</span>
+                            <strong>- Rp {{ number_format($totalPaid, 0, ',', '.') }}</strong>
+                        </div>
+                        <div class="divider-dashed"></div>
+                        <div class="summary-item total-item">
+                            <span>Sisa Hutang</span>
+                            <strong>Rp {{ number_format($remaining, 0, ',', '.') }}</strong>
+                        </div>
+                    </div>
+
+                    {{-- Form Catat Cicilan (Only if NOT LUNAS) --}}
+                    @if($loan->status !== 'LUNAS')
+                    <div class="repayment-form-wrapper">
+                        <div class="form-section-title">Catat Cicilan / Potongan Baru</div>
+                        <form action="{{ route('hr.loan_requests.repayments.store', $loan->id) }}" method="POST">
+                            @csrf
+                            <div class="form-group">
+                                <label>Tanggal Bayar</label>
+                                <input type="date" name="paid_at" value="{{ old('paid_at', now()->toDateString()) }}" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Nominal (Rp)</label>
+                                <input id="repayment_amount_display" type="text" class="form-control" inputmode="numeric" autocomplete="off" placeholder="Rp 0" required>
+                                <input id="repayment_amount" type="hidden" name="amount" value="{{ old('amount') }}">
+                            </div>
+
+                            <div class="form-group">
+                                <label>Metode</label>
+                                <select name="method" class="form-control" required>
+                                    <option value="POTONG_GAJI" @selected(old('method', $loan->payment_method === 'POTONG_GAJI' ? 'POTONG_GAJI' : null) === 'POTONG_GAJI')>Potong Gaji</option>
+                                    <option value="TRANSFER" @selected(old('method', $loan->payment_method === 'CICILAN' ? 'TRANSFER' : null) === 'TRANSFER')>Transfer Bank</option>
+                                    <option value="TUNAI" @selected(old('method') === 'TUNAI')>Tunai</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Catatan (Opsional)</label>
+                                <textarea name="note" rows="2" class="form-control" placeholder="Keterangan tambahan...">{{ old('note') }}</textarea>
+                            </div>
+
+                            <button type="submit" class="btn-primary-full">
+                                Simpan Transaksi
+                            </button>
+                        </form>
+                    </div>
                     @else
-                        <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+                    <div class="lunas-message">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Pinjaman ini sudah lunas.
+                    </div>
+                    @endif
+
+                </div>
+            </div>
+            @endif
+
+            {{-- CARD RIWAYAT --}}
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title-sm">Riwayat Pembayaran</h3>
+                </div>
+                <div class="table-responsive">
+                    @if($loan->repayments->isEmpty())
+                        <div class="empty-state">Belum ada data pembayaran.</div>
+                    @else
+                        <table class="table-history">
                             <thead>
-                            <tr style="background:#f9fafb;border-bottom:1px solid #e5e7eb;">
-                                <th style="text-align:left;padding:6px 8px;">Cicilan ke</th>
-                                <th style="text-align:left;padding:6px 8px;">Tanggal</th>
-                                <th style="text-align:left;padding:6px 8px;">Nominal</th>
-                                <th style="text-align:left;padding:6px 8px;">Metode</th>
-                                <th style="text-align:left;padding:6px 8px;">Catatan</th>
-                            </tr>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Tanggal</th>
+                                    <th>Nominal</th>
+                                    <th>Metode</th>
+                                </tr>
                             </thead>
                             <tbody>
-                            @foreach($loan->repayments as $index => $repayment)
-                                <tr style="border-bottom:1px solid #f1f5f9;">
-                                    <td style="padding:6px 8px;">{{ $index + 1 }}</td>
-                                    <td style="padding:6px 8px;">
-                                        {{ \Illuminate\Support\Carbon::parse($repayment->paid_at)->format('d/m/Y') }}
-                                    </td>
-                                    <td style="padding:6px 8px;">
-                                        Rp {{ number_format($repayment->amount, 0, ',', '.') }}
-                                    </td>
-                                    <td style="padding:6px 8px;">
-                                        @if($repayment->method === 'TUNAI')
-                                            Tunai
-                                        @elseif($repayment->method === 'TRANSFER')
-                                            Transfer
-                                        @elseif($repayment->method === 'POTONG_GAJI')
-                                            Potong gaji
-                                        @endif
-                                    </td>
-                                    <td style="padding:6px 8px;max-width:200px;">
-                                        {{ $repayment->note ?: '-' }}
+                                @foreach($loan->repayments as $index => $repayment)
+                                <tr>
+                                    <td class="text-center">{{ $index + 1 }}</td>
+                                    <td>{{ \Illuminate\Support\Carbon::parse($repayment->paid_at)->format('d/m/Y') }}</td>
+                                    <td class="font-mono">Rp {{ number_format($repayment->amount, 0, ',', '.') }}</td>
+                                    <td>
+                                        <span class="badge-sm">
+                                            @if($repayment->method === 'TUNAI') Tunai
+                                            @elseif($repayment->method === 'TRANSFER') Transfer
+                                            @elseif($repayment->method === 'POTONG_GAJI') Potong Gaji
+                                            @endif
+                                        </span>
                                     </td>
                                 </tr>
-                            @endforeach
+                                @if($repayment->note)
+                                <tr>
+                                    <td colspan="4" class="note-row"><small>Catatan: {{ $repayment->note }}</small></td>
+                                </tr>
+                                @endif
+                                @endforeach
                             </tbody>
                         </table>
                     @endif
                 </div>
-
-                @if($loan->status !== 'LUNAS')
-                    <form action="{{ route('hr.loan_requests.repayments.store', $loan->id) }}" method="POST" style="margin-top:8px;">
-                        @csrf
-                        <div style="font-size:.85rem;font-weight:500;margin-bottom:4px;">
-                            Catat Cicilan / Potongan Baru
-                        </div>
-
-                        <div style="display:flex;flex-direction:column;gap:6px;font-size:.85rem;">
-                            <div>
-                                <label for="paid_at" style="font-weight:500;">Tanggal</label>
-                                <input
-                                    id="paid_at"
-                                    type="date"
-                                    name="paid_at"
-                                    value="{{ old('paid_at', now()->toDateString()) }}"
-                                    required
-                                    style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid #d1d5db;font-size:.85rem;">
-                            </div>
-
-                            <div>
-                                <label for="repayment_amount_display" style="font-weight:500;">Nominal cicilan/potongan</label>
-                                <input
-                                    id="repayment_amount_display"
-                                    type="text"
-                                    inputmode="numeric"
-                                    autocomplete="off"
-                                    value="{{ old('amount') ? 'Rp' . number_format(old('amount'), 0, ',', '.') : '' }}"
-                                    required
-                                    style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid #d1d5db;font-size:.85rem;">
-                                <input
-                                    id="repayment_amount"
-                                    type="hidden"
-                                    name="amount"
-                                    value="{{ old('amount') }}">
-                            </div>
-
-                            <div>
-                                <label for="method" style="font-weight:500;">Metode</label>
-                                <select
-                                    id="method"
-                                    name="method"
-                                    required
-                                    style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid #d1d5db;font-size:.85rem;">
-                                    <option value="POTONG_GAJI" @selected(old('method', $loan->payment_method === 'POTONG_GAJI' ? 'POTONG_GAJI' : null) === 'POTONG_GAJI')>
-                                        Potong gaji
-                                    </option>
-                                    <option value="TRANSFER" @selected(old('method', $loan->payment_method === 'CICILAN' ? 'TRANSFER' : null) === 'TRANSFER')>
-                                        Transfer
-                                    </option>
-                                    <option value="TUNAI" @selected(old('method') === 'TUNAI')>
-                                        Tunai
-                                    </option>
-                                </select>
-                            </div>
-
-                            <div>
-                                <label for="note" style="font-weight:500;">Catatan</label>
-                                <textarea
-                                    id="note"
-                                    name="note"
-                                    rows="2"
-                                    style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid #d1d5db;font-size:.85rem;resize:vertical;">{{ old('note') }}</textarea>
-                            </div>
-                        </div>
-
-                        <button type="submit"
-                                style="margin-top:8px;width:100%;padding:8px 12px;border-radius:8px;border:none;background:#1e4a8d;color:#fff;font-size:.85rem;cursor:pointer;">
-                            Simpan Cicilan / Potongan
-                        </button>
-                    </form>
-                @endif
             </div>
+
         </div>
     </div>
 
@@ -398,23 +357,119 @@
 
                 var numeric = parseInt(digits);
                 hiddenInput.value = numeric;
-                displayInput.value = 'Rp' + formatRupiahNumber(numeric);
+                displayInput.value = 'Rp ' + formatRupiahNumber(numeric);
             }
 
             document.addEventListener('DOMContentLoaded', function () {
                 var displayInput = document.getElementById('repayment_amount_display');
-
                 if (displayInput) {
                     displayInput.addEventListener('input', updateRepaymentAmountFormatting);
                     displayInput.addEventListener('blur', updateRepaymentAmountFormatting);
                 }
-
                 var hiddenInput = document.getElementById('repayment_amount');
                 if (hiddenInput && hiddenInput.value && displayInput) {
-                    displayInput.value = 'Rp' + formatRupiahNumber(hiddenInput.value);
+                    displayInput.value = 'Rp ' + formatRupiahNumber(hiddenInput.value);
                 }
             });
         </script>
     @endpush
 
+    <style>
+        /* --- UTILS --- */
+        .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; gap: 16px; }
+        .page-title { font-size: 20px; font-weight: 700; color: #111827; margin: 0; }
+        .page-subtitle { font-size: 14px; color: #6b7280; margin: 4px 0 0 0; }
+        
+        .alert-success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; padding: 12px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 14px; }
+        .alert-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; font-size: 14px; }
+        
+        .btn-back { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 99px; border: 1px solid #d1d5db; background: #fff; color: #374151; font-size: 13px; font-weight: 500; text-decoration: none; transition: all 0.2s; white-space: nowrap; }
+        .btn-back:hover { background: #f9fafb; border-color: #9ca3af; }
+
+        .btn-download { display: inline-flex; align-items: center; gap: 6px; color: #1e4a8d; font-size: 13px; font-weight: 500; text-decoration: none; padding: 8px 12px; background: #eff6ff; border-radius: 8px; border: 1px solid transparent; width: 100%; justify-content: center; }
+        .btn-download:hover { background: #dbeafe; }
+
+        /* --- LAYOUT --- */
+        .detail-grid { display: grid; grid-template-columns: 2fr 1.4fr; gap: 20px; align-items: start; }
+
+        /* --- CARDS --- */
+        .card { background: #fff; border-radius: 12px; border: 1px solid #f3f4f6; box-shadow: 0 2px 8px rgba(0,0,0,0.03); overflow: hidden; margin-bottom: 0; }
+        .card-header { padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .card-title { font-size: 16px; font-weight: 700; color: #111827; margin: 0; }
+        .card-title-sm { font-size: 15px; font-weight: 700; color: #111827; margin: 0; padding: 16px 20px 0 20px; }
+        .card-body-padded { padding: 20px; }
+        .divider { height: 1px; background: #f3f4f6; width: 100%; }
+        .divider-dashed { border-top: 1px dashed #d1d5db; margin: 8px 0; }
+
+        /* --- INFO GROUPS --- */
+        .info-group { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        .info-row { display: flex; flex-direction: column; gap: 4px; }
+        .info-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.03em; }
+        .value { font-size: 14.5px; color: #1f2937; font-weight: 500; line-height: 1.4; }
+        .font-bold { font-weight: 700; }
+        .highlight-text { font-size: 18px; font-weight: 700; color: #111827; }
+        .link-doc { display: inline-flex; align-items: center; gap: 5px; color: #1e4a8d; font-size: 13px; font-weight: 500; text-decoration: underline; }
+        
+        /* --- BADGES --- */
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+        .badge-yellow { background: #fefce8; color: #a16207; border: 1px solid #fef08a; }
+        .badge-blue { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
+        .badge-red { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+        .badge-green { background: #f0fdf4; color: #166534; border: 1px solid #dcfce7; }
+        .badge-gray { background: #f3f4f6; color: #374151; }
+        .badge-sm { font-size: 11px; padding: 2px 6px; background: #f3f4f6; border-radius: 4px; color: #4b5563; font-weight: 500; }
+
+        /* --- FORMS & INPUTS --- */
+        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 13px; font-weight: 600; color: #374151; }
+        .req { color: #dc2626; }
+        .form-control { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; outline: none; transition: border 0.2s; }
+        .form-control:focus { border-color: #1e4a8d; box-shadow: 0 0 0 2px rgba(30,74,141,0.1); }
+        
+        .action-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+        .btn-approve-full { width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 10px; background: #16a34a; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .btn-approve-full:hover { background: #15803d; }
+        .btn-reject-full { width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 10px; background: #dc2626; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .btn-reject-full:hover { background: #b91c1c; }
+        
+        .repayment-form-wrapper { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin-top: 16px; }
+        .form-section-title { font-size: 13px; font-weight: 700; color: #1e4a8d; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.03em; }
+        .btn-primary-full { width: 100%; padding: 10px; background: #1e4a8d; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .btn-primary-full:hover { background: #163a75; }
+
+        /* --- SUMMARY & PROGRESS --- */
+        .progress-container { margin-bottom: 16px; }
+        .progress-labels { display: flex; justify-content: flex-end; font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 500; }
+        .progress-track { width: 100%; height: 8px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #10b981; border-radius: 4px; transition: width 0.5s ease; }
+
+        .summary-list { display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #4b5563; }
+        .summary-item { display: flex; justify-content: space-between; }
+        .summary-item strong { color: #111827; }
+        .text-green { color: #059669; }
+        .total-item { font-size: 15px; color: #111827; }
+        .total-item strong { color: #b91c1c; }
+
+        /* --- TABLE HISTORY --- */
+        .table-responsive { overflow-x: auto; margin-top: 10px; }
+        .table-history { width: 100%; border-collapse: collapse; min-width: 350px; font-size: 13.5px; }
+        .table-history th { text-align: left; padding: 10px 16px; background: #f9fafb; font-size: 12px; font-weight: 600; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        .table-history td { padding: 10px 16px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+        .table-history tr:last-child td { border-bottom: none; }
+        .font-mono { font-family: monospace; font-weight: 600; color: #111827; }
+        .text-center { text-align: center; }
+        .note-row td { background: #fafaf9; color: #6b7280; padding-top: 4px; padding-bottom: 12px; border-bottom: 1px solid #f3f4f6; }
+        .empty-state { padding: 30px; text-align: center; color: #9ca3af; font-size: 13.5px; }
+
+        .lunas-message { margin-top: 16px; background: #f0fdf4; border: 1px solid #dcfce7; color: #166534; padding: 12px; border-radius: 8px; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; }
+
+        /* --- MOBILE --- */
+        @media (max-width: 768px) {
+            .page-header { flex-direction: column; gap: 12px; }
+            .btn-back { align-self: flex-start; }
+            .detail-grid { grid-template-columns: 1fr; gap: 16px; }
+            .right-column { display: flex; flex-direction: column; gap: 16px; }
+        }
+    </style>
 </x-app>

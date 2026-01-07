@@ -1,236 +1,355 @@
 <x-app title="Tambah Lokasi Presensi">
-    <div class="card" style="max-width:720px;margin:0 auto;">
-        <form method="POST" action="{{ route('hr.locations.store') }}">
-            @csrf
 
-            <div style="margin-bottom:10px;">
-                <label><b>Nama Lokasi</b></label>
-                <input type="text" name="name" value="{{ old('name') }}" required
-                    style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <div class="main-container">
+
+        @if ($errors->any())
+            <div class="alert-error">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{{ $errors->first() }}</span>
+            </div>
+        @endif
+
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2 class="form-title">Tambah Lokasi Presensi</h2>
+                    <p class="form-subtitle">Tentukan titik koordinat dan radius untuk lokasi absensi karyawan.</p>
+                </div>
+                <a href="{{ route('hr.locations.index') }}" class="btn-back">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                    Kembali
+                </a>
             </div>
 
-            <div style="margin-bottom:10px;">
-                <label><b>Alamat (opsional)</b></label>
-                <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
-                    <textarea name="address" id="address-input" rows="2"
-                        style="flex:1;min-width:200px;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">{{ old('address') }}</textarea>
-                    <div style="display:flex;flex-direction:column;gap:6px;">
-                        <button type="button"
-                            id="geocode-btn"
-                            style="padding:8px 16px;border-radius:999px;border:none;background:#1e4a8d;color:white;font-size:.9rem;cursor:pointer;">
+            <div class="divider"></div>
+
+            <form method="POST" action="{{ route('hr.locations.store') }}" class="form-content">
+                @csrf
+
+                <div class="form-group">
+                    <label for="name">Nama Lokasi <span class="req">*</span></label>
+                    <input
+                        type="text"
+                        name="name"
+                        id="name"
+                        class="form-control"
+                        value="{{ old('name') }}"
+                        placeholder="Contoh: Kantor Pusat, Cabang Surabaya, Gudang A"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label for="address-input">Alamat (Opsional)</label>
+                    <textarea
+                        name="address"
+                        id="address-input"
+                        rows="2"
+                        class="form-control"
+                        placeholder="Masukkan nama jalan atau gedung untuk pencarian otomatis..."
+                    >{{ old('address') }}</textarea>
+                    
+                    <div class="map-tools">
+                        <button type="button" id="geocode-btn" class="btn-tool primary-tool">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                             Cari di Peta
                         </button>
-                        <button type="button"
-                            id="use-current-location-btn"
-                            style="padding:8px 16px;border-radius:999px;border:1px solid #d1d5db;font-size:.9rem;text-decoration:none;color:#111827;display:flex;align-items:center;">
+                        <button type="button" id="use-current-location-btn" class="btn-tool secondary-tool">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
                             Gunakan Lokasi Saya
                         </button>
                     </div>
                 </div>
-                <div style="font-size:0.8rem;opacity:.7;margin-top:4px;">
-                    Ketik alamat lalu klik "Cari di Peta", atau gunakan lokasi perangkat untuk mengisi koordinat.
-                </div>
-            </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
-                <div>
-                    <label><b>Latitude</b></label>
-                    <input type="text" name="latitude" id="lat-input"
-                        value="{{ old('latitude') }}" required
-                        style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
-                </div>
-                <div>
-                    <label><b>Longitude</b></label>
-                    <input type="text" name="longitude" id="lng-input"
-                        value="{{ old('longitude') }}" required
-                        style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
-                </div>
-                <div>
-                    <label><b>Radius (meter)</b></label>
-                    <input type="number" name="radius_meters" id="radius-input"
-                        value="{{ old('radius_meters', 30) }}" min="5" required
-                        style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;">
-                    <div style="font-size:0.8rem;opacity:.75;margin-top:4px;" id="radius-label">
-                        Radius: {{ old('radius_meters', 30) }} m
+                <div class="coordinate-grid">
+                    <div class="form-group">
+                        <label for="lat-input">Latitude <span class="req">*</span></label>
+                        <input
+                            type="text"
+                            name="latitude"
+                            id="lat-input"
+                            class="form-control"
+                            value="{{ old('latitude') }}"
+                            required
+                            > </div>
+                    <div class="form-group">
+                        <label for="lng-input">Longitude <span class="req">*</span></label>
+                        <input
+                            type="text"
+                            name="longitude"
+                            id="lng-input"
+                            class="form-control"
+                            value="{{ old('longitude') }}"
+                            required
+                            >
+                    </div>
+                    <div class="form-group">
+                        <label for="radius-input">Radius (Meter) <span class="req">*</span></label>
+                        <input
+                            type="number"
+                            name="radius_meters"
+                            id="radius-input"
+                            class="form-control"
+                            value="{{ old('radius_meters', 30) }}"
+                            min="5"
+                            required>
                     </div>
                 </div>
-            </div>
 
-            <div style="margin-bottom:10px;">
-                <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;">
-                    <input type="checkbox" name="is_active" value="1" checked>
-                    Lokasi aktif
-                </label>
-            </div>
-
-            <div style="margin-bottom:10px;">
-                <label><b>Preview Map</b></label>
-                <div id="map" style="width:100%;height:260px;border-radius:10px;border:1px solid #e5e7eb;margin-top:6px;"></div>
-                <div style="font-size:0.8rem;opacity:.7;margin-top:4px;">
-                    Marker dapat digeser untuk mengubah titik lokasi. Radius akan ditampilkan sebagai lingkaran biru.
+                <div class="form-group">
+                    <label>Preview Map</label>
+                    <div id="map" class="map-container"></div>
+                    <small class="helper-text">Geser marker merah untuk menyesuaikan titik lokasi presisi.</small>
                 </div>
-            </div>
 
-            <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">
-                <button type="submit"
-                    style="padding:8px 16px;border-radius:999px;border:none;background:#1e4a8d;color:white;font-size:.9rem;cursor:pointer;">
-                    Simpan Lokasi
-                </button>
+                <div class="form-group">
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" name="is_active" value="1" checked>
+                        <span class="checkbox-label">Lokasi Aktif</span>
+                    </label>
+                </div>
 
-                <a href="{{ route('hr.locations.index') }}"
-                    style="padding:8px 16px;border-radius:999px;border:1px solid #d1d5db;font-size:.9rem;text-decoration:none;color:#111827;display:flex;align-items:center;">
-                    Batal
-                </a>
-            </div>
-        </form>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">
+                        Simpan Lokasi
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
     @push('scripts')
     <script>
-        const latInput = document.getElementById('lat-input');
-        const lngInput = document.getElementById('lng-input');
-        const radiusInput = document.getElementById('radius-input');
-        const radiusLabel = document.getElementById('radius-label');
-        const addressInput = document.getElementById('address-input');
-        const geocodeBtn = document.getElementById('geocode-btn');
-        const useCurrentLocationBtn = document.getElementById('use-current-location-btn');
+        document.addEventListener('DOMContentLoaded', function() {
+            const latInput = document.getElementById('lat-input');
+            const lngInput = document.getElementById('lng-input');
+            const radiusInput = document.getElementById('radius-input');
+            const addressInput = document.getElementById('address-input');
+            const geocodeBtn = document.getElementById('geocode-btn');
+            const useCurrentLocationBtn = document.getElementById('use-current-location-btn');
 
-        const initialLat = parseFloat(latInput.value) || -7.22020;
-        const initialLng = parseFloat(lngInput.value) || 112.72942;
-        const initialRadius = parseInt(radiusInput.value) || 30;
+            // Default location (bisa diset ke kantor pusat default jika kosong)
+            const initialLat = parseFloat(latInput.value) || -6.200000;
+            const initialLng = parseFloat(lngInput.value) || 106.816666;
+            const initialRadius = parseInt(radiusInput.value) || 30;
 
-        const map = L.map('map').setView([initialLat, initialLng], 18);
+            // Inisialisasi Map
+            const map = L.map('map').setView([initialLat, initialLng], 18);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
 
-        const marker = L.marker([initialLat, initialLng], {
-            draggable: true
-        }).addTo(map);
-        let circle = L.circle([initialLat, initialLng], {
-            radius: initialRadius,
-            color: '#2563eb',
-            fillColor: '#3b82f6',
-            fillOpacity: 0.2
-        }).addTo(map);
+            // Marker Draggable
+            const marker = L.marker([initialLat, initialLng], {
+                draggable: true
+            }).addTo(map);
 
-        function updateRadiusLabel(value) {
-            const val = parseInt(value) || 0;
-            radiusLabel.textContent = 'Radius: ' + val + ' m';
-        }
+            // Circle Radius
+            let circle = L.circle([initialLat, initialLng], {
+                radius: initialRadius,
+                color: '#2563eb',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.2
+            }).addTo(map);
 
-        function updatePosition(lat, lng) {
-            latInput.value = lat.toFixed(6);
-            lngInput.value = lng.toFixed(6);
-            marker.setLatLng([lat, lng]);
-            circle.setLatLng([lat, lng]);
-            map.setView([lat, lng], 18);
-        }
-
-        marker.on('dragend', function(e) {
-            const pos = e.target.getLatLng();
-            updatePosition(pos.lat, pos.lng);
-        });
-
-        radiusInput.addEventListener('input', function() {
-            const r = parseInt(this.value) || 10;
-            circle.setRadius(r);
-            updateRadiusLabel(r);
-        });
-
-        latInput.addEventListener('change', function() {
-            const lat = parseFloat(latInput.value);
-            const lng = parseFloat(lngInput.value);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                updatePosition(lat, lng);
+            // Fungsi Update Input saat marker digeser
+            function updatePosition(lat, lng) {
+                latInput.value = lat.toFixed(6);
+                lngInput.value = lng.toFixed(6);
+                marker.setLatLng([lat, lng]);
+                circle.setLatLng([lat, lng]);
+                map.setView([lat, lng], 18);
             }
-        });
 
-        lngInput.addEventListener('change', function() {
-            const lat = parseFloat(latInput.value);
-            const lng = parseFloat(lngInput.value);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                updatePosition(lat, lng);
-            }
-        });
+            // Event Listener Marker
+            marker.on('dragend', function(e) {
+                const pos = e.target.getLatLng();
+                updatePosition(pos.lat, pos.lng);
+            });
 
-        async function geocodeAddress() {
-            const q = addressInput.value.trim();
-            if (!q) return;
+            // Event Listener Radius
+            radiusInput.addEventListener('input', function() {
+                const r = parseInt(this.value) || 10;
+                circle.setRadius(r);
+            });
 
-            geocodeBtn.disabled = true;
-            const originalText = geocodeBtn.textContent;
-            geocodeBtn.textContent = 'Mencari...';
+            // Event Listener Geocode (Cari Alamat)
+            geocodeBtn.addEventListener('click', async function() {
+                const q = addressInput.value.trim();
+                if (!q) return;
 
-            try {
-                const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
-                const res = await fetch(url, {
-                    headers: {
-                        'Accept': 'application/json'
+                const originalText = geocodeBtn.innerHTML;
+                geocodeBtn.disabled = true;
+                geocodeBtn.innerHTML = 'Mencari...';
+
+                try {
+                    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
+                    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                    const data = await res.json();
+
+                    if (!data || !data.length) {
+                        alert('Alamat tidak ditemukan. Mohon perjelas nama jalan/kota.');
+                    } else {
+                        const lat = parseFloat(data[0].lat);
+                        const lng = parseFloat(data[0].lon);
+                        if (!isNaN(lat) && !isNaN(lng)) {
+                            updatePosition(lat, lng);
+                        }
                     }
-                });
-                const data = await res.json();
+                } catch (e) {
+                    alert('Gagal menghubungi layanan peta.');
+                } finally {
+                    geocodeBtn.disabled = false;
+                    geocodeBtn.innerHTML = originalText;
+                }
+            });
 
-                if (!data || !data.length) {
-                    alert('Alamat tidak ditemukan. Coba perjelas alamatnya.');
-                } else {
-                    const lat = parseFloat(data[0].lat);
-                    const lng = parseFloat(data[0].lon);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        updatePosition(lat, lng);
+            // Event Listener Current Location
+            useCurrentLocationBtn.addEventListener('click', function() {
+                if (!navigator.geolocation) {
+                    alert('Browser Anda tidak mendukung geolokasi.');
+                    return;
+                }
+
+                const originalText = useCurrentLocationBtn.innerHTML;
+                useCurrentLocationBtn.disabled = true;
+                useCurrentLocationBtn.innerHTML = 'Mendeteksi...';
+
+                navigator.geolocation.getCurrentPosition(
+                    function(pos) {
+                        updatePosition(pos.coords.latitude, pos.coords.longitude);
+                        useCurrentLocationBtn.disabled = false;
+                        useCurrentLocationBtn.innerHTML = originalText;
+                    },
+                    function(err) {
+                        console.error(err);
+                        alert('Gagal mengambil lokasi GPS. Pastikan izin lokasi aktif.');
+                        useCurrentLocationBtn.disabled = false;
+                        useCurrentLocationBtn.innerHTML = originalText;
+                    }, {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 0
                     }
-                }
-            } catch (e) {
-                alert('Terjadi kesalahan saat mencari alamat.');
-            } finally {
-                geocodeBtn.disabled = false;
-                geocodeBtn.textContent = originalText;
-            }
-        }
+                );
+            });
 
-        function useCurrentLocation() {
-            if (!navigator.geolocation) {
-                alert('Browser tidak mendukung geolokasi.');
-                return;
-            }
-
-            useCurrentLocationBtn.disabled = true;
-            const originalText = useCurrentLocationBtn.textContent;
-            useCurrentLocationBtn.textContent = 'Mengambil lokasi...';
-
-            navigator.geolocation.getCurrentPosition(
-                function(pos) {
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-                    updatePosition(lat, lng);
-                },
-                function() {
-                    alert('Gagal mengambil lokasi perangkat.');
-                }, {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
-
-            useCurrentLocationBtn.disabled = false;
-            useCurrentLocationBtn.textContent = originalText;
-        }
-
-        geocodeBtn.addEventListener('click', function() {
-            geocodeAddress();
+            // Trigger update posisi awal agar input terisi
+            if(!latInput.value) updatePosition(initialLat, initialLng);
         });
-
-        useCurrentLocationBtn.addEventListener('click', function() {
-            useCurrentLocation();
-        });
-
-        updateRadiusLabel(initialRadius);
     </script>
     @endpush
+
+    <style>
+        /* Container */
+        .main-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-bottom: 40px;
+        }
+
+        /* Alert */
+        .alert-error {
+            background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+            padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;
+            display: flex; align-items: center; gap: 10px; font-size: 14px;
+        }
+
+        /* Card */
+        .card {
+            background: #fff; border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+            border: 1px solid #f3f4f6; overflow: hidden;
+        }
+
+        .card-header {
+            padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+        }
+
+        .form-title { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
+        .form-subtitle { margin: 4px 0 0; font-size: 13.5px; color: #6b7280; }
+        .divider { height: 1px; background: #f3f4f6; width: 100%; }
+
+        /* Form Layout */
+        .form-content { padding: 24px; }
+        .form-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 13.5px; font-weight: 600; color: #374151; }
+        .req { color: #dc2626; }
+
+        /* Inputs */
+        .form-control {
+            padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px;
+            font-size: 14px; width: 100%; outline: none; background: #fff; color: #111827;
+            transition: border-color 0.2s, box-shadow 0.2s; font-family: inherit;
+        }
+        .form-control:focus { border-color: #1e4a8d; box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.1); }
+        .form-control[readonly] { background-color: #f9fafb; cursor: default; }
+
+        /* Map Tools */
+        .map-tools { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .btn-tool {
+            display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+            border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        .primary-tool { background: #1e4a8d; color: #fff; border-color: #1e4a8d; }
+        .primary-tool:hover { background: #163a75; }
+        .secondary-tool { background: #fff; color: #374151; border-color: #d1d5db; }
+        .secondary-tool:hover { background: #f9fafb; border-color: #9ca3af; }
+
+        /* Grid for Coordinates */
+        .coordinate-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;
+        }
+
+        /* Map Container */
+        .map-container {
+            width: 100%; height: 320px; border-radius: 10px; border: 1px solid #d1d5db;
+            z-index: 1; /* Ensure distinct layer */
+        }
+        .helper-text { font-size: 12px; color: #6b7280; margin-top: 4px; }
+
+        /* Checkbox */
+        .checkbox-wrapper { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .checkbox-wrapper input[type="checkbox"] { width: 16px; height: 16px; accent-color: #1e4a8d; cursor: pointer; }
+        .checkbox-label { font-size: 14px; color: #374151; font-weight: 500; }
+
+        /* Actions */
+        .btn-back {
+            display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+            border-radius: 8px; border: 1px solid #d1d5db; background: #fff; color: #374151;
+            font-size: 13px; font-weight: 500; text-decoration: none; transition: all 0.2s; white-space: nowrap;
+        }
+        .btn-back:hover { background: #f9fafb; border-color: #9ca3af; }
+
+        .form-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+        .btn-primary {
+            display: inline-flex; justify-content: center; align-items: center;
+            padding: 12px 24px; background: #1e4a8d; color: #fff; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; min-width: 140px;
+        }
+        .btn-primary:hover { background: #163a75; }
+
+        /* Mobile Adjustments */
+        @media (max-width: 600px) {
+            .card-header { flex-direction: column; gap: 12px; }
+            .btn-back { align-self: flex-start; }
+            .form-content { padding: 16px; }
+            
+            /* Stack coordinates on mobile */
+            .coordinate-grid { grid-template-columns: 1fr; gap: 10px; }
+            
+            .map-container { height: 260px; }
+            .btn-primary { width: 100%; }
+        }
+    </style>
 </x-app>
