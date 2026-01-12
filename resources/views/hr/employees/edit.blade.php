@@ -37,7 +37,7 @@
                 @method('PUT')
 
                 @php
-                    $profile = $item->profile;
+                $profile = $item->profile;
                 @endphp
 
                 <div class="form-section-title">Data Akun & Akses</div>
@@ -62,7 +62,13 @@
                         <select id="role" name="role" class="form-control" required>
                             <option value="">Pilih Role</option>
                             @foreach ($roles as $role)
-                            <option value="{{ $role->value }}" @selected(old('role', $item->role) === $role->value)>{{ $role->value }}</option>
+                            {{-- Kita ambil ->value jika $item->role adalah Enum, atau pakai langsung jika string --}}
+                            @php
+                            $currentRole = old('role', $item->role);
+                            $currentRoleValue = $currentRole instanceof \UnitEnum ? $currentRole->value : $currentRole;
+                            @endphp
+
+                            <option value="{{ $role->value }}" @selected($currentRoleValue==$role->value)>{{ $role->value }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -83,9 +89,9 @@
                         <select id="direct_supervisor_id" name="direct_supervisor_id" class="form-control">
                             <option value="">-- Langsung ke HRD (Default) --</option>
                             @foreach($supervisors as $spv)
-                                <option value="{{ $spv->id }}" @selected(old('direct_supervisor_id', $item->direct_supervisor_id) == $spv->id)>
-                                    {{ $spv->name }} - {{ $spv->position->name ?? $spv->role->value }}
-                                </option>
+                            <option value="{{ $spv->id }}" @selected(old('direct_supervisor_id', $item->direct_supervisor_id) == $spv->id)>
+                                {{ $spv->name }} - {{ $spv->position->name ?? $spv->role->value }}
+                            </option>
                             @endforeach
                         </select>
                         <small class="helper-text">Jika dipilih, izin karyawan akan masuk ke orang ini dulu.</small>
@@ -272,14 +278,14 @@
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <label for="path_ktp">Upload KTP</label>
                             @if(optional($profile)->path_ktp)
-                                @php $ktpModalId = 'modal-ktp-'.$item->id; @endphp
-                                <button type="button" class="btn-sm-view" data-modal-open="{{ $ktpModalId }}">Lihat File Saat Ini</button>
-                                
-                                <x-modal :id="$ktpModalId" title="KTP" type="info">
-                                    <div style="text-align:center;">
-                                        <img src="{{ asset('storage/' . $profile->path_ktp) }}" alt="KTP" style="max-width:100%; border-radius:8px;">
-                                    </div>
-                                </x-modal>
+                            @php $ktpModalId = 'modal-ktp-'.$item->id; @endphp
+                            <button type="button" class="btn-sm-view" data-modal-open="{{ $ktpModalId }}">Lihat File Saat Ini</button>
+
+                            <x-modal :id="$ktpModalId" title="KTP" type="info">
+                                <div style="text-align:center;">
+                                    <img src="{{ asset('storage/' . $profile->path_ktp) }}" alt="KTP" style="max-width:100%; border-radius:8px;">
+                                </div>
+                            </x-modal>
                             @endif
                         </div>
                         <input id="path_ktp" type="file" name="path_ktp" accept=".jpg,.jpeg,.png" class="form-control-file">
@@ -290,14 +296,14 @@
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <label for="path_kartu_keluarga">Upload Kartu Keluarga</label>
                             @if(optional($profile)->path_kartu_keluarga)
-                                @php $kkModalId = 'modal-kk-'.$item->id; @endphp
-                                <button type="button" class="btn-sm-view" data-modal-open="{{ $kkModalId }}">Lihat File Saat Ini</button>
-                                
-                                <x-modal :id="$kkModalId" title="Kartu Keluarga" type="info">
-                                    <div style="text-align:center;">
-                                        <img src="{{ asset('storage/' . $profile->path_kartu_keluarga) }}" alt="Kartu Keluarga" style="max-width:100%; border-radius:8px;">
-                                    </div>
-                                </x-modal>
+                            @php $kkModalId = 'modal-kk-'.$item->id; @endphp
+                            <button type="button" class="btn-sm-view" data-modal-open="{{ $kkModalId }}">Lihat File Saat Ini</button>
+
+                            <x-modal :id="$kkModalId" title="Kartu Keluarga" type="info">
+                                <div style="text-align:center;">
+                                    <img src="{{ asset('storage/' . $profile->path_kartu_keluarga) }}" alt="Kartu Keluarga" style="max-width:100%; border-radius:8px;">
+                                </div>
+                            </x-modal>
                             @endif
                         </div>
                         <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept=".jpg,.jpeg,.png" class="form-control-file">
@@ -520,6 +526,7 @@
             cursor: pointer;
             transition: background 0.2s;
         }
+
         .btn-sm-view:hover {
             background: #f0f9ff;
             border-color: #1e4a8d;
