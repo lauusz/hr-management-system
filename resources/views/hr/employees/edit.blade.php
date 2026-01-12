@@ -77,6 +77,20 @@
                         </select>
                     </div>
 
+                    {{-- [BARU] DROPDOWN PILIH ATASAN LANGSUNG --}}
+                    <div class="form-group">
+                        <label for="direct_supervisor_id">Atasan Langsung (Approval)</label>
+                        <select id="direct_supervisor_id" name="direct_supervisor_id" class="form-control">
+                            <option value="">-- Langsung ke HRD (Default) --</option>
+                            @foreach($supervisors as $spv)
+                                <option value="{{ $spv->id }}" @selected(old('direct_supervisor_id', $item->direct_supervisor_id) == $spv->id)>
+                                    {{ $spv->name }} - {{ $spv->position->name ?? $spv->role->value }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="helper-text">Jika dipilih, izin karyawan akan masuk ke orang ini dulu.</small>
+                    </div>
+
                     @isset($shifts)
                     <div class="form-group">
                         <label for="shift_id">Shift Kerja</label>
@@ -339,9 +353,6 @@
                     modal.style.display = 'none';
                 });
             });
-            
-            // Backup jika x-modal tidak memiliki class modal-backdrop
-            // (biasanya x-modal blade component sudah handling ini, tapi untuk safety)
         });
     </script>
 

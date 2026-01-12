@@ -23,7 +23,7 @@ enum LeaveType: string
             self::CUTI                => 'Cuti',
             self::SAKIT               => 'Sakit',
             self::IZIN                => 'Izin',
-            self::CUTI_KHUSUS         => 'Cuti Khusus (menikah, melahirkan/istri melahirkan/keguguran, mengkhitankan/membaptiskan anak, keluarga meninggal — suami/istri/mertua/orang tua/anak/menantu, anggota keluarga serumah meninggal dunia)',
+            self::CUTI_KHUSUS         => 'Cuti Khusus',
             self::DINAS_LUAR          => 'Dinas Luar',
             self::OFF_SPV             => 'Off SPV',
         };

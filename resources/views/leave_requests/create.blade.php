@@ -63,7 +63,13 @@
                 <div class="radio-group-container">
                     @php
                         $user = auth()->user();
-                        $role = strtoupper((string) ($user->role ?? ''));
+                        
+                        // FIX: Ambil value dari Enum jika role berupa object, atau string jika biasa
+                        $roleValue = $user->role instanceof \App\Enums\UserRole 
+                            ? $user->role->value 
+                            : $user->role;
+                            
+                        $role = strtoupper((string) $roleValue);
                         $isSpv = in_array($role, ['SUPERVISOR', 'SPV'], true);
 
                         $offRemaining = null;

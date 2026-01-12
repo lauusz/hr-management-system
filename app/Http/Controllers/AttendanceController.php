@@ -4,15 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\EmployeeShift;
+use App\Services\Image\ImageCompressor; // Import Service
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class AttendanceController extends Controller
 {
+    // Inject ImageCompressor ke Constructor
+    public function __construct(protected ImageCompressor $imageCompressor)
+    {
+    }
+
     public function dashboard()
     {
         $user  = Auth::user();
@@ -45,7 +48,9 @@ class AttendanceController extends Controller
         $today = $now->toDateString();
 
         $request->validate([
-            'photo' => ['required', 'image', 'max:4096'],
+            // Limit 8MB agar user bisa upload foto resolusi tinggi, 
+            // nanti server yang akan resize jadi kecil (±100KB).
+            'photo' => ['required', 'image', 'max:8192'], 
             'lat'   => ['required', 'numeric'],
             'lng'   => ['required', 'numeric'],
         ]);
@@ -131,7 +136,14 @@ class AttendanceController extends Controller
             $lateMinutes = $shiftStart->diffInMinutes($now);
         }
 
-        $photoPath = $this->storeAttendancePhoto($request->file('photo'));
+        // --- UPDATE: Menggunakan ImageCompressor ---
+        // Foto akan di-resize ke 1280px, Quality 75, disimpan di folder 'attendance_photos'
+        $photoPath = $this->imageCompressor->compressAndStore(
+            $request->file('photo'), 
+            'photo', 
+            'attendance_photos', 
+            'att_'
+        );
 
         $attendance = Attendance::updateOrCreate(
             [
@@ -145,7 +157,7 @@ class AttendanceController extends Controller
                 'normal_end_time'     => $shiftEnd,
                 'location_id'         => $employeeShift->location_id,
                 'clock_in_at'         => $now,
-                'clock_in_photo'      => $photoPath,
+                'clock_in_photo'      => $photoPath, // Menggunakan path hasil kompresi
                 'clock_in_lat'        => $request->lat,
                 'clock_in_lng'        => $request->lng,
                 'clock_in_distance_m' => $distance,
@@ -170,7 +182,7 @@ class AttendanceController extends Controller
         $yesterday = $now->copy()->subDay()->toDateString();
 
         $request->validate([
-            'photo' => ['required', 'image', 'max:4096'],
+            'photo' => ['required', 'image', 'max:8192'],
             'lat'   => ['required', 'numeric'],
             'lng'   => ['required', 'numeric'],
         ]);
@@ -225,6 +237,13 @@ class AttendanceController extends Controller
 
         $employeeShift = $employeeShiftQuery->first();
 
+        // Fallback jika shift history terhapus, ambil shift user saat ini
+        if (!$employeeShift) {
+             $employeeShift = EmployeeShift::with(['location', 'shift'])
+                ->where('user_id', $user->id)
+                ->first();
+        }
+
         if (!$employeeShift || !$employeeShift->location) {
             return response()->json([
                 'error' => 'Jadwal shift atau lokasi belum diatur. Silakan hubungi HR.',
@@ -278,34 +297,33 @@ class AttendanceController extends Controller
             $normalEnd->addDay();
         }
 
-        $photoPath = $this->storeAttendancePhoto($request->file('photo'));
+        // --- UPDATE: Menggunakan ImageCompressor ---
+        $photoPath = $this->imageCompressor->compressAndStore(
+            $request->file('photo'), 
+            'photo', 
+            'attendance_photos', 
+            'att_out_'
+        );
 
         $earlyLeaveMinutes = 0;
         $overtimeMinutes = 0;
 
-        // Hitung selisih menit (mengembalikan integer secara default di Carbon)
         if ($now->lt($normalEnd)) {
-            // Pulang lebih awal (Cek selisih absolut)
             $earlyLeaveMinutes = $normalEnd->diffInMinutes($now);
         } elseif ($now->gt($normalEnd)) {
-            // Pulang terlambat/Lembur (Cek selisih absolut)
             $overtimeMinutes = $now->diffInMinutes($normalEnd);
         }
 
-        // SAFETY NET (PENTING):
-        // 1. round(): Bulatkan jika ada koma (desimal) agar tidak error di kolom Integer.
-        // 2. max(0, ...): Pastikan tidak pernah ada angka negatif (misal -1) yang masuk.
-        // 3. (int): Casting tipe data eksplisit ke integer.
+        // Sanitasi nilai integer
         $earlyLeaveMinutes = (int) max(0, round($earlyLeaveMinutes));
         $overtimeMinutes   = (int) max(0, round($overtimeMinutes));
-        // --- SELESAI PERBAIKAN ---
 
         $attendance->update([
             'clock_out_at'         => $now,
             'clock_out_lat'        => $request->lat,
             'clock_out_lng'        => $request->lng,
             'clock_out_distance_m' => $distance,
-            'clock_out_photo'      => $photoPath,
+            'clock_out_photo'      => $photoPath, // Menggunakan path hasil kompresi
             'early_leave_minutes'  => $earlyLeaveMinutes,
             'overtime_minutes'     => $overtimeMinutes,
         ]);
@@ -336,115 +354,5 @@ class AttendanceController extends Controller
         );
 
         return $earthRadius * $angle;
-    }
-
-    protected function storeAttendancePhoto(UploadedFile $file): string
-    {
-        $ext = strtolower($file->getClientOriginalExtension());
-        $dir = 'attendance_photos';
-        $disk = Storage::disk('public');
-
-        $canGd = function_exists('imagecreatetruecolor') && function_exists('imagejpeg');
-
-        Log::info('Attendance storeAttendancePhoto called', [
-            'ext' => $ext,
-            'can_gd' => $canGd,
-        ]);
-
-        if ($canGd && in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
-            try {
-                $sourcePath = $file->getPathname();
-                $info = getimagesize($sourcePath);
-                if ($info === false) {
-                    throw new \RuntimeException('Invalid image.');
-                }
-
-                $width = $info[0];
-                $height = $info[1];
-
-                $maxSide = 720;
-                $scale = min($maxSide / max($width, 1), $maxSide / max($height, 1), 1);
-                $newWidth = (int) round($width * $scale);
-                $newHeight = (int) round($height * $scale);
-
-                switch ($ext) {
-                    case 'jpg':
-                    case 'jpeg':
-                        $srcImage = imagecreatefromjpeg($sourcePath);
-                        break;
-                    case 'png':
-                        $srcImage = imagecreatefrompng($sourcePath);
-                        break;
-                    case 'webp':
-                        if (!function_exists('imagecreatefromwebp')) {
-                            throw new \RuntimeException('WEBP not supported.');
-                        }
-                        $srcImage = imagecreatefromwebp($sourcePath);
-                        break;
-                    default:
-                        $srcImage = null;
-                }
-
-                if (!$srcImage) {
-                    throw new \RuntimeException('Failed to create image resource.');
-                }
-
-                $dstImage = imagecreatetruecolor($newWidth, $newHeight);
-
-                if ($ext === 'png' || $ext === 'webp') {
-                    imagealphablending($dstImage, false);
-                    imagesavealpha($dstImage, true);
-                    $transparent = imagecolorallocatealpha($dstImage, 0, 0, 0, 127);
-                    imagefilledrectangle($dstImage, 0, 0, $newWidth, $newHeight, $transparent);
-                }
-
-                imagecopyresampled(
-                    $dstImage,
-                    $srcImage,
-                    0,
-                    0,
-                    0,
-                    0,
-                    $newWidth,
-                    $newHeight,
-                    $width,
-                    $height
-                );
-
-                $filename = 'att_' . uniqid('', true) . '.jpg';
-
-                ob_start();
-                imagejpeg($dstImage, null, 70);
-                $contents = ob_get_clean();
-
-                imagedestroy($srcImage);
-                imagedestroy($dstImage);
-
-                if ($contents === false) {
-                    throw new \RuntimeException('Failed to encode JPEG.');
-                }
-
-                $disk->put($dir . '/' . $filename, $contents);
-
-                Log::info('Attendance compression success', [
-                    'filename' => $filename,
-                    'size_bytes' => strlen($contents),
-                ]);
-
-                return $dir . '/' . $filename;
-            } catch (\Throwable $e) {
-                Log::warning('Attendance photo compression failed, fallback to original store', [
-                    'message' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        $stored = $file->store($dir, 'public');
-
-        Log::info('Attendance store fallback stored', [
-            'stored' => $stored,
-        ]);
-
-        return $stored;
     }
 }

@@ -2,24 +2,100 @@
 <html lang="id">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Offline • HRD System</title>
   <meta name="theme-color" content="#1e4a8d">
+  
+  <link rel="manifest" href="/hrd/manifest.webmanifest">
+  
+  <link rel="shortcut icon" href="/hrd/pwa/icon-192.png">
+
   <style>
-    body{margin:0;font-family:system-ui,Arial,sans-serif;background:#f6f7fb;color:#222}
-    .wrap{max-width:520px;margin:0 auto;padding:28px}
-    .card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 6px 20px rgba(0,0,0,.06)}
-    .title{font-weight:800;margin:0 0 6px}
-    .muted{opacity:.8;margin:0 0 14px}
-    .btn{display:inline-block;border:1px solid #ddd;background:#fff;border-radius:12px;padding:10px 14px;cursor:pointer}
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f6f7fb;
+      color: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      text-align: center;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 30px 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+    }
+    /* Logo dimunculkan karena sudah di-cache oleh Service Worker */
+    .offline-icon {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 20px;
+      border-radius: 12px;
+    }
+    .title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin: 0 0 10px;
+      color: #1e4a8d;
+    }
+    .muted {
+      font-size: 0.95rem;
+      opacity: 0.7;
+      margin: 0 0 25px;
+      line-height: 1.5;
+    }
+    .btn {
+      display: inline-block;
+      width: 100%;
+      background: #1e4a8d;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      text-decoration: none;
+    }
+    .btn:active {
+      background: #163666;
+      transform: scale(0.98);
+    }
+    .btn-secondary {
+      background: transparent;
+      color: #666;
+      margin-top: 10px;
+      font-weight: normal;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <h2 class="title">Koneksi terputus</h2>
-      <p class="muted">HRD System butuh internet untuk akses data dan submit absensi/izin.</p>
-      <button class="btn" onclick="location.reload()">Coba lagi</button>
+      <img src="/hrd/pwa/icon-192.png" alt="Logo" class="offline-icon">
+      
+      <h2 class="title">Koneksi Terputus</h2>
+      <p class="muted">
+        Tidak ada sambungan internet. <br>
+        Pastikan Wi-Fi atau data seluler Anda aktif untuk mengakses data HRD.
+      </p>
+      
+      <button class="btn" onclick="window.location.reload()">
+        Coba Lagi
+      </button>
+
+      <a href="/hrd/index.php/login" class="btn btn-secondary">
+        Ke Halaman Login
+      </a>
     </div>
   </div>
 </body>

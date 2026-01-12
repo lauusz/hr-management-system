@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\LeaveRequestController;
-use App\Http\Controllers\SupervisorLeaveController;
+use App\Http\Controllers\ApprovalController; // Menggunakan ApprovalController
 use App\Http\Controllers\HrLeaveController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\EmployeeShiftController;
@@ -19,6 +19,7 @@ use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\HR\OrganizationController;
 use App\Http\Controllers\EmployeeLoanRequestController;
 use App\Http\Controllers\HrLoanRequestController;
+use App\Http\Controllers\SupervisorDataController;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -46,7 +47,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/password', [AuthController::class, 'showChangePasswordForm'])->name('settings.password');
     Route::put('/settings/password', [AuthController::class, 'updatePassword'])->name('settings.password.update');
 
-    Route::middleware('role:HRD')->group(function () {
+    // --- ROUTE HRD & HR STAFF ---
+    Route::middleware('role:HRD,HR STAFF')->group(function () {
 
         Route::get('/hr/leave-requests', [HrLeaveController::class, 'index'])->name('hr.leave.index');
         Route::get('/hr/leave-requests/{leave}', [HrLeaveController::class, 'show'])->name('hr.leave.show');
@@ -78,6 +80,16 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/hr/employees/{user}/documents', [EmployeeDocumentController::class, 'store'])->name('hr.employees.documents.store');
         Route::delete('/hr/employee-documents/{employeeDocument}', [EmployeeDocumentController::class, 'destroy'])->name('hr.employee_documents.destroy');
+
+
+        Route::prefix('hr/supervisors')->name('hr.supervisors.')->group(function () {
+            Route::get('/', [SupervisorDataController::class, 'index'])->name('index');
+            Route::get('/create', [SupervisorDataController::class, 'create'])->name('create');
+            Route::post('/', [SupervisorDataController::class, 'store'])->name('store');
+            Route::get('/{user}/edit', [SupervisorDataController::class, 'edit'])->name('edit');
+            Route::put('/{user}', [SupervisorDataController::class, 'update'])->name('update');
+            Route::delete('/{user}', [SupervisorDataController::class, 'destroy'])->name('destroy');
+        });
 
         Route::get('/hr/locations', [AttendanceLocationController::class, 'index'])->name('hr.locations.index');
         Route::get('/hr/locations/create', [AttendanceLocationController::class, 'create'])->name('hr.locations.create');
@@ -123,14 +135,27 @@ Route::middleware('auth')->group(function () {
         Route::delete('/hr/pts/{pt}', [PtController::class, 'destroy'])->name('hr.pts.destroy');
     });
 
-    Route::middleware('role:SUPERVISOR')->group(function () {
-        Route::get('/supervisor/leave-requests', [SupervisorLeaveController::class, 'index'])->name('supervisor.leave.index');
-        Route::get('/supervisor/leave-requests/{leave}', [SupervisorLeaveController::class, 'show'])->name('supervisor.leave.show');
-        Route::post('/leave-requests/{leave}/supervisor/ack', [SupervisorLeaveController::class, 'ack'])->name('supervisor.leave.ack');
-        Route::post('/leave-requests/{leave}/supervisor/reject', [SupervisorLeaveController::class, 'reject'])->name('supervisor.leave.reject');
+    // --- ROUTE KHUSUS VIEW SUPERVISOR (UPDATED) ---
+    // Sekarang route approve dan reject SUDAH didefinisikan disini.
+    Route::middleware('role:SUPERVISOR')->prefix('supervisor')->name('supervisor.')->group(function () {
+        Route::get('/leave-requests', [ApprovalController::class, 'index'])->name('leave.index');
+        Route::get('/leave-requests/{leave}', [ApprovalController::class, 'show'])->name('leave.show');
+        
+        // Penambahan Route:
+        Route::post('/leave-requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('leave.approve');
+        Route::post('/leave-requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('leave.reject');
     });
 
-    Route::post('/logout', [AuthController::class,'logout'])->name('logout');
+    // --- ROUTE APPROVAL (MANAGER & SUPERVISOR UMUM) ---
+    Route::middleware('role:SUPERVISOR,MANAGER')->group(function () {
+        Route::get('/approval/requests', [ApprovalController::class, 'index'])->name('approval.index');
+        Route::get('/approval/requests/{leave}', [ApprovalController::class, 'show'])->name('approval.show');
+
+        Route::post('/approval/requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
+        Route::post('/approval/requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
+    });
+
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
 
 Route::get('/', fn() => redirect()->route('login'));

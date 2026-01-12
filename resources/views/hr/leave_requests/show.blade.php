@@ -165,14 +165,15 @@
 
         <div class="action-footer">
             <div class="left-action">
-                <a href="{{ route('hr.leave.index') }}" class="btn-modern btn-back">
+                <a href="{{ route('hr.leave.master') }}" class="btn-modern btn-back">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     Kembali
                 </a>
             </div>
 
             <div class="right-action">
-                @if($item->status === \App\Models\LeaveRequest::PENDING_HR)
+                {{-- [ADJUSTED] Menggunakan logic dari controller --}}
+                @if($canApprove)
                     
                     <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>

@@ -315,7 +315,7 @@
         </a>
 
         <a href="{{ route('employee.loan_requests.index') }}" class="{{ request()->routeIs('employee.loan_requests.*') ? 'active' : '' }}">
-          <span style="margin-right:10px;"></span> Hutang Karyawan
+          <span style="margin-right:10px;"></span> Pengajuan Hutang
         </a>
 
         <a href="{{ route('settings.password') }}" class="{{ request()->routeIs('settings.password') ? 'active' : '' }}">
@@ -323,14 +323,16 @@
         </a>
 
         @if(auth()->user()->isSupervisor())
-        <h3>Supervisor</h3>
-        <a href="{{ route('supervisor.leave.index') }}">
-          <span style="margin-right:10px;"></span> Mengetahui Pengajuan
+        <h3>Supervisor Area</h3>
+        {{-- Menu ini muncul untuk user yang memiliki Role SPV / Manager --}}
+        <a href="{{ route('approval.index') }}" class="{{ request()->routeIs('approval.*') ? 'active' : '' }}">
+            <span style="margin-right:10px;"></span> Mengetahui Pengajuan
         </a>
         @endif
 
         @if(auth()->user()->isHR())
         @php
+            // Logic Active State untuk Menu HRD
             $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
             $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*');
             $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
@@ -343,15 +345,22 @@
           <span style="margin-right:10px;"></span> Approval Izin/Cuti
         </a>
 
-        <button type="button" class="menu-group {{ $hrEmployeesOpen ? 'open' : '' }}" data-menu-group="employees">
+        {{-- Menu Karyawan (Umum) --}}
+        <button type="button" class="menu-group {{ ($hrEmployeesOpen) ? 'open' : '' }}" data-menu-group="employees">
           <span class="menu-group-label"><span style="margin-right:10px;"></span> Karyawan</span>
           <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
         </button>
-        <div class="submenu {{ $hrEmployeesOpen ? 'show' : '' }}" data-menu-panel="employees">
+        <div class="submenu {{ ($hrEmployeesOpen) ? 'show' : '' }}" data-menu-panel="employees">
           <a href="{{ route('hr.employees.index') }}" class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">Daftar Karyawan</a>
           <a href="{{ route('hr.organization') }}" class="{{ request()->routeIs('hr.organization','hr.divisions.*','hr.positions.*') ? 'active' : '' }}">Divisi &amp; Jabatan</a>
           <a href="{{ route('hr.pts.index') }}" class="{{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">Master PT</a>
         </div>
+
+        {{-- MENU DATA SUPERVISOR (LINK LANGSUNG) --}}
+        {{-- Ubah route ke 'hr.supervisors.index' (pake s) --}}
+        <a href="{{ route('hr.supervisors.index') }}" class="{{ request()->routeIs('hr.supervisors.*') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span> Data Supervisor
+        </a>
 
         <button type="button" class="menu-group {{ $hrPresensiOpen ? 'open' : '' }}" data-menu-group="presensi">
           <span class="menu-group-label"><span style="margin-right:10px;"></span> Presensi &amp; Shift</span>
@@ -377,7 +386,7 @@
           <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
         </button>
         <div class="submenu {{ $hrLoanOpen ? 'show' : '' }}" data-menu-panel="keuangan">
-          <a href="{{ route('hr.loan_requests.index') }}" class="{{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">Hutang Karyawan</a>
+          <a href="{{ route('hr.loan_requests.index') }}" class="{{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">Pengajuan Hutang</a>
         </div>
         @endif
         
@@ -408,7 +417,10 @@
           <div class="user-info">
              <div class="userchip">
                  <span class="user-name">{{ auth()->user()->name }}</span>
-                 <span class="user-role">{{ auth()->user()->role }}</span>
+                 {{-- Gunakan label() agar tampilan role rapi dan tanpa underscore --}}
+                 <span class="user-role">
+                    {{ auth()->user()->role instanceof \App\Enums\UserRole ? auth()->user()->role->label() : auth()->user()->role }}
+                 </span>
              </div>
              <div style="width:36px; height:36px; background:#e0e7ff; color:#1e4a8d; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">
                  {{ substr(auth()->user()->name, 0, 1) }}

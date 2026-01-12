@@ -135,6 +135,7 @@ class HREmployeeController extends Controller
             'position',
             'profile.pt',
             'documents.creator',
+            'directSupervisor' // [BARU] Load relasi atasan
         ]);
 
         $profile = $employee->profile;
@@ -196,11 +197,33 @@ class HREmployeeController extends Controller
         $roles = UserRole::cases();
         $ptOptions = Pt::orderBy('name')->get();
 
+        // [BARU] Ambil daftar user yang layak jadi atasan (SPV/Manager/HRD)
+        // FILTER: Kecualikan jabatan yang mengandung kata "Staff" jika Role-nya HRD
+        $supervisors = User::with('position')
+            ->where(function ($query) {
+                // 1. Ambil semua SPV dan MANAGER (pasti masuk)
+                $query->whereIn('role', [
+                    UserRole::SUPERVISOR,
+                    UserRole::MANAGER
+                ])
+                // 2. ATAU Role HRD, TAPI filter jabatan
+                ->orWhere(function ($q) {
+                    $q->where('role', UserRole::HRD)
+                      ->whereHas('position', function ($posQuery) {
+                          // Filter yang jabatannya TIDAK mengandung kata 'Staff'
+                          $posQuery->where('name', 'NOT LIKE', '%Staff%');
+                      });
+                });
+            })
+            ->orderBy('name')
+            ->get();
+
         return view('hr.employees.create', [
             'divisions' => $divisions,
             'positions' => $positions,
             'roles' => $roles,
             'ptOptions' => $ptOptions,
+            'supervisors' => $supervisors, // Kirim ke view
         ]);
     }
 
@@ -213,6 +236,7 @@ class HREmployeeController extends Controller
             'username' => ['nullable', 'string', 'max:255', 'unique:users,username'],
             'phone' => ['required', 'string', 'max:255'],
             'role' => ['required', Rule::in($roleValues)],
+            'direct_supervisor_id' => ['nullable', 'exists:users,id'], // [BARU] Validasi atasan
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'pt_id' => ['nullable', 'exists:pts,id'],
@@ -255,6 +279,7 @@ class HREmployeeController extends Controller
                 'username',
                 'phone',
                 'role',
+                'direct_supervisor_id', // [BARU] Simpan ID Atasan
                 'division_id',
                 'position_id',
                 'email',
@@ -270,6 +295,7 @@ class HREmployeeController extends Controller
                 'username',
                 'phone',
                 'role',
+                'direct_supervisor_id', // [BARU] Exclude dari profile
                 'division_id',
                 'position_id',
                 'path_kartu_keluarga',
@@ -321,12 +347,34 @@ class HREmployeeController extends Controller
         $roles = UserRole::cases();
         $ptOptions = Pt::orderBy('name')->get();
 
+        // [BARU] Ambil daftar calon atasan (kecuali diri sendiri)
+        // FILTER: Kecualikan 'Staff HRD'
+        $supervisors = User::with('position')
+            ->where('id', '!=', $employee->id) // Jangan pilih diri sendiri
+            ->where(function ($query) {
+                // 1. Ambil SPV & Manager
+                $query->whereIn('role', [
+                    UserRole::SUPERVISOR,
+                    UserRole::MANAGER
+                ])
+                // 2. ATAU HRD tapi bukan 'Staff'
+                ->orWhere(function ($q) {
+                    $q->where('role', UserRole::HRD)
+                      ->whereHas('position', function ($posQuery) {
+                          $posQuery->where('name', 'NOT LIKE', '%Staff%');
+                      });
+                });
+            })
+            ->orderBy('name')
+            ->get();
+
         return view('hr.employees.edit', [
             'item' => $employee,
             'divisions' => $divisions,
             'positions' => $positions,
             'roles' => $roles,
             'ptOptions' => $ptOptions,
+            'supervisors' => $supervisors, // Kirim ke view
         ]);
     }
 
@@ -339,6 +387,7 @@ class HREmployeeController extends Controller
             'username' => ['nullable', 'string', 'max:255', Rule::unique('users', 'username')->ignore($employee->id)],
             'phone' => ['required', 'string', 'max:255'],
             'role' => ['required', Rule::in($roleValues)],
+            'direct_supervisor_id' => ['nullable', 'exists:users,id'], // [BARU] Validasi atasan
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'pt_id' => ['nullable', 'exists:pts,id'],
@@ -381,6 +430,7 @@ class HREmployeeController extends Controller
                 'username',
                 'phone',
                 'role',
+                'direct_supervisor_id', // [BARU] Update ID Atasan
                 'division_id',
                 'position_id',
                 'email',
@@ -393,6 +443,7 @@ class HREmployeeController extends Controller
                 'username',
                 'phone',
                 'role',
+                'direct_supervisor_id', // [BARU] Exclude dari profile
                 'division_id',
                 'position_id',
                 'path_kartu_keluarga',

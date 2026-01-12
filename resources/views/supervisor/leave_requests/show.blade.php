@@ -157,6 +157,7 @@
         </div>
     </x-modal>
 
+    {{-- MODAL REJECT (TOLAK) --}}
     <x-modal
         id="modal-reject"
         title="Tolak Pengajuan?"
@@ -174,6 +175,8 @@
         </p>
     </x-modal>
 
+    {{-- MODAL APPROVE (SETUJUI) --}}
+    {{-- PERBAIKAN: Mengganti .ack menjadi .approve --}}
     <x-modal
         id="modal-approve"
         title="Setujui Pengajuan?"
@@ -181,7 +184,7 @@
         variant="primary"
         confirmLabel="Ya, Setujui"
         cancelLabel="Batal"
-        :confirmFormAction="route('supervisor.leave.ack', $item->id)"
+        :confirmFormAction="route('supervisor.leave.approve', $item->id)"
         confirmFormMethod="POST">
         <p style="margin:0; color:#374151;">
             Anda akan menyetujui pengajuan izin ini.

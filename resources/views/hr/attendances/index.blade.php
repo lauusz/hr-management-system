@@ -67,7 +67,8 @@
                         <th>Check Out</th>
                         <th>Terlambat</th>
                         <th>Status</th>
-                        <th class="text-center">Foto</th>
+                        <th class="text-center">Foto In</th>
+                        <th class="text-center">Foto Out</th>
                         <th class="text-center">Lokasi</th>
                     </tr>
                 </thead>
@@ -142,34 +143,36 @@
                             @endif
                         </td>
 
+                        {{-- PERUBAHAN: Kolom Khusus Foto In --}}
                         <td class="text-center">
-                            <div class="btn-group-pill">
-                                @if($at->clock_in_photo)
-                                <button type="button"
-                                    class="btn-pill btn-blue"
-                                    data-photo-url="{{ asset('storage/'.$at->clock_in_photo) }}"
-                                    data-employee-name="{{ $at->user->name }}"
-                                    data-datetime="{{ $at->clock_in_at ? $at->clock_in_at->format('d/m/Y H:i') : '' }}"
-                                    data-label="Clock-in">
-                                    In
-                                </button>
-                                @endif
+                            @if($at->clock_in_photo)
+                            <button type="button"
+                                class="btn-pill btn-blue"
+                                data-photo-url="{{ asset('storage/'.$at->clock_in_photo) }}"
+                                data-employee-name="{{ $at->user->name }}"
+                                data-datetime="{{ $at->clock_in_at ? $at->clock_in_at->format('d/m/Y H:i') : '' }}"
+                                data-label="Clock-in">
+                                Lihat
+                            </button>
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
+                        </td>
 
-                                @if($at->clock_out_photo)
-                                <button type="button"
-                                    class="btn-pill btn-blue"
-                                    data-photo-url="{{ asset('storage/'.$at->clock_out_photo) }}"
-                                    data-employee-name="{{ $at->user->name }}"
-                                    data-datetime="{{ $at->clock_out_at ? $at->clock_out_at->format('d/m/Y H:i') : '' }}"
-                                    data-label="Clock-out">
-                                    Out
-                                </button>
-                                @endif
-                                
-                                @if(!$at->clock_in_photo && !$at->clock_out_photo)
-                                    <span class="text-muted">-</span>
-                                @endif
-                            </div>
+                        {{-- PERUBAHAN: Kolom Khusus Foto Out --}}
+                        <td class="text-center">
+                            @if($at->clock_out_photo)
+                            <button type="button"
+                                class="btn-pill btn-blue"
+                                data-photo-url="{{ asset('storage/'.$at->clock_out_photo) }}"
+                                data-employee-name="{{ $at->user->name }}"
+                                data-datetime="{{ $at->clock_out_at ? $at->clock_out_at->format('d/m/Y H:i') : '' }}"
+                                data-label="Clock-out">
+                                Lihat
+                            </button>
+                            @else
+                                <span class="text-muted">-</span>
+                            @endif
                         </td>
 
                         <td class="text-center">
@@ -198,7 +201,8 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="9" class="empty-state">
+                        {{-- Jangan lupa update colspan karena nambah 1 kolom --}}
+                        <td colspan="10" class="empty-state">
                             Tidak ada data absensi yang ditemukan.
                         </td>
                     </tr>

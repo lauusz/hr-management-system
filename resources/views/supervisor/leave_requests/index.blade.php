@@ -41,11 +41,10 @@ use App\Enums\LeaveType;
         <tbody>
           @forelse($leaves as $lv)
             @php
-                // Logic Warna Badge Jenis (Opsional: sesuaikan dengan Enum/Value di sistem Anda)
+                // Logic Warna Badge Jenis
                 $type = $lv->type;
                 $badgeClass = 'badge-gray';
                 
-                // Contoh logika warna sederhana berdasarkan string/enum
                 if ($type === 'CUTI_TAHUNAN' || $type === 'CUTI') {
                     $badgeClass = 'badge-blue';
                 } elseif ($type === 'SAKIT') {
@@ -59,9 +58,10 @@ use App\Enums\LeaveType;
 
             <tr>
                 <td>
-                    <div class="user-info">
+                    {{-- PERBAIKAN: Mengganti class "user-info" menjadi "employee-info" agar tidak bentrok dengan navbar --}}
+                    <div class="employee-info">
                         <span class="fw-bold">{{ $lv->user->name ?? '—' }}</span>
-                        </div>
+                    </div>
                 </td>
 
                 <td>
@@ -114,6 +114,12 @@ use App\Enums\LeaveType;
     .text-right { text-align: right; }
     .text-date { font-weight: 500; color: #1f2937; font-size: 13.5px; }
     
+    /* Class baru pengganti user-info */
+    .employee-info {
+        display: flex;
+        flex-direction: column;
+    }
+
     .text-truncate {
         max-width: 300px;
         white-space: nowrap;
