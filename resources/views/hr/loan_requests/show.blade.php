@@ -17,7 +17,6 @@
     {{-- Header Page --}}
     <div class="page-header">
         <div>
-            <h1 class="page-title">Detail Pengajuan Hutang</h1>
             <p class="page-subtitle">Kelola pengajuan, persetujuan, dan pencatatan cicilan karyawan.</p>
         </div>
         <a href="{{ route('hr.loan_requests.index') }}" class="btn-back">

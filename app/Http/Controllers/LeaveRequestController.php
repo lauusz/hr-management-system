@@ -7,7 +7,7 @@ use App\Enums\UserRole;
 use App\Models\LeaveRequest;
 use App\Models\EmployeeShift;
 use App\Models\ShiftDay;
-use App\Services\Image\ImageCompressor; // Service Image yang baru
+use App\Services\Image\ImageCompressor;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -128,6 +128,7 @@ class LeaveRequestController extends Controller
 
     public function store(Request $request)
     {
+        // 1. Validasi Input (Termasuk supervisor_id dari dropdown)
         $validated = $request->validate([
             'type'       => ['required', Rule::in(LeaveType::values())],
             'start_date' => ['required', 'date'],
@@ -135,12 +136,13 @@ class LeaveRequestController extends Controller
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time'   => ['nullable', 'date_format:H:i'],
             'reason'     => ['required', 'string'],
-            // Limit 8MB agar user bisa upload foto HD, nanti server yang resize
             'photo'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
             'latitude'   => ['nullable', 'numeric', 'between:-90,90'],
             'longitude'  => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy_m' => ['nullable', 'numeric', 'min:0', 'max:5000'],
             'location_captured_at' => ['nullable', 'date'],
+            // Validasi dropdown atasan (Boleh null jika pilih langsung HRD)
+            'supervisor_id' => ['nullable', 'exists:users,id'], 
         ]);
 
         $user = Auth::user();
@@ -266,41 +268,42 @@ class LeaveRequestController extends Controller
             }
         }
 
-        // --- UPLOAD FOTO (UPDATED) ---
+        // --- UPLOAD FOTO ---
         $photoBasename = null;
         if ($request->hasFile('photo')) {
-            // Kita gunakan mode 'photo' (Resize 1280px) untuk semua bukti izin/sakit.
-            // ImageCompressor otomatis skip resize jika file adalah PDF/Dokumen.
             $fullPath = $this->imageCompressor->compressAndStore(
                 $request->file('photo'), 
                 'photo', 
                 'leave_photos', 
                 'leave_'
             );
-            
-            // Ambil basename saja (contoh: 'leave_abc.jpg') karena logic database kamu hanya simpan nama file
             $photoBasename = basename($fullPath);
         }
 
         // =========================================================
-        // LOGIKA APPROVAL BERJENJANG
+        // [LOGIC STATUS & BYPASS HRD]
         // =========================================================
         
-        if (!$user->relationLoaded('division')) {
-            $user->load('division');
-        }
-        
-        $divisionSupervisorId = $user->division ? $user->division->supervisor_id : null;
-        $isSupervisorSelf = ($divisionSupervisorId === $userId);
+        $selectedSupervisorId = $request->input('supervisor_id');
+        $initialStatus = LeaveRequest::PENDING_HR; // Default Safe Fallback
 
+        // 1. Jika User adalah SPV/Manager/HRD -> Biasanya bypass supervisor
         if (in_array($user->role, [UserRole::SUPERVISOR, UserRole::MANAGER, UserRole::HRD])) {
             $initialStatus = LeaveRequest::PENDING_HR;
-        } elseif ($user->direct_supervisor_id) {
+        }
+        // 2. Jika User MEMILIH atasan di dropdown
+        elseif (!empty($selectedSupervisorId)) {
             $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
-        } elseif ($divisionSupervisorId && !$isSupervisorSelf) {
-            $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
-        } else {
+            
+            // UPDATE user supervisor_id agar ApprovalController (Gharin) bisa melihat data ini.
+            // Tanpa update ini, query "where('supervisor_id', $me->id)" di controller lain akan gagal.
+            $user->update(['direct_supervisor_id' => $selectedSupervisorId]);
+        }
+        // 3. Jika User MEMILIH "Langsung ke HRD" (Empty dropdown)
+        else {
             $initialStatus = LeaveRequest::PENDING_HR;
+            // Tidak perlu update user, biarkan statusnya PENDING_HR 
+            // sehingga masuk ke dashboard HRLeaveController, bukan ApprovalController
         }
 
         LeaveRequest::create([
@@ -312,7 +315,7 @@ class LeaveRequestController extends Controller
             'end_time'   => $isIzinTengahKerja ? $rawEndTime : null,
             'reason'     => $validated['reason'],
             'photo'      => $photoBasename,
-            'status'     => $initialStatus,
+            'status'     => $initialStatus, // Status dinamis
             'notes'      => $notes,
             'latitude'   => $validated['latitude'] ?? null,
             'longitude'  => $validated['longitude'] ?? null,
@@ -386,13 +389,12 @@ class LeaveRequestController extends Controller
             $validated['end_time'] = null;
         }
 
-        // Update photo (UPDATED)
+        // Update photo
         if ($request->hasFile('photo')) {
             if ($leaveRequest->photo) {
                 Storage::disk('public')->delete('leave_photos/' . $leaveRequest->photo);
             }
             
-            // Menggunakan ImageCompressor baru
             $fullPath = $this->imageCompressor->compressAndStore(
                 $request->file('photo'), 
                 'photo', 

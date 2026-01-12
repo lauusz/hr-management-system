@@ -13,8 +13,10 @@ use Illuminate\Support\Facades\Auth;
 class HrLeaveController extends Controller
 {
     /**
-     * Menampilkan daftar pengajuan yang statusnya PENDING_HR (Global)
-     * ATAU PENDING_SUPERVISOR (Khusus anak buah langsung si User Login).
+     * Menampilkan daftar pengajuan yang statusnya:
+     * 1. PENDING_HR (Tugas Utama HR)
+     * 2. PENDING_SUPERVISOR tapi user-nya bawahan saya (Saya merangkap SPV)
+     * 3. PENDING_SUPERVISOR tapi user-nya TIDAK PUNYA SPV (Orphan/Bypass)
      */
     public function index()
     {
@@ -29,26 +31,33 @@ class HrLeaveController extends Controller
                 'user.profile.pt' 
             ])
             ->where(function ($query) use ($userId) {
-                // 1. Ambil yang statusnya PENDING_HR (Tugas HR Manager Global)
+                // 1. Ambil yang statusnya PENDING_HR (Tugas Global HR Manager)
                 $query->where('status', LeaveRequest::PENDING_HR)
                 
-                // 2. ATAU Ambil yang statusnya PENDING_SUPERVISOR, 
-                //    TAPI KHUSUS untuk bawahan langsung dari user yang sedang login (Rida)
+                // 2. ATAU Ambil yang statusnya PENDING_SUPERVISOR...
                 ->orWhere(function ($subQuery) use ($userId) {
                     $subQuery->where('status', LeaveRequest::PENDING_SUPERVISOR)
-                             ->whereHas('user', function ($u) use ($userId) {
-                                 $u->where('direct_supervisor_id', $userId);
-                             });
+                        ->where(function ($q) use ($userId) {
+                            // A. ...Dimana Saya adalah Supervisor-nya
+                            $q->whereHas('user', function ($u) use ($userId) {
+                                $u->where('direct_supervisor_id', $userId);
+                            })
+                            // B. ...ATAU User tersebut TIDAK PUNYA Supervisor (Orphan Data)
+                            // Ini menangani kasus Renaldy yang "Langsung ke HRD" tapi statusnya "Menunggu Atasan"
+                            ->orWhereHas('user', function ($u) {
+                                $u->whereNull('direct_supervisor_id');
+                            });
+                        });
                 });
             })
-            ->orderByDesc('id')
+            ->orderByDesc('created_at') // Disarankan created_at agar urutan waktu lebih jelas
             ->paginate(100);
 
         return view('hr.leave_requests.index', compact('leaves'));
     }
 
     /**
-     * Halaman Master / Riwayat Pengajuan
+     * Halaman Master / Riwayat Pengajuan (Semua Data)
      */
     public function master(Request $request)
     {
@@ -149,21 +158,29 @@ class HrLeaveController extends Controller
         // Load relasi yang diperlukan
         $leave->load(['user.profile.pt', 'user.division', 'user.position', 'approver']);
 
-        // [LOGIC BARU] Menentukan apakah tombol Approve/Reject harus muncul
+        // [LOGIC TOMBOL APPROVE]
         $canApprove = false;
+        $userId = Auth::id();
 
         // 1. Boleh jika status PENDING_HR (Rida sebagai HR Manager)
         if ($leave->status === LeaveRequest::PENDING_HR) {
             $canApprove = true;
         }
-        // 2. Boleh jika status PENDING_SUPERVISOR DAN Rida adalah Supervisor langsungnya
-        elseif ($leave->status === LeaveRequest::PENDING_SUPERVISOR && $leave->user->direct_supervisor_id === Auth::id()) {
-            $canApprove = true;
+        // 2. Boleh jika status PENDING_SUPERVISOR...
+        elseif ($leave->status === LeaveRequest::PENDING_SUPERVISOR) {
+            // ...DAN Rida adalah Supervisor langsungnya
+            if ($leave->user->direct_supervisor_id === $userId) {
+                $canApprove = true;
+            }
+            // ...ATAU Karyawan ini TIDAK PUNYA Supervisor (Langsung HRD)
+            elseif (empty($leave->user->direct_supervisor_id)) {
+                $canApprove = true;
+            }
         }
 
         return view('hr.leave_requests.show', [
             'item' => $leave,
-            'canApprove' => $canApprove, // Kita kirim variabel ini ke View
+            'canApprove' => $canApprove,
         ]);
     }
 
@@ -171,12 +188,14 @@ class HrLeaveController extends Controller
     {
         $this->authorizeAccess();
 
+        // Pastikan status valid
         $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
-        
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk disetujui.');
 
+        // HRD pun tidak boleh approve diri sendiri (idealnya)
         if ($leave->user_id === auth()->id()) {
-            return back()->with('error', 'Anda tidak dapat menyetujui pengajuan Anda sendiri.');
+            // Kecuali mau di-bypass, tapi standardnya blocked
+             return back()->with('error', 'Anda tidak dapat menyetujui pengajuan Anda sendiri.');
         }
 
         $leave->update([
@@ -193,11 +212,10 @@ class HrLeaveController extends Controller
         $this->authorizeAccess();
 
         $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
-
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk ditolak.');
 
         if ($leave->user_id === auth()->id()) {
-            return back()->with('error', 'Anda tidak dapat menolak pengajuan Anda sendiri.');
+             return back()->with('error', 'Anda tidak dapat menolak pengajuan Anda sendiri.');
         }
 
         $leave->update([
@@ -213,8 +231,13 @@ class HrLeaveController extends Controller
     {
         $user = auth()->user();
         
-        if (!$user || !$user->isHR()) {
-            abort(403, 'Akses khusus HRD');
+        // Pastikan User punya Role HRD / HR STAFF / MANAGER HR
+        // Sesuaikan method isHR() dengan logic Role di aplikasimu
+        if (!$user || !method_exists($user, 'isHR') || !$user->isHR()) {
+            // Fallback check manual role jika method isHR tidak ada
+            if (!in_array($user->role, ['HRD', 'HR STAFF', 'MANAGER HR'])) {
+                 abort(403, 'Akses khusus HRD');
+            }
         }
     }
 }
