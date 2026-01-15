@@ -1,6 +1,7 @@
 <x-app title="Edit Karyawan">
 
     <div class="main-container">
+        {{-- Error Alert --}}
         @if ($errors->any())
         <div class="alert-error">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -40,6 +41,7 @@
                 $profile = $item->profile;
                 @endphp
 
+                {{-- SECTION 1: AKUN & AKSES --}}
                 <div class="form-section-title">Data Akun & Akses</div>
                 <div class="form-grid">
                     <div class="form-group full-width">
@@ -62,7 +64,6 @@
                         <select id="role" name="role" class="form-control" required>
                             <option value="">Pilih Role</option>
                             @foreach ($roles as $role)
-                            {{-- Kita ambil ->value jika $item->role adalah Enum, atau pakai langsung jika string --}}
                             @php
                             $currentRole = old('role', $item->role);
                             $currentRoleValue = $currentRole instanceof \UnitEnum ? $currentRole->value : $currentRole;
@@ -83,18 +84,36 @@
                         </select>
                     </div>
 
-                    {{-- [BARU] DROPDOWN PILIH ATASAN LANGSUNG --}}
+                    {{-- [BARU] FIELD MANAGER (APPROVER) --}}
                     <div class="form-group">
-                        <label for="direct_supervisor_id">Atasan Langsung (Approval)</label>
+                        <label for="manager_id" style="color:#1e4a8d; font-weight:600;">Manager (Approver / Penyetuju)</label>
+                        <select id="manager_id" name="manager_id" class="form-control">
+                            <option value="">-- Tidak Ada / Langsung HRD --</option>
+                            {{-- Pastikan Controller mengirim variabel $managers --}}
+                            @if(isset($managers))
+                                @foreach($managers as $mgr)
+                                <option value="{{ $mgr->id }}" @selected(old('manager_id', $item->manager_id) == $mgr->id)>
+                                    {{ $mgr->name }} ({{ $mgr->position->name ?? 'Manager' }})
+                                </option>
+                                @endforeach
+                            @endif
+                        </select>
+                        <small class="helper-text">User ini yang berhak melakukan <b>Approve/Reject</b> cuti.</small>
+                    </div>
+
+                    {{-- [MODIFIKASI] FIELD SUPERVISOR (OBSERVER) --}}
+                    <div class="form-group">
+                        <label for="direct_supervisor_id">Supervisor (Observer)</label>
                         <select id="direct_supervisor_id" name="direct_supervisor_id" class="form-control">
-                            <option value="">-- Langsung ke HRD (Default) --</option>
+                            <option value="">-- Tidak Ada --</option>
+                            {{-- Pastikan Controller mengirim variabel $supervisors --}}
                             @foreach($supervisors as $spv)
                             <option value="{{ $spv->id }}" @selected(old('direct_supervisor_id', $item->direct_supervisor_id) == $spv->id)>
                                 {{ $spv->name }} - {{ $spv->position->name ?? $spv->role->value }}
                             </option>
                             @endforeach
                         </select>
-                        <small class="helper-text">Jika dipilih, izin karyawan akan masuk ke orang ini dulu.</small>
+                        <small class="helper-text">Hanya menerima notifikasi "Mengetahui" (CC), tidak melakukan approval.</small>
                     </div>
 
                     @isset($shifts)
@@ -129,6 +148,7 @@
 
                 <div class="section-divider"></div>
 
+                {{-- SECTION 2: INFO KARYAWAN --}}
                 <div class="form-section-title">Informasi Karyawan</div>
                 <div class="form-grid">
                     <div class="form-group">
@@ -206,6 +226,7 @@
 
                 <div class="section-divider"></div>
 
+                {{-- SECTION 3: DOMISILI --}}
                 <div class="form-section-title">Alamat Domisili</div>
                 <div class="form-grid">
                     <div class="form-group full-width">
@@ -241,6 +262,7 @@
 
                 <div class="section-divider"></div>
 
+                {{-- SECTION 4: KEUANGAN & DOKUMEN --}}
                 <div class="form-section-title">Keuangan, Pajak & Dokumen</div>
                 <div class="form-grid">
                     <div class="form-group">
@@ -313,6 +335,7 @@
 
                 <div class="section-divider"></div>
 
+                {{-- SECTION 5: MASA KERJA --}}
                 <div class="form-section-title">Masa Kerja</div>
                 <div class="form-grid">
                     <div class="form-group full-width">
@@ -329,6 +352,7 @@
                     </div>
                 </div>
 
+                {{-- ACTIONS --}}
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" onclick="window.location='{{ route('hr.employees.index') }}'">Batal</button>
                     <button type="submit" class="btn-primary">Update Data Karyawan</button>
@@ -338,6 +362,7 @@
         </div>
     </div>
 
+    {{-- SCRIPT --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var openButtons = document.querySelectorAll('[data-modal-open]');
@@ -362,6 +387,7 @@
         });
     </script>
 
+    {{-- STYLES --}}
     <style>
         /* Container */
         .main-container {

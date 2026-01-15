@@ -135,22 +135,25 @@ Route::middleware('auth')->group(function () {
         Route::delete('/hr/pts/{pt}', [PtController::class, 'destroy'])->name('hr.pts.destroy');
     });
 
-    // --- ROUTE KHUSUS VIEW SUPERVISOR (UPDATED) ---
-    // Sekarang route approve dan reject SUDAH didefinisikan disini.
+    // --- ROUTE KHUSUS VIEW SUPERVISOR (OLD - BISA DIHAPUS JIKA SUDAH MIGRASI KE BAWAH) ---
     Route::middleware('role:SUPERVISOR')->prefix('supervisor')->name('supervisor.')->group(function () {
         Route::get('/leave-requests', [ApprovalController::class, 'index'])->name('leave.index');
         Route::get('/leave-requests/{leave}', [ApprovalController::class, 'show'])->name('leave.show');
         
-        // Penambahan Route:
         Route::post('/leave-requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('leave.approve');
         Route::post('/leave-requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('leave.reject');
     });
 
     // --- ROUTE APPROVAL (MANAGER & SUPERVISOR UMUM) ---
     Route::middleware('role:SUPERVISOR,MANAGER')->group(function () {
+        // Inbox Approval (Yang harus diproses)
         Route::get('/approval/requests', [ApprovalController::class, 'index'])->name('approval.index');
-        Route::get('/approval/requests/{leave}', [ApprovalController::class, 'show'])->name('approval.show');
+        
+        // [BARU] Master Data Cuti Bawahan (Rekap Semua Status)
+        Route::get('/supervisor/leave/master', [ApprovalController::class, 'master'])->name('supervisor.leave.master');
 
+        // Detail & Action
+        Route::get('/approval/requests/{leave}', [ApprovalController::class, 'show'])->name('approval.show');
         Route::post('/approval/requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
         Route::post('/approval/requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
     });

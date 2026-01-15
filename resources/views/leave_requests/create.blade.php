@@ -58,13 +58,13 @@
 
             <input type="hidden" id="shift_end_time" value="{{ $shiftEndDisplay }}">
 
+            {{-- 1. JENIS PENGAJUAN --}}
             <div class="form-group">
                 <label class="section-label">Jenis Pengajuan <span class="req">*</span></label>
                 <div class="radio-group-container">
                     @php
                         $user = auth()->user();
                         
-                        // FIX: Ambil value dari Enum jika role berupa object, atau string jika biasa
                         $roleValue = $user->role instanceof \App\Enums\UserRole 
                             ? $user->role->value 
                             : $user->role;
@@ -105,6 +105,7 @@
                 @error('type') <div class="error-msg">{{ $message }}</div> @enderror
             </div>
 
+            {{-- 2. PERIODE --}}
             <div class="form-group">
                 <label for="date_range">Periode Izin <span class="req">*</span></label>
                 <input
@@ -136,8 +137,9 @@
                 @error('end_date') <div class="error-msg">{{ $message }}</div> @enderror
             </div>
 
+            {{-- 3. INPUT JAM (Reused: Tengah Kerja / Pulang Awal / Izin Telat) --}}
             <div class="form-group" id="worktime-field" style="display:none;">
-                <label id="worktime-label">Jam Izin Tengah Kerja</label>
+                <label id="worktime-label">Jam Izin</label>
                 <div class="time-range-wrapper">
                     <div class="time-input-box">
                         <input
@@ -162,6 +164,41 @@
                 @error('end_time') <div class="error-msg">{{ $message }}</div> @enderror
             </div>
 
+            {{-- 4. INFO PIC PENGGANTI (Untuk Cuti/Sakit) --}}
+            <div id="substitute-pic-section" style="display:none; padding: 16px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; margin-bottom: 20px;">
+                <p style="margin-top:0; margin-bottom:12px; font-size:14px; font-weight:600; color:#1e4a8d;">
+                    Informasi Pendelegasian Tugas
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="substitute_pic">Nama PIC Pengganti <span class="req">*</span></label>
+                        <input 
+                            type="text" 
+                            name="substitute_pic" 
+                            id="substitute_pic" 
+                            class="form-control" 
+                            placeholder="Nama rekan pengganti"
+                            value="{{ old('substitute_pic') }}">
+                         @error('substitute_pic') <div class="error-msg">{{ $message }}</div> @enderror
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="substitute_phone">Nomor HP PIC <span class="req">*</span></label>
+                        <input 
+                            type="text" 
+                            name="substitute_phone" 
+                            id="substitute_phone" 
+                            class="form-control" 
+                            placeholder="Contoh: 0812..."
+                            value="{{ old('substitute_phone') }}">
+                        @error('substitute_phone') <div class="error-msg">{{ $message }}</div> @enderror
+                    </div>
+                </div>
+                <small class="helper-text" style="display:block; margin-top:8px;">
+                    Wajib diisi untuk keperluan koordinasi selama Anda tidak ada di tempat.
+                </small>
+            </div>
+
+            {{-- 5. LOKASI (Hidden Field - Khusus Telat) --}}
             <div id="location" style="display:none;">
                 <input type="hidden" name="latitude" id="latitude">
                 <input type="hidden" name="longitude" id="longitude">
@@ -169,8 +206,10 @@
                 <input type="hidden" name="location_captured_at" id="location_captured_at">
             </div>
 
+            {{-- 6. UPLOAD BUKTI --}}
             <div class="form-group">
-                <label for="photoInput">Bukti Pendukung</label>
+                {{-- [ADJUSTMENT] Tambah ID dan style display:none pada span bintang --}}
+                <label for="photoInput">Bukti Pendukung <span id="photo-req-indicator" class="req" style="display:none">*</span></label>
                 <div class="file-input-wrapper">
                     <input
                         type="file"
@@ -191,6 +230,7 @@
                 </div>
             </div>
 
+            {{-- 7. ALASAN --}}
             <div class="form-group">
                 <label for="reason">Alasan / Keterangan <span class="req">*</span></label>
                 <textarea 
@@ -208,7 +248,6 @@
             </div>
         </form>
     </div>
-
     <style>
         /* Base Utils */
         .req { color: #dc2626; font-weight: bold; margin-left: 2px; }
@@ -277,8 +316,6 @@
             accent-color: #1e4a8d; width: 16px; height: 16px; margin: 0; cursor: pointer;
         }
         .radio-label { font-size: 13.5px; color: #374151; font-weight: 500; line-height: 1.3; }
-        /* Highlight selected radio card logic is handled by browser focus/accent, but we can add :has if needed, 
-           keeping it simple for broad support */
 
         /* Time Range Inputs */
         .time-range-wrapper { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -304,27 +341,42 @@
             .card-header { flex-direction: column; gap: 12px; }
             .btn-back { align-self: flex-start; }
             .form-content { padding: 16px; }
-            .radio-group-container { grid-template-columns: 1fr; } /* Stack radios on small screens */
+            .radio-group-container { grid-template-columns: 1fr; }
             .time-range-wrapper { gap: 8px; }
-            .separator { display: none !important; } /* Hide 's/d' text on mobile, inputs stack */
+            .separator { display: none !important; }
             .time-input-box { width: 100%; flex: none; }
             .form-actions .btn-primary { width: 100%; }
+            /* PIC Section Mobile */
+            #substitute-pic-section > div { grid-template-columns: 1fr !important; }
         }
     </style>
 
     <script>
         (function() {
             const typeRadios = document.querySelectorAll('input[name="type"]');
+            
+            // Definisikan ENUM dari Backend ke JS
             const IZIN_TELAT = @json(\App\Enums\LeaveType::IZIN_TELAT->value);
             const IZIN_TENGAH_KERJA = @json(\App\Enums\LeaveType::IZIN_TENGAH_KERJA->value);
             const IZIN_PULANG_AWAL = @json(\App\Enums\LeaveType::IZIN_PULANG_AWAL->value);
+            
+            // Tambahan untuk PIC Pengganti
+            const CUTI = @json(\App\Enums\LeaveType::CUTI->value);
+            const CUTI_KHUSUS = @json(\App\Enums\LeaveType::CUTI_KHUSUS->value);
+            const SAKIT = @json(\App\Enums\LeaveType::SAKIT->value);
 
+            // Elemen Photo
+            const photoInput = document.getElementById('photoInput');
+            const photoReqIndicator = document.getElementById('photo-req-indicator');
+
+            // Elemen Lokasi
             const locationWrapper = document.getElementById('location');
             const latEl = document.getElementById('latitude');
             const lngEl = document.getElementById('longitude');
             const accEl = document.getElementById('accuracy_m');
             const tsEl = document.getElementById('location_captured_at');
 
+            // Elemen Jam Kerja
             const worktimeField = document.getElementById('worktime-field');
             const worktimeLabel = document.getElementById('worktime-label');
             const startTimeInput = document.getElementById('start_time_input');
@@ -333,6 +385,11 @@
             const worktimeSeparator = document.getElementById('worktime-separator');
             const pulangInfo = document.getElementById('pulang-info');
             const shiftEndInput = document.getElementById('shift_end_time');
+
+            // Elemen PIC Pengganti
+            const picSection = document.getElementById('substitute-pic-section');
+            const picNameInput = document.getElementById('substitute_pic');
+            const picPhoneInput = document.getElementById('substitute_phone');
 
             let isRequestingLocation = false;
 
@@ -384,16 +441,41 @@
             function toggleSection() {
                 const val = selectedType();
 
+                // 1. LOGIK LOKASI & FOTO (Khusus Izin Telat)
                 const isTelat = (val === IZIN_TELAT);
                 if (isTelat) {
                     requestLocationIfNeeded();
+                    
+                    // [ADJUSTMENT] Foto Wajib saat Telat
+                    if(photoInput) photoInput.required = true;
+                    if(photoReqIndicator) photoReqIndicator.style.display = 'inline';
                 } else {
                     clearLocationValues();
+                    
+                    // [ADJUSTMENT] Reset Foto tidak wajib
+                    if(photoInput) photoInput.required = false;
+                    if(photoReqIndicator) photoReqIndicator.style.display = 'none';
                 }
 
+                // 2. LOGIK PIC PENGGANTI (Khusus Cuti, Cuti Khusus, Sakit)
+                const needPic = (val === CUTI || val === CUTI_KHUSUS || val === SAKIT);
+                if (picSection) {
+                    if (needPic) {
+                        picSection.style.display = 'block';
+                        if(picNameInput) picNameInput.required = true;
+                        if(picPhoneInput) picPhoneInput.required = true;
+                    } else {
+                        picSection.style.display = 'none';
+                        if(picNameInput) picNameInput.required = false;
+                        if(picPhoneInput) picPhoneInput.required = false;
+                    }
+                }
+
+                // 3. LOGIK JAM KERJA & ESTIMASI TIBA
                 const isTengahKerja = (val === IZIN_TENGAH_KERJA);
                 const isPulangAwal = (val === IZIN_PULANG_AWAL);
-                const showWorktime = isTengahKerja || isPulangAwal;
+                // [UPDATE] Izin Telat sekarang juga menampilkan field jam
+                const showWorktime = isTengahKerja || isPulangAwal || isTelat;
 
                 if (worktimeField) {
                     worktimeField.style.display = showWorktime ? 'block' : 'none';
@@ -404,6 +486,7 @@
                 }
 
                 if (isTengahKerja) {
+                    // Kasus 1: Izin Tengah Kerja (Butuh Mulai & Selesai)
                     if (worktimeLabel) worktimeLabel.innerHTML = 'Jam Izin Tengah Kerja';
                     if (worktimeSeparator) worktimeSeparator.style.display = 'inline';
                     if (endTimeWrapper) endTimeWrapper.style.display = 'block';
@@ -415,7 +498,9 @@
                         pulangInfo.style.display = 'none';
                         pulangInfo.textContent = '';
                     }
+
                 } else if (isPulangAwal) {
+                    // Kasus 2: Pulang Awal (Butuh Jam Pulang Saja)
                     if (worktimeLabel) worktimeLabel.innerHTML = 'Jam Pulang';
                     if (worktimeSeparator) worktimeSeparator.style.display = 'none';
                     if (endTimeWrapper) endTimeWrapper.style.display = 'none';
@@ -437,11 +522,24 @@
                                 'Izin pulang awal maksimal 1 jam sebelum jam pulang shift.';
                         }
                     }
-                } else {
-                    if (worktimeLabel) worktimeLabel.innerHTML = 'Jam Izin Tengah Kerja';
-                    if (worktimeSeparator) worktimeSeparator.style.display = 'inline';
-                    if (endTimeWrapper) endTimeWrapper.style.display = 'block';
 
+                } else if (isTelat) {
+                    // [BARU] Kasus 3: Izin Telat (Butuh Estimasi Tiba Saja)
+                    if (worktimeLabel) worktimeLabel.innerHTML = 'Estimasi Jam Tiba';
+                    if (worktimeSeparator) worktimeSeparator.style.display = 'none';
+                    if (endTimeWrapper) endTimeWrapper.style.display = 'none';
+
+                    startTimeInput.required = true;
+                    endTimeInput.required = false;
+                    endTimeInput.value = '';
+
+                    if (pulangInfo) {
+                        pulangInfo.style.display = 'none';
+                        pulangInfo.textContent = '';
+                    }
+
+                } else {
+                    // Reset jika bukan tipe yang butuh jam
                     startTimeInput.required = false;
                     endTimeInput.required = false;
                     startTimeInput.value = '';
@@ -457,6 +555,7 @@
             typeRadios.forEach(function(r) {
                 r.addEventListener('change', toggleSection);
             });
+            // Jalankan sekali saat load page (handle old input)
             toggleSection();
         })();
     </script>

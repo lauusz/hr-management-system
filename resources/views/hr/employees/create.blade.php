@@ -35,6 +35,7 @@
             <form class="form-content" method="POST" action="{{ route('hr.employees.store') }}" enctype="multipart/form-data">
                 @csrf
 
+                {{-- SECTION 1: AKUN & AKSES --}}
                 <div class="form-section-title">Data Akun & Akses</div>
                 <div class="form-grid">
                     <div class="form-group full-width">
@@ -72,18 +73,35 @@
                         </select>
                     </div>
 
-                    {{-- [BARU] DROPDOWN PILIH ATASAN LANGSUNG --}}
+                    {{-- [BARU] 1. MANAGER (APPROVER) --}}
                     <div class="form-group">
-                        <label for="direct_supervisor_id">Atasan Langsung (Approval)</label>
+                        <label for="manager_id" style="color:#1e4a8d; font-weight:600;">Manager (Approver / Penyetuju)</label>
+                        <select id="manager_id" name="manager_id" class="form-control">
+                            <option value="">-- Tidak Ada / Langsung HRD --</option>
+                            {{-- Pastikan Controller mengirim variabel $managers --}}
+                            @if(isset($managers))
+                                @foreach($managers as $mgr)
+                                <option value="{{ $mgr->id }}" @selected(old('manager_id') == $mgr->id)>
+                                    {{ $mgr->name }} ({{ $mgr->position->name ?? 'Manager' }})
+                                </option>
+                                @endforeach
+                            @endif
+                        </select>
+                        <small class="helper-text">User ini yang berhak melakukan <b>Approve/Reject</b> cuti.</small>
+                    </div>
+
+                    {{-- [MODIFIKASI] 2. DIRECT SUPERVISOR (OBSERVER) --}}
+                    <div class="form-group">
+                        <label for="direct_supervisor_id">Supervisor (Observer)</label>
                         <select id="direct_supervisor_id" name="direct_supervisor_id" class="form-control">
-                            <option value="">-- Langsung ke HRD (Default) --</option>
+                            <option value="">-- Tidak Ada --</option>
                             @foreach($supervisors as $spv)
                                 <option value="{{ $spv->id }}" @selected(old('direct_supervisor_id') == $spv->id)>
                                     {{ $spv->name }} - {{ $spv->position->name ?? $spv->role->value }}
                                 </option>
                             @endforeach
                         </select>
-                        <small class="helper-text">Jika dipilih, izin karyawan akan masuk ke orang ini dulu.</small>
+                        <small class="helper-text">Hanya menerima notifikasi "Mengetahui" (CC), tidak melakukan approval.</small>
                     </div>
 
                     @isset($shifts)
@@ -118,6 +136,7 @@
 
                 <div class="section-divider"></div>
 
+                {{-- SECTION 2: INFO KARYAWAN --}}
                 <div class="form-section-title">Informasi Karyawan</div>
                 <div class="form-grid">
                     <div class="form-group">
@@ -195,6 +214,7 @@
 
                 <div class="section-divider"></div>
 
+                {{-- SECTION 3: DOMISILI --}}
                 <div class="form-section-title">Alamat Domisili</div>
                 <div class="form-grid">
                     <div class="form-group full-width">
@@ -230,6 +250,7 @@
 
                 <div class="section-divider"></div>
 
+                {{-- SECTION 4: KEUANGAN & DOKUMEN --}}
                 <div class="form-section-title">Keuangan, Pajak & Dokumen</div>
                 <div class="form-grid">
                     <div class="form-group">
@@ -277,6 +298,7 @@
 
                 <div class="section-divider"></div>
 
+                {{-- SECTION 5: MASA KERJA --}}
                 <div class="form-section-title">Masa Kerja</div>
                 <div class="form-grid">
                     <div class="form-group full-width">

@@ -29,22 +29,28 @@
             </div>
 
             @php
+                // [LOGIC STATUS KONSISTEN]
                 $status = $item->status;
                 $badgeClass = 'badge-gray';
+                $statusLabel = $item->status_label ?? $status; 
                 
                 if ($status === \App\Models\LeaveRequest::STATUS_APPROVED) {
                     $badgeClass = 'badge-green';
+                    $statusLabel = 'Disetujui HRD';
                 } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
                     $badgeClass = 'badge-red';
+                    $statusLabel = 'Ditolak';
                 } elseif ($status === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
                     $badgeClass = 'badge-yellow';
+                    $statusLabel = '⏳ Menunggu Persetujuan Atasan';
                 } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
-                    $badgeClass = 'badge-blue';
+                    $badgeClass = 'badge-teal';
+                    $statusLabel = '✅ Atasan Mengetahui';
                 }
             @endphp
             <div class="status-wrapper">
                 <span class="badge-status {{ $badgeClass }}">
-                    {{ $item->status_label ?? $status }}
+                    {{ $statusLabel }}
                 </span>
             </div>
         </div>
@@ -73,16 +79,44 @@
                     </div>
                 </div>
 
+                {{-- [LOGIC LABEL JAM - FIXED] --}}
                 @php
+                     // Normalisasi Type: Pastikan jadi string, baik dari Enum Object atau String biasa
+                     $typeValue = $item->type;
+                     if ($typeValue instanceof \App\Enums\LeaveType) {
+                         $typeValue = $typeValue->value;
+                     }
+                     // Fallback jika masih objek enum tapi bukan class yang kita duga (jarang terjadi)
+                     $typeValue = (string) $typeValue;
+
                      $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
-                     $endTimeLabel = $item->end_time ? $item->end_time->format('H:i') : null;
+                     $endTimeLabel   = $item->end_time ? $item->end_time->format('H:i') : null;
                 @endphp
 
-                @if($startTimeLabel && $endTimeLabel)
-                <div class="info-row">
-                    <div class="info-label">Jam Izin</div>
-                    <div class="info-value">{{ $startTimeLabel }} – {{ $endTimeLabel }}</div>
-                </div>
+                @if($startTimeLabel)
+                    <div class="info-row">
+                        <div class="info-label">
+                            @if($endTimeLabel)
+                                {{-- Jika ada jam selesai, berarti Range Waktu --}}
+                                Jam Izin
+                            @elseif($typeValue === 'IZIN_TELAT')
+                                {{-- Khusus Izin Telat --}}
+                                Estimasi Jam Tiba
+                            @elseif($typeValue === 'IZIN_PULANG_AWAL')
+                                {{-- Khusus Pulang Awal --}}
+                                Jam Pulang Awal
+                            @else
+                                {{-- Default --}}
+                                Jam Mulai
+                            @endif
+                        </div>
+                        <div class="info-value">
+                            {{ $startTimeLabel }}
+                            @if($endTimeLabel)
+                                – {{ $endTimeLabel }}
+                            @endif
+                        </div>
+                    </div>
                 @endif
 
                 @if($item->approved_by)
@@ -130,7 +164,8 @@
                             <div class="photo-preview js-view-photo" data-url="{{ $url }}">
                                 <img src="{{ $url }}" alt="Bukti Izin">
                                 <div class="overlay">
-                                    <span>Klik untuk memperbesar</span>
+                                    <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24" style="margin-bottom:4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    <span>Lihat Full Screen</span>
                                 </div>
                             </div>
                         @else
@@ -147,7 +182,7 @@
                     </div>
                     <div class="map-container">
                         <iframe
-                            src="https://maps.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed"
+                            src="https://www.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed"
                             loading="lazy"
                             allowfullscreen>
                         </iframe>
@@ -172,7 +207,6 @@
             </div>
 
             <div class="right-action">
-                {{-- Aksi Hapus (Membatalkan) untuk Pemilik --}}
                 @can('delete', $item)
                     <button type="button" data-modal-target="modal-delete" class="btn-modern btn-danger-outline">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -180,33 +214,32 @@
                     </button>
                 @endcan
 
-                {{-- Aksi Approval untuk Supervisor/HR --}}
-                @can('approve', $item)
-                    <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        Tolak
-                    </button>
-
-                    <button type="button" data-modal-target="modal-approve" class="btn-modern btn-approve">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Setujui
-                    </button>
-                @endcan
-
                 @if(!$item->is_pending && !auth()->user()->can('approve', $item))
                     <div class="processed-info">
-                        Status: <strong>{{ $item->status_label }}</strong>
+                        @if($item->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
+                             <span style="color:#ca8a04; font-weight:600;">⏳ Menunggu Persetujuan Atasan</span>
+                        @elseif($item->status == \App\Models\LeaveRequest::PENDING_HR)
+                             <span style="color:#0f766e; font-weight:600;">✅ Atasan Mengetahui (Menunggu Verifikasi HRD)</span>
+                        @elseif($item->status == \App\Models\LeaveRequest::STATUS_APPROVED)
+                             <span style="color:#166534; font-weight:600;">✅ Disetujui HRD</span>
+                        @elseif($item->status == \App\Models\LeaveRequest::STATUS_REJECTED)
+                             <span style="color:#991b1b; font-weight:600;">❌ Ditolak</span>
+                        @else
+                             Status: <strong>{{ $statusLabel }}</strong>
+                        @endif
                     </div>
                 @endif
             </div>
         </div>
     </div>
 
-    <x-modal id="photo-modal" title="Lampiran Foto" type="info" cancelLabel="Tutup">
-        <div style="display:flex; justify-content:center; background:#000; border-radius:8px; overflow:hidden;">
-            <img id="modal-img-preview" src="" style="max-width:100%; max-height:80vh; object-fit:contain;">
-        </div>
-    </x-modal>
+    {{-- [SIMPLE FULL SCREEN VIEWER] --}}
+    <div id="simple-viewer" class="simple-viewer-overlay" style="display: none;">
+        <button type="button" id="btn-close-simple" class="btn-close-simple">
+            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <img id="simple-viewer-img" src="" alt="Full Preview">
+    </div>
 
     @can('delete', $item)
     <x-modal
@@ -226,56 +259,92 @@
     </x-modal>
     @endcan
 
-    @can('approve', $item)
-    <x-modal
-        id="modal-reject"
-        title="Tolak Pengajuan?"
-        type="confirm"
-        confirmLabel="Tolak Pengajuan"
-        cancelLabel="Batal"
-        :confirmFormAction="route('leave-requests.reject', $item)"
-        confirmFormMethod="POST">
-        <p style="margin:0; color:#374151;">
-            Apakah Anda yakin ingin menolak pengajuan ini?
-        </p>
-    </x-modal>
-
-    <x-modal
-        id="modal-approve"
-        title="Setujui Pengajuan?"
-        type="confirm"
-        confirmLabel="Ya, Setujui"
-        cancelLabel="Batal"
-        :confirmFormAction="route('leave-requests.approve', $item)"
-        confirmFormMethod="POST">
-        <p style="margin:0; color:#374151;">
-            Apakah Anda yakin ingin menyetujui pengajuan ini?
-        </p>
-    </x-modal>
-    @endcan
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Logic Modal Foto
-            const modal = document.getElementById('photo-modal');
-            const modalImg = document.getElementById('modal-img-preview');
-            
+            const viewer = document.getElementById('simple-viewer');
+            const viewerImg = document.getElementById('simple-viewer-img');
+            const closeBtn = document.getElementById('btn-close-simple');
+
+            // Fungsi Buka Viewer
             document.querySelectorAll('.js-view-photo').forEach(el => {
                 el.addEventListener('click', () => {
                     const url = el.getAttribute('data-url');
-                    if(url && modal && modalImg) {
-                        modalImg.src = url;
-                        // Manual trigger jika x-modal tidak otomatis handle click diluar tombol
-                        if(modal.style.display === 'none' || modal.style.display === '') {
-                             // trigger modal open logic from x-modal component usually handles this via data-modal-target
-                        }
+                    if(url && viewer && viewerImg) {
+                        viewerImg.src = url;
+                        viewer.style.display = 'flex';
+                        document.body.style.overflow = 'hidden'; // Matikan scroll background
                     }
                 });
+            });
+
+            // Fungsi Tutup Viewer
+            function closeViewer() {
+                if (viewer) viewer.style.display = 'none';
+                if (viewerImg) viewerImg.src = '';
+                document.body.style.overflow = ''; // Nyalakan scroll background
+            }
+
+            if (closeBtn) closeBtn.addEventListener('click', closeViewer);
+
+            // Tutup jika klik area hitam (overlay)
+            if (viewer) {
+                viewer.addEventListener('click', (e) => {
+                    if (e.target === viewer) {
+                        closeViewer();
+                    }
+                });
+            }
+
+            // Tutup pakai tombol ESC
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && viewer.style.display === 'flex') {
+                    closeViewer();
+                }
             });
         });
     </script>
 
     <style>
+        /* --- SIMPLE FULL SCREEN VIEWER --- */
+        .simple-viewer-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-close-simple {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            z-index: 100000;
+        }
+        .btn-close-simple:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #simple-viewer-img {
+            max-width: 95vw;
+            max-height: 95vh;
+            object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
         /* --- ALERTS --- */
         .alert-success { background: #ecfdf5; color: #065f46; padding: 12px 16px; border-radius: 8px; border: 1px solid #a7f3d0; margin-bottom: 16px; font-size: 14px; }
         .alert-error { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px; font-size: 14px; }
@@ -319,11 +388,13 @@
         .badge-yellow { background: #fefce8; color: #a16207; border: 1px solid #fef08a; }
         .badge-blue { background: #eff6ff; color: #1d4ed8; }
         .badge-gray { background: #f3f4f6; color: #374151; }
+        /* Badge Teal */
+        .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
 
-        /* --- PHOTO PREVIEW --- */
+        /* --- PHOTO PREVIEW THUMBNAIL --- */
         .photo-preview { position: relative; width: 100%; max-width: 300px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; cursor: pointer; }
         .photo-preview img { width: 100%; height: auto; display: block; }
-        .photo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+        .photo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; flex-direction:column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
         .photo-preview:hover .overlay { opacity: 1; }
         .photo-preview .overlay span { color: #fff; font-size: 12px; font-weight: 600; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 20px; }
 
@@ -342,12 +413,6 @@
         
         .btn-back { background: #fff; border-color: #d1d5db; color: #374151; }
         .btn-back:hover { background: #f3f4f6; border-color: #9ca3af; color: #111827; }
-
-        .btn-approve { background: #1e4a8d; color: #fff; box-shadow: 0 2px 4px rgba(30, 74, 141, 0.2); }
-        .btn-approve:hover { background: #163a75; transform: translateY(-1px); box-shadow: 0 4px 6px rgba(30, 74, 141, 0.3); }
-
-        .btn-reject { background: #fff; border-color: #fee2e2; color: #dc2626; }
-        .btn-reject:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
 
         .btn-danger-outline { background: #fff; border-color: #fca5a5; color: #dc2626; }
         .btn-danger-outline:hover { background: #fef2f2; border-color: #dc2626; color: #b91c1c; }

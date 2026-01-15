@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\LeaveRequest;
 use App\Models\EmployeeShift;
 use App\Models\ShiftDay;
+use App\Models\User;
 use App\Services\Image\ImageCompressor;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -79,8 +80,9 @@ class LeaveRequestController extends Controller
     public function create()
     {
         $userId = Auth::id();
+        $user = Auth::user(); 
+        
         $shiftEndTime = null;
-
         $employeeShift = EmployeeShift::where('user_id', $userId)->first();
 
         if ($employeeShift && $employeeShift->shift_id) {
@@ -101,7 +103,6 @@ class LeaveRequestController extends Controller
             }
         }
 
-        $user = Auth::user();
         $canOffSpv = $this->isSpvUser($user);
 
         $offInfo = null;
@@ -119,16 +120,36 @@ class LeaveRequestController extends Controller
             ];
         }
 
+        // [LOGIC DROPDOWN ATASAN SESUAI HIERARKI]
+        $approvers = collect([]);
+
+        // 1. Jika User adalah STAFF (Employee) -> Dropdown isinya SUPERVISOR
+        if ($user->role == UserRole::EMPLOYEE) {
+            $approvers = User::where('role', UserRole::SUPERVISOR)
+                ->where('id', '!=', $userId)
+                ->orderBy('name')
+                ->get();
+        } 
+        // 2. Jika User adalah SUPERVISOR -> Dropdown isinya MANAGER
+        elseif ($user->role == UserRole::SUPERVISOR) {
+            $approvers = User::whereIn('role', [UserRole::MANAGER])
+                ->where('id', '!=', $userId)
+                ->orderBy('name')
+                ->get();
+        }
+        // 3. Jika Manager/HRD -> Biasanya langsung (Approver kosong atau HR lain)
+
         return view('leave_requests.create', [
             'shiftEndTime' => $shiftEndTime,
-            'canOffSpv' => $canOffSpv,
-            'offSpvInfo' => $offInfo,
+            'canOffSpv'    => $canOffSpv,
+            'offSpvInfo'   => $offInfo,
+            'managers'     => $approvers, 
         ]);
     }
 
     public function store(Request $request)
     {
-        // 1. Validasi Input (Termasuk supervisor_id dari dropdown)
+        // 1. Validasi Input
         $validated = $request->validate([
             'type'       => ['required', Rule::in(LeaveType::values())],
             'start_date' => ['required', 'date'],
@@ -141,8 +162,29 @@ class LeaveRequestController extends Controller
             'longitude'  => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy_m' => ['nullable', 'numeric', 'min:0', 'max:5000'],
             'location_captured_at' => ['nullable', 'date'],
-            // Validasi dropdown atasan (Boleh null jika pilih langsung HRD)
-            'supervisor_id' => ['nullable', 'exists:users,id'], 
+            'manager_id' => ['nullable', 'exists:users,id'], 
+
+            // [BARU] Validasi PIC Pengganti
+            'substitute_pic' => [
+                'nullable', 
+                'string', 
+                'max:255',
+                Rule::requiredIf(fn() => in_array($request->type, [
+                    LeaveType::CUTI->value, 
+                    LeaveType::CUTI_KHUSUS->value, 
+                    LeaveType::SAKIT->value
+                ]))
+            ],
+            'substitute_phone' => [
+                'nullable', 
+                'string', 
+                'max:50',
+                Rule::requiredIf(fn() => in_array($request->type, [
+                    LeaveType::CUTI->value, 
+                    LeaveType::CUTI_KHUSUS->value, 
+                    LeaveType::SAKIT->value
+                ]))
+            ],
         ]);
 
         $user = Auth::user();
@@ -222,6 +264,13 @@ class LeaveRequestController extends Controller
         $rawStartTime = $request->input('start_time');
         $rawEndTime   = $request->input('end_time');
 
+        // [BARU] Validasi untuk Izin Telat (Estimasi Tiba)
+        if ($isIzinTelat) {
+            if (!$rawStartTime) {
+                return back()->withErrors('Estimasi jam tiba wajib diisi.')->withInput();
+            }
+        }
+
         if ($isIzinTengahKerja) {
             if (!$rawStartTime || !$rawEndTime) {
                 return back()->withErrors('Jam mulai dan jam selesai wajib diisi.')->withInput();
@@ -281,29 +330,48 @@ class LeaveRequestController extends Controller
         }
 
         // =========================================================
-        // [LOGIC STATUS & BYPASS HRD]
+        // [FIX LOGIC PENENTUAN ATASAN & STATUS]
         // =========================================================
         
-        $selectedSupervisorId = $request->input('supervisor_id');
-        $initialStatus = LeaveRequest::PENDING_HR; // Default Safe Fallback
+        $inputApproverId = $request->input('manager_id'); 
+        
+        $existingSupervisorId = $user->direct_supervisor_id;
+        $existingManagerId    = $user->manager_id;
+        
+        $finalApproverId = null;
+        $initialStatus = LeaveRequest::PENDING_HR; 
 
-        // 1. Jika User adalah SPV/Manager/HRD -> Biasanya bypass supervisor
-        if (in_array($user->role, [UserRole::SUPERVISOR, UserRole::MANAGER, UserRole::HRD])) {
-            $initialStatus = LeaveRequest::PENDING_HR;
+        // --- SKENARIO 1: STAFF (EMPLOYEE) ---
+        if ($user->role == UserRole::EMPLOYEE) {
+            if (!empty($inputApproverId)) {
+                $finalApproverId = $inputApproverId;
+                $user->update(['direct_supervisor_id' => $finalApproverId]); 
+            } elseif (!empty($existingSupervisorId)) {
+                $finalApproverId = $existingSupervisorId;
+            }
+
+            if ($finalApproverId) {
+                $initialStatus = LeaveRequest::PENDING_SUPERVISOR; 
+            }
         }
-        // 2. Jika User MEMILIH atasan di dropdown
-        elseif (!empty($selectedSupervisorId)) {
-            $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
-            
-            // UPDATE user supervisor_id agar ApprovalController (Gharin) bisa melihat data ini.
-            // Tanpa update ini, query "where('supervisor_id', $me->id)" di controller lain akan gagal.
-            $user->update(['direct_supervisor_id' => $selectedSupervisorId]);
+        
+        // --- SKENARIO 2: SUPERVISOR ---
+        elseif ($user->role == UserRole::SUPERVISOR) {
+            if (!empty($inputApproverId)) {
+                $finalApproverId = $inputApproverId;
+                $user->update(['manager_id' => $finalApproverId]); 
+            } elseif (!empty($existingManagerId)) {
+                $finalApproverId = $existingManagerId;
+            }
+
+            if ($finalApproverId) {
+                $initialStatus = LeaveRequest::PENDING_SUPERVISOR; 
+            }
         }
-        // 3. Jika User MEMILIH "Langsung ke HRD" (Empty dropdown)
-        else {
+
+        // --- SKENARIO 3: MANAGER / HRD ---
+        elseif (in_array($user->role, [UserRole::MANAGER, UserRole::HRD])) {
             $initialStatus = LeaveRequest::PENDING_HR;
-            // Tidak perlu update user, biarkan statusnya PENDING_HR 
-            // sehingga masuk ke dashboard HRLeaveController, bukan ApprovalController
         }
 
         LeaveRequest::create([
@@ -311,16 +379,21 @@ class LeaveRequestController extends Controller
             'type'       => $type,
             'start_date' => $validated['start_date'],
             'end_date'   => $validated['end_date'],
-            'start_time' => ($isIzinTengahKerja || $isIzinPulangAwal) ? $rawStartTime : null,
+            // [UPDATED] Simpan start_time jika Izin Telat (estimasi tiba), Tengah Kerja, atau Pulang Awal
+            'start_time' => ($isIzinTengahKerja || $isIzinPulangAwal || $isIzinTelat) ? $rawStartTime : null,
             'end_time'   => $isIzinTengahKerja ? $rawEndTime : null,
             'reason'     => $validated['reason'],
             'photo'      => $photoBasename,
-            'status'     => $initialStatus, // Status dinamis
+            'status'     => $initialStatus,
             'notes'      => $notes,
             'latitude'   => $validated['latitude'] ?? null,
             'longitude'  => $validated['longitude'] ?? null,
             'accuracy_m' => $validated['accuracy_m'] ?? null,
             'location_captured_at' => $validated['location_captured_at'] ?? null,
+            
+            // [BARU] Simpan PIC Pengganti
+            'substitute_pic'   => $validated['substitute_pic'] ?? null,
+            'substitute_phone' => $validated['substitute_phone'] ?? null,
         ]);
 
         if ($isIzinTelat) {
@@ -373,6 +446,28 @@ class LeaveRequestController extends Controller
             'longitude'  => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy_m' => ['nullable', 'numeric', 'min:0', 'max:5000'],
             'location_captured_at' => ['nullable', 'date'],
+
+            // [BARU] Validasi Update PIC Pengganti
+            'substitute_pic' => [
+                'nullable', 
+                'string', 
+                'max:255',
+                Rule::requiredIf(fn() => in_array($request->type, [
+                    LeaveType::CUTI->value, 
+                    LeaveType::CUTI_KHUSUS->value, 
+                    LeaveType::SAKIT->value
+                ]))
+            ],
+            'substitute_phone' => [
+                'nullable', 
+                'string', 
+                'max:50',
+                Rule::requiredIf(fn() => in_array($request->type, [
+                    LeaveType::CUTI->value, 
+                    LeaveType::CUTI_KHUSUS->value, 
+                    LeaveType::SAKIT->value
+                ]))
+            ],
         ]);
 
         $user = Auth::user();

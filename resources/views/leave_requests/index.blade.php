@@ -75,26 +75,35 @@
                         <th style="min-width: 160px;">Tanggal Pengajuan</th>
                         <th>Jenis</th>
                         <th style="min-width: 180px;">Periode Izin</th>
-                        <th>Status</th>
+                        <th>Tracking Status</th>
                         <th class="text-right" style="width: 100px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($items as $row)
                         @php
-                            // Logic Status Badge
+                            // 1. Logic Status Badge & Label (Disesuaikan dengan Hierarki Baru)
                             $st = $row->status;
                             $badgeClass = 'badge-gray';
-                            
+                            $statusLabel = $row->status; // Default fallback
+
                             if ($st === \App\Models\LeaveRequest::STATUS_APPROVED) {
                                 $badgeClass = 'badge-green';
+                                $statusLabel = 'Disetujui HRD';
                             } elseif ($st === \App\Models\LeaveRequest::STATUS_REJECTED) {
                                 $badgeClass = 'badge-red';
-                            } elseif (in_array($st, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR])) {
+                                $statusLabel = 'Ditolak';
+                            } elseif ($st === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
+                                // Pending Approval Atasan Langsung (Bisa SPV atau Manager)
                                 $badgeClass = 'badge-yellow';
+                                $statusLabel = '⏳ Menunggu Persetujuan Atasan';
+                            } elseif ($st === \App\Models\LeaveRequest::PENDING_HR) {
+                                // Sudah di-ACC Atasan, OTW HRD
+                                $badgeClass = 'badge-teal';
+                                $statusLabel = '✅ Atasan Mengetahui';
                             }
 
-                            // Logic Label Jenis
+                            // 2. Logic Label Jenis
                             $typeLabel = \Illuminate\Support\Str::contains($row->type_label, 'Cuti Khusus') ? 'Cuti Khusus' : $row->type_label;
                         @endphp
 
@@ -121,8 +130,12 @@
 
                             <td>
                                 <span class="badge-status {{ $badgeClass }}">
-                                    {{ $row->status_label }}
+                                    {{ $statusLabel }}
                                 </span>
+                                {{-- Tambahan Info Text untuk status PENDING_HR --}}
+                                @if($st === \App\Models\LeaveRequest::PENDING_HR)
+                                    <div style="font-size:10px; color:#0d9488; margin-top:2px;">(Menunggu Verifikasi HRD)</div>
+                                @endif
                             </td>
 
                             <td class="text-right">
@@ -318,12 +331,15 @@
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
+            white-space: nowrap;
         }
         
         .badge-green { background: #dcfce7; color: #166534; }
         .badge-red { background: #fee2e2; color: #991b1b; }
         .badge-yellow { background: #fef9c3; color: #854d0e; }
         .badge-gray { background: #f3f4f6; color: #374151; }
+        /* [BARU] Badge Teal untuk 'Atasan Mengetahui' */
+        .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
 
         /* --- ACTION BUTTON --- */
         .btn-action {

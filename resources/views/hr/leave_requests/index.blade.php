@@ -18,6 +18,7 @@
                     <tr>
                         <th style="min-width: 200px;">Karyawan</th>
                         <th>Jenis</th>
+                        <th>Status</th> {{-- Kolom Status --}}
                         <th style="min-width: 160px;">Periode Izin</th>
                         <th>Tgl Pengajuan</th>
                         <th style="min-width: 200px;">Alasan</th>
@@ -27,20 +28,17 @@
                 <tbody>
                     @forelse($leaves as $lv)
                         @php
-                            // Ambil value jenis cuti
+                            // --- 1. LOGIC WARNA BADGE JENIS CUTI ---
                             $type = $lv->type;
                             $badgeClass = 'badge-gray';
                             
-                            // Logika Warna Badge berdasarkan Enum LeaveType
                             if (in_array($type, [
                                 \App\Enums\LeaveType::CUTI->value, 
                                 \App\Enums\LeaveType::CUTI_KHUSUS->value
                             ])) {
-                                // Cuti & Cuti Khusus -> Biru
                                 $badgeClass = 'badge-blue'; 
                             } 
                             elseif ($type === \App\Enums\LeaveType::SAKIT->value) {
-                                // Sakit -> Kuning
                                 $badgeClass = 'badge-yellow'; 
                             } 
                             elseif (in_array($type, [
@@ -49,12 +47,32 @@
                                 \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value,
                                 \App\Enums\LeaveType::IZIN->value
                             ])) {
-                                // Izin Terkait Waktu -> Orange
                                 $badgeClass = 'badge-orange';
                             }
                             elseif ($type === \App\Enums\LeaveType::DINAS_LUAR->value) {
-                                // Dinas Luar -> Ungu (Opsional/Bisa custom style lain)
                                 $badgeClass = 'badge-purple';
+                            }
+
+                            // --- 2. LOGIC TRACKING STATUS (UPDATED) ---
+                            $statusBadge = 'badge-gray';
+                            $statusLabel = $lv->status;
+
+                            if ($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
+                                $statusBadge = 'badge-yellow';
+                                $statusLabel = '⏳ Menunggu Persetujuan Atasan';
+                            } 
+                            elseif ($lv->status == \App\Models\LeaveRequest::PENDING_HR) {
+                                // Status utama di inbox HRD (Sudah lolos atasan)
+                                $statusBadge = 'badge-teal'; 
+                                $statusLabel = '✅ Atasan Mengetahui'; 
+                            } 
+                            elseif ($lv->status == \App\Models\LeaveRequest::STATUS_APPROVED) {
+                                $statusBadge = 'badge-green';
+                                $statusLabel = 'Disetujui';
+                            } 
+                            elseif ($lv->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
+                                $statusBadge = 'badge-red';
+                                $statusLabel = 'Ditolak';
                             }
                         @endphp
 
@@ -70,6 +88,16 @@
                                 <span class="badge-type {{ $badgeClass }}">
                                     {{ $lv->type_label ?? $lv->type }}
                                 </span>
+                            </td>
+
+                            {{-- Kolom Tracking Status --}}
+                            <td>
+                                <span class="badge-type {{ $statusBadge }}">
+                                    {{ $statusLabel }}
+                                </span>
+                                @if($lv->status == \App\Models\LeaveRequest::PENDING_HR)
+                                    <div style="font-size:10px; color:#0d9488; margin-top:2px;">(Menunggu Verifikasi HRD)</div>
+                                @endif
                             </td>
 
                             <td>
@@ -101,7 +129,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="empty-state">
+                            <td colspan="7" class="empty-state">
                                 Tidak ada pengajuan yang menunggu HRD saat ini.
                             </td>
                         </tr>
@@ -199,11 +227,19 @@
             white-space: nowrap;
         }
         
-        .badge-blue { background: #eff6ff; color: #1d4ed8; }   /* Cuti */
-        .badge-yellow { background: #fefce8; color: #a16207; } /* Sakit */
-        .badge-orange { background: #fff7ed; color: #c2410c; } /* Izin Waktu */
-        .badge-purple { background: #f3e8ff; color: #7e22ce; } /* Dinas Luar */
-        .badge-gray { background: #f3f4f6; color: #374151; }   /* Lainnya */
+        /* Warna Badge Jenis Cuti */
+        .badge-blue { background: #eff6ff; color: #1d4ed8; }   
+        .badge-yellow { background: #fefce8; color: #a16207; } 
+        .badge-orange { background: #fff7ed; color: #c2410c; } 
+        .badge-purple { background: #f3e8ff; color: #7e22ce; } 
+        .badge-gray { background: #f3f4f6; color: #374151; }   
+        
+        /* Warna Badge Status Baru */
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        
+        /* Badge Teal untuk 'Atasan Mengetahui' */
+        .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
 
         /* --- ACTION BUTTONS --- */
         .btn-action {

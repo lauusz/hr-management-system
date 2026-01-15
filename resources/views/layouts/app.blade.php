@@ -322,17 +322,37 @@
           <span style="margin-right:10px;"></span> Pengaturan Akun
         </a>
 
-        @if(auth()->user()->isSupervisor())
-        <h3>Supervisor Area</h3>
-        {{-- Menu ini muncul untuk user yang memiliki Role SPV / Manager --}}
-        <a href="{{ route('approval.index') }}" class="{{ request()->routeIs('approval.*') ? 'active' : '' }}">
-            <span style="margin-right:10px;"></span> Mengetahui Pengajuan
+        {{-- [BARU] MANAGER AREA (Updated) --}}
+        @if(auth()->user()->isManager())
+        <h3>Manager Area</h3>
+        
+        <a href="{{ route('approval.index') }}" class="{{ request()->routeIs('approval.index', 'approval.show') ? 'active' : '' }}">
+            <span style="margin-right:10px;"></span> Approval Pengajuan
+        </a>
+        
+        {{-- [BARU] Master Data Cuti Bawahan --}}
+        <a href="{{ route('supervisor.leave.master') }}" class="{{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
+            <span style="margin-right:10px;"></span> Daftar Pengajuan
         </a>
         @endif
 
+        {{-- [BARU] SUPERVISOR AREA (Updated) --}}
+        @if(auth()->user()->isSupervisor())
+        <h3>Supervisor Area</h3>
+        
+        <a href="{{ route('approval.index') }}" class="{{ request()->routeIs('approval.index', 'approval.show') ? 'active' : '' }}">
+            <span style="margin-right:10px;"></span> Mengetahui Pengajuan
+        </a>
+
+        {{-- [BARU] Master Data Cuti Bawahan --}}
+        <a href="{{ route('supervisor.leave.master') }}" class="{{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
+            <span style="margin-right:10px;"></span> Daftar Pengajuan
+        </a>
+        @endif
+
+        {{-- [EXISTING] HRD PANEL --}}
         @if(auth()->user()->isHR())
         @php
-            // Logic Active State untuk Menu HRD
             $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
             $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*');
             $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
@@ -345,7 +365,6 @@
           <span style="margin-right:10px;"></span> Approval Izin/Cuti
         </a>
 
-        {{-- Menu Karyawan (Umum) --}}
         <button type="button" class="menu-group {{ ($hrEmployeesOpen) ? 'open' : '' }}" data-menu-group="employees">
           <span class="menu-group-label"><span style="margin-right:10px;"></span> Karyawan</span>
           <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -356,8 +375,6 @@
           <a href="{{ route('hr.pts.index') }}" class="{{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">Master PT</a>
         </div>
 
-        {{-- MENU DATA SUPERVISOR (LINK LANGSUNG) --}}
-        {{-- Ubah route ke 'hr.supervisors.index' (pake s) --}}
         <a href="{{ route('hr.supervisors.index') }}" class="{{ request()->routeIs('hr.supervisors.*') ? 'active' : '' }}">
           <span style="margin-right:10px;"></span> Data Supervisor
         </a>
@@ -417,7 +434,6 @@
           <div class="user-info">
              <div class="userchip">
                  <span class="user-name">{{ auth()->user()->name }}</span>
-                 {{-- Gunakan label() agar tampilan role rapi dan tanpa underscore --}}
                  <span class="user-role">
                     {{ auth()->user()->role instanceof \App\Enums\UserRole ? auth()->user()->role->label() : auth()->user()->role }}
                  </span>

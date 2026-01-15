@@ -29,22 +29,28 @@
             </div>
 
             @php
+                // [LOGIC STATUS - HR VIEW]
                 $status = $item->status;
                 $badgeClass = 'badge-gray';
+                $statusLabel = $item->status_label ?? $status; 
                 
                 if ($status === \App\Models\LeaveRequest::STATUS_APPROVED) {
                     $badgeClass = 'badge-green';
+                    $statusLabel = 'Disetujui HRD';
                 } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
                     $badgeClass = 'badge-red';
+                    $statusLabel = 'Ditolak';
                 } elseif ($status === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
                     $badgeClass = 'badge-yellow';
+                    $statusLabel = '⏳ Menunggu Persetujuan Atasan';
                 } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
-                    $badgeClass = 'badge-blue';
+                    $badgeClass = 'badge-teal';
+                    $statusLabel = '✅ Atasan Mengetahui';
                 }
             @endphp
             <div class="status-wrapper">
                 <span class="badge-status {{ $badgeClass }}">
-                    {{ $item->status_label ?? $status }}
+                    {{ $statusLabel }}
                 </span>
             </div>
         </div>
@@ -73,16 +79,43 @@
                     </div>
                 </div>
 
+                {{-- [LOGIC LABEL JAM DINAMIS - KONSISTEN] --}}
                 @php
+                     // Normalisasi Type agar aman saat dibandingkan
+                     $typeValue = $item->type;
+                     if ($typeValue instanceof \App\Enums\LeaveType) {
+                         $typeValue = $typeValue->value;
+                     }
+                     $typeValue = (string) $typeValue;
+
                      $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
-                     $endTimeLabel = $item->end_time ? $item->end_time->format('H:i') : null;
+                     $endTimeLabel   = $item->end_time ? $item->end_time->format('H:i') : null;
                 @endphp
 
-                @if($startTimeLabel && $endTimeLabel)
-                <div class="info-row">
-                    <div class="info-label">Jam Izin</div>
-                    <div class="info-value">{{ $startTimeLabel }} – {{ $endTimeLabel }}</div>
-                </div>
+                @if($startTimeLabel)
+                    <div class="info-row">
+                        <div class="info-label">
+                            @if($endTimeLabel)
+                                {{-- Jika ada jam selesai, berarti Range Waktu --}}
+                                Jam Izin
+                            @elseif($typeValue === 'IZIN_TELAT')
+                                {{-- Khusus Izin Telat --}}
+                                Estimasi Jam Tiba
+                            @elseif($typeValue === 'IZIN_PULANG_AWAL')
+                                {{-- Khusus Pulang Awal --}}
+                                Jam Pulang Awal
+                            @else
+                                {{-- Default --}}
+                                Jam Mulai
+                            @endif
+                        </div>
+                        <div class="info-value">
+                            {{ $startTimeLabel }}
+                            @if($endTimeLabel)
+                                – {{ $endTimeLabel }}
+                            @endif
+                        </div>
+                    </div>
                 @endif
 
                 @if($item->approved_by)
@@ -127,10 +160,12 @@
                     <div class="info-label">Lampiran Foto</div>
                     <div class="info-value">
                         @if($url)
+                            {{-- Trigger Full Screen Viewer --}}
                             <div class="photo-preview js-view-photo" data-url="{{ $url }}">
                                 <img src="{{ $url }}" alt="Bukti Izin">
                                 <div class="overlay">
-                                    <span>Klik untuk memperbesar</span>
+                                    <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24" style="margin-bottom:4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                    <span>Lihat Full Screen</span>
                                 </div>
                             </div>
                         @else
@@ -165,15 +200,15 @@
 
         <div class="action-footer">
             <div class="left-action">
-                <a href="{{ route('hr.leave.master') }}" class="btn-modern btn-back">
+                <a href="{{ route('hr.leave.index') }}" class="btn-modern btn-back">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     Kembali
                 </a>
             </div>
 
             <div class="right-action">
-                {{-- [ADJUSTED] Menggunakan logic dari controller --}}
-                @if($canApprove)
+                {{-- TOMBOL AKSI KHUSUS HRD --}}
+                @if($item->status == \App\Models\LeaveRequest::PENDING_HR)
                     
                     <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -187,19 +222,28 @@
 
                 @else
                     <div class="processed-info">
-                        Status: <strong>{{ $item->status_label }}</strong>
+                        @if($item->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
+                             <span style="color:#ca8a04; font-weight:600;">⏳ Menunggu Persetujuan Atasan</span>
+                        @elseif($item->status == \App\Models\LeaveRequest::STATUS_APPROVED)
+                             <span style="color:#166534; font-weight:600;">✅ Sudah Disetujui (Final)</span>
+                        @elseif($item->status == \App\Models\LeaveRequest::STATUS_REJECTED)
+                             <span style="color:#991b1b; font-weight:600;">❌ Ditolak</span>
+                        @endif
                     </div>
                 @endif
             </div>
         </div>
     </div>
 
-    <x-modal id="photo-modal" title="Lampiran Foto" type="info" cancelLabel="Tutup">
-        <div style="display:flex; justify-content:center; background:#000; border-radius:8px; overflow:hidden;">
-            <img id="modal-img-preview" src="" style="max-width:100%; max-height:80vh; object-fit:contain;">
-        </div>
-    </x-modal>
+    {{-- [SIMPLE FULL SCREEN VIEWER] --}}
+    <div id="simple-viewer" class="simple-viewer-overlay" style="display: none;">
+        <button type="button" id="btn-close-simple" class="btn-close-simple">
+            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <img id="simple-viewer-img" src="" alt="Full Preview">
+    </div>
 
+    {{-- MODAL REJECT --}}
     <x-modal
         id="modal-reject"
         title="Tolak Pengajuan?"
@@ -216,6 +260,7 @@
         </p>
     </x-modal>
 
+    {{-- MODAL APPROVE --}}
     <x-modal
         id="modal-approve"
         title="Setujui Pengajuan?"
@@ -234,25 +279,88 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Logic Modal Foto
-            const modal = document.getElementById('photo-modal');
-            const modalImg = document.getElementById('modal-img-preview');
-            
+            const viewer = document.getElementById('simple-viewer');
+            const viewerImg = document.getElementById('simple-viewer-img');
+            const closeBtn = document.getElementById('btn-close-simple');
+
+            // Fungsi Buka Viewer
             document.querySelectorAll('.js-view-photo').forEach(el => {
                 el.addEventListener('click', () => {
                     const url = el.getAttribute('data-url');
-                    if(url && modal && modalImg) {
-                        modalImg.src = url;
-                        // Trigger modal display manually if needed or rely on app.js listener
-                        if(modal) modal.style.display = 'flex';
-                        document.body.style.overflow = 'hidden';
+                    if(url && viewer && viewerImg) {
+                        viewerImg.src = url;
+                        viewer.style.display = 'flex';
+                        document.body.style.overflow = 'hidden'; 
                     }
                 });
+            });
+
+            // Fungsi Tutup Viewer
+            function closeViewer() {
+                if (viewer) viewer.style.display = 'none';
+                if (viewerImg) viewerImg.src = '';
+                document.body.style.overflow = ''; 
+            }
+
+            if (closeBtn) closeBtn.addEventListener('click', closeViewer);
+
+            if (viewer) {
+                viewer.addEventListener('click', (e) => {
+                    if (e.target === viewer) {
+                        closeViewer();
+                    }
+                });
+            }
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && viewer.style.display === 'flex') {
+                    closeViewer();
+                }
             });
         });
     </script>
 
     <style>
+        /* --- SIMPLE FULL SCREEN VIEWER --- */
+        .simple-viewer-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.95);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-close-simple {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: #fff;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            z-index: 100000;
+        }
+        .btn-close-simple:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        #simple-viewer-img {
+            max-width: 95vw;
+            max-height: 95vh;
+            object-fit: contain;
+            border-radius: 4px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
         /* --- ALERTS --- */
         .alert-success { background: #ecfdf5; color: #065f46; padding: 12px 16px; border-radius: 8px; border: 1px solid #a7f3d0; margin-bottom: 16px; font-size: 14px; }
         .alert-error { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px; font-size: 14px; }
@@ -283,12 +391,10 @@
 
         .box-reason { background: #f9fafb; padding: 12px; border-radius: 8px; border: 1px solid #f3f4f6; color: #374151; font-size: 14px; }
         
-        /* --- SYSTEM NOTE --- */
         .system-note-box { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 12px; margin-top: 10px; }
         .note-label { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 4px; text-transform: uppercase; }
         .note-content { font-size: 13.5px; color: #b45309; line-height: 1.4; }
 
-        /* --- BADGES --- */
         .badge-basic { background: #f3f4f6; color: #374151; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid #e5e7eb; display: inline-block; }
         .badge-status { padding: 6px 14px; border-radius: 30px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
         .badge-green { background: #dcfce7; color: #166534; }
@@ -296,25 +402,22 @@
         .badge-yellow { background: #fefce8; color: #a16207; border: 1px solid #fef08a; }
         .badge-blue { background: #eff6ff; color: #1d4ed8; }
         .badge-gray { background: #f3f4f6; color: #374151; }
+        .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
 
-        /* --- PHOTO PREVIEW --- */
         .photo-preview { position: relative; width: 100%; max-width: 300px; border-radius: 8px; overflow: hidden; border: 1px solid #e5e7eb; cursor: pointer; }
         .photo-preview img { width: 100%; height: auto; display: block; }
-        .photo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+        .photo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; flex-direction:column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
         .photo-preview:hover .overlay { opacity: 1; }
         .photo-preview .overlay span { color: #fff; font-size: 12px; font-weight: 600; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 20px; }
 
-        /* --- MAPS --- */
         .map-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 4px; }
         .map-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
         .link-map { font-size: 13px; color: #1e4a8d; text-decoration: none; font-weight: 500; }
         .link-map:hover { text-decoration: underline; }
 
-        /* --- FOOTER ACTIONS --- */
         .action-footer { background: #f9fafb; padding: 16px 24px; border-top: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
         .right-action { display: flex; gap: 12px; align-items: center; }
 
-        /* --- BUTTONS --- */
         .btn-modern { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; text-decoration: none; line-height: 1; }
         
         .btn-back { background: #fff; border-color: #d1d5db; color: #374151; }

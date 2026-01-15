@@ -43,14 +43,13 @@ class HrLeaveController extends Controller
                                 $u->where('direct_supervisor_id', $userId);
                             })
                             // B. ...ATAU User tersebut TIDAK PUNYA Supervisor (Orphan Data)
-                            // Ini menangani kasus Renaldy yang "Langsung ke HRD" tapi statusnya "Menunggu Atasan"
                             ->orWhereHas('user', function ($u) {
                                 $u->whereNull('direct_supervisor_id');
                             });
                         });
                 });
             })
-            ->orderByDesc('created_at') // Disarankan created_at agar urutan waktu lebih jelas
+            ->orderByDesc('created_at')
             ->paginate(100);
 
         return view('hr.leave_requests.index', compact('leaves'));
@@ -162,19 +161,26 @@ class HrLeaveController extends Controller
         $canApprove = false;
         $userId = Auth::id();
 
-        // 1. Boleh jika status PENDING_HR (Rida sebagai HR Manager)
-        if ($leave->status === LeaveRequest::PENDING_HR) {
-            $canApprove = true;
-        }
-        // 2. Boleh jika status PENDING_SUPERVISOR...
-        elseif ($leave->status === LeaveRequest::PENDING_SUPERVISOR) {
-            // ...DAN Rida adalah Supervisor langsungnya
-            if ($leave->user->direct_supervisor_id === $userId) {
+        // [FIX BUG] Cek Self-Approval: Jika punya sendiri, otomatis FALSE (Tombol hilang)
+        if ($leave->user_id === $userId) {
+            $canApprove = false;
+        } 
+        else {
+            // Logic Normal
+            // 1. Boleh jika status PENDING_HR
+            if ($leave->status === LeaveRequest::PENDING_HR) {
                 $canApprove = true;
             }
-            // ...ATAU Karyawan ini TIDAK PUNYA Supervisor (Langsung HRD)
-            elseif (empty($leave->user->direct_supervisor_id)) {
-                $canApprove = true;
+            // 2. Boleh jika status PENDING_SUPERVISOR...
+            elseif ($leave->status === LeaveRequest::PENDING_SUPERVISOR) {
+                // ...DAN Saya adalah Supervisor langsungnya
+                if ($leave->user->direct_supervisor_id === $userId) {
+                    $canApprove = true;
+                }
+                // ...ATAU Karyawan ini TIDAK PUNYA Supervisor (Langsung HRD)
+                elseif (empty($leave->user->direct_supervisor_id)) {
+                    $canApprove = true;
+                }
             }
         }
 
@@ -192,10 +198,9 @@ class HrLeaveController extends Controller
         $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk disetujui.');
 
-        // HRD pun tidak boleh approve diri sendiri (idealnya)
+        // [FIX BUG] Security Check: HRD tidak boleh approve diri sendiri
         if ($leave->user_id === auth()->id()) {
-            // Kecuali mau di-bypass, tapi standardnya blocked
-             return back()->with('error', 'Anda tidak dapat menyetujui pengajuan Anda sendiri.');
+             return back()->with('error', 'Etika Profesi: Anda tidak dapat menyetujui pengajuan Anda sendiri.');
         }
 
         $leave->update([
@@ -214,8 +219,9 @@ class HrLeaveController extends Controller
         $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk ditolak.');
 
+        // [FIX BUG] Security Check: HRD tidak boleh reject diri sendiri
         if ($leave->user_id === auth()->id()) {
-             return back()->with('error', 'Anda tidak dapat menolak pengajuan Anda sendiri.');
+             return back()->with('error', 'Etika Profesi: Anda tidak dapat menolak pengajuan Anda sendiri.');
         }
 
         $leave->update([
@@ -232,9 +238,7 @@ class HrLeaveController extends Controller
         $user = auth()->user();
         
         // Pastikan User punya Role HRD / HR STAFF / MANAGER HR
-        // Sesuaikan method isHR() dengan logic Role di aplikasimu
         if (!$user || !method_exists($user, 'isHR') || !$user->isHR()) {
-            // Fallback check manual role jika method isHR tidak ada
             if (!in_array($user->role, ['HRD', 'HR STAFF', 'MANAGER HR'])) {
                  abort(403, 'Akses khusus HRD');
             }

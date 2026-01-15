@@ -28,6 +28,10 @@ class LeaveRequest extends Model
         'approved_by',
         'approved_at',
         'supervisor_ack_at',
+        
+        // [BARU] Ditambahkan agar bisa disimpan ke database
+        'substitute_pic',
+        'substitute_phone',
     ];
 
     protected $casts = [
