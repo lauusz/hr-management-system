@@ -29,6 +29,21 @@
         } catch (\Throwable $e) {
             $shiftEndDisplay = null;
         }
+
+        // [DATA CUTI KHUSUS - Label disesuaikan permintaan]
+        $specialLeaveList = [
+            ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 4],
+            ['id' => 'ISTRI_MELAHIRKAN', 'label' => 'Istri Melahirkan', 'days' => 2],
+            ['id' => 'ISTRI_KEGUGURAN', 'label' => 'Istri Keguguran', 'days' => 2],
+            ['id' => 'KHITANAN_ANAK', 'label' => 'Khitanan Anak', 'days' => 2],
+            ['id' => 'PEMBAPTISAN_ANAK', 'label' => 'Pembaptisan Anak', 'days' => 2],
+            ['id' => 'NIKAH_ANAK', 'label' => 'Pernikahan Anak', 'days' => 2],
+            ['id' => 'DEATH_EXTENDED', 'label' => 'Kematian (Adik/Kakak/Ipar)', 'days' => 2],
+            ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Istri/Anak)', 'days' => 2],
+            ['id' => 'DEATH_HOUSE', 'label' => 'Kematian Anggota Rumah', 'days' => 1],
+            ['id' => 'HAJI', 'label' => 'Ibadah Haji (1x)', 'days' => 40],
+            ['id' => 'UMROH', 'label' => 'Ibadah Umroh (1x)', 'days' => 14],
+        ];
     @endphp
 
     @if ($errors->any())
@@ -64,11 +79,7 @@
                 <div class="radio-group-container">
                     @php
                         $user = auth()->user();
-                        
-                        $roleValue = $user->role instanceof \App\Enums\UserRole 
-                            ? $user->role->value 
-                            : $user->role;
-                            
+                        $roleValue = $user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role;
                         $role = strtoupper((string) $roleValue);
                         $isSpv = in_array($role, ['SUPERVISOR', 'SPV'], true);
 
@@ -102,6 +113,27 @@
                         </label>
                     @endforeach
                 </div>
+                
+                {{-- DROPDOWN CUTI KHUSUS --}}
+                <div id="special-leave-container" style="display: none; margin-top: 12px; padding: 12px; background: #eff6ff; border: 1px solid #dbeafe; border-radius: 8px;">
+                    <label for="special_leave_detail" style="font-size:13px; color:#1e4a8d; display:block; margin-bottom:6px;">
+                        Pilih Kategori Cuti Khusus <span class="req">*</span>
+                    </label>
+                    <select name="special_leave_detail" id="special_leave_detail" class="form-control">
+                        <option value="" selected disabled>-- Pilih Alasan --</option>
+                        @foreach($specialLeaveList as $sl)
+                            <option value="{{ $sl['id'] }}" data-days="{{ $sl['days'] }}" @selected(old('special_leave_detail') == $sl['id'])>
+                                {{ $sl['label'] }}
+                            </option>
+                        @endforeach
+                    </select>
+                    {{-- Badge Info Maksimal Hari --}}
+                    <div id="special-leave-badge" class="info-badge" style="display: none;">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span id="special-leave-text">Maksimal 2 Hari</span>
+                    </div>
+                </div>
+
                 @error('type') <div class="error-msg">{{ $message }}</div> @enderror
             </div>
 
@@ -122,8 +154,13 @@
                 <div class="warning-container">
                     <small id="cuti-rule" style="display:none; color:#6b7280; margin-top:4px; display:block;"></small>
                     
+                    {{-- Warning H-7 (Cuti Tahunan) --}}
                     <div id="h7-warning" role="alert" aria-live="polite" class="alert-warning" style="display:none;"></div>
                     
+                    {{-- [BARU] Warning Overlimit (Cuti Khusus) --}}
+                    <div id="special-limit-warning" role="alert" aria-live="polite" class="alert-warning" style="display:none;"></div>
+
+                    {{-- Warning Masa Kerja --}}
                     <div id="tenure-warning" 
                          role="alert" 
                          aria-live="polite" 
@@ -208,7 +245,6 @@
 
             {{-- 6. UPLOAD BUKTI --}}
             <div class="form-group">
-                {{-- [ADJUSTMENT] Tambah ID dan style display:none pada span bintang --}}
                 <label for="photoInput">Bukti Pendukung <span id="photo-req-indicator" class="req" style="display:none">*</span></label>
                 <div class="file-input-wrapper">
                     <input
@@ -336,7 +372,15 @@
         .form-actions { margin-top: 32px; padding-top: 20px; border-top: 1px solid #f3f4f6; display: flex; justify-content: flex-end; }
         .form-actions .btn-primary { width: auto; min-width: 140px; }
 
-        /* Mobile Adjustments */
+        /* [BARU] Info Badge Style */
+        .info-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-top: 8px;
+            background: #dbeafe; color: #1e40af;
+            padding: 6px 12px; border-radius: 20px;
+            font-size: 13px; font-weight: 600;
+        }
+
         @media (max-width: 600px) {
             .card-header { flex-direction: column; gap: 12px; }
             .btn-back { align-self: flex-start; }
@@ -346,7 +390,6 @@
             .separator { display: none !important; }
             .time-input-box { width: 100%; flex: none; }
             .form-actions .btn-primary { width: 100%; }
-            /* PIC Section Mobile */
             #substitute-pic-section > div { grid-template-columns: 1fr !important; }
         }
     </style>
@@ -355,28 +398,30 @@
         (function() {
             const typeRadios = document.querySelectorAll('input[name="type"]');
             
-            // Definisikan ENUM dari Backend ke JS
             const IZIN_TELAT = @json(\App\Enums\LeaveType::IZIN_TELAT->value);
             const IZIN_TENGAH_KERJA = @json(\App\Enums\LeaveType::IZIN_TENGAH_KERJA->value);
             const IZIN_PULANG_AWAL = @json(\App\Enums\LeaveType::IZIN_PULANG_AWAL->value);
             
-            // Tambahan untuk PIC Pengganti
             const CUTI = @json(\App\Enums\LeaveType::CUTI->value);
             const CUTI_KHUSUS = @json(\App\Enums\LeaveType::CUTI_KHUSUS->value);
             const SAKIT = @json(\App\Enums\LeaveType::SAKIT->value);
 
-            // Elemen Photo
+            // Elemen Special Leave
+            const specialLeaveContainer = document.getElementById('special-leave-container');
+            const specialLeaveSelect = document.getElementById('special_leave_detail');
+            const specialLeaveBadge = document.getElementById('special-leave-badge');
+            const specialLeaveText = document.getElementById('special-leave-text');
+            const specialLimitWarning = document.getElementById('special-limit-warning'); // [BARU]
+
             const photoInput = document.getElementById('photoInput');
             const photoReqIndicator = document.getElementById('photo-req-indicator');
 
-            // Elemen Lokasi
             const locationWrapper = document.getElementById('location');
             const latEl = document.getElementById('latitude');
             const lngEl = document.getElementById('longitude');
             const accEl = document.getElementById('accuracy_m');
             const tsEl = document.getElementById('location_captured_at');
 
-            // Elemen Jam Kerja
             const worktimeField = document.getElementById('worktime-field');
             const worktimeLabel = document.getElementById('worktime-label');
             const startTimeInput = document.getElementById('start_time_input');
@@ -386,7 +431,6 @@
             const pulangInfo = document.getElementById('pulang-info');
             const shiftEndInput = document.getElementById('shift_end_time');
 
-            // Elemen PIC Pengganti
             const picSection = document.getElementById('substitute-pic-section');
             const picNameInput = document.getElementById('substitute_pic');
             const picPhoneInput = document.getElementById('substitute_phone');
@@ -438,26 +482,74 @@
                 );
             }
 
+            // [BARU] Fungsi Cek Limit Cuti Khusus
+            function checkSpecialLeaveLimit() {
+                if (!specialLimitWarning) return;
+                
+                // Pastikan tipe Cuti Khusus aktif & ada pilihan kategori
+                if (selectedType() !== CUTI_KHUSUS || !specialLeaveSelect.value) {
+                    specialLimitWarning.style.display = 'none';
+                    specialLimitWarning.textContent = '';
+                    return;
+                }
+
+                const selectedOption = specialLeaveSelect.options[specialLeaveSelect.selectedIndex];
+                const maxDays = parseInt(selectedOption.getAttribute('data-days')) || 0;
+                
+                // Ambil tanggal dari input flatpickr (hidden input)
+                const startStr = document.getElementById('start_date').value;
+                const endStr = document.getElementById('end_date').value;
+
+                if (!startStr || !endStr) return;
+
+                const startDate = new Date(startStr);
+                const endDate = new Date(endStr);
+                
+                // Hitung selisih hari (inklusif)
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
+
+                if (maxDays > 0 && diffDays > maxDays) {
+                    specialLimitWarning.style.display = 'block';
+                    specialLimitWarning.innerHTML = `Durasi pengajuan <b>${diffDays} hari</b> melebihi batas maksimal <b>${maxDays} hari</b> untuk kategori ini. <br>Sistem akan mencatat kelebihan hari ini sebagai catatan.`;
+                } else {
+                    specialLimitWarning.style.display = 'none';
+                    specialLimitWarning.textContent = '';
+                }
+            }
+
             function toggleSection() {
                 const val = selectedType();
 
-                // 1. LOGIK LOKASI & FOTO (Khusus Izin Telat)
+                // 1. LOGIK CUTI KHUSUS
+                if (val === CUTI_KHUSUS) {
+                    specialLeaveContainer.style.display = 'block';
+                    if(specialLeaveSelect) specialLeaveSelect.required = true;
+                    // Trigger cek limit saat ganti tipe
+                    checkSpecialLeaveLimit();
+                } else {
+                    specialLeaveContainer.style.display = 'none';
+                    if(specialLeaveSelect) {
+                        specialLeaveSelect.required = false;
+                        specialLeaveSelect.value = ""; 
+                    }
+                    if(specialLeaveBadge) specialLeaveBadge.style.display = 'none';
+                    if(specialLimitWarning) specialLimitWarning.style.display = 'none';
+                }
+
+                // 2. LOGIK LOKASI & FOTO 
                 const isTelat = (val === IZIN_TELAT);
                 if (isTelat) {
                     requestLocationIfNeeded();
-                    
-                    // [ADJUSTMENT] Foto Wajib saat Telat
                     if(photoInput) photoInput.required = true;
                     if(photoReqIndicator) photoReqIndicator.style.display = 'inline';
                 } else {
                     clearLocationValues();
-                    
-                    // [ADJUSTMENT] Reset Foto tidak wajib
                     if(photoInput) photoInput.required = false;
                     if(photoReqIndicator) photoReqIndicator.style.display = 'none';
                 }
 
-                // 2. LOGIK PIC PENGGANTI (Khusus Cuti, Cuti Khusus, Sakit)
+                // 3. LOGIK PIC PENGGANTI
                 const needPic = (val === CUTI || val === CUTI_KHUSUS || val === SAKIT);
                 if (picSection) {
                     if (needPic) {
@@ -471,91 +563,88 @@
                     }
                 }
 
-                // 3. LOGIK JAM KERJA & ESTIMASI TIBA
+                // 4. LOGIK JAM KERJA
                 const isTengahKerja = (val === IZIN_TENGAH_KERJA);
                 const isPulangAwal = (val === IZIN_PULANG_AWAL);
-                // [UPDATE] Izin Telat sekarang juga menampilkan field jam
                 const showWorktime = isTengahKerja || isPulangAwal || isTelat;
 
                 if (worktimeField) {
                     worktimeField.style.display = showWorktime ? 'block' : 'none';
                 }
 
-                if (!startTimeInput || !endTimeInput) {
-                    return;
-                }
+                if (!startTimeInput || !endTimeInput) return;
 
                 if (isTengahKerja) {
-                    // Kasus 1: Izin Tengah Kerja (Butuh Mulai & Selesai)
                     if (worktimeLabel) worktimeLabel.innerHTML = 'Jam Izin Tengah Kerja';
                     if (worktimeSeparator) worktimeSeparator.style.display = 'inline';
                     if (endTimeWrapper) endTimeWrapper.style.display = 'block';
-
                     startTimeInput.required = true;
                     endTimeInput.required = true;
-
-                    if (pulangInfo) {
-                        pulangInfo.style.display = 'none';
-                        pulangInfo.textContent = '';
-                    }
+                    if (pulangInfo) { pulangInfo.style.display = 'none'; pulangInfo.textContent = ''; }
 
                 } else if (isPulangAwal) {
-                    // Kasus 2: Pulang Awal (Butuh Jam Pulang Saja)
                     if (worktimeLabel) worktimeLabel.innerHTML = 'Jam Pulang';
                     if (worktimeSeparator) worktimeSeparator.style.display = 'none';
                     if (endTimeWrapper) endTimeWrapper.style.display = 'none';
-
                     startTimeInput.required = true;
                     endTimeInput.required = false;
                     endTimeInput.value = '';
-
                     if (pulangInfo) {
                         const shiftEnd = shiftEndInput ? shiftEndInput.value : '';
                         if (shiftEnd) {
                             pulangInfo.style.display = 'block';
-                            pulangInfo.textContent =
-                                'Jam pulang shift Anda: ' + shiftEnd +
-                                '. Izin pulang awal maksimal 1 jam sebelum jam pulang.';
+                            pulangInfo.textContent = 'Jam pulang shift Anda: ' + shiftEnd + '. Izin pulang awal maksimal 1 jam sebelum jam pulang.';
                         } else {
                             pulangInfo.style.display = 'block';
-                            pulangInfo.textContent =
-                                'Izin pulang awal maksimal 1 jam sebelum jam pulang shift.';
+                            pulangInfo.textContent = 'Izin pulang awal maksimal 1 jam sebelum jam pulang shift.';
                         }
                     }
 
                 } else if (isTelat) {
-                    // [BARU] Kasus 3: Izin Telat (Butuh Estimasi Tiba Saja)
                     if (worktimeLabel) worktimeLabel.innerHTML = 'Estimasi Jam Tiba';
                     if (worktimeSeparator) worktimeSeparator.style.display = 'none';
                     if (endTimeWrapper) endTimeWrapper.style.display = 'none';
-
                     startTimeInput.required = true;
                     endTimeInput.required = false;
                     endTimeInput.value = '';
-
-                    if (pulangInfo) {
-                        pulangInfo.style.display = 'none';
-                        pulangInfo.textContent = '';
-                    }
+                    if (pulangInfo) { pulangInfo.style.display = 'none'; pulangInfo.textContent = ''; }
 
                 } else {
-                    // Reset jika bukan tipe yang butuh jam
                     startTimeInput.required = false;
                     endTimeInput.required = false;
                     startTimeInput.value = '';
                     endTimeInput.value = '';
-
-                    if (pulangInfo) {
-                        pulangInfo.style.display = 'none';
-                        pulangInfo.textContent = '';
-                    }
+                    if (pulangInfo) { pulangInfo.style.display = 'none'; pulangInfo.textContent = ''; }
                 }
             }
+
+            // Event Listener Dropdown Cuti Khusus
+            if(specialLeaveSelect) {
+                specialLeaveSelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const days = selectedOption.getAttribute('data-days');
+                    
+                    // Update Badge
+                    if (days) {
+                        specialLeaveBadge.style.display = 'inline-flex';
+                        specialLeaveText.textContent = 'Maksimal ' + days + ' Hari';
+                    } else {
+                        specialLeaveBadge.style.display = 'none';
+                    }
+
+                    // [BARU] Update Warning saat ganti kategori
+                    checkSpecialLeaveLimit();
+                });
+            }
+
+            // Event listener hidden input tanggal (di-trigger oleh flatpickr)
+            document.getElementById('start_date').addEventListener('change', checkSpecialLeaveLimit);
+            document.getElementById('end_date').addEventListener('change', checkSpecialLeaveLimit);
 
             typeRadios.forEach(function(r) {
                 r.addEventListener('change', toggleSection);
             });
-            // Jalankan sekali saat load page (handle old input)
+            
             toggleSection();
         })();
     </script>
@@ -754,6 +843,8 @@
                             startHidden.value = '';
                             endHidden.value = '';
                             startHidden.dispatchEvent(new Event('change'));
+                            // [BARU] Trigger event untuk update warning
+                            endHidden.dispatchEvent(new Event('change'));
                             return;
                         }
                         var parts = dateStr.split(' sampai ');
@@ -765,6 +856,8 @@
                             endHidden.value = parts[1];
                         }
                         startHidden.dispatchEvent(new Event('change'));
+                        // [BARU] Trigger event untuk update warning
+                        endHidden.dispatchEvent(new Event('change'));
                     }
                 });
             }

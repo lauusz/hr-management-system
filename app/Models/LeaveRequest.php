@@ -13,6 +13,7 @@ class LeaveRequest extends Model
     protected $fillable = [
         'user_id',
         'type',
+        'special_leave_category', // [BARU] Ditambahkan agar kategori cuti khusus tersimpan
         'start_date',
         'end_date',
         'start_time',
@@ -29,7 +30,7 @@ class LeaveRequest extends Model
         'approved_at',
         'supervisor_ack_at',
         
-        // [BARU] Ditambahkan agar bisa disimpan ke database
+        // Data PIC Pengganti
         'substitute_pic',
         'substitute_phone',
     ];

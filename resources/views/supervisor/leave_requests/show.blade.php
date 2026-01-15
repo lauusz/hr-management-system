@@ -12,6 +12,15 @@
     </div>
     @endif
 
+    {{-- [GLOBAL NORMALIZATION] Pastikan Type selalu string agar pengecekan IF valid --}}
+    @php
+        $typeValue = $item->type;
+        if ($typeValue instanceof \App\Enums\LeaveType) {
+            $typeValue = $typeValue->value;
+        }
+        $typeValue = (string) $typeValue;
+    @endphp
+
     <div class="card">
         <div class="profile-header">
             <div class="profile-main">
@@ -70,6 +79,31 @@
                     <div class="info-label">Jenis Pengajuan</div>
                     <div class="info-value">
                         <span class="badge-basic">{{ $item->type_label ?? $item->type }}</span>
+
+                        {{-- [DETAIL KATEGORI CUTI KHUSUS] --}}
+                        @if($typeValue === 'CUTI_KHUSUS' && $item->special_leave_category)
+                            @php
+                                $catMap = [
+                                    'NIKAH_KARYAWAN'   => 'Menikah (4 Hari)',
+                                    'ISTRI_MELAHIRKAN' => 'Istri Melahirkan (2 Hari)',
+                                    'ISTRI_KEGUGURAN'  => 'Istri Keguguran (2 Hari)',
+                                    'KHITANAN_ANAK'    => 'Khitanan Anak (2 Hari)',
+                                    'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak (2 Hari)',
+                                    'NIKAH_ANAK'       => 'Pernikahan Anak (2 Hari)',
+                                    'DEATH_EXTENDED'   => 'Kematian Adik/Kakak/Ipar (2 Hari)',
+                                    'DEATH_CORE'       => 'Kematian Inti (2 Hari)',
+                                    'DEATH_HOUSE'      => 'Kematian Anggota Rumah (1 Hari)',
+                                    'HAJI'             => 'Ibadah Haji (40 Hari)',
+                                    'UMROH'            => 'Ibadah Umroh (14 Hari)',
+                                ];
+                                $catLabel = $catMap[$item->special_leave_category] ?? $item->special_leave_category;
+                            @endphp
+                            <div style="margin-top:6px;">
+                                <span style="font-size:12px; font-weight:600; color:#1e4a8d; background:#eff6ff; padding:4px 10px; border-radius:6px; border:1px solid #dbeafe; display: inline-block;">
+                                    Detail: {{ $catLabel }}
+                                </span>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -83,15 +117,8 @@
                     </div>
                 </div>
 
-                {{-- [LOGIC LABEL JAM DINAMIS - KONSISTEN] --}}
+                {{-- [LOGIC LABEL JAM DINAMIS] --}}
                 @php
-                     // Normalisasi Type agar aman saat dibandingkan
-                     $typeValue = $item->type;
-                     if ($typeValue instanceof \App\Enums\LeaveType) {
-                         $typeValue = $typeValue->value;
-                     }
-                     $typeValue = (string) $typeValue;
-
                      $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
                      $endTimeLabel   = $item->end_time ? $item->end_time->format('H:i') : null;
                 @endphp
@@ -136,6 +163,22 @@
                 </div>
                 @endif
 
+                {{-- [INFO PIC PENGGANTI] --}}
+                @if($item->substitute_pic)
+                <div class="info-row">
+                    <div class="info-label">PIC Pengganti</div>
+                    <div class="info-value">
+                        {{ $item->substitute_pic }}
+                        @if($item->substitute_phone)
+                            <div style="font-size:12px; color:#6b7280; margin-top:2px;">
+                                {{ $item->substitute_phone }}
+                            </div>
+                        @endif
+                    </div>
+                </div>
+                @endif
+
+                {{-- [SYSTEM NOTES - CATATAN SISTEM] --}}
                 @if($item->notes)
                 <div class="system-note-box">
                     <div class="note-label">Catatan Sistem:</div>

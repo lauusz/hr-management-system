@@ -164,7 +164,7 @@ class LeaveRequestController extends Controller
             'location_captured_at' => ['nullable', 'date'],
             'manager_id' => ['nullable', 'exists:users,id'], 
 
-            // [BARU] Validasi PIC Pengganti
+            // Validasi PIC Pengganti
             'substitute_pic' => [
                 'nullable', 
                 'string', 
@@ -185,11 +185,72 @@ class LeaveRequestController extends Controller
                     LeaveType::SAKIT->value
                 ]))
             ],
+
+            // Validasi Detail Cuti Khusus
+            'special_leave_detail' => [
+                'nullable',
+                'string',
+                Rule::requiredIf(fn() => $request->type === LeaveType::CUTI_KHUSUS->value)
+            ],
         ]);
 
         $user = Auth::user();
         $userId = Auth::id();
         $type = $validated['type'];
+
+        // Init Notes Array (Untuk menampung semua catatan sistem)
+        $notesParts = [];
+
+        // =========================================================
+        // [LOGIC CUTI KHUSUS - SOFT LIMIT]
+        // Jika melebihi batas, TIDAK error, tapi masuk ke NOTES.
+        // =========================================================
+        if ($type === LeaveType::CUTI_KHUSUS->value) {
+            $category = $validated['special_leave_detail'];
+            
+            // Peta Batas Hari (Sesuai Gambar Aturan)
+            $limits = [
+                'NIKAH_KARYAWAN'   => 4,
+                'ISTRI_MELAHIRKAN' => 2,
+                'ISTRI_KEGUGURAN'  => 2,
+                'KHITANAN_ANAK'    => 2,
+                'PEMBAPTISAN_ANAK' => 2,
+                'NIKAH_ANAK'       => 2,
+                'DEATH_EXTENDED'   => 2,
+                'DEATH_CORE'       => 2,
+                'DEATH_HOUSE'      => 1,
+                'HAJI'             => 40,
+                'UMROH'            => 14,
+            ];
+
+            // Mapping Label agar Notes lebih terbaca (Manusiawi)
+            $labels = [
+                'NIKAH_KARYAWAN'   => 'Menikah',
+                'ISTRI_MELAHIRKAN' => 'Istri Melahirkan',
+                'ISTRI_KEGUGURAN'  => 'Istri Keguguran',
+                'KHITANAN_ANAK'    => 'Khitanan Anak',
+                'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak',
+                'NIKAH_ANAK'       => 'Pernikahan Anak',
+                'DEATH_EXTENDED'   => 'Kematian Saudara/Ipar',
+                'DEATH_CORE'       => 'Kematian Inti',
+                'DEATH_HOUSE'      => 'Kematian Anggota Rumah',
+                'HAJI'             => 'Ibadah Haji',
+                'UMROH'            => 'Ibadah Umroh',
+            ];
+
+            $maxDays = $limits[$category] ?? 0;
+            $labelCategory = $labels[$category] ?? $category;
+            
+            // Hitung durasi tanggal
+            $startDate = Carbon::parse($validated['start_date']);
+            $endDate   = Carbon::parse($validated['end_date']);
+            $diffDays  = $startDate->diffInDays($endDate) + 1; // +1 karena inklusif
+
+            // LOGIC UTAMA: Jika melebihi batas, catat di notes (bukan return error)
+            if ($maxDays > 0 && $diffDays > $maxDays) {
+                $notesParts[] = "Durasi pengajuan {$diffDays} hari melebihi batas maksimal {$maxDays} hari untuk kategori '{$labelCategory}'.";
+            }
+        }
 
         // --- VALIDASI OFF SPV ---
         $isOffSpv = $type === LeaveType::OFF_SPV->value;
@@ -229,12 +290,10 @@ class LeaveRequestController extends Controller
             $validated['end_time'] = null;
         }
 
-        // --- VALIDASI NOTES / CUTI ---
+        // --- VALIDASI NOTES / CUTI (H-7 & Masa Kerja) ---
         $start = Carbon::parse($validated['start_date'])->startOfDay();
         $today = now()->startOfDay();
         $daysDiff = $today->diffInDays($start, false);
-
-        $notesParts = [];
 
         if ($type === LeaveType::CUTI->value) {
             if ($daysDiff < 7 && $daysDiff >= 0) {
@@ -251,6 +310,7 @@ class LeaveRequestController extends Controller
             }
         }
 
+        // Gabungkan semua catatan sistem (Cuti Khusus + Cuti Biasa)
         $notes = null;
         if (!empty($notesParts)) {
             $notes = implode("\n", $notesParts);
@@ -264,7 +324,7 @@ class LeaveRequestController extends Controller
         $rawStartTime = $request->input('start_time');
         $rawEndTime   = $request->input('end_time');
 
-        // [BARU] Validasi untuk Izin Telat (Estimasi Tiba)
+        // Validasi untuk Izin Telat (Estimasi Tiba)
         if ($isIzinTelat) {
             if (!$rawStartTime) {
                 return back()->withErrors('Estimasi jam tiba wajib diisi.')->withInput();
@@ -379,21 +439,20 @@ class LeaveRequestController extends Controller
             'type'       => $type,
             'start_date' => $validated['start_date'],
             'end_date'   => $validated['end_date'],
-            // [UPDATED] Simpan start_time jika Izin Telat (estimasi tiba), Tengah Kerja, atau Pulang Awal
             'start_time' => ($isIzinTengahKerja || $isIzinPulangAwal || $isIzinTelat) ? $rawStartTime : null,
             'end_time'   => $isIzinTengahKerja ? $rawEndTime : null,
             'reason'     => $validated['reason'],
             'photo'      => $photoBasename,
             'status'     => $initialStatus,
-            'notes'      => $notes,
+            'notes'      => $notes, // Catatan sistem disimpan di sini
             'latitude'   => $validated['latitude'] ?? null,
             'longitude'  => $validated['longitude'] ?? null,
             'accuracy_m' => $validated['accuracy_m'] ?? null,
             'location_captured_at' => $validated['location_captured_at'] ?? null,
-            
-            // [BARU] Simpan PIC Pengganti
             'substitute_pic'   => $validated['substitute_pic'] ?? null,
             'substitute_phone' => $validated['substitute_phone'] ?? null,
+            // Simpan Kategori Cuti Khusus
+            'special_leave_category' => $validated['special_leave_detail'] ?? null,
         ]);
 
         if ($isIzinTelat) {
@@ -447,7 +506,7 @@ class LeaveRequestController extends Controller
             'accuracy_m' => ['nullable', 'numeric', 'min:0', 'max:5000'],
             'location_captured_at' => ['nullable', 'date'],
 
-            // [BARU] Validasi Update PIC Pengganti
+            // Validasi Update PIC
             'substitute_pic' => [
                 'nullable', 
                 'string', 

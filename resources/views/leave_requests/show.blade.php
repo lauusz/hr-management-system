@@ -12,6 +12,15 @@
     </div>
     @endif
 
+    {{-- [GLOBAL NORMALIZATION] Pastikan Type selalu string agar pengecekan IF di bawah valid --}}
+    @php
+        $typeValue = $item->type;
+        if ($typeValue instanceof \App\Enums\LeaveType) {
+            $typeValue = $typeValue->value;
+        }
+        $typeValue = (string) $typeValue;
+    @endphp
+
     <div class="card">
         <div class="profile-header">
             <div class="profile-main">
@@ -29,7 +38,7 @@
             </div>
 
             @php
-                // [LOGIC STATUS KONSISTEN]
+                // [LOGIC STATUS]
                 $status = $item->status;
                 $badgeClass = 'badge-gray';
                 $statusLabel = $item->status_label ?? $status; 
@@ -66,6 +75,31 @@
                     <div class="info-label">Jenis Pengajuan</div>
                     <div class="info-value">
                         <span class="badge-basic">{{ $item->type_label ?? $item->type }}</span>
+                        
+                        {{-- [TAMPILKAN DETAIL KATEGORI CUTI KHUSUS] --}}
+                        @if($typeValue === 'CUTI_KHUSUS' && $item->special_leave_category)
+                            @php
+                                $catMap = [
+                                    'NIKAH_KARYAWAN'   => 'Menikah (4 Hari)',
+                                    'ISTRI_MELAHIRKAN' => 'Istri Melahirkan (2 Hari)',
+                                    'ISTRI_KEGUGURAN'  => 'Istri Keguguran (2 Hari)',
+                                    'KHITANAN_ANAK'    => 'Khitanan Anak (2 Hari)',
+                                    'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak (2 Hari)',
+                                    'NIKAH_ANAK'       => 'Pernikahan Anak (2 Hari)',
+                                    'DEATH_EXTENDED'   => 'Kematian Adik/Kakak/Ipar (2 Hari)',
+                                    'DEATH_CORE'       => 'Kematian Inti (2 Hari)',
+                                    'DEATH_HOUSE'      => 'Kematian Anggota Rumah (1 Hari)',
+                                    'HAJI'             => 'Ibadah Haji (40 Hari)',
+                                    'UMROH'            => 'Ibadah Umroh (14 Hari)',
+                                ];
+                                $catLabel = $catMap[$item->special_leave_category] ?? $item->special_leave_category;
+                            @endphp
+                            <div style="margin-top:6px;">
+                                <span style="font-size:12px; font-weight:600; color:#1e4a8d; background:#eff6ff; padding:4px 10px; border-radius:6px; border:1px solid #dbeafe; display: inline-block;">
+                                    Detail: {{ $catLabel }}
+                                </span>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -79,16 +113,8 @@
                     </div>
                 </div>
 
-                {{-- [LOGIC LABEL JAM - FIXED] --}}
+                {{-- [LOGIC LABEL JAM] --}}
                 @php
-                     // Normalisasi Type: Pastikan jadi string, baik dari Enum Object atau String biasa
-                     $typeValue = $item->type;
-                     if ($typeValue instanceof \App\Enums\LeaveType) {
-                         $typeValue = $typeValue->value;
-                     }
-                     // Fallback jika masih objek enum tapi bukan class yang kita duga (jarang terjadi)
-                     $typeValue = (string) $typeValue;
-
                      $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
                      $endTimeLabel   = $item->end_time ? $item->end_time->format('H:i') : null;
                 @endphp
@@ -97,16 +123,12 @@
                     <div class="info-row">
                         <div class="info-label">
                             @if($endTimeLabel)
-                                {{-- Jika ada jam selesai, berarti Range Waktu --}}
                                 Jam Izin
                             @elseif($typeValue === 'IZIN_TELAT')
-                                {{-- Khusus Izin Telat --}}
                                 Estimasi Jam Tiba
                             @elseif($typeValue === 'IZIN_PULANG_AWAL')
-                                {{-- Khusus Pulang Awal --}}
                                 Jam Pulang Awal
                             @else
-                                {{-- Default --}}
                                 Jam Mulai
                             @endif
                         </div>
@@ -133,6 +155,22 @@
                 </div>
                 @endif
 
+                {{-- [INFO PIC PENGGANTI] --}}
+                @if($item->substitute_pic)
+                <div class="info-row">
+                    <div class="info-label">PIC Pengganti</div>
+                    <div class="info-value">
+                        {{ $item->substitute_pic }}
+                        @if($item->substitute_phone)
+                            <div style="font-size:12px; color:#6b7280; margin-top:2px;">
+                                {{ $item->substitute_phone }}
+                            </div>
+                        @endif
+                    </div>
+                </div>
+                @endif
+
+                {{-- [SYSTEM NOTES - CATATAN SISTEM] --}}
                 @if($item->notes)
                 <div class="system-note-box">
                     <div class="note-label">Catatan Sistem:</div>
@@ -272,7 +310,7 @@
                     if(url && viewer && viewerImg) {
                         viewerImg.src = url;
                         viewer.style.display = 'flex';
-                        document.body.style.overflow = 'hidden'; // Matikan scroll background
+                        document.body.style.overflow = 'hidden'; 
                     }
                 });
             });
@@ -281,12 +319,11 @@
             function closeViewer() {
                 if (viewer) viewer.style.display = 'none';
                 if (viewerImg) viewerImg.src = '';
-                document.body.style.overflow = ''; // Nyalakan scroll background
+                document.body.style.overflow = ''; 
             }
 
             if (closeBtn) closeBtn.addEventListener('click', closeViewer);
 
-            // Tutup jika klik area hitam (overlay)
             if (viewer) {
                 viewer.addEventListener('click', (e) => {
                     if (e.target === viewer) {
@@ -295,7 +332,6 @@
                 });
             }
 
-            // Tutup pakai tombol ESC
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && viewer.style.display === 'flex') {
                     closeViewer();

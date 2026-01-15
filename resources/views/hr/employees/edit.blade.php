@@ -84,29 +84,27 @@
                         </select>
                     </div>
 
-                    {{-- [BARU] FIELD MANAGER (APPROVER) --}}
+                    {{-- FIELD MANAGER (APPROVER) --}}
                     <div class="form-group">
                         <label for="manager_id" style="color:#1e4a8d; font-weight:600;">Manager (Approver / Penyetuju)</label>
                         <select id="manager_id" name="manager_id" class="form-control">
                             <option value="">-- Tidak Ada / Langsung HRD --</option>
-                            {{-- Pastikan Controller mengirim variabel $managers --}}
                             @if(isset($managers))
-                                @foreach($managers as $mgr)
-                                <option value="{{ $mgr->id }}" @selected(old('manager_id', $item->manager_id) == $mgr->id)>
-                                    {{ $mgr->name }} ({{ $mgr->position->name ?? 'Manager' }})
-                                </option>
-                                @endforeach
+                            @foreach($managers as $mgr)
+                            <option value="{{ $mgr->id }}" @selected(old('manager_id', $item->manager_id) == $mgr->id)>
+                                {{ $mgr->name }} ({{ $mgr->position->name ?? 'Manager' }})
+                            </option>
+                            @endforeach
                             @endif
                         </select>
                         <small class="helper-text">User ini yang berhak melakukan <b>Approve/Reject</b> cuti.</small>
                     </div>
 
-                    {{-- [MODIFIKASI] FIELD SUPERVISOR (OBSERVER) --}}
+                    {{-- FIELD SUPERVISOR (OBSERVER) --}}
                     <div class="form-group">
                         <label for="direct_supervisor_id">Supervisor (Observer)</label>
                         <select id="direct_supervisor_id" name="direct_supervisor_id" class="form-control">
                             <option value="">-- Tidak Ada --</option>
-                            {{-- Pastikan Controller mengirim variabel $supervisors --}}
                             @foreach($supervisors as $spv)
                             <option value="{{ $spv->id }}" @selected(old('direct_supervisor_id', $item->direct_supervisor_id) == $spv->id)>
                                 {{ $spv->name }} - {{ $spv->position->name ?? $spv->role->value }}
@@ -142,7 +140,17 @@
                             <line x1="12" y1="16" x2="12" y2="12"></line>
                             <line x1="12" y1="8" x2="12.01" y2="8"></line>
                         </svg>
-                        Password tidak ditampilkan. Gunakan fitur "Reset Password" jika ingin mengubah password karyawan.
+                        Password tidak ditampilkan. Gunakan tombol di bawah ini jika ingin mereset password menjadi default (123456).
+                    </div>
+
+                    {{-- [BARU] Tombol Reset Password --}}
+                    <div class="form-group full-width" style="margin-top: 8px;">
+                        <button type="button" class="btn-reset-danger" data-modal-open="modal-reset-password">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                            </svg>
+                            Reset Password
+                        </button>
                     </div>
                 </div>
 
@@ -362,6 +370,34 @@
         </div>
     </div>
 
+    {{-- [BARU] Modal Reset Password --}}
+    <div id="modal-reset-password" class="modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 50; justify-content: center; align-items: center;">
+        <div class="modal-content" style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center;">
+            <div style="margin-bottom: 16px; color: #dc2626;">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+            </div>
+            <h3 style="margin: 0 0 8px; font-size: 18px; color: #111827;">Reset Password?</h3>
+            <p style="margin: 0 0 20px; color: #6b7280; font-size: 14px;">
+                Password karyawan <b>{{ $item->name }}</b> akan diubah menjadi default <b>123456</b>. Tindakan ini tidak dapat dibatalkan.
+            </p>
+
+            {{-- Form Khusus Reset --}}
+            <form action="{{ route('hr.employees.reset-password', $item->id) }}" method="POST">
+                @csrf
+                @method('PATCH')
+                
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" class="btn-secondary" data-modal-close="true">Batal</button>
+                    <button type="submit" class="btn-primary" style="background-color: #dc2626; border-color: #dc2626;">Ya, Reset Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     {{-- SCRIPT --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -379,7 +415,7 @@
             var closeButtons = document.querySelectorAll('[data-modal-close="true"]');
             closeButtons.forEach(function(btn) {
                 btn.addEventListener('click', function() {
-                    var modal = btn.closest('.modal-backdrop'); // Pastikan x-modal merender class ini
+                    var modal = btn.closest('.modal-backdrop');
                     if (!modal) return;
                     modal.style.display = 'none';
                 });
@@ -617,6 +653,28 @@
 
         .btn-secondary:hover {
             background: #f3f4f6;
+        }
+
+        /* [BARU] Style Tombol Reset */
+        .btn-reset-danger {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background-color: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: fit-content;
+        }
+
+        .btn-reset-danger:hover {
+            background-color: #fee2e2;
+            border-color: #fda4af;
         }
 
         /* MOBILE RESPONSIVE TWEAKS */

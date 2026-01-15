@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\LeaveRequestController;
-use App\Http\Controllers\ApprovalController; // Menggunakan ApprovalController
+use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\HrLeaveController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\EmployeeShiftController;
@@ -64,6 +64,7 @@ Route::middleware('auth')->group(function () {
         Route::put('/hr/shifts/{shift}', [ShiftController::class, 'update'])->name('hr.shifts.update');
         Route::delete('/hr/shifts/{shift}', [ShiftController::class, 'destroy'])->name('hr.shifts.destroy');
 
+        // --- EMPLOYEE MANAGEMENT ---
         Route::get('/hr/employees', [HREmployeeController::class, 'index'])->name('hr.employees.index');
         Route::get('/hr/employees/create', [HREmployeeController::class, 'create'])->name('hr.employees.create');
         Route::post('/hr/employees', [HREmployeeController::class, 'store'])->name('hr.employees.store');
@@ -71,6 +72,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/employees/{employee}', [HREmployeeController::class, 'show'])->name('hr.employees.show');
         Route::get('/hr/employees/{employee}/edit', [HREmployeeController::class, 'edit'])->name('hr.employees.edit');
         Route::put('/hr/employees/{employee}', [HREmployeeController::class, 'update'])->name('hr.employees.update');
+        
+        // [BARU] Route Reset Password (Bypass)
+        Route::patch('/hr/employees/{employee}/reset-password', [HREmployeeController::class, 'resetPassword'])->name('hr.employees.reset-password');
+
         Route::put('/hr/employees/{employee}/exit', [HREmployeeController::class, 'exit'])->name('hr.employees.exit');
         Route::get('/hr/employees/{employee}/exit-detail', [HREmployeeController::class, 'exitDetail'])->name('hr.employees.exit_detail');
         Route::delete('/hr/employees/{employee}', [HREmployeeController::class, 'destroy'])->name('hr.employees.destroy');
@@ -135,7 +140,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/hr/pts/{pt}', [PtController::class, 'destroy'])->name('hr.pts.destroy');
     });
 
-    // --- ROUTE KHUSUS VIEW SUPERVISOR (OLD - BISA DIHAPUS JIKA SUDAH MIGRASI KE BAWAH) ---
+    // --- ROUTE KHUSUS VIEW SUPERVISOR (OLD) ---
     Route::middleware('role:SUPERVISOR')->prefix('supervisor')->name('supervisor.')->group(function () {
         Route::get('/leave-requests', [ApprovalController::class, 'index'])->name('leave.index');
         Route::get('/leave-requests/{leave}', [ApprovalController::class, 'show'])->name('leave.show');
@@ -146,13 +151,9 @@ Route::middleware('auth')->group(function () {
 
     // --- ROUTE APPROVAL (MANAGER & SUPERVISOR UMUM) ---
     Route::middleware('role:SUPERVISOR,MANAGER')->group(function () {
-        // Inbox Approval (Yang harus diproses)
         Route::get('/approval/requests', [ApprovalController::class, 'index'])->name('approval.index');
-        
-        // [BARU] Master Data Cuti Bawahan (Rekap Semua Status)
         Route::get('/supervisor/leave/master', [ApprovalController::class, 'master'])->name('supervisor.leave.master');
 
-        // Detail & Action
         Route::get('/approval/requests/{leave}', [ApprovalController::class, 'show'])->name('approval.show');
         Route::post('/approval/requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
         Route::post('/approval/requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
