@@ -13,7 +13,7 @@ class LeaveRequest extends Model
     protected $fillable = [
         'user_id',
         'type',
-        'special_leave_category', // [BARU] Ditambahkan agar kategori cuti khusus tersimpan
+        'special_leave_category',
         'start_date',
         'end_date',
         'start_time',
@@ -22,6 +22,7 @@ class LeaveRequest extends Model
         'photo',
         'status',
         'notes',
+        'notes_hrd', // [BARU] Kolom untuk alasan penolakan HRD
         'latitude',
         'longitude',
         'accuracy_m',
@@ -62,6 +63,8 @@ class LeaveRequest extends Model
         self::STATUS_PENDING => 'Menunggu',
         self::STATUS_APPROVED => 'Disetujui',
         self::STATUS_REJECTED => 'Ditolak',
+        'CANCEL_REQ' => 'Pengajuan Batal', // Opsional: Tambahan label status
+        'BATAL' => 'Dibatalkan',           // Opsional: Tambahan label status
     ];
 
     public function getStatusLabelAttribute(): string

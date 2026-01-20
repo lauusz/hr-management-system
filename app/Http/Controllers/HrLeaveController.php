@@ -78,6 +78,8 @@ class HrLeaveController extends Controller
             LeaveRequest::PENDING_HR,
             LeaveRequest::STATUS_APPROVED,
             LeaveRequest::STATUS_REJECTED,
+            'BATAL', // [BARU] Menambahkan status BATAL ke filter
+            'CANCEL_REQ'
         ];
 
         $status = $request->query('status');
@@ -182,6 +184,11 @@ class HrLeaveController extends Controller
                     $canApprove = true;
                 }
             }
+            // 3. [BARU] Boleh jika ada Request Batal (CANCEL_REQ)
+            // Agar HRD bisa klik "Setujui Pembatalan"
+            elseif ($leave->status === 'CANCEL_REQ') {
+                $canApprove = true;
+            }
         }
 
         return view('hr.leave_requests.show', [
@@ -190,12 +197,20 @@ class HrLeaveController extends Controller
         ]);
     }
 
-    public function approve(LeaveRequest $leave)
+    /**
+     * [UPDATE] APPROVE DENGAN CATATAN OPSIONAL
+     */
+    public function approve(Request $request, LeaveRequest $leave)
     {
         $this->authorizeAccess();
 
+        // 1. Validasi (Catatan boleh kosong/nullable)
+        $request->validate([
+            'notes_hrd' => 'nullable|string|max:1000',
+        ]);
+
         // Pastikan status valid
-        $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
+        $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR, 'CANCEL_REQ'];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk disetujui.');
 
         // [FIX BUG] Security Check: HRD tidak boleh approve diri sendiri
@@ -207,14 +222,24 @@ class HrLeaveController extends Controller
             'status'      => LeaveRequest::STATUS_APPROVED,
             'approved_by' => auth()->id(),
             'approved_at' => now(),
+            'notes_hrd'   => $request->notes_hrd, // Simpan catatan (jika ada)
         ]);
 
         return back()->with('success', 'Pengajuan disetujui.');
     }
 
-    public function reject(LeaveRequest $leave)
+    /**
+     * [UPDATE] REJECT DENGAN ALASAN (NOTES_HRD)
+     * Menangkap input dari modal dan menyimpannya.
+     */
+    public function reject(Request $request, LeaveRequest $leave)
     {
         $this->authorizeAccess();
+
+        // 1. Validasi Input Alasan
+        $request->validate([
+            'notes_hrd' => 'required|string|max:1000',
+        ]);
 
         $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk ditolak.');
@@ -228,6 +253,7 @@ class HrLeaveController extends Controller
             'status'      => LeaveRequest::STATUS_REJECTED,
             'approved_by' => auth()->id(),
             'approved_at' => now(),
+            'notes_hrd'   => $request->notes_hrd, // <--- SIMPAN ALASAN PENOLAKAN
         ]);
 
         return back()->with('success', 'Pengajuan ditolak.');

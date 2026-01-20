@@ -4,13 +4,11 @@ $confirmMethod = strtoupper($confirmFormMethod ?? 'POST');
 $isSpoofMethod = !in_array($confirmMethod, ['GET', 'POST']);
 
 // Default Colors (Primary - Navy)
-// Ini default jika tidak ada variant yang dipilih
 $btnBg = '#1e4a8d'; 
 $btnHover = '#163a75';
 $btnText = '#ffffff';
 
 // Logic Variant Warna
-// Mengubah warna tombol berdasarkan input 'variant'
 if (isset($variant)) {
     if ($variant === 'danger') {
         $btnBg = '#dc2626'; // Merah
@@ -31,8 +29,8 @@ if (isset($variant)) {
 @props([
     'id',
     'title' => 'Konfirmasi',
-    'type' => 'confirm',        // Opsi: 'confirm' (ada tombol aksi), 'info' (hanya tutup/link)
-    'variant' => 'primary',     // Opsi: 'primary', 'danger', 'success', 'warning'
+    'type' => 'confirm',        // Opsi: 'confirm' (default), 'info', 'form' (BARU)
+    'variant' => 'primary',     
     'confirmLabel' => 'Ya',
     'cancelLabel' => 'Batal',
     'confirmFormAction' => null,
@@ -64,6 +62,7 @@ if (isset($variant)) {
         aria-labelledby="{{ $id }}_title"
         style="background:#fff; border-radius:16px; box-shadow:0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); width:100%; max-width:520px; max-height:calc(100vh - 32px); display:flex; flex-direction:column; position:relative; overflow:hidden;">
         
+        {{-- HEADER --}}
         <div style="padding:16px 20px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; justify-content:space-between; background:#fff;">
             <h3 id="{{ $id }}_title" style="margin:0; font-size:1.05rem; font-weight:700; color:#111827;">
                 {{ $title }}
@@ -77,67 +76,74 @@ if (isset($variant)) {
             </button>
         </div>
 
+        {{-- BODY --}}
         <div style="padding:20px; font-size:0.95rem; color:#4b5563; line-height:1.6; overflow-y:auto;">
             {{ $slot }}
         </div>
 
-        <div style="padding:16px 20px; background:#f9fafb; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end; align-items:center; gap:10px; flex-wrap:wrap;">
-            
-            {{-- CASE 1: FORM CONFIRMATION --}}
-            @if($type === 'confirm' && $confirmFormAction)
-                <button
-                    type="button"
-                    data-modal-close="true"
-                    style="padding:9px 16px; border-radius:8px; border:1px solid #d1d5db; background:#fff; color:#374151; font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.2s;">
-                    {{ $cancelLabel }}
-                </button>
-
-                <form
-                    method="{{ in_array($confirmMethod, ['GET','POST']) ? $confirmMethod : 'POST' }}"
-                    action="{{ $confirmFormAction }}"
-                    @if($hasFile) enctype="multipart/form-data" @endif
-                    style="margin:0;">
-                    @csrf
-                    @if($isSpoofMethod)
-                        @method($confirmMethod)
-                    @endif
-                    
-                    <button
-                        type="submit"
-                        onmouseover="this.style.backgroundColor='{{ $btnHover }}'"
-                        onmouseout="this.style.backgroundColor='{{ $btnBg }}'"
-                        style="padding:9px 20px; border-radius:8px; border:1px solid transparent; background:{{ $btnBg }}; color:{{ $btnText }}; font-size:0.9rem; font-weight:600; cursor:pointer; transition:background-color 0.2s; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05);">
-                        {{ $confirmLabel }}
-                    </button>
-                </form>
-
-            {{-- CASE 2: INFO / LINK --}}
-            @elseif($type === 'info')
+        {{-- FOOTER: LOGIKA PENGAMAN (Hanya render jika BUKAN type 'form') --}}
+        @if($type !== 'form')
+            <div style="padding:16px 20px; background:#f9fafb; border-top:1px solid #f3f4f6; display:flex; justify-content:flex-end; align-items:center; gap:10px; flex-wrap:wrap;">
                 
-                @if($primaryLinkHref && $primaryLinkLabel)
-                    <a href="{{ $primaryLinkHref }}"
-                       target="_blank"
-                       style="padding:9px 16px; border-radius:8px; background:#1e4a8d; color:#fff; font-size:0.9rem; font-weight:600; text-decoration:none; display:inline-block;">
-                       {{ $primaryLinkLabel }}
-                    </a>
+                {{-- CASE 1: FORM CONFIRMATION (Standard) --}}
+                @if($type === 'confirm' && $confirmFormAction)
+                    <button
+                        type="button"
+                        data-modal-close="true"
+                        style="padding:9px 16px; border-radius:8px; border:1px solid #d1d5db; background:#fff; color:#374151; font-size:0.9rem; font-weight:600; cursor:pointer; transition:all 0.2s;">
+                        {{ $cancelLabel }}
+                    </button>
+
+                    <form
+                        method="{{ in_array($confirmMethod, ['GET','POST']) ? $confirmMethod : 'POST' }}"
+                        action="{{ $confirmFormAction }}"
+                        @if($hasFile) enctype="multipart/form-data" @endif
+                        style="margin:0;">
+                        @csrf
+                        @if($isSpoofMethod)
+                            @method($confirmMethod)
+                        @endif
+                        
+                        <button
+                            type="submit"
+                            onmouseover="this.style.backgroundColor='{{ $btnHover }}'"
+                            onmouseout="this.style.backgroundColor='{{ $btnBg }}'"
+                            style="padding:9px 20px; border-radius:8px; border:1px solid transparent; background:{{ $btnBg }}; color:{{ $btnText }}; font-size:0.9rem; font-weight:600; cursor:pointer; transition:background-color 0.2s; box-shadow:0 1px 2px 0 rgba(0,0,0,0.05);">
+                            {{ $confirmLabel }}
+                        </button>
+                    </form>
+
+                {{-- CASE 2: INFO / LINK --}}
+                @elseif($type === 'info')
+                    
+                    @if($primaryLinkHref && $primaryLinkLabel)
+                        <a href="{{ $primaryLinkHref }}"
+                        target="_blank"
+                        style="padding:9px 16px; border-radius:8px; background:#1e4a8d; color:#fff; font-size:0.9rem; font-weight:600; text-decoration:none; display:inline-block;">
+                        {{ $primaryLinkLabel }}
+                        </a>
+                    @endif
+
+                    <button
+                        type="button"
+                        data-modal-close="true"
+                        style="padding:9px 16px; border-radius:8px; border:1px solid #d1d5db; background:#fff; color:#374151; font-size:0.9rem; font-weight:600; cursor:pointer;">
+                        {{ $cancelLabel }}
+                    </button>
+
+                {{-- FALLBACK (Just Close) --}}
+                @else
+                    <button
+                        type="button"
+                        data-modal-close="true"
+                        style="padding:9px 16px; border-radius:8px; border:1px solid #d1d5db; background:#fff; color:#374151; font-size:0.9rem; font-weight:600; cursor:pointer;">
+                        {{ $cancelLabel }}
+                    </button>
                 @endif
-
-                <button
-                    type="button"
-                    data-modal-close="true"
-                    style="padding:9px 16px; border-radius:8px; border:1px solid #d1d5db; background:#fff; color:#374151; font-size:0.9rem; font-weight:600; cursor:pointer;">
-                    {{ $cancelLabel }}
-                </button>
-
-            {{-- FALLBACK --}}
-            @else
-                <button
-                    type="button"
-                    data-modal-close="true"
-                    style="padding:9px 16px; border-radius:8px; border:1px solid #d1d5db; background:#fff; color:#374151; font-size:0.9rem; font-weight:600; cursor:pointer;">
-                    {{ $cancelLabel }}
-                </button>
-            @endif
-        </div>
+            </div>
+        @else
+            {{-- Jika TYPE='FORM', kita beri sedikit jarak bawah, tombol dikontrol manual dari slot --}}
+            <div style="padding-bottom: 24px;"></div>
+        @endif
     </div>
 </div>

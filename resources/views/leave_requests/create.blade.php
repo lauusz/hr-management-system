@@ -221,7 +221,7 @@
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="substitute_phone">Nomor HP PIC <span class="req">*</span></label>
                         <input 
-                            type="text" 
+                            type="number" 
                             name="substitute_phone" 
                             id="substitute_phone" 
                             class="form-control" 

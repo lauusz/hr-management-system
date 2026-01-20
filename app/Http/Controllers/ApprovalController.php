@@ -5,11 +5,20 @@ namespace App\Http\Controllers;
 use App\Models\LeaveRequest;
 use App\Enums\UserRole;
 use App\Enums\LeaveType;
+use App\Services\Image\ImageCompressor;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class ApprovalController extends Controller
 {
+    // Inject ImageCompressor untuk fitur upload foto saat revisi
+    public function __construct(protected ImageCompressor $imageCompressor)
+    {
+    }
+
     /**
      * Inbox Approval.
      * Menampilkan pengajuan yang SEDANG MENUNGGU persetujuan user ini (Pending).
@@ -29,7 +38,7 @@ class ApprovalController extends Controller
         // 2. Filter Status Pending (Hanya Inbox)
         $query->where('status', LeaveRequest::PENDING_SUPERVISOR);
 
-        // 3. Strict Hierarchy Logic (Hanya bawahan langsung untuk approval)
+        // 3. Strict Hierarchy Logic (Hanya bawahan langsung)
         $query->whereHas('user', function (Builder $q) use ($me) {
             $q->where(function ($subQ) use ($me) {
                 // Skenario 1: Staff -> Supervisor Approve
@@ -54,8 +63,6 @@ class ApprovalController extends Controller
 
     /**
      * Master Data Cuti Bawahan (Rekap).
-     * Menampilkan SEMUA riwayat pengajuan (Pending, Approved, Rejected) dari bawahan.
-     * * UPDATE: Manager bisa melihat Staff (Grand-subordinate) juga.
      */
     public function master(Request $request)
     {
@@ -71,10 +78,6 @@ class ApprovalController extends Controller
             ->orderByDesc('created_at');
 
         // 3. Hierarchy Logic (View All Subordinates)
-        // Logic ini lebih luas daripada 'index'.
-        // Kita izinkan User melihat data JIKA:
-        // A. Dia adalah Supervisor langsungnya (direct_supervisor_id)
-        // B. ATAU Dia adalah Managernya (manager_id) -> Ini mencakup Staff & SPV
         $query->whereHas('user', function (Builder $q) use ($me) {
             $q->where(function ($subQ) use ($me) {
                 $subQ->where('direct_supervisor_id', $me->id)
@@ -83,8 +86,6 @@ class ApprovalController extends Controller
         });
 
         // 4. Filter Logic
-        
-        // Filter Tanggal Pengajuan
         $submittedRange = $request->input('submitted_range');
         if ($submittedRange) {
             $dates = explode(' sampai ', $submittedRange);
@@ -98,19 +99,16 @@ class ApprovalController extends Controller
             }
         }
 
-        // Filter Jenis Cuti
         $typeFilter = $request->input('type');
         if ($typeFilter) {
             $query->where('type', $typeFilter);
         }
 
-        // Filter Status
         $status = $request->input('status');
         if ($status) {
             $query->where('status', $status);
         }
 
-        // Filter Pencarian Nama
         $q = $request->input('q');
         if ($q) {
             $query->whereHas('user', function ($sub) use ($q) {
@@ -118,10 +116,7 @@ class ApprovalController extends Controller
             });
         }
 
-        // 5. Pagination
         $items = $query->paginate(20);
-
-        // 6. Data Pendukung View
         $typeOptions = LeaveType::cases();
         $statusOptions = [
             LeaveRequest::PENDING_SUPERVISOR,
@@ -149,22 +144,150 @@ class ApprovalController extends Controller
         $me = auth()->user();
         $leave->load(['user.profile.pt', 'user.division', 'approver']); 
 
-        // Cek apakah saya berhak melihat (Approver Sah, Manager Grand-boss, atau HR)
-        $canView = $this->checkCanView($leave->user, $me);
-
-        if (!$canView && !$me->isHR() && $leave->user_id !== $me->id) {
+        // Cek Hak Lihat
+        if (!$this->checkCanView($leave->user, $me) && !$me->isHR() && $leave->user_id !== $me->id) {
             abort(403, 'Anda tidak memiliki akses melihat data ini.');
         }
 
-        // Tombol Approve hanya muncul jika saya Approver LANGSUNG & Status masih Pending
-        // Gunakan fungsi checkIsAuthorizedApprover untuk strict approval
+        // Cek Hak Edit/Approve (Atasan Langsung)
         $isDirectApprover = $this->checkIsAuthorizedApprover($leave->user, $me);
+        
+        // Tombol Approve HANYA muncul jika status PENDING_SUPERVISOR
         $canApprove = $isDirectApprover && ($leave->status === LeaveRequest::PENDING_SUPERVISOR);
 
         return view('supervisor.leave_requests.show', [
             'item' => $leave,
             'canApprove' => $canApprove,
+            'isApprover' => $isDirectApprover, // Variable baru untuk logic tombol Edit (muncul kapanpun)
         ]);
+    }
+
+    /**
+     * Form Edit untuk Supervisor (Revisi Data Bawahan)
+     */
+    public function edit(LeaveRequest $leave)
+    {
+        $me = auth()->user();
+        
+        // Cek Hak Akses (Hanya Atasan Langsung)
+        if (!$this->checkIsAuthorizedApprover($leave->user, $me)) {
+            abort(403, 'Hanya atasan langsung yang dapat mengubah data pengajuan ini.');
+        }
+        
+        return view('supervisor.leave_requests.edit', compact('leave'));
+    }
+
+    /**
+     * Update Data oleh Supervisor
+     */
+    public function update(Request $request, LeaveRequest $leave)
+    {
+        $me = auth()->user();
+
+        // 1. Validasi Akses
+        if (!$this->checkIsAuthorizedApprover($leave->user, $me)) {
+            abort(403, 'Akses ditolak.');
+        }
+
+        // 2. Validasi Input (Sama seperti Create/Edit Staff)
+        $validated = $request->validate([
+            'type'       => ['required', Rule::in(LeaveType::values())],
+            'start_date' => ['required', 'date'],
+            'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time'   => ['nullable', 'date_format:H:i'],
+            'reason'     => ['required', 'string', 'max:5000'],
+            'photo'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+            
+            // Helper Cuti Khusus
+            'special_leave_detail' => [
+                'nullable',
+                'string',
+                Rule::requiredIf(fn() => $request->type === LeaveType::CUTI_KHUSUS->value)
+            ],
+            // PIC
+            'substitute_pic'   => ['nullable', 'string', 'max:255'],
+            'substitute_phone' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        // 3. Logic Notes (Audit Trail)
+        $currentNotes = $leave->notes;
+        $systemNote = "[System] Data direvisi oleh Supervisor (" . $me->name . ") pada " . now()->format('d M Y H:i');
+        $newNotes = $currentNotes ? $currentNotes . "\n" . $systemNote : $systemNote;
+
+        // 4. Siapkan Data Update
+        $dataToUpdate = [
+            'type'       => $validated['type'],
+            'start_date' => $validated['start_date'],
+            'end_date'   => $validated['end_date'],
+            'start_time' => $validated['start_time'],
+            'end_time'   => $validated['end_time'],
+            'reason'     => $validated['reason'],
+            'notes'      => $newNotes,
+            'substitute_pic'   => $validated['substitute_pic'] ?? $leave->substitute_pic,
+            'substitute_phone' => $validated['substitute_phone'] ?? $leave->substitute_phone,
+            
+            // [PENTING] Reset status ke PENDING_HR (Atasan Mengetahui)
+            // Agar HRD tahu ada perubahan dan memverifikasi ulang
+            'status'      => LeaveRequest::PENDING_HR,
+            'approved_by' => $me->id, // SPV dianggap otomatis menyetujui hasil revisinya
+            'approved_at' => now(),
+        ];
+
+        // Handle Cuti Khusus Category
+        if ($validated['type'] === LeaveType::CUTI_KHUSUS->value) {
+            $dataToUpdate['special_leave_category'] = $validated['special_leave_detail'];
+        } else {
+            $dataToUpdate['special_leave_category'] = null;
+        }
+
+        // Handle Upload Foto Baru
+        if ($request->hasFile('photo')) {
+            if ($leave->photo) {
+                Storage::disk('public')->delete('leave_photos/' . $leave->photo);
+            }
+            $fullPath = $this->imageCompressor->compressAndStore(
+                $request->file('photo'), 
+                'photo', 
+                'leave_photos', 
+                'leave_'
+            );
+            $dataToUpdate['photo'] = basename($fullPath);
+        }
+
+        $leave->update($dataToUpdate);
+
+        return redirect()->route('approval.show', $leave->id)
+            ->with('success', 'Data berhasil direvisi dan status dikembalikan ke HRD untuk verifikasi ulang.');
+    }
+
+    /**
+     * [AJUKAN PEMBATALAN]
+     * Mengubah status menjadi CANCEL_REQ agar HRD yang menghapus.
+     */
+    public function destroy(LeaveRequest $leave)
+    {
+        $me = auth()->user();
+
+        // 1. Validasi Akses
+        if (!$this->checkIsAuthorizedApprover($leave->user, $me)) {
+            abort(403, 'Akses ditolak.');
+        }
+
+        // 2. Update Notes (Audit Trail)
+        $currentNotes = $leave->notes;
+        $systemNote = "[System] Supervisor (" . $me->name . ") mengajukan permohonan pembatalan pada " . now()->format('d M Y H:i');
+        $newNotes = $currentNotes ? $currentNotes . "\n" . $systemNote : $systemNote;
+
+        // 3. Update Status jadi 'CANCEL_REQ'
+        // Kita pakai string 'CANCEL_REQ' sebagai penanda request batal
+        $leave->update([
+            'status' => 'CANCEL_REQ', 
+            'notes'  => $newNotes
+        ]);
+
+        return redirect()->route('approval.index')
+            ->with('success', 'Permohonan pembatalan telah dikirim ke HRD.');
     }
 
     /**
@@ -172,7 +295,6 @@ class ApprovalController extends Controller
      */
     public function approve(LeaveRequest $leave)
     {
-        // Strict Check: Hanya atasan langsung yg boleh approve
         if (!$this->checkIsAuthorizedApprover($leave->user, auth()->user())) {
             abort(403, 'Anda bukan atasan langsung yang berhak menyetujui level ini.');
         }
@@ -195,7 +317,6 @@ class ApprovalController extends Controller
      */
     public function reject(LeaveRequest $leave)
     {
-        // Strict Check: Hanya atasan langsung yg boleh reject
         if (!$this->checkIsAuthorizedApprover($leave->user, auth()->user())) {
             abort(403, 'Anda bukan atasan langsung yang berhak menolak level ini.');
         }
@@ -215,7 +336,6 @@ class ApprovalController extends Controller
 
     /**
      * PRIVATE HELPER: Logika Penentuan Hak Approve (STRICT)
-     * Hanya mengembalikan TRUE jika user adalah atasan LANGSUNG (untuk tombol aksi).
      */
     private function checkIsAuthorizedApprover($applicant, $me)
     {
@@ -237,17 +357,15 @@ class ApprovalController extends Controller
 
     /**
      * PRIVATE HELPER: Logika Penentuan Hak LIHAT (LOOSE)
-     * Mengembalikan TRUE jika user adalah Atasan Langsung ATAU Manager di atasnya.
      */
     private function checkCanView($applicant, $me)
     {
-        // 1. Jika saya Atasan Langsung (SPV nya Staff, atau Manager nya SPV)
+        // 1. Jika saya Atasan Langsung
         if ($this->checkIsAuthorizedApprover($applicant, $me)) {
             return true;
         }
 
         // 2. Jika saya Manager dari Staff tersebut (Grand-boss view)
-        // Ini agar Manager bisa lihat detail pengajuan Staff meskipun yang approve SPV.
         if ($applicant->manager_id === $me->id) {
             return true;
         }

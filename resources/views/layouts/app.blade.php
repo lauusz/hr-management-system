@@ -275,6 +275,21 @@
       .page-title { font-size: 1.25rem; flex: 1; }
       .user-info { display: none; }
       .burger { display: block; }
+      
+      /* [BARU] Dot merah di burger menu jika ada notif */
+      .burger { position: relative; }
+      .burger.has-notif::after {
+          content: '';
+          position: absolute;
+          top: 6px;
+          right: 6px;
+          width: 8px;
+          height: 8px;
+          background: #ef4444;
+          border-radius: 50%;
+          border: 1px solid #fff;
+      }
+
       .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 990; backdrop-filter: blur(2px); }
       .backdrop.show { opacity: 1; pointer-events: auto; }
     }
@@ -322,35 +337,45 @@
           <span style="margin-right:10px;"></span> Pengaturan Akun
         </a>
 
-        {{-- [BARU] MANAGER AREA (Updated) --}}
+        {{-- MANAGER AREA --}}
         @if(auth()->user()->isManager())
         <h3>Manager Area</h3>
         
         <a href="{{ route('approval.index') }}" class="{{ request()->routeIs('approval.index', 'approval.show') ? 'active' : '' }}">
             <span style="margin-right:10px;"></span> Approval Pengajuan
+            {{-- [BADGE NOTIFIKASI MANAGER] --}}
+            @if(isset($notifCount) && $notifCount > 0)
+                <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+                    {{ $notifCount }}
+                </span>
+            @endif
         </a>
         
-        {{-- [BARU] Master Data Cuti Bawahan --}}
         <a href="{{ route('supervisor.leave.master') }}" class="{{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
             <span style="margin-right:10px;"></span> Daftar Pengajuan
         </a>
         @endif
 
-        {{-- [BARU] SUPERVISOR AREA (Updated) --}}
+        {{-- SUPERVISOR AREA --}}
         @if(auth()->user()->isSupervisor())
         <h3>Supervisor Area</h3>
         
         <a href="{{ route('approval.index') }}" class="{{ request()->routeIs('approval.index', 'approval.show') ? 'active' : '' }}">
             <span style="margin-right:10px;"></span> Mengetahui Pengajuan
+            {{-- [BADGE NOTIFIKASI SUPERVISOR] --}}
+            @if(isset($notifCount) && $notifCount > 0)
+                <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+                    {{ $notifCount }}
+                </span>
+            @endif
         </a>
 
-        {{-- [BARU] Master Data Cuti Bawahan --}}
         <a href="{{ route('supervisor.leave.master') }}" class="{{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
             <span style="margin-right:10px;"></span> Daftar Pengajuan
         </a>
         @endif
 
-        {{-- [EXISTING] HRD PANEL --}}
+        {{-- HRD PANEL --}}
         @if(auth()->user()->isHR())
         @php
             $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
@@ -363,6 +388,12 @@
 
         <a href="{{ route('hr.leave.index') }}" class="{{ request()->routeIs('hr.leave.index','hr.leave.show','hr.leave.approve','hr.leave.reject') ? 'active' : '' }}">
           <span style="margin-right:10px;"></span> Approval Izin/Cuti
+          {{-- [BADGE NOTIFIKASI HRD] --}}
+          @if(isset($notifCount) && $notifCount > 0)
+              <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+                  {{ $notifCount }}
+              </span>
+          @endif
         </a>
 
         <button type="button" class="menu-group {{ ($hrEmployeesOpen) ? 'open' : '' }}" data-menu-group="employees">
@@ -423,7 +454,8 @@
     <main class="content">
       <div class="container">
         <div class="topbar">
-          <button class="burger" id="burger" aria-label="Toggle menu">
+          {{-- [BARU] Tambahkan class logic jika ada notifikasi untuk dot merah di mobile --}}
+          <button class="burger {{ (isset($notifCount) && $notifCount > 0) ? 'has-notif' : '' }}" id="burger" aria-label="Toggle menu">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
               <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>

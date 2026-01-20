@@ -30,8 +30,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', fn() => view('dashboard'))->name('dashboard');
 
+    // [PENTING] Tambahkan 'update' dan 'destroy' agar HRD bisa Edit/Hapus
     Route::resource('leave-requests', LeaveRequestController::class)
-        ->only(['index', 'create', 'store', 'show']);
+        ->only(['index', 'create', 'store', 'show', 'update', 'destroy']);
 
     Route::get('/attendance', [AttendanceController::class, 'dashboard'])->name('attendance.dashboard');
     Route::get('/attendance/clock-in', [AttendanceController::class, 'showClockInForm'])->name('attendance.clockIn.form');
@@ -73,7 +74,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/employees/{employee}/edit', [HREmployeeController::class, 'edit'])->name('hr.employees.edit');
         Route::put('/hr/employees/{employee}', [HREmployeeController::class, 'update'])->name('hr.employees.update');
         
-        // [BARU] Route Reset Password (Bypass)
+        // Route Reset Password (Bypass)
         Route::patch('/hr/employees/{employee}/reset-password', [HREmployeeController::class, 'resetPassword'])->name('hr.employees.reset-password');
 
         Route::put('/hr/employees/{employee}/exit', [HREmployeeController::class, 'exit'])->name('hr.employees.exit');
@@ -155,6 +156,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/supervisor/leave/master', [ApprovalController::class, 'master'])->name('supervisor.leave.master');
 
         Route::get('/approval/requests/{leave}', [ApprovalController::class, 'show'])->name('approval.show');
+        
+        // Route Edit, Update, & Delete untuk Supervisor/Manager
+        Route::get('/approval/requests/{leave}/edit', [ApprovalController::class, 'edit'])->name('approval.edit');
+        Route::put('/approval/requests/{leave}', [ApprovalController::class, 'update'])->name('approval.update');
+        Route::delete('/approval/requests/{leave}', [ApprovalController::class, 'destroy'])->name('approval.destroy');
+
         Route::post('/approval/requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
         Route::post('/approval/requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
     });

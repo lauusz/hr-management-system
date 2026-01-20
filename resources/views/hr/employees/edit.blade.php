@@ -342,21 +342,65 @@
                 </div>
 
                 <div class="section-divider"></div>
-
                 {{-- SECTION 5: MASA KERJA --}}
                 <div class="form-section-title">Masa Kerja</div>
                 <div class="form-grid">
+                    
+                    {{-- [FIXED LOGIC MASA KERJA] --}}
+                    @php
+                        // 1. Ambil data manual dari database
+                        $masaKerjaValue = old('masa_kerja', optional($profile)->masa_kerja);
+
+                        // 2. Jika kosong atau formatnya aneh (ada desimal panjang), kita hitung ulang otomatis
+                        $joinDate = optional($profile)->tgl_bergabung;
+                        
+                        if ($joinDate && (!$masaKerjaValue || str_contains($masaKerjaValue, '.'))) {
+                            try {
+                                // Hitung selisih waktu dari Tgl Bergabung sampai Sekarang
+                                $joinCarbon = \Carbon\Carbon::parse($joinDate);
+                                $now = \Carbon\Carbon::now();
+                                
+                                $diff = $joinCarbon->diff($now);
+                                
+                                // Format string rapi: "2 Tahun 5 Bulan"
+                                $parts = [];
+                                if ($diff->y > 0) $parts[] = $diff->y . ' Tahun';
+                                if ($diff->m > 0) $parts[] = $diff->m . ' Bulan';
+                                
+                                // Jika baru gabung (kurang dari sebulan), tampilkan hari
+                                if (empty($parts) && $diff->d > 0) {
+                                    $parts[] = $diff->d . ' Hari';
+                                }
+
+                                // Gabungkan jadi string
+                                $masaKerjaValue = implode(' ', $parts);
+
+                            } catch (\Exception $e) {
+                                // Fallback jika tanggal error
+                                $masaKerjaValue = '';
+                            }
+                        }
+                    @endphp
+
                     <div class="form-group full-width">
-                        <label for="masa_kerja">Masa Kerja (Opsional)</label>
-                        <input id="masa_kerja" type="text" name="masa_kerja" class="form-control" value="{{ old('masa_kerja', optional($profile)->masa_kerja) }}" placeholder="Contoh: 2 Tahun 5 Bulan">
+                        <label for="masa_kerja">Masa Kerja (Hitung Otomatis / Opsional)</label>
+                        <input id="masa_kerja" type="text" name="masa_kerja" class="form-control" 
+                               value="{{ $masaKerjaValue }}" 
+                               placeholder="Contoh: 2 Tahun 5 Bulan"
+                               disabled>
+                        <small class="helper-text" style="color:#6b7280;">Sistem otomatis menghitung berdasarkan Tanggal Bergabung di bawah.</small>
                     </div>
+
                     <div class="form-group">
                         <label for="tgl_bergabung">Tanggal Bergabung</label>
-                        <input id="tgl_bergabung" type="date" name="tgl_bergabung" class="form-control" value="{{ old('tgl_bergabung', optional(optional($profile)->tgl_bergabung)->format('Y-m-d')) }}">
+                        <input id="tgl_bergabung" type="date" name="tgl_bergabung" class="form-control" 
+                               value="{{ old('tgl_bergabung', optional(optional($profile)->tgl_bergabung)->format('Y-m-d')) }}">
                     </div>
+
                     <div class="form-group">
                         <label for="tgl_akhir_percobaan">Tanggal Akhir Percobaan (Probation)</label>
-                        <input id="tgl_akhir_percobaan" type="date" name="tgl_akhir_percobaan" class="form-control" value="{{ old('tgl_akhir_percobaan', optional(optional($profile)->tgl_akhir_percobaan)->format('Y-m-d')) }}">
+                        <input id="tgl_akhir_percobaan" type="date" name="tgl_akhir_percobaan" class="form-control" 
+                               value="{{ old('tgl_akhir_percobaan', optional(optional($profile)->tgl_akhir_percobaan)->format('Y-m-d')) }}">
                     </div>
                 </div>
 

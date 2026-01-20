@@ -12,7 +12,7 @@
     </div>
     @endif
 
-    {{-- [GLOBAL NORMALIZATION] Pastikan Type selalu string agar pengecekan IF di bawah valid --}}
+    {{-- [GLOBAL NORMALIZATION] Pastikan Type selalu string agar pengecekan IF valid --}}
     @php
         $typeValue = $item->type;
         if ($typeValue instanceof \App\Enums\LeaveType) {
@@ -54,7 +54,15 @@
                     $statusLabel = '⏳ Menunggu Persetujuan Atasan';
                 } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
                     $badgeClass = 'badge-teal';
-                    $statusLabel = '✅ Atasan Mengetahui';
+                    $statusLabel = '✅ Atasan Mengetahui (Menunggu HRD)';
+                } elseif ($status === 'CANCEL_REQ') { 
+                    // [BARU] Status Request Batal
+                    $badgeClass = 'badge-red';
+                    $statusLabel = '⚠️ Mengajukan Pembatalan';
+                } elseif ($status === 'BATAL') { 
+                    // [BARU] Status Batal
+                    $badgeClass = 'badge-gray';
+                    $statusLabel = '🚫 Dibatalkan';
                 }
             @endphp
             <div class="status-wrapper">
@@ -76,7 +84,7 @@
                     <div class="info-value">
                         <span class="badge-basic">{{ $item->type_label ?? $item->type }}</span>
                         
-                        {{-- [TAMPILKAN DETAIL KATEGORI CUTI KHUSUS] --}}
+                        {{-- [DETAIL KATEGORI CUTI KHUSUS] --}}
                         @if($typeValue === 'CUTI_KHUSUS' && $item->special_leave_category)
                             @php
                                 $catMap = [
@@ -173,10 +181,44 @@
                 {{-- [SYSTEM NOTES - CATATAN SISTEM] --}}
                 @if($item->notes)
                 <div class="system-note-box">
-                    <div class="note-label">Catatan Sistem:</div>
+                    <div class="note-label">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px; margin-bottom:-2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Catatan Sistem:
+                    </div>
                     <div class="note-content">{!! nl2br(e($item->notes)) !!}</div>
                 </div>
                 @endif
+
+                {{-- [CATATAN HRD - DINAMIS (BIRU/MERAH)] --}}
+                @if($item->notes_hrd)
+                    @php
+                        // Tentukan Warna & Label berdasarkan status
+                        if ($item->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
+                            // Status DITOLAK = Merah
+                            $boxBg = '#fef2f2'; $boxBorder = '#fecaca'; $titleColor = '#991b1b'; $textColor = '#7f1d1d';
+                            $titleLabel = 'Alasan Penolakan (HRD):';
+                            $iconPath = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'; // Icon Segitiga Warning
+                        } else {
+                            // Default (Approved / Lainnya) = Biru
+                            $boxBg = '#eff6ff'; $boxBorder = '#dbeafe'; $titleColor = '#1e40af'; $textColor = '#1e3a8a';
+                            $titleLabel = 'Catatan HRD:';
+                            $iconPath = 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'; // Icon Info Circle
+                        }
+                    @endphp
+
+                    <div class="system-note-box" style="background-color: {{ $boxBg }}; border-color: {{ $boxBorder }}; margin-top:12px;">
+                        <div class="note-label" style="color: {{ $titleColor }};">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px; margin-bottom:-2px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $iconPath }}"></path>
+                            </svg>
+                            {{ $titleLabel }}
+                        </div>
+                        <div class="note-content" style="color: {{ $textColor }}; font-weight:500;">
+                            {{ $item->notes_hrd }}
+                        </div>
+                    </div>
+                @endif
+
             </div>
 
             <div class="detail-section">
@@ -245,23 +287,24 @@
             </div>
 
             <div class="right-action">
-                @can('delete', $item)
-                    <button type="button" data-modal-target="modal-delete" class="btn-modern btn-danger-outline">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                        Batalkan Pengajuan
-                    </button>
-                @endcan
+                {{-- Hanya bisa batal jika status masih pending --}}
+                @if(in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR]))
+                    @can('delete', $item)
+                        <button type="button" data-modal-target="modal-delete" class="btn-modern btn-danger-outline">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            Batalkan Pengajuan
+                        </button>
+                    @endcan
+                @endif
 
                 @if(!$item->is_pending && !auth()->user()->can('approve', $item))
                     <div class="processed-info">
-                        @if($item->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
-                             <span style="color:#ca8a04; font-weight:600;">⏳ Menunggu Persetujuan Atasan</span>
-                        @elseif($item->status == \App\Models\LeaveRequest::PENDING_HR)
-                             <span style="color:#0f766e; font-weight:600;">✅ Atasan Mengetahui (Menunggu Verifikasi HRD)</span>
-                        @elseif($item->status == \App\Models\LeaveRequest::STATUS_APPROVED)
+                        @if($item->status == \App\Models\LeaveRequest::STATUS_APPROVED)
                              <span style="color:#166534; font-weight:600;">✅ Disetujui HRD</span>
                         @elseif($item->status == \App\Models\LeaveRequest::STATUS_REJECTED)
                              <span style="color:#991b1b; font-weight:600;">❌ Ditolak</span>
+                        @elseif($item->status == 'BATAL')
+                             <span style="color:#6b7280; font-weight:600;">🚫 Dibatalkan</span>
                         @else
                              Status: <strong>{{ $statusLabel }}</strong>
                         @endif
@@ -289,10 +332,10 @@
         :confirmFormAction="route('leave-requests.destroy', $item)"
         confirmFormMethod="DELETE">
         <p style="margin:0; color:#374151;">
-            Apakah Anda yakin ingin membatalkan dan menghapus pengajuan izin ini?
+            Apakah Anda yakin ingin membatalkan pengajuan izin ini?
         </p>
         <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
-            Data yang dihapus tidak dapat dikembalikan.
+            Status akan berubah menjadi <strong>BATAL</strong> dan tidak akan diproses lebih lanjut.
         </p>
     </x-modal>
     @endcan
@@ -413,7 +456,7 @@
         
         /* --- SYSTEM NOTE --- */
         .system-note-box { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 12px; margin-top: 10px; }
-        .note-label { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 4px; text-transform: uppercase; }
+        .note-label { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 4px; text-transform: uppercase; display: flex; align-items: center; }
         .note-content { font-size: 13.5px; color: #b45309; line-height: 1.4; }
 
         /* --- BADGES --- */
@@ -424,7 +467,6 @@
         .badge-yellow { background: #fefce8; color: #a16207; border: 1px solid #fef08a; }
         .badge-blue { background: #eff6ff; color: #1d4ed8; }
         .badge-gray { background: #f3f4f6; color: #374151; }
-        /* Badge Teal */
         .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
 
         /* --- PHOTO PREVIEW THUMBNAIL --- */

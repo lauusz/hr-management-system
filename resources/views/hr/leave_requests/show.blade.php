@@ -1,4 +1,4 @@
-<x-app title="Detail Pengajuan">
+<x-app title="Detail Pengajuan (HR)">
 
     @if(session('success'))
     <div class="alert-success">
@@ -12,7 +12,7 @@
     </div>
     @endif
 
-    {{-- [GLOBAL NORMALIZATION] Pastikan Type selalu string agar pengecekan IF valid --}}
+    {{-- [GLOBAL NORMALIZATION] Pastikan Type selalu string --}}
     @php
         $typeValue = $item->type;
         if ($typeValue instanceof \App\Enums\LeaveType) {
@@ -54,7 +54,13 @@
                     $statusLabel = '⏳ Menunggu Persetujuan Atasan';
                 } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
                     $badgeClass = 'badge-teal';
-                    $statusLabel = '✅ Atasan Mengetahui';
+                    $statusLabel = '✅ Disetujui Atasan (Verifikasi HRD)';
+                } elseif ($status === 'CANCEL_REQ') { 
+                    $badgeClass = 'badge-red';
+                    $statusLabel = '⚠️ Request Pembatalan (SPV)';
+                } elseif ($status === 'BATAL') { 
+                    $badgeClass = 'badge-gray'; 
+                    $statusLabel = '🚫 DIBATALKAN';
                 }
             @endphp
             <div class="status-wrapper">
@@ -123,16 +129,12 @@
                     <div class="info-row">
                         <div class="info-label">
                             @if($endTimeLabel)
-                                {{-- Jika ada jam selesai, berarti Range Waktu --}}
                                 Jam Izin
                             @elseif($typeValue === 'IZIN_TELAT')
-                                {{-- Khusus Izin Telat --}}
                                 Estimasi Jam Tiba
                             @elseif($typeValue === 'IZIN_PULANG_AWAL')
-                                {{-- Khusus Pulang Awal --}}
                                 Jam Pulang Awal
                             @else
-                                {{-- Default --}}
                                 Jam Mulai
                             @endif
                         </div>
@@ -147,7 +149,7 @@
 
                 @if($item->approved_by)
                 <div class="info-row">
-                    <div class="info-label">Diputus Oleh</div>
+                    <div class="info-label">Diputus/Direvisi Oleh</div>
                     <div class="info-value">
                         {{ $item->approver?->name }}
                         @if($item->approved_at)
@@ -174,12 +176,42 @@
                 </div>
                 @endif
 
-                {{-- [SYSTEM NOTES - CATATAN SISTEM] --}}
+                {{-- [SYSTEM NOTES - AUDIT TRAIL] --}}
                 @if($item->notes)
                 <div class="system-note-box">
-                    <div class="note-label">Catatan Sistem:</div>
+                    <div class="note-label">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px; margin-bottom:-2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Catatan Sistem / Revisi:
+                    </div>
                     <div class="note-content">{!! nl2br(e($item->notes)) !!}</div>
                 </div>
+                @endif
+
+                {{-- [CATATAN HRD - DINAMIS (BISA BIRU ATAU MERAH)] --}}
+                @if($item->notes_hrd)
+                    @php
+                        // Tentukan Warna & Label berdasarkan status
+                        if ($item->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
+                            $boxBg = '#fef2f2'; $boxBorder = '#fecaca'; $titleColor = '#991b1b'; $textColor = '#7f1d1d';
+                            $titleLabel = 'Alasan Penolakan (HRD):';
+                        } else {
+                            // Default (Approved / Lainnya) - Warna Biru/Info
+                            $boxBg = '#eff6ff'; $boxBorder = '#dbeafe'; $titleColor = '#1e40af'; $textColor = '#1e3a8a';
+                            $titleLabel = 'Catatan HRD:';
+                        }
+                    @endphp
+
+                    <div class="system-note-box" style="background-color: {{ $boxBg }}; border-color: {{ $boxBorder }}; margin-top:12px;">
+                        <div class="note-label" style="color: {{ $titleColor }};">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px; margin-bottom:-2px;">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                            </svg>
+                            {{ $titleLabel }}
+                        </div>
+                        <div class="note-content" style="color: {{ $textColor }}; font-weight:500;">
+                            {{ $item->notes_hrd }}
+                        </div>
+                    </div>
                 @endif
             </div>
 
@@ -203,7 +235,6 @@
                     <div class="info-label">Lampiran Foto</div>
                     <div class="info-value">
                         @if($url)
-                            {{-- Trigger Full Screen Viewer --}}
                             <div class="photo-preview js-view-photo" data-url="{{ $url }}">
                                 <img src="{{ $url }}" alt="Bukti Izin">
                                 <div class="overlay">
@@ -250,29 +281,61 @@
             </div>
 
             <div class="right-action">
-                {{-- TOMBOL AKSI KHUSUS HRD --}}
-                @if($item->status == \App\Models\LeaveRequest::PENDING_HR)
-                    
-                    <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        Tolak
+                {{-- [LOGIC TOMBOL AKSI HRD] --}}
+
+                @if($item->status === 'CANCEL_REQ')
+                    {{-- SKENARIO 1: REQUEST BATAL --}}
+                    <div style="margin-right: 12px; font-weight:600; color:#9f1239; font-size:13.5px; display:flex; align-items:center; gap:6px;">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                        Supervisor Mengajukan Pembatalan
+                    </div>
+                    <button type="button" data-modal-target="modal-delete" class="btn-modern btn-reject">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        Setujui Pembatalan
                     </button>
 
-                    <button type="button" data-modal-target="modal-approve" class="btn-modern btn-approve">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Setujui
-                    </button>
+                @elseif($item->status === 'BATAL')
+                    {{-- SKENARIO 2: SUDAH DIBATALKAN --}}
+                    <div class="processed-info" style="color:#6b7280; font-weight:600;">
+                        ⛔ Pengajuan Ini Sudah Dibatalkan
+                    </div>
 
                 @else
-                    <div class="processed-info">
-                        @if($item->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
-                             <span style="color:#ca8a04; font-weight:600;">⏳ Menunggu Persetujuan Atasan</span>
-                        @elseif($item->status == \App\Models\LeaveRequest::STATUS_APPROVED)
-                             <span style="color:#166534; font-weight:600;">✅ Sudah Disetujui (Final)</span>
-                        @elseif($item->status == \App\Models\LeaveRequest::STATUS_REJECTED)
-                             <span style="color:#991b1b; font-weight:600;">❌ Ditolak</span>
-                        @endif
-                    </div>
+                    {{-- SKENARIO 3: NORMAL OPERATION --}}
+
+                    {{-- Tombol Edit & Hapus Manual (God Mode) --}}
+                    <button type="button" data-modal-target="modal-edit-hr" class="btn-modern btn-warning-outline" style="margin-right:8px;">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        Edit
+                    </button>
+
+                    <button type="button" data-modal-target="modal-delete" class="btn-modern btn-danger-outline" style="margin-right:16px;">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        Batalkan
+                    </button>
+
+                    @if($item->status == \App\Models\LeaveRequest::PENDING_HR)
+                        
+                        <div style="height:24px; width:1px; background:#e5e7eb; margin-right:16px;"></div>
+
+                        {{-- [FIXED] Tombol Reject --}}
+                        <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            Tolak
+                        </button>
+
+                        {{-- [FIXED] Tombol Approve --}}
+                        <button type="button" data-modal-target="modal-approve" class="btn-modern btn-approve">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Setujui Final
+                        </button>
+
+                    @else
+                        <div class="processed-info">
+                            Status: <strong>{{ $statusLabel }}</strong>
+                        </div>
+                    @endif
+
                 @endif
             </div>
         </div>
@@ -286,38 +349,130 @@
         <img id="simple-viewer-img" src="" alt="Full Preview">
     </div>
 
-    {{-- MODAL REJECT --}}
-    <x-modal
-        id="modal-reject"
-        title="Tolak Pengajuan?"
-        type="confirm"
-        confirmLabel="Tolak Pengajuan"
-        cancelLabel="Batal"
-        :confirmFormAction="route('hr.leave.reject', $item)"
-        confirmFormMethod="POST">
-        <p style="margin:0; color:#374151;">
-            Apakah Anda yakin ingin menolak pengajuan izin dari <strong>{{ $item->user->name }}</strong>?
-        </p>
-        <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
-            Status akan berubah menjadi Ditolak dan tidak dapat dikembalikan.
-        </p>
+    {{-- [MODAL EDIT (GOD MODE)] --}}
+    <x-modal id="modal-edit-hr" title="Edit Data Pengajuan" type="form">
+        <form action="{{ route('leave-requests.update', $item->id) }}" method="POST">
+            @csrf
+            @method('PUT')
+            
+            <input type="hidden" name="type" value="{{ $typeValue }}">
+            <input type="hidden" name="reason" value="{{ $item->reason }}"> 
+
+            <div class="form-group" style="margin-bottom:12px;">
+                <label style="display:block; font-size:13px; font-weight:600; color:#374151;">Tanggal Mulai</label>
+                <input type="date" name="start_date" class="form-control" value="{{ $item->start_date->format('Y-m-d') }}" required>
+            </div>
+            <div class="form-group">
+                <label style="display:block; font-size:13px; font-weight:600; color:#374151;">Tanggal Selesai</label>
+                <input type="date" name="end_date" class="form-control" value="{{ $item->end_date->format('Y-m-d') }}" required>
+            </div>
+            
+            @if($typeValue === 'CUTI_KHUSUS')
+            <div class="form-group" style="margin-top:12px;">
+                <label style="display:block; font-size:13px; font-weight:600; color:#374151;">Kategori Cuti Khusus</label>
+                <select name="special_leave_detail" class="form-control">
+                    <option value="{{ $item->special_leave_category }}" selected>{{ $item->special_leave_category }}</option>
+                    <option value="NIKAH_KARYAWAN">Menikah</option>
+                    <option value="ISTRI_MELAHIRKAN">Istri Melahirkan</option>
+                    <option value="ISTRI_KEGUGURAN">Istri Keguguran</option>
+                    <option value="DEATH_CORE">Kematian Inti</option>
+                </select>
+            </div>
+            @endif
+            
+            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>
+                <button type="submit" class="btn-approve" style="border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Simpan Perubahan</button>
+            </div>
+        </form>
     </x-modal>
 
-    {{-- MODAL APPROVE --}}
-    <x-modal
-        id="modal-approve"
-        title="Setujui Pengajuan?"
-        type="confirm"
-        confirmLabel="Ya, Setujui"
-        cancelLabel="Batal"
-        :confirmFormAction="route('hr.leave.approve', $item)"
-        confirmFormMethod="POST">
-        <p style="margin:0; color:#374151;">
-            Anda akan menyetujui pengajuan izin ini.
-        </p>
-        <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
-            Pastikan data sudah benar. Sistem akan mencatat persetujuan ini atas nama Anda.
-        </p>
+    {{-- [MODAL DELETE (BATALKAN)] --}}
+    <x-modal id="modal-delete" title="Ubah Status menjadi BATAL?" type="form">
+        <form action="{{ route('leave-requests.destroy', $item->id) }}" method="POST">
+            @csrf
+            @method('DELETE')
+
+            @if($item->status === 'CANCEL_REQ')
+                <p style="margin:0; color:#374151; font-weight:600;">
+                    Konfirmasi Pembatalan (Request Supervisor).
+                </p>
+                <p style="margin:8px 0 0 0; font-size:0.9em; color:#6b7280;">
+                    Status pengajuan akan diubah menjadi <strong>BATAL</strong>.
+                </p>
+            @else
+                <p style="margin:0; color:#374151;">
+                    Anda akan membatalkan pengajuan ini secara paksa.
+                </p>
+                <p style="margin:8px 0 0 0; font-size:0.85rem; color:#dc2626;">
+                    Status akan berubah menjadi BATAL. Data tetap tersimpan sebagai riwayat.
+                </p>
+            @endif
+
+            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Tidak</button>
+                <button type="submit" class="btn-danger-outline" style="background:#dc2626; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">Ya, Batalkan</button>
+            </div>
+        </form>
+    </x-modal>
+
+    {{-- [MODAL REJECT] --}}
+    <x-modal id="modal-reject" title="Tolak Pengajuan?" type="form">
+        <form action="{{ route('hr.leave.reject', $item) }}" method="POST" style="width:100%;">
+            @csrf
+            
+            <p style="margin:0; color:#374151; margin-bottom:12px;">
+                Anda akan menolak pengajuan ini. Silakan berikan alasannya.
+            </p>
+
+            <div class="form-group">
+                <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:4px;">
+                    Alasan Penolakan <span style="color:red">*</span>
+                </label>
+                <textarea 
+                    name="notes_hrd" 
+                    rows="3" 
+                    class="form-control" 
+                    placeholder="Contoh: Kuota cuti tahunan sudah habis / Dokumen tidak lengkap." 
+                    required 
+                    style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:10px; font-size:14px; font-family:inherit;"></textarea>
+            </div>
+
+            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>
+                <button type="submit" class="btn-reject" style="background:#dc2626; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">Tolak Pengajuan</button>
+            </div>
+        </form>
+    </x-modal>
+
+    {{-- [MODAL APPROVE (DENGAN FORM CATATAN)] --}}
+    <x-modal id="modal-approve" title="Setujui Pengajuan?" type="form">
+        <form action="{{ route('hr.leave.approve', $item) }}" method="POST" style="width:100%;">
+            @csrf
+            
+            <p style="margin:0; color:#374151; margin-bottom:12px;">
+                Konfirmasi persetujuan final untuk pengajuan ini.
+            </p>
+
+            {{-- Input Catatan (Opsional) --}}
+            <div class="form-group">
+                <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:4px;">
+                    Catatan HRD (Opsional)
+                </label>
+                <textarea 
+                    name="notes_hrd" 
+                    rows="2" 
+                    class="form-control" 
+                    placeholder="Contoh: Potong uang makan." 
+                    style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:10px; font-size:14px; font-family:inherit;"></textarea>
+                <small style="font-size:11px; color:#6b7280;">Karyawan dapat melihat catatan ini.</small>
+            </div>
+
+            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+                <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>
+                <button type="submit" class="btn-approve" style="border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Ya, Setujui</button>
+            </div>
+        </form>
     </x-modal>
 
     <script>
@@ -326,7 +481,6 @@
             const viewerImg = document.getElementById('simple-viewer-img');
             const closeBtn = document.getElementById('btn-close-simple');
 
-            // Fungsi Buka Viewer
             document.querySelectorAll('.js-view-photo').forEach(el => {
                 el.addEventListener('click', () => {
                     const url = el.getAttribute('data-url');
@@ -338,7 +492,6 @@
                 });
             });
 
-            // Fungsi Tutup Viewer
             function closeViewer() {
                 if (viewer) viewer.style.display = 'none';
                 if (viewerImg) viewerImg.src = '';
@@ -346,72 +499,22 @@
             }
 
             if (closeBtn) closeBtn.addEventListener('click', closeViewer);
-
-            if (viewer) {
-                viewer.addEventListener('click', (e) => {
-                    if (e.target === viewer) {
-                        closeViewer();
-                    }
-                });
-            }
-
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && viewer.style.display === 'flex') {
-                    closeViewer();
-                }
-            });
+            if (viewer) viewer.addEventListener('click', (e) => { if (e.target === viewer) closeViewer(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer.style.display === 'flex') closeViewer(); });
         });
     </script>
 
     <style>
-        /* --- SIMPLE FULL SCREEN VIEWER --- */
-        .simple-viewer-overlay {
-            position: fixed;
-            inset: 0;
-            background-color: rgba(0, 0, 0, 0.95);
-            z-index: 99999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        /* Shared Styles */
+        .simple-viewer-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; }
+        .btn-close-simple { position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; z-index: 100000; }
+        .btn-close-simple:hover { background: rgba(255, 255, 255, 0.3); }
+        #simple-viewer-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
 
-        .btn-close-simple {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: #fff;
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
-            z-index: 100000;
-        }
-        .btn-close-simple:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        #simple-viewer-img {
-            max-width: 95vw;
-            max-height: 95vh;
-            object-fit: contain;
-            border-radius: 4px;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-        }
-
-        /* --- ALERTS --- */
         .alert-success { background: #ecfdf5; color: #065f46; padding: 12px 16px; border-radius: 8px; border: 1px solid #a7f3d0; margin-bottom: 16px; font-size: 14px; }
         .alert-error { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px; font-size: 14px; }
 
-        /* --- CARD --- */
         .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid #f3f4f6; overflow: hidden; }
-
-        /* --- HEADER --- */
         .profile-header { padding: 24px; display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; background: #fff; }
         .profile-main { display: flex; gap: 16px; align-items: center; }
         .profile-avatar { width: 56px; height: 56px; background: #e0e7ff; color: #1e4a8d; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; }
@@ -421,21 +524,17 @@
         .chip-role { background: #f3f4f6; padding: 2px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
         
         .divider-full { height: 1px; background: #f3f4f6; width: 100%; }
-
-        /* --- GRID DETAIL --- */
         .detail-container { padding: 24px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 40px; }
         @media(max-width: 768px) { .detail-container { grid-template-columns: 1fr; gap: 24px; } }
 
         .section-title { font-size: 14px; font-weight: 700; color: #111827; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 16px 0; padding-bottom: 8px; border-bottom: 2px solid #f3f4f6; display: inline-block; }
-
         .info-row { margin-bottom: 16px; }
         .info-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; font-weight: 500; }
         .info-value { font-size: 14.5px; color: #1f2937; font-weight: 500; line-height: 1.5; }
-
         .box-reason { background: #f9fafb; padding: 12px; border-radius: 8px; border: 1px solid #f3f4f6; color: #374151; font-size: 14px; }
         
         .system-note-box { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 12px; margin-top: 10px; }
-        .note-label { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 4px; text-transform: uppercase; }
+        .note-label { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 4px; text-transform: uppercase; display: flex; align-items: center; }
         .note-content { font-size: 13.5px; color: #b45309; line-height: 1.4; }
 
         .badge-basic { background: #f3f4f6; color: #374151; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; border: 1px solid #e5e7eb; display: inline-block; }
@@ -471,6 +570,14 @@
 
         .btn-reject { background: #fff; border-color: #fee2e2; color: #dc2626; }
         .btn-reject:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+
+        .btn-warning-outline { background: #fff; border-color: #f59e0b; color: #d97706; }
+        .btn-warning-outline:hover { background: #fffbeb; }
+
+        .btn-danger-outline { background: #fff; border-color: #fee2e2; color: #dc2626; }
+        .btn-danger-outline:hover { background: #fef2f2; border-color: #fca5a5; }
+
+        .form-control { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 6px; }
 
         .processed-info { font-size: 13.5px; color: #6b7280; background: #fff; padding: 8px 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
     </style>

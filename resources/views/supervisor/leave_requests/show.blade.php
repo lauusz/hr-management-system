@@ -43,8 +43,9 @@
                 $badgeClass = 'badge-gray';
                 $statusLabel = $item->status; 
 
-                // Cek apakah user yang login berhak approve saat ini
-                $showApproveButton = isset($canApprove) && $canApprove;
+                // Variabel dari Controller
+                $showActionButtons = isset($canApprove) && $canApprove; // Untuk tombol Approve/Reject
+                $isDirectSuper = isset($isApprover) && $isApprover; // Untuk tombol Edit/Delete (Flexible)
 
                 if ($status === \App\Models\LeaveRequest::STATUS_APPROVED) {
                     $badgeClass = 'badge-green';
@@ -54,10 +55,13 @@
                     $statusLabel = 'Ditolak';
                 } elseif ($status === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
                     $badgeClass = 'badge-yellow';
-                    $statusLabel = $showApproveButton ? '⏳ Menunggu Persetujuan Anda' : '⏳ Menunggu Persetujuan Atasan';
+                    $statusLabel = $showActionButtons ? '⏳ Menunggu Persetujuan Anda' : '⏳ Menunggu Persetujuan Atasan';
                 } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
                     $badgeClass = 'badge-teal';
                     $statusLabel = '✅ Atasan Mengetahui';
+                } elseif ($status === 'CANCEL_REQ') { // Tambahan status cancel request
+                    $badgeClass = 'badge-red';
+                    $statusLabel = '⏳ Menunggu Konfirmasi Batal (HRD)';
                 }
             @endphp
             
@@ -127,16 +131,12 @@
                     <div class="info-row">
                         <div class="info-label">
                             @if($endTimeLabel)
-                                {{-- Jika ada jam selesai, berarti Range Waktu --}}
                                 Jam Izin
                             @elseif($typeValue === 'IZIN_TELAT')
-                                {{-- Khusus Izin Telat --}}
                                 Estimasi Jam Tiba
                             @elseif($typeValue === 'IZIN_PULANG_AWAL')
-                                {{-- Khusus Pulang Awal --}}
                                 Jam Pulang Awal
                             @else
-                                {{-- Default --}}
                                 Jam Mulai
                             @endif
                         </div>
@@ -151,7 +151,7 @@
 
                 @if($item->approved_by)
                 <div class="info-row">
-                    <div class="info-label">Diputus Oleh</div>
+                    <div class="info-label">Diputus/Direvisi Oleh</div>
                     <div class="info-value">
                         {{ $item->approver?->name }}
                         @if($item->approved_at)
@@ -181,7 +181,7 @@
                 {{-- [SYSTEM NOTES - CATATAN SISTEM] --}}
                 @if($item->notes)
                 <div class="system-note-box">
-                    <div class="note-label">Catatan Sistem:</div>
+                    <div class="note-label">Catatan Sistem / Revisi:</div>
                     <div class="note-content">{!! nl2br(e($item->notes)) !!}</div>
                 </div>
                 @endif
@@ -255,8 +255,30 @@
 
             <div class="right-action">
                 {{-- [LOGIC TOMBOL AKSI] --}}
-                @if($showApproveButton)
-                    {{-- JIKA SAYA ADALAH APPROVER & STATUS MASIH PENDING --}}
+                
+                {{-- 1. GROUP EDIT/DELETE (Untuk Atasan Langsung, muncul kapan saja) --}}
+                @if($isDirectSuper)
+                    <a href="{{ route('approval.edit', $item->id) }}" class="btn-modern btn-warning-outline" style="margin-right:8px;">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                        Revisi Data
+                    </a>
+
+                    @if($item->status !== 'CANCEL_REQ')
+                        {{-- Tombol Ajukan Pembatalan (Jika belum diajukan) --}}
+                        <button type="button" data-modal-target="modal-delete" class="btn-modern btn-danger-outline" style="margin-right:16px;">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            Ajukan Pembatalan
+                        </button>
+                    @endif
+                @endif
+
+                {{-- Divider jika ada kedua grup tombol --}}
+                @if($isDirectSuper && $showActionButtons)
+                    <div style="height:24px; width:1px; background:#e5e7eb; margin-right:16px;"></div>
+                @endif
+
+                {{-- 2. GROUP APPROVE/REJECT (Hanya jika Status Pending) --}}
+                @if($showActionButtons)
                     <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                         Tolak
@@ -264,22 +286,11 @@
 
                     <button type="button" data-modal-target="modal-approve" class="btn-modern btn-approve">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Setujui & Teruskan
+                        Setujui
                     </button>
-
-                @else
-                    {{-- JIKA HANYA VIEW (Sudah diproses / Bukan giliran saya) --}}
-                    <div class="processed-info">
-                        @if($item->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
-                            <span style="color:#ca8a04; font-weight:600;">⏳ Menunggu Approval Atasan</span>
-                        @elseif($item->status == \App\Models\LeaveRequest::PENDING_HR)
-                            <span style="color:#0f766e; font-weight:600;">✅ Atasan Mengetahui (Menunggu Verifikasi HRD)</span>
-                        @elseif($item->status == \App\Models\LeaveRequest::STATUS_APPROVED)
-                            <span style="color:#166534; font-weight:600;">✅ Disetujui Sepenuhnya (HRD)</span>
-                        @else
-                            Status Akhir: <strong>{{ $statusLabel }}</strong>
-                        @endif
-                    </div>
+                @elseif(!$isDirectSuper)
+                    {{-- Jika hanya Viewer (bukan atasan langsung dan bukan giliran approve) --}}
+                    <div class="processed-info">Status: <strong>{{ $statusLabel }}</strong></div>
                 @endif
             </div>
         </div>
@@ -293,7 +304,26 @@
         <img id="simple-viewer-img" src="" alt="Full Preview">
     </div>
 
+    {{-- MODAL DELETE (AJUKAN PEMBATALAN) --}}
+    <x-modal
+        id="modal-delete"
+        title="Ajukan Pembatalan?"
+        type="confirm"
+        variant="danger"
+        confirmLabel="Ya, Ajukan Pembatalan"
+        cancelLabel="Batal"
+        :confirmFormAction="route('approval.destroy', $item->id)"
+        confirmFormMethod="DELETE">
+        <p style="margin:0; color:#374151;">
+            Anda akan mengajukan permintaan pembatalan untuk pengajuan ini ke HRD.
+        </p>
+        <p style="margin:8px 0 0 0; font-size:0.85rem; color:#dc2626; font-weight:500;">
+            Status akan berubah dan menunggu eksekusi penghapusan oleh HRD.
+        </p>
+    </x-modal>
+
     {{-- MODAL REJECT (TOLAK) --}}
+    @if($showActionButtons)
     <x-modal
         id="modal-reject"
         title="Tolak Pengajuan?"
@@ -307,7 +337,7 @@
             Apakah Anda yakin ingin menolak pengajuan izin dari <strong>{{ $item->user->name }}</strong>?
         </p>
         <p style="margin:8px 0 0 0; font-size:0.85rem; color:#dc2626; font-weight:500;">
-            Status akan berubah menjadi Ditolak dan tidak dapat dikembalikan.
+            Status akan berubah menjadi Ditolak.
         </p>
     </x-modal>
 
@@ -328,6 +358,7 @@
             Pengajuan akan diteruskan ke <strong>HRD</strong> untuk proses verifikasi akhir.
         </p>
     </x-modal>
+    @endif
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -455,7 +486,7 @@
         .badge-yellow { background: #fefce8; color: #a16207; border: 1px solid #fef08a; }
         .badge-blue { background: #eff6ff; color: #1d4ed8; }
         .badge-gray { background: #f3f4f6; color: #374151; }
-        /* [BARU] Badge Teal */
+        /* Badge Teal */
         .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
 
         /* --- PHOTO PREVIEW THUMBNAIL --- */
@@ -499,6 +530,13 @@
 
         .btn-reject { background: #fff; border-color: #fee2e2; color: #dc2626; }
         .btn-reject:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
+
+        /* [BARU] Style Tombol Edit & Delete */
+        .btn-warning-outline { background: #fff; border-color: #f59e0b; color: #d97706; }
+        .btn-warning-outline:hover { background: #fffbeb; }
+
+        .btn-danger-outline { background: #fff; border-color: #fee2e2; color: #dc2626; }
+        .btn-danger-outline:hover { background: #fef2f2; border-color: #fca5a5; }
 
         .processed-info { font-size: 13.5px; color: #6b7280; background: #fff; padding: 8px 16px; border-radius: 8px; border: 1px solid #e5e7eb; }
     </style>
