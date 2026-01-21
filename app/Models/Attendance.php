@@ -20,20 +20,31 @@ class Attendance extends Model
         'early_leave_minutes',
         'overtime_minutes',
         'location_id',
+        
+        // Data Clock In
         'clock_in_at',
         'clock_in_photo',
         'clock_in_photo_deleted_at',
         'clock_in_lat',
         'clock_in_lng',
         'clock_in_distance_m',
+        
+        // Data Clock Out
         'clock_out_at',
         'clock_out_photo',
         'clock_out_photo_deleted_at',
         'clock_out_lat',
         'clock_out_lng',
         'clock_out_distance_m',
+        
         'status',
         'notes',
+
+        // [PENTING] Kolom Dinas Luar & Approval (Wajib ada di fillable)
+        'type',              // Values: 'WFO', 'DINAS_LUAR'
+        'approval_status',   // Values: 'PENDING', 'APPROVED', 'REJECTED'
+        'rejection_note',
+        'approved_by'
     ];
 
     protected $casts = [
@@ -42,9 +53,12 @@ class Attendance extends Model
         'clock_out_at'              => 'datetime',
         'clock_in_photo_deleted_at' => 'datetime',
         'clock_out_photo_deleted_at'=> 'datetime',
-        'normal_start_time'         => 'datetime:H:i',
-        'normal_end_time'           => 'datetime:H:i',
+        // Casting ke datetime memudahkan manipulasi jam di Controller
+        'normal_start_time'         => 'datetime:H:i:s', 
+        'normal_end_time'           => 'datetime:H:i:s',
     ];
+
+    // --- RELATIONS ---
 
     public function user()
     {
@@ -65,6 +79,14 @@ class Attendance extends Model
     {
         return $this->belongsTo(AttendanceLocation::class, 'location_id');
     }
+
+    // Relasi ke User HRD yang melakukan approval
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    // --- ACCESSORS / HELPERS ---
 
     public function getNormalStartLabelAttribute(): string
     {

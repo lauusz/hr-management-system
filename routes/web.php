@@ -13,6 +13,7 @@ use App\Http\Controllers\HR\DivisionController;
 use App\Http\Controllers\HR\PositionController;
 use App\Http\Controllers\HR\ScheduleController;
 use App\Http\Controllers\HRAttendanceController;
+use App\Http\Controllers\ApprovalAttendanceController; // [BARU] Import Controller
 use App\Http\Controllers\HREmployeeController;
 use App\Http\Controllers\PtController;
 use App\Http\Controllers\EmployeeDocumentController;
@@ -30,7 +31,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', fn() => view('dashboard'))->name('dashboard');
 
-    // [PENTING] Tambahkan 'update' dan 'destroy' agar HRD bisa Edit/Hapus
     Route::resource('leave-requests', LeaveRequestController::class)
         ->only(['index', 'create', 'store', 'show', 'update', 'destroy']);
 
@@ -39,6 +39,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clockIn');
     Route::get('/attendance/clock-out', [AttendanceController::class, 'showClockOutForm'])->name('attendance.clockOut.form');
     Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clockOut');
+    
+    // Remote Attendance (Karyawan)
+    Route::prefix('remote-attendance')->name('remote-attendance.')->group(function () {
+        Route::get('/', [AttendanceController::class, 'remoteIndex'])->name('index');
+        Route::post('/clock-in', [AttendanceController::class, 'remoteClockIn'])->name('clockIn');
+        Route::post('/clock-out', [AttendanceController::class, 'remoteClockOut'])->name('clockOut');
+    });
 
     Route::get('/loan-requests', [EmployeeLoanRequestController::class, 'index'])->name('employee.loan_requests.index');
     Route::get('/loan-requests/create', [EmployeeLoanRequestController::class, 'create'])->name('employee.loan_requests.create');
@@ -69,24 +76,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/employees', [HREmployeeController::class, 'index'])->name('hr.employees.index');
         Route::get('/hr/employees/create', [HREmployeeController::class, 'create'])->name('hr.employees.create');
         Route::post('/hr/employees', [HREmployeeController::class, 'store'])->name('hr.employees.store');
-
         Route::get('/hr/employees/{employee}', [HREmployeeController::class, 'show'])->name('hr.employees.show');
         Route::get('/hr/employees/{employee}/edit', [HREmployeeController::class, 'edit'])->name('hr.employees.edit');
         Route::put('/hr/employees/{employee}', [HREmployeeController::class, 'update'])->name('hr.employees.update');
-        
-        // Route Reset Password (Bypass)
         Route::patch('/hr/employees/{employee}/reset-password', [HREmployeeController::class, 'resetPassword'])->name('hr.employees.reset-password');
-
         Route::put('/hr/employees/{employee}/exit', [HREmployeeController::class, 'exit'])->name('hr.employees.exit');
         Route::get('/hr/employees/{employee}/exit-detail', [HREmployeeController::class, 'exitDetail'])->name('hr.employees.exit_detail');
         Route::delete('/hr/employees/{employee}', [HREmployeeController::class, 'destroy'])->name('hr.employees.destroy');
 
         Route::get('/hr/employees/{user}/shift', [EmployeeShiftController::class, 'edit'])->name('hr.employees.shift.edit');
         Route::put('/hr/employees/{user}/shift', [EmployeeShiftController::class, 'update'])->name('hr.employees.shift.update');
-
         Route::post('/hr/employees/{user}/documents', [EmployeeDocumentController::class, 'store'])->name('hr.employees.documents.store');
         Route::delete('/hr/employee-documents/{employeeDocument}', [EmployeeDocumentController::class, 'destroy'])->name('hr.employee_documents.destroy');
-
 
         Route::prefix('hr/supervisors')->name('hr.supervisors.')->group(function () {
             Route::get('/', [SupervisorDataController::class, 'index'])->name('index');
@@ -103,7 +104,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/locations/{location}/edit', [AttendanceLocationController::class, 'edit'])->name('hr.locations.edit');
         Route::put('/hr/locations/{location}', [AttendanceLocationController::class, 'update'])->name('hr.locations.update');
         Route::delete('/hr/locations/{location}', [AttendanceLocationController::class, 'destroy'])->name('hr.locations.destroy');
-
+        
         Route::get('/hr/schedules', [ScheduleController::class, 'index'])->name('hr.schedules.index');
         Route::get('/hr/schedules/create', [ScheduleController::class, 'create'])->name('hr.schedules.create');
         Route::post('/hr/schedules', [ScheduleController::class, 'store'])->name('hr.schedules.store');
@@ -111,7 +112,13 @@ Route::middleware('auth')->group(function () {
         Route::put('/hr/schedules/{schedule}', [ScheduleController::class, 'update'])->name('hr.schedules.update');
         Route::delete('/hr/schedules/{schedule}', [ScheduleController::class, 'destroy'])->name('hr.schedules.destroy');
 
+        // [UBAH DISINI] MASTER ATTENDANCE (Hanya List)
         Route::get('/hr/attendances', [HRAttendanceController::class, 'index'])->name('hr.attendances.index');
+
+        // [BARU] APPROVAL ATTENDANCE (Khusus Dinas Luar)
+        Route::get('/hr/approval-attendance', [ApprovalAttendanceController::class, 'index'])->name('hr.approval_attendance.index');
+        Route::post('/hr/approval-attendance/{attendance}/approve', [ApprovalAttendanceController::class, 'approve'])->name('hr.approval_attendance.approve');
+        Route::post('/hr/approval-attendance/{attendance}/reject', [ApprovalAttendanceController::class, 'reject'])->name('hr.approval_attendance.reject');
 
         Route::get('/hr/loan-requests', [HrLoanRequestController::class, 'index'])->name('hr.loan_requests.index');
         Route::get('/hr/loan-requests/{id}', [HrLoanRequestController::class, 'show'])->name('hr.loan_requests.show');
@@ -141,27 +148,20 @@ Route::middleware('auth')->group(function () {
         Route::delete('/hr/pts/{pt}', [PtController::class, 'destroy'])->name('hr.pts.destroy');
     });
 
-    // --- ROUTE KHUSUS VIEW SUPERVISOR (OLD) ---
     Route::middleware('role:SUPERVISOR')->prefix('supervisor')->name('supervisor.')->group(function () {
         Route::get('/leave-requests', [ApprovalController::class, 'index'])->name('leave.index');
         Route::get('/leave-requests/{leave}', [ApprovalController::class, 'show'])->name('leave.show');
-        
         Route::post('/leave-requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('leave.approve');
         Route::post('/leave-requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('leave.reject');
     });
 
-    // --- ROUTE APPROVAL (MANAGER & SUPERVISOR UMUM) ---
     Route::middleware('role:SUPERVISOR,MANAGER')->group(function () {
         Route::get('/approval/requests', [ApprovalController::class, 'index'])->name('approval.index');
         Route::get('/supervisor/leave/master', [ApprovalController::class, 'master'])->name('supervisor.leave.master');
-
         Route::get('/approval/requests/{leave}', [ApprovalController::class, 'show'])->name('approval.show');
-        
-        // Route Edit, Update, & Delete untuk Supervisor/Manager
         Route::get('/approval/requests/{leave}/edit', [ApprovalController::class, 'edit'])->name('approval.edit');
         Route::put('/approval/requests/{leave}', [ApprovalController::class, 'update'])->name('approval.update');
         Route::delete('/approval/requests/{leave}', [ApprovalController::class, 'destroy'])->name('approval.destroy');
-
         Route::post('/approval/requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
         Route::post('/approval/requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
     });

@@ -336,6 +336,21 @@
         <a href="{{ route('settings.password') }}" class="{{ request()->routeIs('settings.password') ? 'active' : '' }}">
           <span style="margin-right:10px;"></span> Pengaturan Akun
         </a>
+        
+        @php
+            // Cek apakah sedang aktif di menu dinas luar
+            $isRemoteOpen = request()->routeIs('remote-attendance.*');
+        @endphp
+        
+        <button type="button" class="menu-group {{ $isRemoteOpen ? 'open' : '' }}" data-menu-group="others">
+          <span class="menu-group-label"><span style="margin-right:10px;"></span> Lainnya</span>
+          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </button>
+        <div class="submenu {{ $isRemoteOpen ? 'show' : '' }}" data-menu-panel="others">
+          <a href="{{ route('remote-attendance.index') }}" class="{{ request()->routeIs('remote-attendance.*') ? 'active' : '' }}">
+              Dinas Luar
+          </a>
+        </div>
 
         {{-- MANAGER AREA --}}
         @if(auth()->user()->isManager())
@@ -395,6 +410,22 @@
               </span>
           @endif
         </a>
+
+        {{-- [BARU] MENU APPROVAL ABSENSI (DINAS LUAR) --}}
+        <a href="{{ route('hr.approval_attendance.index') }}" class="{{ request()->routeIs('hr.approval_attendance.*') ? 'active' : '' }}">
+            <span style="margin-right:10px;"></span> Approval Absensi
+            {{-- [BADGE MERAH PENDING APPROVAL] --}}
+            @php
+                // Hitung jumlah pending langsung (cara cepat)
+                $pendingAttendanceCount = \App\Models\Attendance::where('approval_status', 'PENDING')->count();
+            @endphp
+            @if($pendingAttendanceCount > 0)
+                <span style="background-color:#dc2626; color:white; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+                    {{ $pendingAttendanceCount }}
+                </span>
+            @endif
+        </a>
+        {{-- [END BARU] --}}
 
         <button type="button" class="menu-group {{ ($hrEmployeesOpen) ? 'open' : '' }}" data-menu-group="employees">
           <span class="menu-group-label"><span style="margin-right:10px;"></span> Karyawan</span>

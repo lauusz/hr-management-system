@@ -133,17 +133,28 @@
                             @endif
                         </td>
 
+                        {{-- [ADJUSTMENT] Logic Status untuk Handle Dinas Luar --}}
                         <td>
-                            @if ($at->status === 'TERLAMBAT')
-                                <span class="badge-status bg-red">Terlambat</span>
-                            @elseif ($at->status === 'HADIR')
-                                <span class="badge-status bg-green">Hadir</span>
+                            @if($at->type === 'DINAS_LUAR')
+                                <span class="badge-status bg-purple">Dinas Luar</span>
+                                @if($at->approval_status === 'APPROVED')
+                                    <span class="badge-status bg-green" style="font-size: 10px; margin-left: 2px;">OK</span>
+                                @elseif($at->approval_status === 'REJECTED')
+                                    <span class="badge-status bg-red" style="font-size: 10px; margin-left: 2px;">Ditolak</span>
+                                @endif
                             @else
-                                <span class="badge-status bg-gray">{{ $at->status ?? '-' }}</span>
+                                @if ($at->status === 'TERLAMBAT')
+                                    <span class="badge-status bg-red">Terlambat</span>
+                                @elseif ($at->status === 'HADIR')
+                                    <span class="badge-status bg-green">Hadir</span>
+                                @elseif ($at->status === 'ALPHA')
+                                    <span class="badge-status bg-red">Alpha</span>
+                                @else
+                                    <span class="badge-status bg-gray">{{ $at->status ?? '-' }}</span>
+                                @endif
                             @endif
                         </td>
 
-                        {{-- PERUBAHAN: Kolom Khusus Foto In --}}
                         <td class="text-center">
                             @if($at->clock_in_photo)
                             <button type="button"
@@ -159,7 +170,6 @@
                             @endif
                         </td>
 
-                        {{-- PERUBAHAN: Kolom Khusus Foto Out --}}
                         <td class="text-center">
                             @if($at->clock_out_photo)
                             <button type="button"
@@ -201,7 +211,6 @@
                     </tr>
                     @empty
                     <tr>
-                        {{-- Jangan lupa update colspan karena nambah 1 kolom --}}
                         <td colspan="10" class="empty-state">
                             Tidak ada data absensi yang ditemukan.
                         </td>
@@ -366,6 +375,8 @@
         .bg-green { background: #dcfce7; color: #166534; }
         .bg-red { background: #fee2e2; color: #991b1b; }
         .bg-gray { background: #f3f4f6; color: #4b5563; }
+        .bg-purple { background: #f3e8ff; color: #6b21a8; } /* Style untuk Dinas Luar */
+        .bg-yellow { background: #fef3c7; color: #92400e; }
 
         .badge-late {
             color: #b91c1c;

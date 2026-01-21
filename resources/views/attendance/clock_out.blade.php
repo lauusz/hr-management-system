@@ -61,14 +61,19 @@
             overflow: hidden;
         }
 
-        #video, #capturePreview {
+        /* --- UPDATE: MIRROR EFFECT --- */
+        #video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
+            transform: scaleX(-1); /* Efek Cermin */
         }
 
         #capturePreview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             display: none; /* Hidden by default */
         }
 
@@ -132,7 +137,7 @@
             gap: 8px;
         }
 
-        /* Warna khusus Clock-out (Opsional: bisa diganti warna lain jika mau beda) */
+        /* Warna khusus Clock-out */
         .btn-capture {
             background: var(--primary);
             color: white;
@@ -237,7 +242,7 @@
                     Ulangi
                 </button>
                 <button type="button" id="btnSubmit" class="btn-main btn-success">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     Clock-out
                 </button>
             </div>

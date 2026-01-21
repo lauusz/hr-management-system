@@ -61,14 +61,19 @@
             overflow: hidden;
         }
 
-        #video, #capturePreview {
+        /* --- UPDATE: MIRROR EFFECT --- */
+        #video {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
+            transform: scaleX(-1); /* Efek Cermin */
         }
 
         #capturePreview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
             display: none; /* Hidden by default */
         }
 
@@ -350,7 +355,7 @@
             }
         }
 
-        // 4. Fungsi Capture (FIX LAYAR HITAM)
+        // 4. Fungsi Capture (FIX LAYAR HITAM & MIRROR)
         btnCapture.addEventListener('click', () => {
             if (!video.srcObject) return;
 
@@ -364,7 +369,7 @@
 
             const ctx = canvas.getContext('2d');
 
-            // Mirroring (Flip Horizontal) biar natural
+            // Mirroring (Flip Horizontal) biar natural (WYSIWYG)
             ctx.translate(canvas.width, 0);
             ctx.scale(-1, 1);
 

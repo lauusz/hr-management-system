@@ -58,6 +58,7 @@
                             </span>
                         </div>
 
+                        {{-- INFO KETERLAMBATAN --}}
                         @if($attendance->late_minutes > 0)
                             @php
                                 $m = $attendance->late_minutes;
@@ -71,6 +72,7 @@
                             </div>
                         @endif
 
+                        {{-- INFO PULANG AWAL --}}
                         @if(($attendance->early_leave_minutes ?? 0) > 0)
                             @php
                                 $m = $attendance->early_leave_minutes;
@@ -81,6 +83,20 @@
                             <div class="info-item full-width">
                                 <span class="label text-orange">Pulang Awal</span>
                                 <span class="value text-orange">{{ $earlyLabel }}</span>
+                            </div>
+                        @endif
+
+                        {{-- [BARU] INFO LEMBUR --}}
+                        @if(($attendance->overtime_minutes ?? 0) > 0)
+                            @php
+                                $m = $attendance->overtime_minutes;
+                                $hours = intdiv($m, 60);
+                                $minutes = $m % 60;
+                                $otLabel = ($hours > 0 ? $hours.'j ' : '') . $minutes.'m';
+                            @endphp
+                            <div class="info-item full-width">
+                                <span class="label text-primary">Lembur</span>
+                                <span class="value text-primary">+ {{ $otLabel }}</span>
                             </div>
                         @endif
 
