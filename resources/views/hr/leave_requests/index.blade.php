@@ -95,8 +95,20 @@
                                 <span class="badge-type {{ $statusBadge }}">
                                     {{ $statusLabel }}
                                 </span>
+                                
+                                {{-- [MODIFIKASI] Menampilkan Nama Atasan (SPV atau Manager) --}}
+                                @if($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
+                                    <div class="approver-info">
+                                        Menunggu: 
+                                        <strong>
+                                            {{-- Cek Direct SPV dulu, kalau null cek Manager, kalau null strip --}}
+                                            {{ $lv->user->directSupervisor->name ?? $lv->user->manager->name ?? '-' }}
+                                        </strong>
+                                    </div>
+                                @endif
+
                                 @if($lv->status == \App\Models\LeaveRequest::PENDING_HR)
-                                    <div style="font-size:10px; color:#0d9488; margin-top:2px;">(Menunggu Verifikasi HRD)</div>
+                                    <div class="info-verifikasi">(Menunggu Verifikasi HRD)</div>
                                 @endif
                             </td>
 
@@ -216,6 +228,19 @@
 
         /* --- USER INFO --- */
         .user-info { display: flex; flex-direction: column; gap: 2px; }
+
+        /* --- APPROVER INFO (NEW) --- */
+        .approver-info {
+            font-size: 11px; 
+            color: #6b7280; 
+            margin-top: 6px; 
+            line-height: 1.3;
+        }
+        .info-verifikasi {
+            font-size: 10px; 
+            color: #0d9488; 
+            margin-top: 2px;
+        }
 
         /* --- BADGES --- */
         .badge-type {

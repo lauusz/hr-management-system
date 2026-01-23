@@ -30,7 +30,7 @@
             $shiftEndDisplay = null;
         }
 
-        // [DATA CUTI KHUSUS - Label disesuaikan permintaan]
+        // [DATA CUTI KHUSUS]
         $specialLeaveList = [
             ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 4],
             ['id' => 'ISTRI_MELAHIRKAN', 'label' => 'Istri Melahirkan', 'days' => 2],
@@ -68,7 +68,8 @@
 
         <div class="divider"></div>
 
-        <form class="form-content" method="POST" action="{{ route('leave-requests.store') }}" enctype="multipart/form-data">
+        {{-- [ADJUSTMENT]: Menambahkan ID "form-create-izin" untuk deteksi JS --}}
+        <form id="form-create-izin" class="form-content" method="POST" action="{{ route('leave-requests.store') }}" enctype="multipart/form-data">
             @csrf
 
             <input type="hidden" id="shift_end_time" value="{{ $shiftEndDisplay }}">
@@ -153,14 +154,8 @@
                 
                 <div class="warning-container">
                     <small id="cuti-rule" style="display:none; color:#6b7280; margin-top:4px; display:block;"></small>
-                    
-                    {{-- Warning H-7 (Cuti Tahunan) --}}
                     <div id="h7-warning" role="alert" aria-live="polite" class="alert-warning" style="display:none;"></div>
-                    
-                    {{-- [BARU] Warning Overlimit (Cuti Khusus) --}}
                     <div id="special-limit-warning" role="alert" aria-live="polite" class="alert-warning" style="display:none;"></div>
-
-                    {{-- Warning Masa Kerja --}}
                     <div id="tenure-warning" 
                          role="alert" 
                          aria-live="polite" 
@@ -174,26 +169,16 @@
                 @error('end_date') <div class="error-msg">{{ $message }}</div> @enderror
             </div>
 
-            {{-- 3. INPUT JAM (Reused: Tengah Kerja / Pulang Awal / Izin Telat) --}}
+            {{-- 3. INPUT JAM --}}
             <div class="form-group" id="worktime-field" style="display:none;">
                 <label id="worktime-label">Jam Izin</label>
                 <div class="time-range-wrapper">
                     <div class="time-input-box">
-                        <input
-                            type="time"
-                            name="start_time"
-                            id="start_time_input"
-                            class="form-control"
-                            value="{{ old('start_time') }}">
+                        <input type="time" name="start_time" id="start_time_input" class="form-control" value="{{ old('start_time') }}">
                     </div>
                     <span id="worktime-separator" class="separator">s/d</span>
                     <div id="end_time_wrapper" class="time-input-box">
-                        <input
-                            type="time"
-                            name="end_time"
-                            id="end_time_input"
-                            class="form-control"
-                            value="{{ old('end_time') }}">
+                        <input type="time" name="end_time" id="end_time_input" class="form-control" value="{{ old('end_time') }}">
                     </div>
                 </div>
                 <div id="pulang-info" class="helper-text" style="display:none;"></div>
@@ -201,7 +186,7 @@
                 @error('end_time') <div class="error-msg">{{ $message }}</div> @enderror
             </div>
 
-            {{-- 4. INFO PIC PENGGANTI (Untuk Cuti/Sakit) --}}
+            {{-- 4. INFO PIC PENGGANTI --}}
             <div id="substitute-pic-section" style="display:none; padding: 16px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; margin-bottom: 20px;">
                 <p style="margin-top:0; margin-bottom:12px; font-size:14px; font-weight:600; color:#1e4a8d;">
                     Informasi Pendelegasian Tugas
@@ -209,24 +194,12 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="substitute_pic">Nama PIC Pengganti <span class="req">*</span></label>
-                        <input 
-                            type="text" 
-                            name="substitute_pic" 
-                            id="substitute_pic" 
-                            class="form-control" 
-                            placeholder="Nama rekan pengganti"
-                            value="{{ old('substitute_pic') }}">
+                        <input type="text" name="substitute_pic" id="substitute_pic" class="form-control" placeholder="Nama rekan pengganti" value="{{ old('substitute_pic') }}">
                          @error('substitute_pic') <div class="error-msg">{{ $message }}</div> @enderror
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
                         <label for="substitute_phone">Nomor HP PIC <span class="req">*</span></label>
-                        <input 
-                            type="number" 
-                            name="substitute_phone" 
-                            id="substitute_phone" 
-                            class="form-control" 
-                            placeholder="Contoh: 0812..."
-                            value="{{ old('substitute_phone') }}">
+                        <input type="number" name="substitute_phone" id="substitute_phone" class="form-control" placeholder="Contoh: 0812..." value="{{ old('substitute_phone') }}">
                         @error('substitute_phone') <div class="error-msg">{{ $message }}</div> @enderror
                     </div>
                 </div>
@@ -234,7 +207,6 @@
                     Wajib diisi untuk keperluan koordinasi selama Anda tidak ada di tempat.
                 </small>
             </div>
-
             {{-- 5. LOKASI (Hidden Field - Khusus Telat) --}}
             <div id="location" style="display:none;">
                 <input type="hidden" name="latitude" id="latitude">
@@ -280,10 +252,14 @@
             </div>
 
             <div class="form-actions">
-                <button class="btn-primary" type="submit">Kirim Pengajuan</button>
+                {{-- [ADJUSTMENT]: Tambah ID btn-submit-izin --}}
+                <button class="btn-primary" type="submit" id="btn-submit-izin">
+                    Kirim Pengajuan
+                </button>
             </div>
         </form>
     </div>
+
     <style>
         /* Base Utils */
         .req { color: #dc2626; font-weight: bold; margin-left: 2px; }
@@ -318,8 +294,11 @@
         .btn-primary {
             padding: 12px 24px; background: #1e4a8d; color: #fff; border: none; border-radius: 8px;
             font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; width: 100%;
+            display: inline-flex; justify-content: center; align-items: center; gap: 8px;
         }
         .btn-primary:hover { background: #163a75; }
+        /* Style saat tombol disabled (loading) */
+        .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.8; }
 
         /* Form Layout */
         .form-content { padding: 24px; }
@@ -372,7 +351,7 @@
         .form-actions { margin-top: 32px; padding-top: 20px; border-top: 1px solid #f3f4f6; display: flex; justify-content: flex-end; }
         .form-actions .btn-primary { width: auto; min-width: 140px; }
 
-        /* [BARU] Info Badge Style */
+        /* Info Badge Style */
         .info-badge {
             display: inline-flex; align-items: center; gap: 6px;
             margin-top: 8px;
@@ -394,6 +373,7 @@
         }
     </style>
 
+    {{-- SCRIPT LOGIC UTAMA --}}
     <script>
         (function() {
             const typeRadios = document.querySelectorAll('input[name="type"]');
@@ -411,7 +391,7 @@
             const specialLeaveSelect = document.getElementById('special_leave_detail');
             const specialLeaveBadge = document.getElementById('special-leave-badge');
             const specialLeaveText = document.getElementById('special-leave-text');
-            const specialLimitWarning = document.getElementById('special-limit-warning'); // [BARU]
+            const specialLimitWarning = document.getElementById('special-limit-warning');
 
             const photoInput = document.getElementById('photoInput');
             const photoReqIndicator = document.getElementById('photo-req-indicator');
@@ -482,11 +462,9 @@
                 );
             }
 
-            // [BARU] Fungsi Cek Limit Cuti Khusus
             function checkSpecialLeaveLimit() {
                 if (!specialLimitWarning) return;
                 
-                // Pastikan tipe Cuti Khusus aktif & ada pilihan kategori
                 if (selectedType() !== CUTI_KHUSUS || !specialLeaveSelect.value) {
                     specialLimitWarning.style.display = 'none';
                     specialLimitWarning.textContent = '';
@@ -496,7 +474,6 @@
                 const selectedOption = specialLeaveSelect.options[specialLeaveSelect.selectedIndex];
                 const maxDays = parseInt(selectedOption.getAttribute('data-days')) || 0;
                 
-                // Ambil tanggal dari input flatpickr (hidden input)
                 const startStr = document.getElementById('start_date').value;
                 const endStr = document.getElementById('end_date').value;
 
@@ -505,7 +482,6 @@
                 const startDate = new Date(startStr);
                 const endDate = new Date(endStr);
                 
-                // Hitung selisih hari (inklusif)
                 const diffTime = Math.abs(endDate - startDate);
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
 
@@ -521,11 +497,10 @@
             function toggleSection() {
                 const val = selectedType();
 
-                // 1. LOGIK CUTI KHUSUS
+                // 1. CUTI KHUSUS
                 if (val === CUTI_KHUSUS) {
                     specialLeaveContainer.style.display = 'block';
                     if(specialLeaveSelect) specialLeaveSelect.required = true;
-                    // Trigger cek limit saat ganti tipe
                     checkSpecialLeaveLimit();
                 } else {
                     specialLeaveContainer.style.display = 'none';
@@ -537,7 +512,7 @@
                     if(specialLimitWarning) specialLimitWarning.style.display = 'none';
                 }
 
-                // 2. LOGIK LOKASI & FOTO 
+                // 2. LOKASI
                 const isTelat = (val === IZIN_TELAT);
                 if (isTelat) {
                     requestLocationIfNeeded();
@@ -549,7 +524,7 @@
                     if(photoReqIndicator) photoReqIndicator.style.display = 'none';
                 }
 
-                // 3. LOGIK PIC PENGGANTI
+                // 3. PIC
                 const needPic = (val === CUTI || val === CUTI_KHUSUS || val === SAKIT);
                 if (picSection) {
                     if (needPic) {
@@ -563,7 +538,7 @@
                     }
                 }
 
-                // 4. LOGIK JAM KERJA
+                // 4. JAM
                 const isTengahKerja = (val === IZIN_TENGAH_KERJA);
                 const isPulangAwal = (val === IZIN_PULANG_AWAL);
                 const showWorktime = isTengahKerja || isPulangAwal || isTelat;
@@ -580,7 +555,7 @@
                     if (endTimeWrapper) endTimeWrapper.style.display = 'block';
                     startTimeInput.required = true;
                     endTimeInput.required = true;
-                    if (pulangInfo) { pulangInfo.style.display = 'none'; pulangInfo.textContent = ''; }
+                    if (pulangInfo) { pulangInfo.style.display = 'none'; }
 
                 } else if (isPulangAwal) {
                     if (worktimeLabel) worktimeLabel.innerHTML = 'Jam Pulang';
@@ -607,37 +582,31 @@
                     startTimeInput.required = true;
                     endTimeInput.required = false;
                     endTimeInput.value = '';
-                    if (pulangInfo) { pulangInfo.style.display = 'none'; pulangInfo.textContent = ''; }
+                    if (pulangInfo) { pulangInfo.style.display = 'none'; }
 
                 } else {
                     startTimeInput.required = false;
                     endTimeInput.required = false;
                     startTimeInput.value = '';
                     endTimeInput.value = '';
-                    if (pulangInfo) { pulangInfo.style.display = 'none'; pulangInfo.textContent = ''; }
+                    if (pulangInfo) { pulangInfo.style.display = 'none'; }
                 }
             }
 
-            // Event Listener Dropdown Cuti Khusus
             if(specialLeaveSelect) {
                 specialLeaveSelect.addEventListener('change', function() {
                     const selectedOption = this.options[this.selectedIndex];
                     const days = selectedOption.getAttribute('data-days');
-                    
-                    // Update Badge
                     if (days) {
                         specialLeaveBadge.style.display = 'inline-flex';
                         specialLeaveText.textContent = 'Maksimal ' + days + ' Hari';
                     } else {
                         specialLeaveBadge.style.display = 'none';
                     }
-
-                    // [BARU] Update Warning saat ganti kategori
                     checkSpecialLeaveLimit();
                 });
             }
 
-            // Event listener hidden input tanggal (di-trigger oleh flatpickr)
             document.getElementById('start_date').addEventListener('change', checkSpecialLeaveLimit);
             document.getElementById('end_date').addEventListener('change', checkSpecialLeaveLimit);
 
@@ -651,6 +620,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Preview Foto
             const input = document.getElementById('photoInput');
             const previewContainer = document.getElementById('photoPreviewContainer');
             const previewImg = document.getElementById('photoPreview');
@@ -669,23 +639,59 @@
                     previewImg.src = '';
                 }
             });
+
+            // [FIXED] SCRIPT ANTI DOUBLE SUBMIT (Mencegah Kasus Joko Prihatin)
+            const formIzin = document.getElementById('form-create-izin');
+            const btnSubmit = document.getElementById('btn-submit-izin');
+
+            if(formIzin) {
+                formIzin.addEventListener('submit', function(e) {
+                    // Cek validasi HTML5 dulu (required fields)
+                    if(!formIzin.checkValidity()) {
+                        // Jika tidak valid, biarkan browser menampilkan error default
+                        return;
+                    }
+
+                    // Jika valid, kunci tombol
+                    if(btnSubmit) {
+                        // Cegah klik ganda manual (safety extra)
+                        if(btnSubmit.disabled || btnSubmit.classList.contains('disabled')) {
+                            e.preventDefault();
+                            return;
+                        }
+
+                        // Matikan tombol & ubah teks
+                        btnSubmit.disabled = true;
+                        btnSubmit.classList.add('disabled');
+                        
+                        // Simpan teks asli
+                        const originalText = btnSubmit.innerHTML;
+                        // Ubah jadi loading
+                        btnSubmit.innerHTML = `
+                            <svg class="animate-spin" style="width:16px;height:16px;margin-right:5px;display:inline-block;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Memproses...
+                        `;
+                    }
+                });
+            }
         });
     </script>
-
+    
+    {{-- MODAL INFO --}}
     <x-modal
         id="info-izin-telat"
         title="Izin Terlambat"
         type="info"
         cancelLabel="Tutup">
-        <p style="margin:0 0 6px 0;">
-            Pengajuan izin terlambat Anda sudah dikirim ke HRD.
-        </p>
-        <p style="margin:0;font-size:0.9rem;opacity:.9;">
-            Silakan menunggu proses pengecekan. Status pengajuan dapat Anda lihat pada daftar riwayat pengajuan izin.
-        </p>
+        <p style="margin:0 0 6px 0;">Pengajuan izin terlambat Anda sudah dikirim ke HRD.</p>
+        <p style="margin:0;font-size:0.9rem;opacity:.9;">Silakan menunggu proses pengecekan.</p>
     </x-modal>
 
     @push('scripts')
+    {{-- Script Flatpickr & Warning H-7 (Tidak ada perubahan signifikan disini) --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             (function() {
@@ -697,9 +703,7 @@
                 const typeRadios = document.querySelectorAll('input[name="type"]');
                 var shouldShowIzinTelatPopup = !!@json(session('show_izin_telat_popup'));
 
-                const isUnderOneYear = tenureWarnEl ?
-                    tenureWarnEl.getAttribute('data-under-one-year') === '1' :
-                    false;
+                const isUnderOneYear = tenureWarnEl ? tenureWarnEl.getAttribute('data-under-one-year') === '1' : false;
 
                 function parseYMD(ymd) {
                     if (!ymd) return null;
@@ -723,11 +727,7 @@
                 }
 
                 function formatID(d) {
-                    return d.toLocaleDateString('id-ID', {
-                        day: '2-digit',
-                        month: 'long',
-                        year: 'numeric'
-                    });
+                    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
                 }
 
                 function getSelectedType() {
@@ -741,7 +741,6 @@
 
                 function updateTenureWarning() {
                     if (!tenureWarnEl) return;
-
                     if (isCutiSelected() && isUnderOneYear) {
                         tenureWarnEl.style.display = 'block';
                         tenureWarnEl.textContent = 'Masa kerja < 1 tahun, pengajuan cuti akan dipotong gaji.';
@@ -753,7 +752,6 @@
 
                 function renderRuleVisibility() {
                     if (!ruleEl || !warnEl) return;
-
                     if (isCutiSelected()) {
                         ruleEl.style.display = 'block';
                         ruleEl.innerHTML = 'Ketentuan: pengajuan minimal H-7 (≥ <b>' + formatID(boundaryDateH7()) + '</b>).';
@@ -761,64 +759,43 @@
                         updateTenureWarning();
                     } else {
                         ruleEl.style.display = 'none';
-                        ruleEl.textContent = '';
                         warnEl.style.display = 'none';
-                        warnEl.textContent = '';
                         updateTenureWarning();
                     }
                 }
 
                 function updateWarning() {
-                    if (!isCutiSelected()) {
-                        warnEl.style.display = 'none';
-                        warnEl.textContent = '';
-                        return;
-                    }
-
+                    if (!isCutiSelected()) { warnEl.style.display = 'none'; return; }
                     const today = todayStart();
                     const start = parseYMD(startInput ? startInput.value : '');
-                    if (!(start instanceof Date) || isNaN(start)) {
-                        warnEl.style.display = 'none';
-                        warnEl.textContent = '';
-                        return;
-                    }
+                    if (!(start instanceof Date) || isNaN(start)) { warnEl.style.display = 'none'; return; }
 
                     const diffDays = Math.round((start - today) / (1000 * 60 * 60 * 24));
                     if (diffDays < 7 && diffDays >= 0) {
                         warnEl.style.display = 'block';
-                        warnEl.textContent =
-                            'Pengajuan H-' + diffDays + ' (kurang dari H-7). ' +
-                            'Pengajuan tetap bisa diproses namun mungkin ada konsekuensi administrasi.';
+                        warnEl.textContent = 'Pengajuan H-' + diffDays + ' (kurang dari H-7). Pengajuan tetap bisa diproses.';
                     } else {
                         warnEl.style.display = 'none';
-                        warnEl.textContent = '';
                     }
                 }
 
                 if (startInput) {
                     startInput.addEventListener('input', updateWarning);
                     startInput.addEventListener('change', updateWarning);
-                    startInput.addEventListener('focus', updateWarning);
                 }
 
                 typeRadios.forEach(function(r) {
-                    r.addEventListener('change', function() {
-                        renderRuleVisibility();
-                    });
+                    r.addEventListener('change', renderRuleVisibility);
                 });
 
                 renderRuleVisibility();
                 updateTenureWarning();
 
                 var modal = document.getElementById('info-izin-telat');
-                if (modal) {
-                    if (shouldShowIzinTelatPopup) {
-                        modal.style.display = 'flex';
-                        document.body.style.overflow = 'hidden';
-                    }
-
-                    var closeButtons = modal.querySelectorAll('[data-modal-close="true"]');
-                    closeButtons.forEach(function(btn) {
+                if (modal && shouldShowIzinTelatPopup) {
+                    modal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                    modal.querySelectorAll('[data-modal-close="true"]').forEach(function(btn) {
                         btn.addEventListener('click', function() {
                             window.location.href = '{{ route('leave-requests.index') }}';
                         });
@@ -835,34 +812,30 @@
                     mode: 'range',
                     dateFormat: 'Y-m-d',
                     allowInput: true,
-                    locale: {
-                        rangeSeparator: ' sampai '
-                    },
+                    locale: { rangeSeparator: ' sampai ' },
                     onChange: function(selectedDates, dateStr) {
                         if (!dateStr) {
                             startHidden.value = '';
                             endHidden.value = '';
                             startHidden.dispatchEvent(new Event('change'));
-                            // [BARU] Trigger event untuk update warning
                             endHidden.dispatchEvent(new Event('change'));
                             return;
                         }
                         var parts = dateStr.split(' sampai ');
-                        if (parts.length === 1) {
-                            startHidden.value = parts[0];
-                            endHidden.value = parts[0];
-                        } else {
-                            startHidden.value = parts[0];
-                            endHidden.value = parts[1];
-                        }
+                        startHidden.value = parts[0];
+                        endHidden.value = parts.length > 1 ? parts[1] : parts[0];
+                        
                         startHidden.dispatchEvent(new Event('change'));
-                        // [BARU] Trigger event untuk update warning
                         endHidden.dispatchEvent(new Event('change'));
                     }
                 });
             }
         });
     </script>
+    <style>
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
     @endpush
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">

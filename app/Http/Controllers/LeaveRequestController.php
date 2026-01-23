@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\RateLimiter; // Wajib import ini
 use Illuminate\Validation\Rule;
 
 class LeaveRequestController extends Controller
@@ -26,7 +27,9 @@ class LeaveRequestController extends Controller
     {
         $userId = Auth::id();
 
-        $query = LeaveRequest::with(['user', 'approver'])
+        // [MODIFIKASI] Load Direct Supervisor & Manager untuk Fallback di View
+        // Agar kita bisa menampilkan: "Menunggu: Nama Manager" jika SPV kosong
+        $query = LeaveRequest::with(['user.directSupervisor', 'user.manager', 'approver'])
             ->where('user_id', $userId)
             ->orderByDesc('created_at');
 
@@ -146,7 +149,27 @@ class LeaveRequestController extends Controller
 
     public function store(Request $request)
     {
-        // 1. Validasi Input
+        $user = Auth::user();
+        $userId = Auth::id();
+
+        // =========================================================
+        // [MODIFIKASI 1] RATE LIMITER (JEDA 30 MENIT)
+        // =========================================================
+        $throttleKey = 'submit_izin_' . $userId;
+        
+        // Cek apakah user sedang dalam masa tunggu?
+        if (RateLimiter::tooManyAttempts($throttleKey, 1)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            $nextTime = Carbon::now()->addSeconds($seconds)->format('H:i');
+            
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => "Anda baru saja melakukan pengajuan. Untuk mencegah data ganda, mohon tunggu 30 menit. Silakan coba lagi pada pukul $nextTime."]);
+        }
+
+        // =========================================================
+        // [STANDARD] VALIDASI INPUT
+        // =========================================================
         $validated = $request->validate([
             'type'       => ['required', Rule::in(LeaveType::values())],
             'start_date' => ['required', 'date'],
@@ -161,7 +184,6 @@ class LeaveRequestController extends Controller
             'location_captured_at' => ['nullable', 'date'],
             'manager_id' => ['nullable', 'exists:users,id'], 
 
-            // Validasi PIC Pengganti
             'substitute_pic' => [
                 'nullable', 
                 'string', 
@@ -182,8 +204,6 @@ class LeaveRequestController extends Controller
                     LeaveType::SAKIT->value
                 ]))
             ],
-
-            // Validasi Detail Cuti Khusus
             'special_leave_detail' => [
                 'nullable',
                 'string',
@@ -191,16 +211,29 @@ class LeaveRequestController extends Controller
             ],
         ]);
 
-        $user = Auth::user();
-        $userId = Auth::id();
         $type = $validated['type'];
 
-        // Init Notes Array
-        $notesParts = [];
+        // =========================================================
+        // [MODIFIKASI 2] CEK DUPLIKASI DATA (LAPIS KE-2)
+        // =========================================================
+        // Mencegah input tanggal yang sama persis jika user berhasil bypass timer
+        $isDuplicate = LeaveRequest::where('user_id', $userId)
+            ->where('type', $type)
+            ->whereDate('start_date', $validated['start_date']) // Cek start date sama
+            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL']) // Abaikan yg sudah ditolak/batal
+            ->exists();
+
+        if ($isDuplicate) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['error' => 'Anda sudah memiliki pengajuan aktif (Pending/Disetujui) pada tanggal mulai tersebut. Cek Riwayat Pengajuan Anda.']);
+        }
 
         // =========================================================
-        // [LOGIC CUTI KHUSUS - SOFT LIMIT]
+        // LOGIC NOTES & CUTI KHUSUS
         // =========================================================
+        $notesParts = [];
+
         if ($type === LeaveType::CUTI_KHUSUS->value) {
             $category = $validated['special_leave_detail'];
             
@@ -221,7 +254,6 @@ class LeaveRequestController extends Controller
             $labels = [
                 'NIKAH_KARYAWAN' => 'Menikah',
                 'ISTRI_MELAHIRKAN' => 'Istri Melahirkan',
-                // ... default fallback
             ];
 
             $maxDays = $limits[$category] ?? 0;
@@ -231,7 +263,6 @@ class LeaveRequestController extends Controller
             $endDate   = Carbon::parse($validated['end_date']);
             $diffDays  = $startDate->diffInDays($endDate) + 1; 
 
-            // Catat di notes jika overlimit
             if ($maxDays > 0 && $diffDays > $maxDays) {
                 $notesParts[] = "Durasi pengajuan {$diffDays} hari melebihi batas maksimal {$maxDays} hari untuk kategori {$catName}.";
             }
@@ -262,7 +293,7 @@ class LeaveRequestController extends Controller
                 ->where('type', LeaveType::OFF_SPV->value)
                 ->whereBetween('start_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
                 ->where('status', '!=', LeaveRequest::STATUS_REJECTED)
-                ->where('status', '!=', 'BATAL') // [FIX] Pengajuan Batal tidak menghalangi pengajuan baru
+                ->where('status', '!=', 'BATAL')
                 ->exists();
 
             if ($alreadyInWeek) {
@@ -395,6 +426,7 @@ class LeaveRequestController extends Controller
             if ($finalApproverId) $initialStatus = LeaveRequest::PENDING_SUPERVISOR; 
         }
 
+        // --- CREATE DATA ---
         LeaveRequest::create([
             'user_id'    => $userId,
             'type'       => $type,
@@ -415,6 +447,12 @@ class LeaveRequestController extends Controller
             'special_leave_category' => $validated['special_leave_detail'] ?? null,
         ]);
 
+        // =========================================================
+        // [MODIFIKASI 3] AKTIFKAN TIMER (LOCK 30 MENIT)
+        // =========================================================
+        // Data sukses tersimpan, kunci user ini selama 1800 detik (30 menit)
+        RateLimiter::hit($throttleKey, 1800);
+
         if ($isIzinTelat) {
             return redirect()
                 ->route('leave-requests.create')
@@ -431,30 +469,27 @@ class LeaveRequestController extends Controller
         return view('leave_requests.show', ['item' => $leave_request->load('user', 'approver')]);
     }
 
-    // --- UPDATE & DELETE (Disesuaikan untuk HRD & Owner) ---
-
+    // [MODIFIKASI BESAR] GOD MODE UPDATE
     public function update(Request $request, LeaveRequest $leaveRequest)
     {
         $user = Auth::user();
         
-        // Cek Role & Kepemilikan
+        // 1. Cek Hak Akses
         $isOwner = $user->id === $leaveRequest->user_id;
         $roleStr = $this->getRoleString($user);
         $isHRD   = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER']);
 
-        // Akses ditolak jika bukan Pemilik dan bukan HRD
         if (!$isOwner && !$isHRD) {
             abort(403, 'Anda tidak berhak mengubah data ini.');
         }
 
-        // Jika Owner (Karyawan biasa), hanya boleh edit jika status masih Pending
         if ($isOwner && !$isHRD) {
             if (!in_array($leaveRequest->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR])) {
                 return back()->withErrors('Pengajuan sudah diproses, tidak dapat diubah sendiri. Hubungi atasan.');
             }
         }
 
-        // Validasi
+        // 2. Validasi Lengkap (Bisa Edit Semua Field)
         $validated = $request->validate([
             'type'       => ['required', Rule::in(LeaveType::values())],
             'start_date' => ['required', 'date'],
@@ -462,39 +497,35 @@ class LeaveRequestController extends Controller
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time'   => ['nullable', 'date_format:H:i'],
             'reason'     => ['nullable', 'string', 'max:5000'],
-            'photo'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
-            'status'     => ['nullable'], 
-            'latitude'   => ['nullable', 'numeric'],
-            'longitude'  => ['nullable', 'numeric'],
             'substitute_pic' => ['nullable', 'string', 'max:255'],
             'substitute_phone' => ['nullable', 'string', 'max:50'],
             'special_leave_detail' => ['nullable', 'string'],
         ]);
 
-        // PENTING: Gunakan $leaveRequest->user (Pemilik Cuti) untuk validasi logika jabatan
-        $targetUser = $leaveRequest->user;
-        $type = $validated['type'];
-
-        // Logic Off SPV (Cek jabatan PEMILIK CUTI, bukan yang login)
-        if ($type === LeaveType::OFF_SPV->value) {
-            if (!$this->isSpvUser($targetUser)) {
-                return back()->withErrors('Tipe pengajuan OFF hanya tersedia untuk Supervisor.')->withInput();
-            }
-            $validated['end_date'] = $validated['start_date'];
-            $validated['start_time'] = null;
-            $validated['end_time'] = null;
-        }
-
-        // Logic Cuti Khusus
-        if ($type === LeaveType::CUTI_KHUSUS->value) {
-            // Jika edit tapi lupa input detail, pakai data lama
+        // 3. Logic Pembersihan Data saat Ganti Tipe
+        if ($validated['type'] === LeaveType::CUTI_KHUSUS->value) {
+            // Ambil dari input baru, atau pakai yang lama jika input baru kosong (fallback)
             $validated['special_leave_category'] = $validated['special_leave_detail'] ?? $leaveRequest->special_leave_category;
         } else {
+            // Jika bukan cuti khusus, kosongkan kategori
             $validated['special_leave_category'] = null;
         }
         unset($validated['special_leave_detail']); 
 
-        // Update Foto
+        // Handle Jam jika ganti ke tipe non-waktu (misal dari Telat ke Sakit)
+        $isTimeBased = in_array($validated['type'], [
+            LeaveType::IZIN_TELAT->value,
+            LeaveType::IZIN_TENGAH_KERJA->value,
+            LeaveType::IZIN_PULANG_AWAL->value,
+            LeaveType::IZIN->value 
+        ]);
+
+        if (!$isTimeBased) {
+            $validated['start_time'] = null;
+            $validated['end_time'] = null;
+        }
+
+        // Handle File Foto (Opsional, jika ada upload baru di edit)
         if ($request->hasFile('photo')) {
             if ($leaveRequest->photo) {
                 Storage::disk('public')->delete('leave_photos/' . $leaveRequest->photo);
@@ -505,7 +536,7 @@ class LeaveRequestController extends Controller
 
         $leaveRequest->update($validated);
 
-        return back()->with('success', 'Data pengajuan berhasil diperbarui.');
+        return back()->with('success', 'Data pengajuan berhasil diperbarui sepenuhnya.');
     }
 
     public function destroy(LeaveRequest $leaveRequest)
@@ -515,22 +546,14 @@ class LeaveRequestController extends Controller
         $roleStr = $this->getRoleString($user);
         $isHRD   = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER']);
 
-        // [LOGIC BARU] 
-        // 1. Jika Karyawan Biasa -> Cuma boleh hapus jika status Pending.
-        // 2. Jika HRD/Manager -> Boleh hapus SEMUA STATUS (termasuk CANCEL_REQ dan APPROVED).
         if ($isOwner && !$isHRD) {
             if (!in_array($leaveRequest->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
                 return back()->with('error', 'Hanya pengajuan yang masih pending yang bisa dibatalkan oleh pemohon.');
             }
         }
 
-        // [PERUBAHAN] Update Status jadi 'BATAL' alih-alih delete
-        // Data tetap ada di database, tapi statusnya berubah
-        $leaveRequest->update([
-            'status' => 'BATAL',
-        ]);
+        $leaveRequest->update(['status' => 'BATAL']);
 
-        // Redirect cerdas
         if ($isHRD && !$isOwner) {
             return redirect()->route('hr.leave.index')->with('success', 'Pengajuan berhasil diubah status menjadi BATAL.');
         }

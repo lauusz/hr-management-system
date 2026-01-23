@@ -141,6 +141,17 @@
                                 <span class="badge-status {{ $badgeClass }}">
                                     {{ $row->status_label }}
                                 </span>
+
+                                {{-- [MODIFIKASI] Menampilkan Nama Atasan jika status PENDING_SUPERVISOR --}}
+                                @if($row->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
+                                    <div class="approver-info">
+                                        Menunggu: 
+                                        <strong>
+                                            {{-- Cek Direct SPV dulu, kalau null cek Manager, kalau null strip --}}
+                                            {{ $row->user->directSupervisor->name ?? $row->user->manager->name ?? '-' }}
+                                        </strong>
+                                    </div>
+                                @endif
                             </td>
 
                             <td class="text-right">
@@ -283,10 +294,18 @@
             border-bottom: 1px solid #f3f4f6;
             font-size: 13.5px;
             color: #1f2937;
-            vertical-align: middle;
+            vertical-align: top; /* [MODIFIKASI] Diubah ke top agar teks 'Menunggu...' rapi */
         }
         .custom-table tr:last-child td { border-bottom: none; }
         .custom-table tr:hover td { background: #fdfdfd; }
+
+        /* --- APPROVER INFO (NEW) --- */
+        .approver-info {
+            font-size: 11px; 
+            color: #6b7280; 
+            margin-top: 6px; 
+            line-height: 1.3;
+        }
 
         /* --- BADGES --- */
         .badge-basic {

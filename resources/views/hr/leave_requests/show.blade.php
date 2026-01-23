@@ -187,15 +187,13 @@
                 </div>
                 @endif
 
-                {{-- [CATATAN HRD - DINAMIS (BISA BIRU ATAU MERAH)] --}}
+                {{-- [CATATAN HRD - DINAMIS] --}}
                 @if($item->notes_hrd)
                     @php
-                        // Tentukan Warna & Label berdasarkan status
                         if ($item->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
                             $boxBg = '#fef2f2'; $boxBorder = '#fecaca'; $titleColor = '#991b1b'; $textColor = '#7f1d1d';
                             $titleLabel = 'Alasan Penolakan (HRD):';
                         } else {
-                            // Default (Approved / Lainnya) - Warna Biru/Info
                             $boxBg = '#eff6ff'; $boxBorder = '#dbeafe'; $titleColor = '#1e40af'; $textColor = '#1e3a8a';
                             $titleLabel = 'Catatan HRD:';
                         }
@@ -303,7 +301,7 @@
                 @else
                     {{-- SKENARIO 3: NORMAL OPERATION --}}
 
-                    {{-- Tombol Edit & Hapus Manual (God Mode) --}}
+                    {{-- [FULL EDIT / GOD MODE] Tombol Edit --}}
                     <button type="button" data-modal-target="modal-edit-hr" class="btn-modern btn-warning-outline" style="margin-right:8px;">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                         Edit
@@ -318,13 +316,13 @@
                         
                         <div style="height:24px; width:1px; background:#e5e7eb; margin-right:16px;"></div>
 
-                        {{-- [FIXED] Tombol Reject --}}
+                        {{-- Tombol Reject --}}
                         <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             Tolak
                         </button>
 
-                        {{-- [FIXED] Tombol Approve --}}
+                        {{-- Tombol Approve --}}
                         <button type="button" data-modal-target="modal-approve" class="btn-modern btn-approve">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             Setujui Final
@@ -349,42 +347,120 @@
         <img id="simple-viewer-img" src="" alt="Full Preview">
     </div>
 
-    {{-- [MODAL EDIT (GOD MODE)] --}}
-    <x-modal id="modal-edit-hr" title="Edit Data Pengajuan" type="form">
-        <form action="{{ route('leave-requests.update', $item->id) }}" method="POST">
+    {{-- [MODAL EDIT FULL (GOD MODE)] --}}
+    <x-modal id="modal-edit-hr" title="Edit Data Pengajuan (Full Access)" type="form">
+        <form action="{{ route('leave-requests.update', $item->id) }}" method="POST" id="form-edit-hr">
             @csrf
             @method('PUT')
             
-            <input type="hidden" name="type" value="{{ $typeValue }}">
-            <input type="hidden" name="reason" value="{{ $item->reason }}"> 
-
-            <div class="form-group" style="margin-bottom:12px;">
-                <label style="display:block; font-size:13px; font-weight:600; color:#374151;">Tanggal Mulai</label>
-                <input type="date" name="start_date" class="form-control" value="{{ $item->start_date->format('Y-m-d') }}" required>
-            </div>
-            <div class="form-group">
-                <label style="display:block; font-size:13px; font-weight:600; color:#374151;">Tanggal Selesai</label>
-                <input type="date" name="end_date" class="form-control" value="{{ $item->end_date->format('Y-m-d') }}" required>
+            <div style="max-height: 70vh; overflow-y: auto; padding-right: 5px;">
+                
+                {{-- 1. Tipe Pengajuan --}}
+                <div class="form-group">
+                    <label class="lbl-edit">Jenis Pengajuan</label>
+                    <select name="type" id="edit_type" class="form-control">
+                        @foreach(\App\Enums\LeaveType::cases() as $type)
+                            <option value="{{ $type->value }}" @selected($typeValue == $type->value)>
+                                {{ $type->label() }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+    
+                {{-- 2. Kategori Cuti Khusus (Muncul via JS) --}}
+                <div class="form-group" id="edit_special_wrapper" style="display:none; background:#eff6ff; padding:10px; border-radius:6px; margin-bottom:12px;">
+                    <label class="lbl-edit" style="color:#1e40af;">Kategori Cuti Khusus</label>
+                    <select name="special_leave_detail" class="form-control">
+                        <option value="">-- Pilih Kategori --</option>
+                        @php
+                            $specialList = [
+                                'NIKAH_KARYAWAN' => 'Menikah', 'ISTRI_MELAHIRKAN' => 'Istri Melahirkan',
+                                'ISTRI_KEGUGURAN' => 'Istri Keguguran', 'KHITANAN_ANAK' => 'Khitanan Anak',
+                                'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak', 'NIKAH_ANAK' => 'Pernikahan Anak',
+                                'DEATH_CORE' => 'Kematian Inti', 'DEATH_EXTENDED' => 'Kematian Saudara/Ipar',
+                                'DEATH_HOUSE' => 'Kematian Orang Serumah', 'HAJI' => 'Ibadah Haji', 'UMROH' => 'Ibadah Umroh'
+                            ];
+                        @endphp
+                        @foreach($specialList as $code => $label)
+                            <option value="{{ $code }}" @selected($item->special_leave_category == $code)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+    
+                {{-- 3. Tanggal --}}
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="lbl-edit">Tanggal Mulai</label>
+                        <input type="date" name="start_date" class="form-control" value="{{ $item->start_date->format('Y-m-d') }}" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="lbl-edit">Tanggal Selesai</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ $item->end_date->format('Y-m-d') }}" required>
+                    </div>
+                </div>
+    
+                {{-- 4. Jam (Opsional) --}}
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="lbl-edit">Jam Mulai / Datang</label>
+                        <input type="time" name="start_time" class="form-control" value="{{ $item->start_time ? $item->start_time->format('H:i') : '' }}">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="lbl-edit">Jam Selesai / Pulang</label>
+                        <input type="time" name="end_time" class="form-control" value="{{ $item->end_time ? $item->end_time->format('H:i') : '' }}">
+                    </div>
+                </div>
+    
+                {{-- 5. PIC & Telepon --}}
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="lbl-edit">PIC Pengganti</label>
+                        <input type="text" name="substitute_pic" class="form-control" value="{{ $item->substitute_pic }}">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label class="lbl-edit">No. HP PIC</label>
+                        <input type="text" name="substitute_phone" class="form-control" value="{{ $item->substitute_phone }}">
+                    </div>
+                </div>
+    
+                {{-- 6. Alasan --}}
+                <div class="form-group">
+                    <label class="lbl-edit">Alasan / Keterangan</label>
+                    <textarea name="reason" rows="3" class="form-control">{{ $item->reason }}</textarea>
+                </div>
+    
             </div>
             
-            @if($typeValue === 'CUTI_KHUSUS')
-            <div class="form-group" style="margin-top:12px;">
-                <label style="display:block; font-size:13px; font-weight:600; color:#374151;">Kategori Cuti Khusus</label>
-                <select name="special_leave_detail" class="form-control">
-                    <option value="{{ $item->special_leave_category }}" selected>{{ $item->special_leave_category }}</option>
-                    <option value="NIKAH_KARYAWAN">Menikah</option>
-                    <option value="ISTRI_MELAHIRKAN">Istri Melahirkan</option>
-                    <option value="ISTRI_KEGUGURAN">Istri Keguguran</option>
-                    <option value="DEATH_CORE">Kematian Inti</option>
-                </select>
-            </div>
-            @endif
-            
-            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eee; padding-top:15px;">
                 <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>
-                <button type="submit" class="btn-approve" style="border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Simpan Perubahan</button>
+                <button type="submit" class="btn-approve" style="border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Simpan Perubahan (HRD)</button>
             </div>
         </form>
+        
+        <style>
+            .lbl-edit { display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:4px; }
+            .form-control { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13.5px; }
+        </style>
+    
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const typeSelect = document.getElementById('edit_type');
+                const specialWrapper = document.getElementById('edit_special_wrapper');
+                
+                function checkType() {
+                    if(typeSelect.value === 'CUTI_KHUSUS') {
+                        specialWrapper.style.display = 'block';
+                    } else {
+                        specialWrapper.style.display = 'none';
+                    }
+                }
+                
+                if(typeSelect) {
+                    typeSelect.addEventListener('change', checkType);
+                    checkType(); // Run on load
+                }
+            });
+        </script>
     </x-modal>
 
     {{-- [MODAL DELETE (BATALKAN)] --}}
