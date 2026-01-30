@@ -38,10 +38,12 @@ class EmployeeLoanRequestController extends Controller
 
     public function store(Request $request)
     {
+        // [ADJUSTED] Validasi disesuaikan agar support input manual > 12 bulan
         $validated = $request->validate([
             'amount' => ['required', 'numeric', 'min:1'],
             'purpose' => ['nullable', 'string'],
-            'installment_months' => ['nullable', 'integer', 'min:1', 'max:12'],
+            // Hapus 'max:12' agar opsi 18, 24, atau manual input (misal 36) bisa masuk
+            'installment_months' => ['nullable', 'integer', 'min:1'], 
             'disbursement_date' => ['nullable', 'date'],
             'payment_method' => ['required', 'in:TUNAI,CICILAN,POTONG_GAJI'],
             'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],

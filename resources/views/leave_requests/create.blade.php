@@ -1,7 +1,11 @@
 <x-app title="Buat Pengajuan Izin">
     @php
-        $joinDate = auth()->user()->profile->tgl_bergabung ?? null;
+        $user = auth()->user();
+        $joinDate = $user->profile->tgl_bergabung ?? null;
         $underOneYear = false;
+
+        // [BARU] Ambil Saldo Cuti dari Database
+        $leaveBalance = $user->leave_balance ?? 0;
 
         if ($joinDate) {
             $start = \Carbon\Carbon::parse($joinDate)->startOfDay();
@@ -68,7 +72,6 @@
 
         <div class="divider"></div>
 
-        {{-- [ADJUSTMENT]: Menambahkan ID "form-create-izin" untuk deteksi JS --}}
         <form id="form-create-izin" class="form-content" method="POST" action="{{ route('leave-requests.store') }}" enctype="multipart/form-data">
             @csrf
 
@@ -79,7 +82,6 @@
                 <label class="section-label">Jenis Pengajuan <span class="req">*</span></label>
                 <div class="radio-group-container">
                     @php
-                        $user = auth()->user();
                         $roleValue = $user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role;
                         $role = strtoupper((string) $roleValue);
                         $isSpv = in_array($role, ['SUPERVISOR', 'SPV'], true);
@@ -97,8 +99,13 @@
 
                         @php
                             $label = $case->label();
+                            
+                            // [MODIFIKASI] Tampilkan Sisa Saldo di Label Radio Button
                             if ($case->value === \App\Enums\LeaveType::OFF_SPV->value && $offRemaining !== null) {
                                 $label = $label . ' (sisa ' . $offRemaining . ')';
+                            }
+                            if ($case->value === \App\Enums\LeaveType::CUTI->value) {
+                                $label = $label . ' (Sisa: ' . $leaveBalance . ')';
                             }
                         @endphp
 
@@ -115,6 +122,24 @@
                     @endforeach
                 </div>
                 
+                {{-- [BARU] INFO SALDO CUTI (Muncul saat Pilih Cuti) --}}
+                <div id="balance-info-container" style="display:none; margin-top:12px;">
+                    @if($leaveBalance > 0)
+                        <div class="alert-info-blue">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <div>
+                                <strong>Sisa Cuti Tahunan: {{ $leaveBalance }} Hari.</strong>
+                                <div style="font-size:12px; margin-top:2px;">Cuti akan berkurang otomatis setelah disetujui.</div>
+                            </div>
+                        </div>
+                    @else
+                        <div class="alert-error" style="margin-bottom:0;">
+                            <strong>Saldo Cuti Habis (0 Hari).</strong>
+                            <div style="font-size:12px; margin-top:2px;">Anda tidak dapat mengajukan cuti tahunan. Silakan pilih "Izin (Potong Gaji)" atau tipe lain.</div>
+                        </div>
+                    @endif
+                </div>
+
                 {{-- DROPDOWN CUTI KHUSUS --}}
                 <div id="special-leave-container" style="display: none; margin-top: 12px; padding: 12px; background: #eff6ff; border: 1px solid #dbeafe; border-radius: 8px;">
                     <label for="special_leave_detail" style="font-size:13px; color:#1e4a8d; display:block; margin-bottom:6px;">
@@ -128,7 +153,6 @@
                             </option>
                         @endforeach
                     </select>
-                    {{-- Badge Info Maksimal Hari --}}
                     <div id="special-leave-badge" class="info-badge" style="display: none;">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span id="special-leave-text">Maksimal 2 Hari</span>
@@ -207,7 +231,8 @@
                     Wajib diisi untuk keperluan koordinasi selama Anda tidak ada di tempat.
                 </small>
             </div>
-            {{-- 5. LOKASI (Hidden Field - Khusus Telat) --}}
+
+            {{-- 5. LOKASI --}}
             <div id="location" style="display:none;">
                 <input type="hidden" name="latitude" id="latitude">
                 <input type="hidden" name="longitude" id="longitude">
@@ -252,7 +277,6 @@
             </div>
 
             <div class="form-actions">
-                {{-- [ADJUSTMENT]: Tambah ID btn-submit-izin --}}
                 <button class="btn-primary" type="submit" id="btn-submit-izin">
                     Kirim Pengajuan
                 </button>
@@ -273,6 +297,12 @@
         .alert-warning {
             background: #fefce8; border: 1px solid #fde047; color: #854d0e;
             padding: 10px 14px; border-radius: 8px; margin-top: 8px; font-size: 13.5px; line-height: 1.4;
+        }
+        /* [BARU] Style untuk Info Saldo */
+        .alert-info-blue {
+            background: #eff6ff; border: 1px solid #dbeafe; color: #1e40af;
+            padding: 12px 16px; border-radius: 8px; font-size: 14px;
+            display: flex; gap: 10px; align-items: flex-start;
         }
 
         /* Card System */
@@ -297,15 +327,12 @@
             display: inline-flex; justify-content: center; align-items: center; gap: 8px;
         }
         .btn-primary:hover { background: #163a75; }
-        /* Style saat tombol disabled (loading) */
         .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; opacity: 0.8; }
 
         /* Form Layout */
         .form-content { padding: 24px; }
         .form-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px; }
         .form-group label { font-size: 13.5px; font-weight: 600; color: #374151; }
-        
-        /* Section Label for Radios */
         .section-label { display: block; margin-bottom: 8px; font-size: 14px; color: #111827; }
 
         /* Inputs */
@@ -317,22 +344,18 @@
         .form-control:focus { border-color: #1e4a8d; box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.1); }
         textarea.form-control { resize: vertical; min-height: 100px; line-height: 1.5; }
 
-        /* Radio Grid Styling (Cards) */
-        .radio-group-container {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px;
-        }
+        /* Radio Grid */
+        .radio-group-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
         .radio-card {
             display: flex; align-items: center; gap: 10px;
             padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
             cursor: pointer; transition: all 0.2s; background: #fff;
         }
         .radio-card:hover { border-color: #1e4a8d; background: #f0f4ff; }
-        .radio-card input[type="radio"] {
-            accent-color: #1e4a8d; width: 16px; height: 16px; margin: 0; cursor: pointer;
-        }
+        .radio-card input[type="radio"] { accent-color: #1e4a8d; width: 16px; height: 16px; margin: 0; cursor: pointer; }
         .radio-label { font-size: 13.5px; color: #374151; font-weight: 500; line-height: 1.3; }
 
-        /* Time Range Inputs */
+        /* Time Range */
         .time-range-wrapper { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
         .time-input-box { flex: 1; min-width: 120px; }
         .separator { color: #6b7280; font-size: 13px; font-weight: 500; }
@@ -351,13 +374,11 @@
         .form-actions { margin-top: 32px; padding-top: 20px; border-top: 1px solid #f3f4f6; display: flex; justify-content: flex-end; }
         .form-actions .btn-primary { width: auto; min-width: 140px; }
 
-        /* Info Badge Style */
+        /* Info Badge */
         .info-badge {
             display: inline-flex; align-items: center; gap: 6px;
-            margin-top: 8px;
-            background: #dbeafe; color: #1e40af;
-            padding: 6px 12px; border-radius: 20px;
-            font-size: 13px; font-weight: 600;
+            margin-top: 8px; background: #dbeafe; color: #1e40af;
+            padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
         }
 
         @media (max-width: 600px) {
@@ -385,6 +406,9 @@
             const CUTI = @json(\App\Enums\LeaveType::CUTI->value);
             const CUTI_KHUSUS = @json(\App\Enums\LeaveType::CUTI_KHUSUS->value);
             const SAKIT = @json(\App\Enums\LeaveType::SAKIT->value);
+
+            // Elemen Info Saldo
+            const balanceInfoContainer = document.getElementById('balance-info-container');
 
             // Elemen Special Leave
             const specialLeaveContainer = document.getElementById('special-leave-container');
@@ -497,7 +521,14 @@
             function toggleSection() {
                 const val = selectedType();
 
-                // 1. CUTI KHUSUS
+                // 1. SALDO CUTI INFO
+                if (val === CUTI && balanceInfoContainer) {
+                    balanceInfoContainer.style.display = 'block';
+                } else if(balanceInfoContainer) {
+                    balanceInfoContainer.style.display = 'none';
+                }
+
+                // 2. CUTI KHUSUS
                 if (val === CUTI_KHUSUS) {
                     specialLeaveContainer.style.display = 'block';
                     if(specialLeaveSelect) specialLeaveSelect.required = true;
@@ -512,7 +543,7 @@
                     if(specialLimitWarning) specialLimitWarning.style.display = 'none';
                 }
 
-                // 2. LOKASI
+                // 3. LOKASI
                 const isTelat = (val === IZIN_TELAT);
                 if (isTelat) {
                     requestLocationIfNeeded();
@@ -524,7 +555,7 @@
                     if(photoReqIndicator) photoReqIndicator.style.display = 'none';
                 }
 
-                // 3. PIC
+                // 4. PIC
                 const needPic = (val === CUTI || val === CUTI_KHUSUS || val === SAKIT);
                 if (picSection) {
                     if (needPic) {
@@ -538,7 +569,7 @@
                     }
                 }
 
-                // 4. JAM
+                // 5. JAM
                 const isTengahKerja = (val === IZIN_TENGAH_KERJA);
                 const isPulangAwal = (val === IZIN_PULANG_AWAL);
                 const showWorktime = isTengahKerja || isPulangAwal || isTelat;
@@ -640,7 +671,7 @@
                 }
             });
 
-            // [FIXED] SCRIPT ANTI DOUBLE SUBMIT (Mencegah Kasus Joko Prihatin)
+            // SCRIPT ANTI DOUBLE SUBMIT
             const formIzin = document.getElementById('form-create-izin');
             const btnSubmit = document.getElementById('btn-submit-izin');
 
@@ -648,25 +679,19 @@
                 formIzin.addEventListener('submit', function(e) {
                     // Cek validasi HTML5 dulu (required fields)
                     if(!formIzin.checkValidity()) {
-                        // Jika tidak valid, biarkan browser menampilkan error default
                         return;
                     }
 
                     // Jika valid, kunci tombol
                     if(btnSubmit) {
-                        // Cegah klik ganda manual (safety extra)
                         if(btnSubmit.disabled || btnSubmit.classList.contains('disabled')) {
                             e.preventDefault();
                             return;
                         }
 
-                        // Matikan tombol & ubah teks
                         btnSubmit.disabled = true;
                         btnSubmit.classList.add('disabled');
                         
-                        // Simpan teks asli
-                        const originalText = btnSubmit.innerHTML;
-                        // Ubah jadi loading
                         btnSubmit.innerHTML = `
                             <svg class="animate-spin" style="width:16px;height:16px;margin-right:5px;display:inline-block;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -691,7 +716,7 @@
     </x-modal>
 
     @push('scripts')
-    {{-- Script Flatpickr & Warning H-7 (Tidak ada perubahan signifikan disini) --}}
+    {{-- Script Flatpickr & Warning H-7 --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             (function() {

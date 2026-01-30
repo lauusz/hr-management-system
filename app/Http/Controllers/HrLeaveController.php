@@ -78,7 +78,7 @@ class HrLeaveController extends Controller
             LeaveRequest::PENDING_HR,
             LeaveRequest::STATUS_APPROVED,
             LeaveRequest::STATUS_REJECTED,
-            'BATAL', // [BARU] Menambahkan status BATAL ke filter
+            'BATAL', 
             'CANCEL_REQ'
         ];
 
@@ -163,29 +163,21 @@ class HrLeaveController extends Controller
         $canApprove = false;
         $userId = Auth::id();
 
-        // [FIX BUG] Cek Self-Approval: Jika punya sendiri, otomatis FALSE (Tombol hilang)
         if ($leave->user_id === $userId) {
             $canApprove = false;
         } 
         else {
-            // Logic Normal
-            // 1. Boleh jika status PENDING_HR
             if ($leave->status === LeaveRequest::PENDING_HR) {
                 $canApprove = true;
             }
-            // 2. Boleh jika status PENDING_SUPERVISOR...
             elseif ($leave->status === LeaveRequest::PENDING_SUPERVISOR) {
-                // ...DAN Saya adalah Supervisor langsungnya
                 if ($leave->user->direct_supervisor_id === $userId) {
                     $canApprove = true;
                 }
-                // ...ATAU Karyawan ini TIDAK PUNYA Supervisor (Langsung HRD)
                 elseif (empty($leave->user->direct_supervisor_id)) {
                     $canApprove = true;
                 }
             }
-            // 3. [BARU] Boleh jika ada Request Batal (CANCEL_REQ)
-            // Agar HRD bisa klik "Setujui Pembatalan"
             elseif ($leave->status === 'CANCEL_REQ') {
                 $canApprove = true;
             }
@@ -198,45 +190,65 @@ class HrLeaveController extends Controller
     }
 
     /**
-     * [UPDATE] APPROVE DENGAN CATATAN OPSIONAL
+     * [UPDATE] APPROVE BERDASARKAN CHECKBOX DARI FORM
      */
     public function approve(Request $request, LeaveRequest $leave)
     {
         $this->authorizeAccess();
 
-        // 1. Validasi (Catatan boleh kosong/nullable)
+        // 1. Validasi
         $request->validate([
-            'notes_hrd' => 'nullable|string|max:1000',
+            'notes_hrd'    => 'nullable|string|max:1000',
+            'deduct_leave' => 'nullable|in:1', // Validasi checkbox
         ]);
 
         // Pastikan status valid
         $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR, 'CANCEL_REQ'];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk disetujui.');
 
-        // [FIX BUG] Security Check: HRD tidak boleh approve diri sendiri
         if ($leave->user_id === auth()->id()) {
              return back()->with('error', 'Etika Profesi: Anda tidak dapat menyetujui pengajuan Anda sendiri.');
         }
 
+        // =====================================================================
+        // [LOGIC BARU] PEMOTONGAN SALDO BERDASARKAN CHECKBOX
+        // =====================================================================
+        // Kita cek apakah HRD mencentang "Potong Saldo Cuti" (value="1")
+        $shouldDeduct = $request->input('deduct_leave') == '1';
+
+        // Hanya potong jika checkbox dicentang DAN status sebelumnya belum approved
+        if ($shouldDeduct && $leave->status !== LeaveRequest::STATUS_APPROVED) {
+            $user = $leave->user;
+            
+            // Hitung durasi (hari)
+            $start = Carbon::parse($leave->start_date);
+            $end   = Carbon::parse($leave->end_date);
+            $days  = $start->diffInDays($end) + 1;
+
+            // Optional: Double Check Saldo
+            if ($user->leave_balance < $days) {
+                 return back()->with('error', "Gagal Approve: Saldo cuti karyawan tidak mencukupi untuk dipotong (Sisa: {$user->leave_balance}, Butuh: {$days}).");
+            }
+
+            // Eksekusi Potong Saldo
+            $user->decrement('leave_balance', $days);
+        }
+
+        // Update status pengajuan jadi APPROVED
         $leave->update([
             'status'      => LeaveRequest::STATUS_APPROVED,
             'approved_by' => auth()->id(),
             'approved_at' => now(),
-            'notes_hrd'   => $request->notes_hrd, // Simpan catatan (jika ada)
+            'notes_hrd'   => $request->notes_hrd,
         ]);
 
-        return back()->with('success', 'Pengajuan disetujui.');
+        return back()->with('success', 'Pengajuan disetujui' . ($shouldDeduct ? ' & Saldo cuti dipotong.' : '.'));
     }
 
-    /**
-     * [UPDATE] REJECT DENGAN ALASAN (NOTES_HRD)
-     * Menangkap input dari modal dan menyimpannya.
-     */
     public function reject(Request $request, LeaveRequest $leave)
     {
         $this->authorizeAccess();
 
-        // 1. Validasi Input Alasan
         $request->validate([
             'notes_hrd' => 'required|string|max:1000',
         ]);
@@ -244,7 +256,6 @@ class HrLeaveController extends Controller
         $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk ditolak.');
 
-        // [FIX BUG] Security Check: HRD tidak boleh reject diri sendiri
         if ($leave->user_id === auth()->id()) {
              return back()->with('error', 'Etika Profesi: Anda tidak dapat menolak pengajuan Anda sendiri.');
         }
@@ -253,7 +264,7 @@ class HrLeaveController extends Controller
             'status'      => LeaveRequest::STATUS_REJECTED,
             'approved_by' => auth()->id(),
             'approved_at' => now(),
-            'notes_hrd'   => $request->notes_hrd, // <--- SIMPAN ALASAN PENOLAKAN
+            'notes_hrd'   => $request->notes_hrd, 
         ]);
 
         return back()->with('success', 'Pengajuan ditolak.');
@@ -263,7 +274,6 @@ class HrLeaveController extends Controller
     {
         $user = auth()->user();
         
-        // Pastikan User punya Role HRD / HR STAFF / MANAGER HR
         if (!$user || !method_exists($user, 'isHR') || !$user->isHR()) {
             if (!in_array($user->role, ['HRD', 'HR STAFF', 'MANAGER HR'])) {
                  abort(403, 'Akses khusus HRD');

@@ -19,10 +19,11 @@ class User extends Authenticatable
         'password',
         'phone',
         'role', 
+        'leave_balance',        // <--- [BARU] Tambahkan ini agar sisa cuti bisa di-update
         'division_id',
         'position_id',
         'direct_supervisor_id', 
-        'manager_id',           // [PERBAIKAN] Wajib ada agar bisa di-update via Controller
+        'manager_id',           
         'shift_id',
         'status',
         'last_login_at',
@@ -97,7 +98,7 @@ class User extends Authenticatable
         return $this->belongsTo(User::class, 'direct_supervisor_id');
     }
 
-    // [BARU] Relasi ke Manager (Approver) - Tambahkan ini juga
+    // Relasi ke Manager (Approver)
     public function manager()
     {
         return $this->belongsTo(User::class, 'manager_id');

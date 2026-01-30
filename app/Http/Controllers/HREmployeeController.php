@@ -380,6 +380,9 @@ class HREmployeeController extends Controller
         ]);
     }
 
+    // =================================================================
+    // 🔥 UPDATED: LOGIKA CERDAS UPDATE SALDO CUTI
+    // =================================================================
     public function update(Request $request, User $employee)
     {
         $roleValues = array_map(fn (UserRole $r) => $r->value, UserRole::cases());
@@ -390,9 +393,11 @@ class HREmployeeController extends Controller
             'phone' => ['required', 'string', 'max:255'],
             'role' => ['required', Rule::in($roleValues)],
             
+            // Validasi Saldo Cuti Manual
+            'leave_balance' => ['nullable', 'integer', 'min:0'],
+
             'manager_id'           => ['nullable', 'exists:users,id'],
             'direct_supervisor_id' => ['nullable', 'exists:users,id'],
-            
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'pt_id' => ['nullable', 'exists:pts,id'],
@@ -430,6 +435,22 @@ class HREmployeeController extends Controller
         ]);
 
         return DB::transaction(function () use ($request, $employee, $validated) {
+            
+            // -------------------------------------------------------------
+            // [LOGIC PINTAR] DETEKSI EDIT MANUAL
+            // -------------------------------------------------------------
+            // Kita cek dulu: Apakah HRD mengubah angka 'leave_balance' di form?
+            // Caranya: Bandingkan saldo lama di DB vs saldo baru dari Form.
+            
+            $oldBalance = (int) $employee->leave_balance;
+            $newBalance = isset($validated['leave_balance']) ? (int) $validated['leave_balance'] : $oldBalance;
+            
+            // Jika angkanya beda, berarti ini adalah EDIT MANUAL (Prioritas Tertinggi)
+            $isManualEdit = $oldBalance !== $newBalance;
+
+            // -------------------------------------------------------------
+            // 1. UPDATE USER DATA (Termasuk leave_balance baru)
+            // -------------------------------------------------------------
             $userData = Arr::only($validated, [
                 'name',
                 'username',
@@ -440,10 +461,14 @@ class HREmployeeController extends Controller
                 'division_id',
                 'position_id',
                 'email',
+                'leave_balance', // Ini akan menyimpan angka manual HRD
             ]);
 
             $employee->update($userData);
 
+            // -------------------------------------------------------------
+            // 2. UPDATE PROFILE DATA
+            // -------------------------------------------------------------
             $profileData = Arr::except($validated, [
                 'name',
                 'username',
@@ -456,6 +481,7 @@ class HREmployeeController extends Controller
                 'path_kartu_keluarga',
                 'path_ktp',
                 'email',
+                'leave_balance', 
             ]);
 
             $profileData['email'] = $validated['email'] ?? null;
@@ -476,13 +502,8 @@ class HREmployeeController extends Controller
                 $ktpPath = $file->storeAs('employee_docs', $filename, 'public');
             }
 
-            if ($kkPath) {
-                $profileData['path_kartu_keluarga'] = $kkPath;
-            }
-
-            if ($ktpPath) {
-                $profileData['path_ktp'] = $ktpPath;
-            }
+            if ($kkPath) $profileData['path_kartu_keluarga'] = $kkPath;
+            if ($ktpPath) $profileData['path_ktp'] = $ktpPath;
 
             if ($employee->profile) {
                 $employee->profile->update($profileData);
@@ -491,8 +512,26 @@ class HREmployeeController extends Controller
                 EmployeeProfile::create($profileData);
             }
 
+            // -------------------------------------------------------------
+            // 3. LOGIKA AUTO-CALCULATE (JIKA TANGGAL BERGABUNG BERUBAH)
+            // -------------------------------------------------------------
+            if (isset($validated['tgl_bergabung'])) {
+                $joinDate = Carbon::parse($validated['tgl_bergabung']);
+                $today    = Carbon::now();
+                $yearsWorked = $joinDate->diffInYears($today);
+
+                // Jika karyawan sudah > 1 tahun, BERHAK dapat 12 hari.
+                if ($yearsWorked >= 1) {
+                    // TAPI... Jika HRD barusan mengubah saldo secara manual (misal jadi 15), 
+                    // JANGAN DITIMPA jadi 12 lagi. Hormati input manual HRD.
+                    if (!$isManualEdit) {
+                        $employee->update(['leave_balance' => 12]);
+                    }
+                }
+            }
+
             return redirect()->route('hr.employees.index')
-                ->with('success', 'Data karyawan berhasil diperbarui.');
+                ->with('success', 'Data karyawan & Saldo Cuti berhasil diperbarui.');
         });
     }
 

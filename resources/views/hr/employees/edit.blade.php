@@ -97,7 +97,6 @@
                             @endforeach
                             @endif
                         </select>
-                        <small class="helper-text">User ini yang berhak melakukan <b>Approve/Reject</b> cuti.</small>
                     </div>
 
                     {{-- FIELD SUPERVISOR (OBSERVER) --}}
@@ -111,7 +110,6 @@
                             </option>
                             @endforeach
                         </select>
-                        <small class="helper-text">Hanya menerima notifikasi "Mengetahui" (CC), tidak melakukan approval.</small>
                     </div>
 
                     @isset($shifts)
@@ -132,6 +130,17 @@
                             <option value="ACTIVE" @selected(old('status', $item->status) === 'ACTIVE')>Aktif</option>
                             <option value="INACTIVE" @selected(old('status', $item->status) === 'INACTIVE')>Nonaktif</option>
                         </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="leave_balance" style="color:#1e4a8d; font-weight:600;">Sisa Cuti (Saldo Tahunan)</label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input id="leave_balance" type="number" name="leave_balance" class="form-control" 
+                                   value="{{ old('leave_balance', $item->leave_balance ?? 0) }}" 
+                                   min="0" step="1">
+                            <span style="font-size: 13px; color: #6b7280; white-space: nowrap;">Hari</span>
+                        </div>
+                        <small class="helper-text">Ubah angka ini untuk koreksi manual saldo cuti karyawan.</small>
                     </div>
 
                     <div class="form-info full-width">

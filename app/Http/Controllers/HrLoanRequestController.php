@@ -92,9 +92,10 @@ class HrLoanRequestController extends Controller
 
         $totalPaidAfter = $totalPaid + $cleanAmount;
 
+        // [FIXED] Pastikan status sesuai ENUM di database ('LUNAS' huruf besar semua)
         if ($totalPaidAfter >= $loan->amount) {
             $loan->update([
-                'status' => 'Lunas',
+                'status' => 'LUNAS', // Sebelumnya 'Lunas' (Bisa error di strict SQL)
             ]);
         }
 

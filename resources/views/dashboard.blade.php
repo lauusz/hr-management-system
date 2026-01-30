@@ -1,16 +1,31 @@
 <x-app title="Dashboard">
   <div class="dashboard">
 
+    {{-- [MODIFIKASI] Grid Cards sekarang 4 Kolom --}}
     <div class="grid-cards">
+      {{-- 1. Welcome Card --}}
       <div class="card card-welcome">
         <div class="label">Selamat datang</div>
         <div class="value">{{ auth()->user()->name }}!</div>
       </div>
+
+      {{-- 2. [BARU] Kartu Sisa Cuti --}}
+      <div class="card card-balance">
+        <div class="label">Sisa Cuti</div>
+        <div class="value" style="color: #059669;">
+            {{ auth()->user()->leave_balance ?? 0 }} Hari
+        </div>
+      </div>
+
+      {{-- 3. Role --}}
       <div class="card">
         <div class="label">Role</div>
         <div class="value">{{ auth()->user()->role }}</div>
       </div>
-      <div class="card"> <div class="label">Divisi</div>
+
+      {{-- 4. Divisi --}}
+      <div class="card"> 
+        <div class="label">Divisi</div>
         <div class="value">{{ auth()->user()->division?->name ?? '-' }}</div>
       </div>
     </div>
@@ -187,7 +202,8 @@
   /* --- GRID INFO CARDS --- */
   .grid-cards {
     display: grid;
-    grid-template-columns: repeat(3, 1fr); /* Default desktop 3 kolom */
+    /* [MODIFIKASI] Ubah jadi 4 kolom untuk menampung Sisa Cuti */
+    grid-template-columns: repeat(4, 1fr); 
     gap: 20px;
   }
 
@@ -267,7 +283,7 @@
     background: #f9fafb;
     border: 1px solid #e5e7eb;
     border-radius: 14px;
-    padding: 16px; /* Padding diperbesar agar tidak sesak */
+    padding: 16px;
     transition: all .2s ease;
     position: relative;
     overflow: hidden;
@@ -339,35 +355,39 @@
   /* --- MOBILE RESPONSIVE --- */
   @media (max-width: 768px) {
     .dashboard {
-      gap: 20px; /* Jarak antar container */
+      gap: 20px;
     }
     
     .grid-cards {
-      /* Ubah layout kartu atas:
-         Nama (full width)
-         Role & Divisi (sebelahan)
-      */
+      /* Ubah layout kartu atas: 2 kolom */
       grid-template-columns: 1fr 1fr;
     }
 
     .card-welcome {
-      grid-column: span 2; /* Nama user memanjang penuh */
+      grid-column: span 2; /* Nama user memanjang penuh di baris 1 */
     }
 
+    /* [MODIFIKASI] Sisa cuti juga memanjang penuh di baris 2 agar jelas */
+    .card-balance {
+        grid-column: span 2;
+    }
+
+    /* Role dan Divisi akan otomatis berdampingan di baris 3 */
+
     .card {
-      padding: 16px; /* Sedikit compact tapi tetap lega */
+      padding: 16px;
     }
 
     .value {
-      font-size: 16px; /* Font value sedikit dikecilkan agar muat */
+      font-size: 16px;
     }
 
     .quick-wrap {
-      padding: 20px 16px; /* Padding kiri-kanan container */
+      padding: 20px 16px;
     }
 
     .quick-grid {
-      grid-template-columns: 1fr; /* 1 Kolom ke bawah */
+      grid-template-columns: 1fr;
       gap: 12px;
     }
 

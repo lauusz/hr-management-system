@@ -19,6 +19,9 @@
             $typeValue = $typeValue->value;
         }
         $typeValue = (string) $typeValue;
+        
+        // Cek apakah tipe aslinya adalah CUTI (untuk default checkbox)
+        $isTypeCuti = ($typeValue === 'CUTI');
     @endphp
 
     <div class="card">
@@ -29,6 +32,20 @@
                 </div>
                 <div class="profile-info">
                     <h2 class="profile-name">{{ $item->user->name }}</h2>
+                    
+                    {{-- [INFORMASI SISA CUTI] --}}
+                    @php
+                        $balance = $item->user->leave_balance ?? 0;
+                        $balanceClass = $balance > 0 ? 'chip-balance-green' : 'chip-balance-red';
+                    @endphp
+                    
+                    <div style="margin-bottom: 6px;">
+                        <span class="{{ $balanceClass }}">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Sisa Cuti Tahunan: <strong>{{ $balance }} Hari</strong>
+                        </span>
+                    </div>
+
                     <div class="profile-meta">
                         <span class="chip-role">{{ $item->user->role }}</span>
                         <span class="dot">•</span>
@@ -349,13 +366,11 @@
 
     {{-- [MODAL EDIT FULL (GOD MODE)] --}}
     <x-modal id="modal-edit-hr" title="Edit Data Pengajuan (Full Access)" type="form">
-        <form action="{{ route('leave-requests.update', $item->id) }}" method="POST" id="form-edit-hr">
+        <form action="{{ route('leave-requests.update', $item->id) }}" method="POST" id="form-edit-hr" enctype="multipart/form-data">
             @csrf
             @method('PUT')
             
             <div style="max-height: 70vh; overflow-y: auto; padding-right: 5px;">
-                
-                {{-- 1. Tipe Pengajuan --}}
                 <div class="form-group">
                     <label class="lbl-edit">Jenis Pengajuan</label>
                     <select name="type" id="edit_type" class="form-control">
@@ -367,7 +382,6 @@
                     </select>
                 </div>
     
-                {{-- 2. Kategori Cuti Khusus (Muncul via JS) --}}
                 <div class="form-group" id="edit_special_wrapper" style="display:none; background:#eff6ff; padding:10px; border-radius:6px; margin-bottom:12px;">
                     <label class="lbl-edit" style="color:#1e40af;">Kategori Cuti Khusus</label>
                     <select name="special_leave_detail" class="form-control">
@@ -387,7 +401,6 @@
                     </select>
                 </div>
     
-                {{-- 3. Tanggal --}}
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label class="lbl-edit">Tanggal Mulai</label>
@@ -399,7 +412,6 @@
                     </div>
                 </div>
     
-                {{-- 4. Jam (Opsional) --}}
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label class="lbl-edit">Jam Mulai / Datang</label>
@@ -411,7 +423,6 @@
                     </div>
                 </div>
     
-                {{-- 5. PIC & Telepon --}}
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                     <div class="form-group" style="margin-bottom:0;">
                         <label class="lbl-edit">PIC Pengganti</label>
@@ -423,12 +434,19 @@
                     </div>
                 </div>
     
-                {{-- 6. Alasan --}}
-                <div class="form-group">
+                <div class="form-group" style="margin-bottom:12px;">
                     <label class="lbl-edit">Alasan / Keterangan</label>
                     <textarea name="reason" rows="3" class="form-control">{{ $item->reason }}</textarea>
                 </div>
-    
+
+                <div class="form-group" style="background:#f9fafb; padding:10px; border-radius:6px; border:1px dashed #d1d5db;">
+                    <label class="lbl-edit">Upload Bukti / Foto (Opsional)</label>
+                    <input type="file" name="photo" class="form-control" accept="image/*,.pdf" style="font-size:12px;">
+                    <small style="font-size:11px; color:#6b7280; display:block; margin-top:4px;">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="vertical-align:text-bottom"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Upload baru akan menggantikan foto lama (jika ada).
+                    </small>
+                </div>
             </div>
             
             <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eee; padding-top:15px;">
@@ -457,7 +475,7 @@
                 
                 if(typeSelect) {
                     typeSelect.addEventListener('change', checkType);
-                    checkType(); // Run on load
+                    checkType(); 
                 }
             });
         </script>
@@ -521,7 +539,7 @@
         </form>
     </x-modal>
 
-    {{-- [MODAL APPROVE (DENGAN FORM CATATAN)] --}}
+    {{-- [MODAL APPROVE (DENGAN OPSI POTONG CUTI)] --}}
     <x-modal id="modal-approve" title="Setujui Pengajuan?" type="form">
         <form action="{{ route('hr.leave.approve', $item) }}" method="POST" style="width:100%;">
             @csrf
@@ -529,6 +547,18 @@
             <p style="margin:0; color:#374151; margin-bottom:12px;">
                 Konfirmasi persetujuan final untuk pengajuan ini.
             </p>
+
+            {{-- [BARU] OPSI POTONG CUTI --}}
+            <div class="form-group" style="margin-bottom: 15px; background: #f3f4f6; padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <label class="checkbox-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="deduct_leave" value="1" style="width: 16px; height: 16px; accent-color: #1e4a8d; cursor: pointer;"
+                        {{ $isTypeCuti ? 'checked' : '' }}>
+                    <span style="font-weight: 600; color: #1f2937; font-size: 14px;">Potong Cuti</span>
+                </label>
+                <small style="display: block; margin-top: 4px; color: #6b7280; font-size: 12px; margin-left: 24px;">
+                    Jika dicentang, saldo cuti karyawan akan dikurangi sesuai durasi pengajuan.
+                </small>
+            </div>
 
             {{-- Input Catatan (Opsional) --}}
             <div class="form-group">
@@ -599,6 +629,21 @@
         .dot { color: #d1d5db; }
         .chip-role { background: #f3f4f6; padding: 2px 8px; border-radius: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
         
+        .chip-balance-green {
+            background: #ecfdf5; color: #047857; 
+            padding: 4px 10px; border-radius: 6px; 
+            font-size: 12px; font-weight: 600; 
+            display: inline-flex; align-items: center;
+            border: 1px solid #a7f3d0;
+        }
+        .chip-balance-red {
+            background: #fef2f2; color: #b91c1c; 
+            padding: 4px 10px; border-radius: 6px; 
+            font-size: 12px; font-weight: 600; 
+            display: inline-flex; align-items: center;
+            border: 1px solid #fecaca;
+        }
+
         .divider-full { height: 1px; background: #f3f4f6; width: 100%; }
         .detail-container { padding: 24px; display: grid; grid-template-columns: 1fr 1.5fr; gap: 40px; }
         @media(max-width: 768px) { .detail-container { grid-template-columns: 1fr; gap: 24px; } }

@@ -87,7 +87,6 @@
                                 @endforeach
                             @endif
                         </select>
-                        <small class="helper-text">User ini yang berhak melakukan <b>Approve/Reject</b> cuti.</small>
                     </div>
 
                     {{-- [MODIFIKASI] 2. DIRECT SUPERVISOR (OBSERVER) --}}
@@ -101,7 +100,6 @@
                                 </option>
                             @endforeach
                         </select>
-                        <small class="helper-text">Hanya menerima notifikasi "Mengetahui" (CC), tidak melakukan approval.</small>
                     </div>
 
                     @isset($shifts)

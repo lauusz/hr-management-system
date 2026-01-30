@@ -92,16 +92,43 @@
                             value="{{ old('disbursement_date') }}">
                     </div>
 
+                    {{-- [MODIFIED] Bagian Jangka Waktu (Tenor) --}}
                     <div class="form-group">
-                        <label for="installment_months">Jangka Waktu (Tenor) <span class="req">*</span></label>
-                        <select id="installment_months" name="installment_months" class="form-control" required>
+                        <label for="tenor_select">Jangka Waktu (Tenor) <span class="req">*</span></label>
+                        
+                        {{-- Logic PHP untuk menentukan selected old value --}}
+                        @php
+                            $standardOptions = [2, 3, 6, 9, 12, 18, 24];
+                            $oldValue = old('installment_months');
+                            $isManual = $oldValue && !in_array($oldValue, $standardOptions);
+                        @endphp
+
+                        {{-- 1. Dropdown Pilihan --}}
+                        <select id="tenor_select" class="form-control">
                             <option value="">Pilih Bulan...</option>
-                            @for($i = 1; $i <= 12; $i++)
-                                <option value="{{ $i }}" @selected(old('installment_months') == $i)>
-                                    {{ $i }} Bulan
+                            @foreach($standardOptions as $opt)
+                                <option value="{{ $opt }}" @selected(!$isManual && $oldValue == $opt)>
+                                    {{ $opt }} Bulan
                                 </option>
-                            @endfor
+                            @endforeach
+                            <option value="manual" @selected($isManual)>Lainnya (Input Manual)</option>
                         </select>
+
+                        {{-- 2. Input Manual (Hidden by default) --}}
+                        <div id="manual_tenor_wrapper" style="margin-top: 8px; display: {{ $isManual ? 'block' : 'none' }};">
+                            <input 
+                                type="number" 
+                                id="tenor_manual_input" 
+                                class="form-control" 
+                                placeholder="Masukkan jumlah bulan (cth: 5)"
+                                min="1"
+                                value="{{ $isManual ? $oldValue : '' }}"
+                            >
+                            <small class="helper-text" style="color: #ea580c;">Masukkan angka bulan secara manual.</small>
+                        </div>
+
+                        {{-- 3. Hidden Input (Ini yang dikirim ke Server) --}}
+                        <input type="hidden" name="installment_months" id="installment_months" value="{{ $oldValue }}">
                     </div>
                 </div>
 
@@ -260,16 +287,39 @@
                 return 'Rp ' + Number(value).toLocaleString('id-ID');
             }
 
+            // [MODIFIED] Fungsi Update Preview Cicilan (Support Select & Manual)
             function updateInstallmentPreview() {
                 var hiddenAmount = document.getElementById('amount');
-                var monthsSelect = document.getElementById('installment_months');
                 var previewInput = document.getElementById('installment_preview');
+                
+                // Elemen Tenor
+                var tenorSelect = document.getElementById('tenor_select');
+                var tenorManualWrapper = document.getElementById('manual_tenor_wrapper');
+                var tenorManualInput = document.getElementById('tenor_manual_input');
+                var tenorHidden = document.getElementById('installment_months');
 
-                if (!hiddenAmount || !monthsSelect || !previewInput) return;
+                if (!hiddenAmount || !previewInput || !tenorSelect) return;
 
                 var amount = parseFloat(hiddenAmount.value || '0');
-                var months = parseInt(monthsSelect.value || '0');
+                var selectedVal = tenorSelect.value;
+                var months = 0;
 
+                // LOGIKA: Select atau Manual
+                if (selectedVal === 'manual') {
+                    // Tampilkan Input Manual
+                    tenorManualWrapper.style.display = 'block';
+                    months = parseInt(tenorManualInput.value || '0');
+                    // Update Hidden Input (untuk dikirim ke server)
+                    tenorHidden.value = months > 0 ? months : '';
+                } else {
+                    // Sembunyikan Input Manual
+                    tenorManualWrapper.style.display = 'none';
+                    months = parseInt(selectedVal || '0');
+                    // Update Hidden Input
+                    tenorHidden.value = months > 0 ? months : '';
+                }
+
+                // Kalkulasi Cicilan
                 if (amount > 0 && months > 0) {
                     var perMonth = Math.floor(amount / months);
                     previewInput.value = formatRupiah(perMonth) + ' / bulan';
@@ -280,18 +330,23 @@
 
             document.addEventListener('DOMContentLoaded', function () {
                 var displayInput = document.getElementById('amount_display');
-                var monthsSelect = document.getElementById('installment_months');
                 var hiddenAmount = document.getElementById('amount');
+                
+                // Event Listener Tenor
+                var tenorSelect = document.getElementById('tenor_select');
+                var tenorManualInput = document.getElementById('tenor_manual_input');
 
                 if (displayInput) {
-                    // Event listener for input formatting
                     displayInput.addEventListener('input', updateAmountFormatting);
-                    // Ensure format on blur just in case
                     displayInput.addEventListener('blur', updateAmountFormatting);
                 }
 
-                if (monthsSelect) {
-                    monthsSelect.addEventListener('change', updateInstallmentPreview);
+                if (tenorSelect) {
+                    tenorSelect.addEventListener('change', updateInstallmentPreview);
+                }
+
+                if (tenorManualInput) {
+                    tenorManualInput.addEventListener('input', updateInstallmentPreview);
                 }
 
                 // Initial load
