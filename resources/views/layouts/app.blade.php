@@ -7,9 +7,11 @@
   <title>{{ $title ?? 'HRD System' }}</title>
 
   <meta name="theme-color" content="#1e4a8d">
-  <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
   <link rel="icon" href="{{ asset('favicon.ico') }}">
-  <link rel="apple-touch-icon" href="{{ asset('pwa/icon-180.png') }}">
+  
+  {{-- [MODIFIKASI] Manifest dimatikan menggunakan komentar Blade (lebih aman) --}}
+  {{-- <link rel="manifest" href="{{ asset('manifest.webmanifest') }}"> --}}
+  {{-- <link rel="apple-touch-icon" href="{{ asset('pwa/icon-180.png') }}"> --}}
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -329,6 +331,10 @@
           <span style="margin-right:10px;"></span> Absensi
         </a>
 
+        <a href="{{ route('remote-attendance.index') }}" class="{{ request()->routeIs('remote-attendance.*') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span>Absensi Dinas Luar
+        </a>
+
         <a href="{{ route('employee.loan_requests.index') }}" class="{{ request()->routeIs('employee.loan_requests.*') ? 'active' : '' }}">
           <span style="margin-right:10px;"></span> Pengajuan Hutang
         </a>
@@ -342,16 +348,6 @@
             $isRemoteOpen = request()->routeIs('remote-attendance.*');
         @endphp
         
-        <button type="button" class="menu-group {{ $isRemoteOpen ? 'open' : '' }}" data-menu-group="others">
-          <span class="menu-group-label"><span style="margin-right:10px;"></span> Lainnya</span>
-          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </button>
-        <div class="submenu {{ $isRemoteOpen ? 'show' : '' }}" data-menu-panel="others">
-          <a href="{{ route('remote-attendance.index') }}" class="{{ request()->routeIs('remote-attendance.*') ? 'active' : '' }}">
-              Dinas Luar
-          </a>
-        </div>
-
         {{-- MANAGER AREA --}}
         @if(auth()->user()->isManager())
         <h3>Manager Area</h3>
@@ -614,5 +610,16 @@
 
   @stack('scripts')
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <script>
+    if (window.navigator && navigator.serviceWorker) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+                registration.unregister();
+                console.log("Service Worker berhasil dimatikan.");
+            }
+        });
+    }
+  </script>
 </body>
 </html>

@@ -7,7 +7,7 @@
   <title>HRD Triguna</title>
 
   <meta name="theme-color" content="#1e4a8d">
-  <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
+  <!-- <link rel="manifest" href="{{ asset('manifest.webmanifest') }}"> -->
   <link rel="icon" href="{{ asset('favicon.ico') }}">
   <link rel="apple-touch-icon" href="{{ asset('pwa/icon-180.png') }}">
 
@@ -195,7 +195,7 @@
     </form>
   </div>
 
-  <script>
+  <!-- <script>
     (function () {
       if (!('serviceWorker' in navigator)) return;
 
@@ -209,7 +209,19 @@
         navigator.serviceWorker.register('{{ asset('service-worker.js') }}');
       });
     })();
-  </script>
+  </script> -->
+
+  <script>
+  if (window.navigator && navigator.serviceWorker) {
+    navigator.serviceWorker.getRegistrations()
+    .then(function(registrations) {
+      for(let registration of registrations) {
+        registration.unregister();
+        console.log("Service Worker berhasil dimatikan.");
+      }
+    });
+  }
+</script>
 </body>
 
 </html>

@@ -10,6 +10,7 @@ use App\Models\ShiftDay;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -32,24 +33,19 @@ class LeaveRequestController extends Controller
         $query = LeaveRequest::with(['user.directSupervisor', 'user.manager', 'approver'])
             ->orderByDesc('created_at');
 
-        // Logic Filter Role
-        if ($user->isHR()) {
-            $query->whereIn('status', [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR]);
-        } elseif ($user->canApprove()) {
-            $query->where('status', LeaveRequest::PENDING_SUPERVISOR)
-                  ->whereHas('user', function($q) use ($userId) {
-                      $q->where('direct_supervisor_id', $userId)->orWhere('manager_id', $userId);
-                  });
-        } else {
-            $query->where('user_id', $userId);
-        }
+        // [ADJUSTMENT] STRICTLY MY DATA (HANYA PUNYA SAYA)
+        // Halaman ini murni "Riwayat Pengajuan Saya".
+        // Tidak peduli role-nya apa, yang tampil hanya data milik user yang sedang login.
+        // Data bawahan/master ada di Controller Approval/Master terpisah.
+        $query->where('user_id', $userId);
 
-        // Filter Form
+        // Filter Form (Jenis Pengajuan)
         $typeFilter = $request->query('type');
         if ($typeFilter && in_array($typeFilter, LeaveType::values(), true)) {
             $query->where('type', $typeFilter);
         }
 
+        // Filter Form (Range Tanggal)
         $submittedRange = trim((string) $request->query('submitted_range'));
         if ($submittedRange !== '') {
             try {
@@ -166,7 +162,7 @@ class LeaveRequestController extends Controller
 
         if ($isDuplicate) return redirect()->back()->withInput()->withErrors(['error' => 'Anda sudah memiliki pengajuan aktif pada tanggal tersebut.']);
 
-        // [VALIDASI] SALDO CUTI & MASA KERJA
+        // [VALIDASI] SALDO CUTI & MASA KERJA (ADJUSTED BY ROLE)
         if ($type === LeaveType::CUTI->value) {
             $joinDate = $user->profile?->tgl_bergabung ? Carbon::parse($user->profile->tgl_bergabung) : null;
             if ($joinDate && $joinDate->diffInYears(now()) < 1) {
@@ -175,10 +171,26 @@ class LeaveRequestController extends Controller
 
             $startDate = Carbon::parse($validated['start_date']);
             $endDate   = Carbon::parse($validated['end_date']);
-            $daysRequested = $startDate->diffInDays($endDate) + 1; 
+            
+            // --- LOGIC HITUNG HARI KERJA (BERDASARKAN ROLE) ---
+            $period = CarbonPeriod::create($startDate, $endDate);
+            $daysRequested = 0;
+
+            $roleStr = $this->getRoleString($user);
+            $fiveDayWorkWeekRoles = ['HRD', 'HR STAFF', 'MANAGER'];
+            $isFiveDayWorkWeek = in_array($roleStr, $fiveDayWorkWeekRoles);
+
+            foreach ($period as $date) {
+                if ($isFiveDayWorkWeek) {
+                    if ($date->isSaturday() || $date->isSunday()) continue;
+                } else {
+                    if ($date->isSunday()) continue;
+                }
+                $daysRequested++;
+            }
 
             if ($user->leave_balance < $daysRequested) {
-                return back()->withInput()->withErrors(['error' => "Sisa cuti tidak mencukupi. (Sisa: {$user->leave_balance} hari, Pengajuan: {$daysRequested} hari)."]);
+                return back()->withInput()->withErrors(['error' => "Sisa cuti tidak mencukupi. (Sisa: {$user->leave_balance} hari, Pengajuan Efektif: {$daysRequested} hari)."]);
             }
         }
 
@@ -215,7 +227,7 @@ class LeaveRequestController extends Controller
         $today = now()->startOfDay();
         $daysDiff = $today->diffInDays($start, false);
         if ($type === LeaveType::CUTI->value) {
-            if ($daysDiff < 7 && $daysDiff >= 0) $notesParts[] = "Pengajuan H-{$daysDiff} (kurang dari H-7).";
+            if ($daysDiff < 7 && $daysDiff >= 0) $notesParts[] = "Pengajuan H-{$daysDiff} (kurang dari H-7). Termasuk Potong Uang Makan.";
         }
 
         $notes = !empty($notesParts) ? implode("\n", $notesParts) : null;
@@ -317,7 +329,6 @@ class LeaveRequestController extends Controller
         return back()->with('success', 'Data pengajuan berhasil diperbarui sepenuhnya.');
     }
 
-    // [MODIFIKASI] REFUND SALDO SAAT BATAL
     public function destroy(LeaveRequest $leaveRequest)
     {
         $user = Auth::user();
@@ -330,24 +341,34 @@ class LeaveRequestController extends Controller
                 return back()->with('error', 'Hanya pengajuan yang masih pending yang bisa dibatalkan oleh pemohon.');
             }
         }
-
-        // =====================================================================
-        // [PERBAIKAN BUG ENUM] LOGIC REFUND SALDO
-        // =====================================================================
         
-        // 1. Ambil nilai string murni dari Type
         $leaveTypeValue = $leaveRequest->type instanceof LeaveType ? $leaveRequest->type->value : $leaveRequest->type;
         $targetValue = LeaveType::CUTI->value;
 
-        // 2. Bandingkan secara aman
-        // Jika sebelumnya SUDAH APPROVED dan tipe CUTI, kembalikan saldo.
+        // REFUND SALDO LOGIC (ROLE BASED)
         if ($leaveRequest->status === LeaveRequest::STATUS_APPROVED && $leaveTypeValue === $targetValue) {
             $start = Carbon::parse($leaveRequest->start_date);
             $end   = Carbon::parse($leaveRequest->end_date);
-            $days  = $start->diffInDays($end) + 1;
+            $period = CarbonPeriod::create($start, $end);
+            
+            $leaveUser = $leaveRequest->user; 
+            $userRoleStr = $this->getRoleString($leaveUser);
+            $fiveDayWorkWeekRoles = ['HRD', 'HR STAFF', 'MANAGER'];
+            $isFiveDay = in_array($userRoleStr, $fiveDayWorkWeekRoles);
 
-            // Kembalikan ke owner (Refund)
-            $leaveRequest->user->increment('leave_balance', $days);
+            $daysToRefund = 0;
+            foreach ($period as $date) {
+                if ($isFiveDay) {
+                    if ($date->isSaturday() || $date->isSunday()) continue;
+                } else {
+                    if ($date->isSunday()) continue;
+                }
+                $daysToRefund++;
+            }
+
+            if ($daysToRefund > 0) {
+                $leaveUser->increment('leave_balance', $daysToRefund);
+            }
         }
 
         $leaveRequest->update(['status' => 'BATAL']);

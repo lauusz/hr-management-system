@@ -1,4 +1,4 @@
-<x-app title="Approval Dinas Luar">
+<x-app title="Permintaan Approval Dinas Luar">
 
     {{-- CSS Khusus Halaman Approval --}}
     <style>
@@ -46,7 +46,6 @@
     <div class="container-xl">
         
         <div style="margin-bottom: 24px;">
-            <h2 style="font-size:1.5rem; font-weight:700; color:#1e293b; margin:0;">Permintaan Approval</h2>
             <p style="color:#64748b; margin:4px 0 0; font-size:0.95rem;">Validasi kehadiran Dinas Luar (Remote Attendance).</p>
         </div>
 

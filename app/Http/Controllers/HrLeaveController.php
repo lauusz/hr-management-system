@@ -8,7 +8,9 @@ use App\Models\Pt;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
+use Carbon\CarbonPeriod; // <--- [WAJIB] Untuk looping tanggal
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class HrLeaveController extends Controller
 {
@@ -190,7 +192,7 @@ class HrLeaveController extends Controller
     }
 
     /**
-     * [UPDATE] APPROVE BERDASARKAN CHECKBOX DARI FORM
+     * [UPDATE] APPROVE DENGAN LOGIKA HARI KERJA (5 HARI vs 6 HARI)
      */
     public function approve(Request $request, LeaveRequest $leave)
     {
@@ -210,39 +212,90 @@ class HrLeaveController extends Controller
              return back()->with('error', 'Etika Profesi: Anda tidak dapat menyetujui pengajuan Anda sendiri.');
         }
 
-        // =====================================================================
-        // [LOGIC BARU] PEMOTONGAN SALDO BERDASARKAN CHECKBOX
-        // =====================================================================
-        // Kita cek apakah HRD mencentang "Potong Saldo Cuti" (value="1")
-        $shouldDeduct = $request->input('deduct_leave') == '1';
+        try {
+            DB::transaction(function () use ($request, $leave) {
+                
+                // A. JIKA STATUS PERMINTAAN PEMBATALAN
+                if ($leave->status === 'CANCEL_REQ') {
+                    $leave->update([
+                        'status'      => 'BATAL', // Set ke status BATAL (bukan APPROVED)
+                        'approved_by' => auth()->id(),
+                        'approved_at' => now(),
+                        'notes_hrd'   => $request->notes_hrd
+                    ]);
+                    // Return agar tidak lanjut ke logika potong saldo
+                    return; 
+                }
 
-        // Hanya potong jika checkbox dicentang DAN status sebelumnya belum approved
-        if ($shouldDeduct && $leave->status !== LeaveRequest::STATUS_APPROVED) {
-            $user = $leave->user;
-            
-            // Hitung durasi (hari)
-            $start = Carbon::parse($leave->start_date);
-            $end   = Carbon::parse($leave->end_date);
-            $days  = $start->diffInDays($end) + 1;
+                // B. LOGIKA APPROVE CUTI BIASA
+                $shouldDeduct = $request->input('deduct_leave') == '1';
 
-            // Optional: Double Check Saldo
-            if ($user->leave_balance < $days) {
-                 return back()->with('error', "Gagal Approve: Saldo cuti karyawan tidak mencukupi untuk dipotong (Sisa: {$user->leave_balance}, Butuh: {$days}).");
+                // Hanya potong jika checkbox dicentang DAN status sebelumnya belum approved
+                if ($shouldDeduct && $leave->status !== LeaveRequest::STATUS_APPROVED) {
+                    $user = $leave->user;
+                    
+                    // 1. Tentukan Range Tanggal
+                    $start = Carbon::parse($leave->start_date);
+                    $end   = Carbon::parse($leave->end_date);
+                    $period = CarbonPeriod::create($start, $end);
+
+                    // 2. DETEKSI ROLE (5 Hari Kerja vs 6 Hari Kerja)
+                    // Ambil Role User sebagai string uppercase
+                    $roleStr = strtoupper((string) ($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role));
+                    
+                    // Daftar Role yang libur Sabtu & Minggu (5 Hari Kerja)
+                    $fiveDayWorkWeekRoles = ['HRD', 'HR STAFF', 'MANAGER'];
+                    $isFiveDayWorkWeek = in_array($roleStr, $fiveDayWorkWeekRoles);
+
+                    // 3. HITUNG HARI EFEKTIF
+                    $daysToDeduct = 0;
+                    foreach ($period as $date) {
+                        if ($isFiveDayWorkWeek) {
+                            // Manager/HR: Skip Sabtu & Minggu
+                            if ($date->isSaturday() || $date->isSunday()) {
+                                continue; 
+                            }
+                        } else {
+                            // Staff/Spv: Skip Minggu Saja
+                            if ($date->isSunday()) {
+                                continue;
+                            }
+                        }
+                        
+                        $daysToDeduct++;
+                    }
+
+                    // 4. CEK SALDO CUKUP ATAU TIDAK
+                    if ($user->leave_balance < $daysToDeduct) {
+                         throw new \Exception("Gagal Approve: Saldo cuti tidak cukup. User punya: {$user->leave_balance}, Butuh (Efektif): {$daysToDeduct} hari.");
+                    }
+
+                    // 5. EKSEKUSI POTONG SALDO
+                    if ($daysToDeduct > 0) {
+                        $user->decrement('leave_balance', $daysToDeduct);
+                    }
+                }
+
+                // Update status pengajuan jadi APPROVED
+                $leave->update([
+                    'status'      => LeaveRequest::STATUS_APPROVED,
+                    'approved_by' => auth()->id(),
+                    'approved_at' => now(),
+                    'notes_hrd'   => $request->notes_hrd,
+                ]);
+            });
+
+            // Pesan sukses
+            // Jika ini Cancel Request, pesannya "Pembatalan Disetujui"
+            if ($leave->status === 'BATAL') {
+                return back()->with('success', 'Permintaan pembatalan telah disetujui.');
             }
 
-            // Eksekusi Potong Saldo
-            $user->decrement('leave_balance', $days);
+            return back()->with('success', 'Pengajuan disetujui & Saldo dipotong sesuai hari kerja Role.');
+
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
         }
-
-        // Update status pengajuan jadi APPROVED
-        $leave->update([
-            'status'      => LeaveRequest::STATUS_APPROVED,
-            'approved_by' => auth()->id(),
-            'approved_at' => now(),
-            'notes_hrd'   => $request->notes_hrd,
-        ]);
-
-        return back()->with('success', 'Pengajuan disetujui' . ($shouldDeduct ? ' & Saldo cuti dipotong.' : '.'));
     }
 
     public function reject(Request $request, LeaveRequest $leave)

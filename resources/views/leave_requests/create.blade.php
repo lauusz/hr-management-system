@@ -13,6 +13,12 @@
             $underOneYear = $start->diffInYears($end) < 1;
         }
 
+        // [BARU] LOGIKA ROLE UNTUK JAVASCRIPT
+        // Cek apakah user ini golongan "5 Hari Kerja" (Libur Sabtu-Minggu)
+        $roleStr = strtoupper($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role);
+        $fiveDayRoles = ['HRD', 'HR STAFF', 'MANAGER']; 
+        $isFiveDayWorkWeek = in_array($roleStr, $fiveDayRoles);
+
         $oldStart = old('start_date');
         $oldEnd = old('end_date');
         $oldRange = '';
@@ -176,6 +182,10 @@
                 <input type="hidden" name="start_date" id="start_date" value="{{ $oldStart }}">
                 <input type="hidden" name="end_date" id="end_date" value="{{ $oldEnd }}">
                 
+                {{-- [BARU] ESTIMASI HARI --}}
+                <div id="duration-display" class="alert-info-blue" style="display:none; margin-top:8px;">
+                    </div>
+
                 <div class="warning-container">
                     <small id="cuti-rule" style="display:none; color:#6b7280; margin-top:4px; display:block;"></small>
                     <div id="h7-warning" role="alert" aria-live="polite" class="alert-warning" style="display:none;"></div>
@@ -721,10 +731,14 @@
         document.addEventListener('DOMContentLoaded', function() {
             (function() {
                 const CUTI_VALUE = @json(\App\Enums\LeaveType::CUTI->value);
+                // [BARU] Ambil Status Role 5 Hari Kerja dari PHP
+                const IS_FIVE_DAY_WORKWEEK = @json($isFiveDayWorkWeek);
+
                 const startInput = document.getElementById('start_date');
                 const ruleEl = document.getElementById('cuti-rule');
                 const warnEl = document.getElementById('h7-warning');
                 const tenureWarnEl = document.getElementById('tenure-warning');
+                const durationDisplay = document.getElementById('duration-display'); // Elemen Estimasi
                 const typeRadios = document.querySelectorAll('input[name="type"]');
                 var shouldShowIzinTelatPopup = !!@json(session('show_izin_telat_popup'));
 
@@ -764,6 +778,33 @@
                     return getSelectedType() === CUTI_VALUE;
                 }
 
+                // [BARU] Kalkulator Hari Efektif (Skip Sabtu/Minggu sesuai Role)
+                function calculateWorkingDays(startStr, endStr) {
+                    if (!startStr || !endStr) return 0;
+                    
+                    let startDate = parseYMD(startStr);
+                    let endDate = parseYMD(endStr);
+                    
+                    if (!startDate || !endDate || startDate > endDate) return 0;
+
+                    let count = 0;
+                    let cur = new Date(startDate);
+
+                    while (cur <= endDate) {
+                        const day = cur.getDay(); // 0 = Minggu, 6 = Sabtu
+                        
+                        if (day === 0) { 
+                            // Minggu Selalu Libur
+                        } else if (day === 6 && IS_FIVE_DAY_WORKWEEK) {
+                            // Sabtu Libur Khusus Managerial
+                        } else {
+                            count++;
+                        }
+                        cur.setDate(cur.getDate() + 1);
+                    }
+                    return count;
+                }
+
                 function updateTenureWarning() {
                     if (!tenureWarnEl) return;
                     if (isCutiSelected() && isUnderOneYear) {
@@ -777,6 +818,10 @@
 
                 function renderRuleVisibility() {
                     if (!ruleEl || !warnEl) return;
+                    
+                    // Update Estimasi Durasi
+                    updateDurationDisplay();
+
                     if (isCutiSelected()) {
                         ruleEl.style.display = 'block';
                         ruleEl.innerHTML = 'Ketentuan: pengajuan minimal H-7 (≥ <b>' + formatID(boundaryDateH7()) + '</b>).';
@@ -789,6 +834,24 @@
                     }
                 }
 
+                function updateDurationDisplay() {
+                    const startVal = document.getElementById('start_date').value;
+                    const endVal = document.getElementById('end_date').value;
+
+                    if (!startVal || !endVal) {
+                        durationDisplay.style.display = 'none';
+                        return;
+                    }
+
+                    const days = calculateWorkingDays(startVal, endVal);
+                    
+                    durationDisplay.style.display = 'block';
+                    durationDisplay.innerHTML = `
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <strong>Estimasi Durasi: ${days} Hari Kerja</strong>
+                    `;
+                }
+
                 function updateWarning() {
                     if (!isCutiSelected()) { warnEl.style.display = 'none'; return; }
                     const today = todayStart();
@@ -798,7 +861,7 @@
                     const diffDays = Math.round((start - today) / (1000 * 60 * 60 * 24));
                     if (diffDays < 7 && diffDays >= 0) {
                         warnEl.style.display = 'block';
-                        warnEl.textContent = 'Pengajuan H-' + diffDays + ' (kurang dari H-7). Pengajuan tetap bisa diproses.';
+                        warnEl.textContent = 'Pengajuan H-' + diffDays + ' (kurang dari H-7). Termasuk Potong uang makan.';
                     } else {
                         warnEl.style.display = 'none';
                     }
