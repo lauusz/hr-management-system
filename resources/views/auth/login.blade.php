@@ -6,10 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>HRD Triguna</title>
 
-  <meta name="theme-color" content="#1e4a8d">
-  <!-- <link rel="manifest" href="{{ asset('manifest.webmanifest') }}"> -->
   <link rel="icon" href="{{ asset('favicon.ico') }}">
-  <link rel="apple-touch-icon" href="{{ asset('pwa/icon-180.png') }}">
 
   <style>
     :root {
@@ -195,33 +192,6 @@
     </form>
   </div>
 
-  <!-- <script>
-    (function () {
-      if (!('serviceWorker' in navigator)) return;
-
-      const isLocalhost =
-        location.hostname === 'localhost' ||
-        location.hostname === '127.0.0.1';
-
-      if (!(location.protocol === 'https:' || isLocalhost)) return;
-
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('{{ asset('service-worker.js') }}');
-      });
-    })();
-  </script> -->
-
-  <script>
-  if (window.navigator && navigator.serviceWorker) {
-    navigator.serviceWorker.getRegistrations()
-    .then(function(registrations) {
-      for(let registration of registrations) {
-        registration.unregister();
-        console.log("Service Worker berhasil dimatikan.");
-      }
-    });
-  }
-</script>
 </body>
 
 </html>

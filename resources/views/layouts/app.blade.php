@@ -6,12 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>{{ $title ?? 'HRD System' }}</title>
 
-  <meta name="theme-color" content="#1e4a8d">
   <link rel="icon" href="{{ asset('favicon.ico') }}">
-  
-  {{-- [MODIFIKASI] Manifest dimatikan menggunakan komentar Blade (lebih aman) --}}
-  {{-- <link rel="manifest" href="{{ asset('manifest.webmanifest') }}"> --}}
-  {{-- <link rel="apple-touch-icon" href="{{ asset('pwa/icon-180.png') }}"> --}}
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -611,15 +606,5 @@
   @stack('scripts')
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script>
-    if (window.navigator && navigator.serviceWorker) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-            for(let registration of registrations) {
-                registration.unregister();
-                console.log("Service Worker berhasil dimatikan.");
-            }
-        });
-    }
-  </script>
 </body>
 </html>
