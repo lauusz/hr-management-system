@@ -193,7 +193,7 @@ $isApprover = $isApprover ?? false;
   <style>
     /* --- UTILITY --- */
     .fw-bold { font-weight: 600; color: #111827; }
-    .text-muted { color: #6b7280; font-size: 12px; }
+    .text-muted { color: #6b7280; font-size: 13px; }
     .text-right { text-align: right; }
     .text-date { font-weight: 500; color: #1f2937; font-size: 13.5px; }
     
@@ -226,16 +226,16 @@ $isApprover = $isApprover ?? false;
 
     /* --- CARD --- */
     .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); border: 1px solid #f3f4f6; overflow: hidden; padding: 0; }
-    .card-header-simple { padding: 16px 24px; border-bottom: 1px solid #f3f4f6; }
+    .card-header-simple { padding: 16px 24px; border-bottom: 1px solid #f3f4f6; background: #fff; }
     .card-title-sm { margin: 0; font-size: 16px; font-weight: 700; color: #1f2937; }
     .card-subtitle-sm { margin: 4px 0 0; font-size: 13px; color: #6b7280; }
 
     /* --- TABLE --- */
-    .table-wrapper { width: 100%; overflow-x: auto; }
-    .custom-table { width: 100%; border-collapse: collapse; min-width: 950px; }
+    .table-wrapper { width: 100%; }
+    .custom-table { width: 100%; border-collapse: collapse; }
 
     .custom-table th { background: #f9fafb; padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e5e7eb; }
-    .custom-table td { padding: 14px 16px; border-bottom: 1px solid #f3f4f6; font-size: 13.5px; color: #1f2937; vertical-align: middle; }
+    .custom-table td { padding: 14px 16px; border-bottom: 1px solid #f3f4f6; font-size: 13.5px; color: #1f2937; vertical-align: top; }
     .custom-table tr:last-child td { border-bottom: none; }
     .custom-table tr:hover td { background: #fdfdfd; }
 
@@ -260,6 +260,103 @@ $isApprover = $isApprover ?? false;
     .btn-action-primary:hover { background: #163a75; border-color: #163a75; color: #fff; }
 
     .empty-state { padding: 60px 20px; text-align: center; color: #9ca3af; font-style: italic; }
+
+    /* --- RESPONSIVE CARD VIEW --- */
+    @media screen and (max-width: 768px) {
+        .table-wrapper {
+            background: transparent;
+        }
+        
+        .custom-table, 
+        .custom-table tbody, 
+        .custom-table tr, 
+        .custom-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .custom-table thead { display: none; }
+
+        .custom-table tr {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 12px;
+            border: 1px solid #f3f4f6;
+            padding: 16px;
+            position: relative;
+        }
+
+        .custom-table td {
+            padding: 4px 0;
+            border: none;
+            text-align: left;
+        }
+
+        /* Rewrite Layout for Card */
+        
+        /* 1. Header Card: Pemohon (Top Row) */
+        .custom-table td:nth-child(1) { /* Pemohon */
+            margin-bottom: 8px;
+            border-bottom: 1px solid #f3f4f6;
+            padding-bottom: 12px;
+        }
+        .custom-table td:nth-child(1) .employee-info .fw-bold { font-size: 15px; }
+
+        /* 2. Status & Type - Flex Row */
+        .custom-table td:nth-child(2), /* Jenis */
+        .custom-table td:nth-child(3) { /* Status */
+            display: inline-block;
+            width: auto;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        /* 3. Date & Reason */
+        .custom-table td:nth-child(4) { /* Periode */
+            display: block;
+            font-size: 13px;
+            color: #4b5563;
+            margin-bottom: 8px;
+        }
+        .custom-table td:nth-child(4)::before { content: '📅 '; }
+
+        .custom-table td:nth-child(5) { /* Alasan */
+            margin-top: 4px;
+            font-style: italic;
+            color: #6b7280;
+            font-size: 13px;
+            padding: 8px 12px;
+            background: #fefce8;
+            border-radius: 8px;
+            border: 1px dashed #fcd34d;
+        }
+        .text-truncate { max-width: none; white-space: normal; }
+
+        /* 5. Action Button */
+        .custom-table td:last-child {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #f3f4f6;
+            text-align: right;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-action {
+            flex: 1;
+            text-align: center;
+            justify-content: center;
+            display: flex;
+            align-items: center;
+        }
+        
+        /* Empty State */
+        .custom-table tr:has(.empty-state) {
+            text-align: center;
+            padding: 40px 20px;
+        }
+    }
   </style>
 
 </x-app>

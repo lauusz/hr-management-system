@@ -41,6 +41,12 @@
         
         .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; margin-bottom: 16px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
         .form-control:focus { border-color: #2563eb; }
+
+        /* [SIMPLE FULL SCREEN VIEWER CSS] */
+        .simple-viewer-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; }
+        .btn-close-simple { position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; z-index: 100000; }
+        .btn-close-simple:hover { background: rgba(255, 255, 255, 0.3); }
+        #simple-viewer-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
     </style>
 
     <div class="container-xl">
@@ -192,19 +198,12 @@
         </div>
     </div>
 
-    {{-- MODAL VIEW PHOTO --}}
-    <div id="photoModal" class="modal-backdrop" onclick="closePhotoModal(event)">
-        <div class="modal-content-custom" style="max-width:500px; padding:0; overflow:hidden;">
-            <div style="padding:16px 20px; background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                <h4 id="photoTitle" style="margin:0; font-size:1rem; color:#1e293b;">Foto Bukti</h4>
-                <button onclick="document.getElementById('photoModal').style.display='none'" style="border:none; background:none; cursor:pointer; color:#64748b;">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div style="padding:20px; background:#000; display:flex; justify-content:center;">
-                <img id="photoImg" src="" style="max-width:100%; max-height:60vh; border-radius:4px; object-fit:contain;">
-            </div>
-        </div>
+    {{-- [SIMPLE FULL SCREEN VIEWER] --}}
+    <div id="simple-viewer" class="simple-viewer-overlay" style="display: none;">
+        <button type="button" id="btn-close-simple" class="btn-close-simple" onclick="closeViewer()">
+            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <img id="simple-viewer-img" src="" alt="Full Preview">
     </div>
 
     {{-- JAVASCRIPT LOGIC --}}
@@ -238,18 +237,41 @@
             document.getElementById('rejectModal').style.display = 'none';
         }
 
-        // --- Logic Photo Modal ---
+        // --- Logic Photo Modal (Full Screen) ---
         function openPhoto(url, name) {
-            document.getElementById('photoModal').style.display = 'flex';
-            document.getElementById('photoImg').src = url;
-            document.getElementById('photoTitle').innerText = "Bukti: " + name;
-        }
-
-        function closePhotoModal(event) {
-            if (event.target.id === 'photoModal') {
-                document.getElementById('photoModal').style.display = 'none';
+            const viewer = document.getElementById('simple-viewer');
+            const viewerImg = document.getElementById('simple-viewer-img');
+            
+            if(url && viewer && viewerImg) {
+                viewerImg.src = url;
+                viewer.style.display = 'flex';
+                document.body.style.overflow = 'hidden'; 
             }
         }
+
+        function closeViewer() {
+            const viewer = document.getElementById('simple-viewer');
+            const viewerImg = document.getElementById('simple-viewer-img');
+            
+            if (viewer) viewer.style.display = 'none';
+            if (viewerImg) viewerImg.src = '';
+            document.body.style.overflow = ''; 
+        }
+
+        // Close on escape key
+        document.addEventListener('keydown', (e) => { 
+            const viewer = document.getElementById('simple-viewer');
+            if (e.key === 'Escape' && viewer.style.display === 'flex') {
+                closeViewer();
+            }
+        });
+
+        // Close on click background
+        document.getElementById('simple-viewer').addEventListener('click', (e) => { 
+            if (e.target.id === 'simple-viewer') {
+                closeViewer();
+            }
+        });
     </script>
 
 </x-app>

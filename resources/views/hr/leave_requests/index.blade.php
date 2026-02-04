@@ -16,13 +16,13 @@
             <table class="custom-table">
                 <thead>
                     <tr>
-                        <th style="min-width: 200px;">Karyawan</th>
+                        <th style="min-width: 160px;">Karyawan</th>
                         <th>Jenis</th>
-                        <th>Status</th> {{-- Kolom Status --}}
-                        <th style="min-width: 160px;">Periode Izin</th>
+                        <th>Status</th> 
+                        <th style="min-width: 120px;">Periode Izin</th>
                         <th>Tgl Pengajuan</th>
-                        <th style="min-width: 200px;">Alasan</th>
-                        <th class="text-right" style="width: 100px;">Aksi</th>
+                        <th style="min-width: 150px;">Alasan</th>
+                        <th class="text-right" style="width: 80px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -79,8 +79,8 @@
                         <tr>
                             <td>
                                 <div class="user-info">
-                                    <span class="fw-bold">{{ $lv->user->name }}</span>
-                                    <span class="text-muted">{{ $lv->user->division->name ?? 'Divisi tidak diatur' }}</span>
+                                    <span class="fw-bold" style="font-size: 0.9rem;">{{ $lv->user->name }}</span>
+                                    <span class="text-muted" style="font-size: 0.75rem;">{{ $lv->user->division->name ?? '-' }}</span>
                                 </div>
                             </td>
 
@@ -92,44 +92,48 @@
 
                             {{-- Kolom Tracking Status --}}
                             <td>
-                                <span class="badge-type {{ $statusBadge }}">
-                                    {{ $statusLabel }}
-                                </span>
-                                
-                                {{-- [MODIFIKASI] Menampilkan Nama Atasan (SPV atau Manager) --}}
-                                @if($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
-                                    <div class="approver-info">
-                                        Menunggu: 
-                                        <strong>
-                                            {{-- Cek Direct SPV dulu, kalau null cek Manager, kalau null strip --}}
-                                            {{ $lv->user->directSupervisor->name ?? $lv->user->manager->name ?? '-' }}
-                                        </strong>
-                                    </div>
-                                @endif
-
-                                @if($lv->status == \App\Models\LeaveRequest::PENDING_HR)
-                                    <div class="info-verifikasi">(Menunggu Verifikasi HRD)</div>
-                                @endif
-                            </td>
-
-                            <td>
-                                <span class="text-date">
-                                    {{ $lv->start_date->format('d M Y') }}
-                                    @if($lv->end_date && $lv->end_date->ne($lv->start_date))
-                                        – {{ $lv->end_date->format('d M Y') }}
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <span class="badge-type {{ $statusBadge }}">
+                                        {{ $statusLabel }}
+                                    </span>
+                                    
+                                    {{-- [MODIFIKASI] Menampilkan Nama Atasan (SPV atau Manager) --}}
+                                    @if($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
+                                        <div class="approver-info">
+                                            Menunggu: 
+                                            <strong>
+                                                {{ $lv->user->directSupervisor->name ?? $lv->user->manager->name ?? '-' }}
+                                            </strong>
+                                        </div>
                                     @endif
-                                </span>
+
+                                    @if($lv->status == \App\Models\LeaveRequest::PENDING_HR)
+                                        <div class="info-verifikasi">(Menunggu Verifikasi HRD)</div>
+                                    @endif
+                                </div>
                             </td>
 
                             <td>
-                                <span class="text-muted">
-                                    {{ $lv->created_at->format('d/m/Y H:i') }}
+                                <div class="text-date" style="line-height: 1.2;">
+                                    <div>{{ $lv->start_date->format('d M Y') }}</div>
+                                    @if($lv->end_date && $lv->end_date->ne($lv->start_date))
+                                        <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">
+                                            s/d {{ $lv->end_date->format('d M Y') }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </td>
+
+                            <td>
+                                <span class="text-muted" style="font-size: 0.8rem;">
+                                    {{ $lv->created_at->format('d/m/Y') }}<br>
+                                    {{ $lv->created_at->format('H:i') }}
                                 </span>
                             </td>
 
                             <td>
                                 <div class="text-truncate" title="{{ $lv->reason }}">
-                                    {{ Str::limit($lv->reason, 60) }}
+                                    {{ Str::limit($lv->reason, 40) }}
                                 </div>
                             </td>
 
@@ -195,14 +199,15 @@
         .card-header-simple {
             padding: 16px 20px;
             border-bottom: 1px solid #f3f4f6;
+            background: #fff;
         }
         
         .card-title-sm { margin: 0; font-size: 16px; font-weight: 700; color: #1f2937; }
         .card-subtitle-sm { margin: 4px 0 0; font-size: 13px; color: #6b7280; }
 
         /* --- TABLE --- */
-        .table-wrapper { width: 100%; overflow-x: auto; }
-        .custom-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        .table-wrapper { width: 100%; }
+        .custom-table { width: 100%; border-collapse: collapse; }
 
         .custom-table th {
             background: #f9fafb;
@@ -229,7 +234,7 @@
         /* --- USER INFO --- */
         .user-info { display: flex; flex-direction: column; gap: 2px; }
 
-        /* --- APPROVER INFO (NEW) --- */
+        /* --- APPROVER INFO --- */
         .approver-info {
             font-size: 11px; 
             color: #6b7280; 
@@ -282,6 +287,109 @@
         .btn-action:hover { background: #f3f4f6; border-color: #9ca3af; }
 
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
-    </style>
+
+        /* --- RESPONSIVE CARD VIEW --- */
+        @media screen and (max-width: 768px) {
+            .table-wrapper {
+                background: transparent;
+            }
+            
+            .custom-table, 
+            .custom-table tbody, 
+            .custom-table tr, 
+            .custom-table td {
+                display: block;
+                width: 100%;
+            }
+
+            .custom-table thead { display: none; }
+
+            .custom-table tr {
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                margin-bottom: 12px;
+                border: 1px solid #f3f4f6;
+                padding: 16px;
+                position: relative;
+            }
+
+            .custom-table td {
+                padding: 4px 0;
+                border: none;
+                text-align: left;
+            }
+
+            /* Rewrite Layout for Card */
+            
+            /* 1. Header Card: Nama & Status (Top Row) */
+            .custom-table td:nth-child(1) { /* Karyawan */
+                margin-bottom: 8px;
+                padding-right: 60px; /* Space for action button if needed, or status */
+            }
+            .custom-table td:nth-child(1) .user-info .fw-bold { font-size: 15px; }
+            
+            /* 2. Status Badge (Absolute Positioned or Flex) */
+            .custom-table td:nth-child(3) { /* Status */
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+
+            /* 3. Type & Dates (Grid Layout) */
+            .custom-table td:nth-child(2), /* Jenis */
+            .custom-table td:nth-child(4), /* Periode */
+            .custom-table td:nth-child(5) { /* Tgl Pengajuan */
+                display: inline-block;
+                width: auto;
+                margin-right: 12px;
+                font-size: 12.5px;
+                color: #4b5563;
+                background: #f9fafb;
+                padding: 4px 8px;
+                border-radius: 6px;
+                margin-bottom: 6px;
+            }
+            
+            /* Add Labels for context */
+            .custom-table td:nth-child(4)::before { content: '📅 '; }
+            .custom-table td:nth-child(5)::before { content: 'Submitted: '; opacity: 0.7; }
+
+            /* 4. Reason */
+            .custom-table td:nth-child(6) {
+                margin-top: 8px;
+                font-style: italic;
+                color: #6b7280;
+                font-size: 13px;
+                padding: 8px 12px;
+                background: #fefce8;
+                border-radius: 8px;
+                border: 1px dashed #fcd34d;
+            }
+            .text-truncate { max-width: none; white-space: normal; }
+
+            /* 5. Action Button */
+            .custom-table td:last-child {
+                margin-top: 12px;
+                text-align: right;
+                border-top: 1px solid #f3f4f6;
+                padding-top: 12px;
+            }
+            .btn-action {
+                width: 100%;
+                text-align: center;
+                background: var(--navy);
+                color: #fff;
+                border: none;
+            }
+            .btn-action:hover { background: #1e40af; }
+            
+            /* Hide empty state row correctly */
+            .custom-table tr:has(.empty-state) {
+                text-align: center;
+                padding: 40px 20px;
+            }
+        }    </style>
 
 </x-app>

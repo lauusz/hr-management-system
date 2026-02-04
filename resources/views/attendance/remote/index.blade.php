@@ -70,12 +70,13 @@
         .modal-content { 
             background: white; 
             width: 100%; 
-            max-width: 500px; /* Lebar sama dengan clock_in card */
-            border-radius: 20px; /* Radius sama dengan clock_in */
+            max-width: 500px;
+            border-radius: 20px;
             overflow: hidden; 
             display: flex; 
             flex-direction: column; 
-            max-height: 95vh; /* Sedikit lebih tinggi agar muat di HP */
+            height: 560px; /* Fixed Height agar tidak lompat saat ganti step */
+            max-height: 95vh;
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
         }
 
@@ -87,16 +88,28 @@
             align-items: center; 
             background: white;
             flex-shrink: 0;
+            gap: 12px;
         }
-        .modal-title-text { font-weight: 700; font-size: 1.1rem; color: var(--dark); }
+        .modal-title-text { font-weight: 700; font-size: 1.1rem; color: var(--dark); display: block; line-height: 1.2; }
         
-        /* Body bisa di-scroll jika konten panjang (Camera + Notes + Buttons) */
+        /* Step Indicator Dots */
+        .step-dot { width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0; transition: all 0.3s; }
+        .step-dot.active { background: var(--primary); width: 24px; border-radius: 20px; }
+
         .modal-body { 
             padding: 0; 
-            overflow-y: auto; 
             background: white;
             display: flex;
             flex-direction: column;
+            flex: 1; /* Isi sisa ruang */
+            overflow: hidden; /* Konten di dalam step yang scroll */
+        }
+        
+        .step-section {
+            flex: 1;
+            display: flex; 
+            flex-direction: column;
+            overflow-y: auto; 
         }
 
         #notesSection { padding: 20px 20px 0; }
@@ -106,17 +119,15 @@
             position: relative; 
             width: 100%; 
             background: black;
-            /* Height disamakan dengan clock_in agar konsisten */
-            height: 400px; 
-            flex-shrink: 0; /* Jangan menyusut */
-            margin-top: 15px;
+            flex: 1; /* Ambil sisa ruang vertikal */
+            min-height: 300px;
         }
 
         /* Base Video & Preview Styles */
         video, #capturePreview { 
             width: 100%; 
             height: 100%; 
-            object-fit: cover; /* KUNCI: Gambar mengisi penuh area 400px */
+            object-fit: cover; /* KUNCI: Gambar mengisi penuh area */
             display: block; 
             position: absolute;
             inset: 0;
@@ -132,10 +143,11 @@
         .controls-area { 
             padding: 20px; 
             background: white; 
+            flex-shrink: 0;
         }
 
         .form-group label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--dark); margin-bottom: 6px; }
-        .form-control { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.95rem; resize: none; }
+        .form-control { width: 100%; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-family: inherit; font-size: 0.95rem; resize: none; transition: border 0.2s; }
         
         /* BUTTONS (STYLE CLOCK_IN) */
         .btn-main { width: 100%; padding: 14px; border: none; border-radius: 16px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
@@ -143,7 +155,7 @@
         .btn-capture:active { transform: scale(0.98); }
         .btn-secondary { background: #f1f5f9; color: var(--dark); flex: 1; }
         .btn-success { background: var(--success); color: white; flex: 1; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3); }
-        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(1); }
+        .btn-main:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(1); box-shadow: none; }
 
         /* GPS Badge */
         .gps-badge { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); padding: 6px 14px; border-radius: 30px; display: flex; align-items: center; gap: 8px; z-index: 10; border: 1px solid rgba(255,255,255,0.1); }
@@ -162,11 +174,11 @@
             .modal-content {
                 width: 95%;
                 margin: 0 auto;
-                max-height: 90vh;
+                height: 100%;
+                max-height: 92vh;
             }
-            /* Di HP kecil, tinggi kamera sedikit disesuaikan agar tombol muat */
             .camera-wrapper {
-                height: 350px; 
+                min-height: 0; /* Biar flexbox yang atur */
             }
         }
     </style>
@@ -267,53 +279,86 @@
 
     </div>
 
-    {{-- MODAL CAMERA (STRUKTUR SAMA SEPERTI CLOCK_IN CARD) --}}
+    {{-- MODAL MULTI-STEP --}}
     <div id="cameraModal" class="modal-backdrop">
         <div class="modal-content">
             <div class="modal-header">
-                <span id="modalTitle" class="modal-title-text">Form Dinas Luar</span>
+                {{-- BACK BUTTON (Only visible on Step 2) --}}
+                <button type="button" id="btnBackStep" onclick="goToStep(1)" style="background:none; border:none; cursor:pointer; padding:8px; margin-right:8px; color:#1e4a8d; display:none;">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+
+                <div style="flex:1;">
+                    <span id="modalTitle" class="modal-title-text">Form Dinas Luar</span>
+                    <div class="step-indicator" id="stepIndicator" style="display:flex; gap:4px; margin-top:4px;">
+                        <div class="step-dot active" id="dot1"></div>
+                        <div class="step-dot" id="dot2"></div>
+                    </div>
+                </div>
+
                 <button type="button" onclick="closeCameraModal()" style="background:none; border:none; cursor:pointer; padding:4px; color: #64748b;">
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
             
             <div class="modal-body">
-                <div id="notesSection">
-                    <div class="form-group">
-                        <label>Keperluan / Lokasi Tugas <span style="color:var(--danger)">*</span></label>
-                        <textarea id="notesInput" class="form-control" rows="2" placeholder="Contoh: Meeting di PT. ABC"></textarea>
-                    </div>
-                </div>
+                
+                {{-- STEP 1: INPUT NOTES --}}
+                <div id="step1" class="step-section">
+                    <div style="padding:24px; text-align:center;">
+                        <div style="width:60px; height:60px; background:#eff6ff; color:#1e4a8d; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
+                            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        </div>
+                        <h3 style="margin:0 0 8px; font-size:1.1rem; color:#1e293b;">Keperluan Dinas</h3>
+                        <p style="margin:0 0 24px; color:#64748b; font-size:0.9rem;">Jelaskan tujuan atau lokasi tugas Anda hari ini.</p>
 
-                <div class="camera-wrapper">
-                    <div class="gps-badge">
-                        <div class="gps-dot" id="gpsIndicator"></div>
-                        <span class="gps-text" id="gpsText">Mencari Lokasi...</span>
+                        <div class="form-group" style="text-align:left;">
+                            <label>Keterangan <span style="color:var(--danger)">*</span></label>
+                            <textarea id="notesInput" class="form-control" rows="4" placeholder="Contoh: Meeting Proyek di PT. XYZ, Surabaya Utara..."></textarea>
+                            <div id="notesError" style="color:var(--danger); font-size:0.8rem; margin-top:4px; display:none;">Wajib diisi!</div>
+                        </div>
                     </div>
-
-                    <video id="video" autoplay playsinline muted></video>
-                    <img id="capturePreview">
-                    <div id="flashOverlay" class="flash"></div>
-                    <canvas id="canvas" style="display:none;"></canvas>
-                </div>
-
-                <div class="controls-area">
-                    <div class="status-message" id="statusMessage">
-                        Menyiapkan kamera...
-                    </div>
-                    
-                    <div id="groupCapture">
-                        <button type="button" id="btnCapture" class="btn-main btn-capture" disabled>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                            Ambil Foto
+                    <div style="padding:20px; border-top:1px solid #f1f5f9; margin-top:auto;">
+                        <button type="button" class="btn-main btn-capture" onclick="validateAndNext()">
+                            Lanjut ke Foto
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                         </button>
                     </div>
+                </div>
 
-                    <div id="groupAction" style="display:none; gap:10px; display:flex;">
-                        <button type="button" id="btnRetake" class="btn-main btn-secondary">Ulangi</button>
-                        <button type="button" id="btnSubmit" class="btn-main btn-success">Kirim Absen</button>
+                {{-- STEP 2: CAMERA --}}
+                <div id="step2" class="step-section" style="display:none; height:100%; flex-direction:column;">
+                    <div class="camera-wrapper">
+                        <div class="gps-badge">
+                            <div class="gps-dot" id="gpsIndicator"></div>
+                            <span class="gps-text" id="gpsText">Mencari Lokasi...</span>
+                        </div>
+
+                        <video id="video" autoplay playsinline muted></video>
+                        <img id="capturePreview">
+                        <div id="flashOverlay" class="flash"></div>
+                        <canvas id="canvas" style="display:none;"></canvas>
+                    </div>
+
+                    <div class="controls-area">
+                        <div class="status-message" id="statusMessage">
+                            Menyiapkan kamera...
+                        </div>
+                        
+                        <div id="groupCapture">
+                            <button type="button" id="btnCapture" class="btn-main btn-capture" disabled>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                                Ambil Foto
+                            </button>
+                        </div>
+
+                        <div id="groupAction" style="display:none; gap:10px; display:flex;">
+                            <button type="button" id="btnRetake" class="btn-main btn-secondary">Ulangi</button>
+                            <button type="button" id="btnSubmit" class="btn-main btn-success">Kirim Absen</button>
+                        </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -344,8 +389,6 @@
         const imgPreview = document.getElementById('capturePreview');
         const flashOverlay = document.getElementById('flashOverlay');
         const statusMsg = document.getElementById('statusMessage');
-        const notesSection = document.getElementById('notesSection');
-        const notesInput = document.getElementById('notesInput');
         const gpsText = document.getElementById('gpsText');
         const gpsDot = document.getElementById('gpsIndicator');
         const btnCapture = document.getElementById('btnCapture');
@@ -353,6 +396,15 @@
         const btnSubmit = document.getElementById('btnSubmit');
         const groupCapture = document.getElementById('groupCapture');
         const groupAction = document.getElementById('groupAction');
+
+        // Multi-step elements
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const btnBackStep = document.getElementById('btnBackStep');
+        const dot1 = document.getElementById('dot1');
+        const dot2 = document.getElementById('dot2');
+        const notesInput = document.getElementById('notesInput');
+        const notesError = document.getElementById('notesError');
 
         function toggleActionButtons(show) {
             if(show) {
@@ -367,18 +419,17 @@
         function openModal(type) {
             currentType = type;
             document.getElementById('modalTitle').innerText = (type === 'in') ? 'Form Dinas Luar' : 'Selesai Tugas';
-            
-            if(type === 'in') {
-                notesSection.style.display = 'block';
-                notesInput.value = '';
-            } else {
-                notesSection.style.display = 'none';
-            }
-
             modal.style.display = 'flex';
-            resetUI();
-            startCamera();
-            initGPS();
+            
+            // Logic Step
+            if(type === 'in') {
+                document.getElementById('stepIndicator').style.display = 'flex';
+                notesInput.value = '';
+                goToStep(1); // Mulai dari step 1
+            } else {
+                document.getElementById('stepIndicator').style.display = 'none';
+                goToStep(2); // Langsung kamera jika clock out (biasanya notes opsional/tidak ada)
+            }
         }
 
         function closeCameraModal() {
@@ -386,7 +437,51 @@
             stopHardware();
         }
 
-        function resetUI() {
+        function goToStep(step) {
+            if (step === 1) {
+                step1.style.display = 'flex'; // Column layout
+                step1.style.flexDirection = 'column';
+                step1.style.height = '100%';
+                
+                step2.style.display = 'none';
+                btnBackStep.style.display = 'none';
+                
+                dot1.classList.add('active');
+                dot2.classList.remove('active');
+                
+                // Matikan kamera di step 1 untuk hemat baterai
+                stopHardware();
+            } else if (step === 2) {
+                step1.style.display = 'none';
+                step2.style.display = 'flex';
+                
+                if (currentType === 'in') {
+                    btnBackStep.style.display = 'block';
+                    dot1.classList.remove('active');
+                    dot2.classList.add('active');
+                } else {
+                    btnBackStep.style.display = 'none'; // Clock out gak bisa back
+                }
+
+                resetUICamera();
+                startCamera();
+                initGPS();
+            }
+        }
+
+        function validateAndNext() {
+            const val = notesInput.value.trim();
+            if(!val) {
+                notesInput.style.borderColor = "var(--danger)";
+                notesError.style.display = "block";
+                return;
+            }
+            notesInput.style.borderColor = "#e2e8f0";
+            notesError.style.display = "none";
+            goToStep(2);
+        }
+
+        function resetUICamera() {
             video.style.display = 'block';
             imgPreview.style.display = 'none';
             toggleActionButtons(false);
@@ -397,7 +492,6 @@
 
         async function startCamera() {
             try {
-                // Constraints: Meminta 1280x720 ideal
                 const s = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } 
                 });
@@ -460,7 +554,6 @@
             flashOverlay.classList.add('flash-anim');
             setTimeout(() => flashOverlay.classList.remove('flash-anim'), 500);
 
-            // Canvas size match video source size
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
@@ -491,8 +584,10 @@
         btnSubmit.addEventListener('click', async () => {
             if (!imageBlob || !userLat) return;
 
+            // Double check notes if Step 1
             if (currentType === 'in' && !notesInput.value.trim()) {
                 alert("Harap isi Keterangan/Keperluan Dinas!");
+                goToStep(1);
                 return;
             }
 

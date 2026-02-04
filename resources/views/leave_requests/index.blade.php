@@ -74,9 +74,9 @@
                     <tr>
                         <th style="min-width: 160px;">Tanggal Pengajuan</th>
                         <th>Jenis</th>
-                        <th style="min-width: 180px;">Periode Izin</th>
+                        <th style="min-width: 120px;">Periode Izin</th>
                         <th>Tracking Status</th>
-                        <th class="text-right" style="width: 100px;">Aksi</th>
+                        <th class="text-right" style="width: 80px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -120,12 +120,14 @@
                             </td>
 
                             <td>
-                                <span class="text-date">
-                                    {{ $row->start_date->format('d M Y') }}
+                                <div class="text-date" style="line-height: 1.2;">
+                                    <div>{{ $row->start_date->format('d M Y') }}</div>
                                     @if($row->end_date && $row->end_date->ne($row->start_date))
-                                        – {{ $row->end_date->format('d M Y') }}
+                                        <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">
+                                            s/d {{ $row->end_date->format('d M Y') }}
+                                        </div>
                                     @endif
-                                </span>
+                                </div>
                             </td>
 
                             <td>
@@ -165,6 +167,7 @@
         .mb-4 { margin-bottom: 16px; }
         .text-right { text-align: right; }
         .text-date { font-weight: 500; color: #1f2937; font-size: 13.5px; }
+        .fw-bold { font-weight: 600; color: #111827; }
 
         /* --- ALERT --- */
         .alert-success {
@@ -282,8 +285,8 @@
         .btn-reset:hover { background: #f9fafb; }
 
         /* --- TABLE --- */
-        .table-wrapper { width: 100%; overflow-x: auto; }
-        .custom-table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        .table-wrapper { width: 100%; }
+        .custom-table { width: 100%; border-collapse: collapse; }
 
         .custom-table th {
             background: #f9fafb;
@@ -302,14 +305,14 @@
             border-bottom: 1px solid #f3f4f6;
             font-size: 13.5px;
             color: #1f2937;
-            vertical-align: middle;
+            vertical-align: top;
         }
         .custom-table tr:last-child td { border-bottom: none; }
         .custom-table tr:hover td { background: #fdfdfd; }
 
         /* --- CONTENT STYLES --- */
         .date-block { display: flex; flex-direction: column; }
-        .main-date { font-weight: 500; color: #111827; }
+        .main-date { font-weight: 600; color: #111827; }
         .sub-date { font-size: 11px; color: #9ca3af; }
 
         /* --- BADGES --- */
@@ -338,7 +341,6 @@
         .badge-red { background: #fee2e2; color: #991b1b; }
         .badge-yellow { background: #fef9c3; color: #854d0e; }
         .badge-gray { background: #f3f4f6; color: #374151; }
-        /* [BARU] Badge Teal untuk 'Atasan Mengetahui' */
         .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
 
         /* --- ACTION BUTTON --- */
@@ -358,11 +360,94 @@
 
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
-        @media(max-width: 768px) {
+        /* --- RESPONSIVE CARD VIEW --- */
+        @media screen and (max-width: 768px) {
             .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
             .filter-group, .form-control { width: 100%; min-width: 0; }
             .filter-actions { margin-top: 4px; }
             .btn-primary, .btn-reset { flex: 1; text-align: center; }
+
+            .table-wrapper { background: transparent; }
+            
+            .custom-table, 
+            .custom-table tbody, 
+            .custom-table tr, 
+            .custom-table td {
+                display: block;
+                width: 100%;
+            }
+
+            .custom-table thead { display: none; }
+
+            .custom-table tr {
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                margin-bottom: 12px;
+                border: 1px solid #f3f4f6;
+                padding: 16px;
+                position: relative;
+            }
+
+            .custom-table td {
+                padding: 4px 0;
+                border: none;
+                text-align: left;
+            }
+
+            /* --- Card Layout Mapping --- */
+            
+            /* 1. Header: Tanggal Pengajuan (Top) */
+            .custom-table td:nth-child(1) { /* Tanggal Pengajuan */
+                margin-bottom: 8px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            .main-date { font-size: 15px; }
+
+            /* 2. Jenis & Status */
+            .custom-table td:nth-child(2), /* Jenis */
+            .custom-table td:nth-child(4) { /* Status */
+                display: inline-block;
+                width: auto;
+                margin-right: 8px;
+                margin-bottom: 8px;
+            }
+            
+            /* 3. Periode */
+            .custom-table td:nth-child(3) { /* Periode */
+                display: block;
+                font-size: 13px;
+                color: #4b5563;
+                background: #f9fafb;
+                padding: 6px 10px;
+                border-radius: 6px;
+                margin-bottom: 8px;
+                margin-top: 4px;
+            }
+            .custom-table td:nth-child(3)::before { content: '📅 Izin: '; font-weight: 600; opacity: 0.8; }
+
+            /* 4. Action */
+            .custom-table td:last-child {
+                border-top: 1px solid #f3f4f6;
+                margin-top: 12px;
+                padding-top: 12px;
+                text-align: right;
+            }
+            .btn-action {
+                width: 100%;
+                text-align: center;
+                background: var(--navy); /* Use variable if available or hardcode #1e4a8d */
+                background: #1e4a8d;
+                color: #fff;
+                border: none;
+            }
+            
+            /* Support for empty state */
+            .custom-table tr:has(.empty-state) {
+                text-align: center;
+                padding: 40px 20px;
+            }
         }
     </style>
 
