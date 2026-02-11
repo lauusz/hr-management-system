@@ -75,12 +75,11 @@
                         <th style="min-width: 200px;">Nama / Divisi</th>
                         <th>Jabatan</th>
                         <th>PT</th>
-                        <th>Kategori</th>
+
                         <th>Masa Kerja</th>
-                        <th>Bergabung</th>
-                        <th>Akhir Kontrak</th>
+
                         <th>Status</th>
-                        <th class="text-right">Aksi</th>
+                        <th style="width: 80px;">Aksi</th>
                     </tr>
                 </thead>
 
@@ -141,16 +140,15 @@
                             <td>
                                 <span class="badge-pt">{{ $emp->profile?->pt?->name ?? '-' }}</span>
                             </td>
-                            <td>{{ $emp->profile?->kategori ?? '-' }}</td>
+
                             <td class="text-muted">{{ $masaKerjaDisplay }}</td>
-                            <td class="text-muted">{{ $emp->join_date_label ?? '-' }}</td>
-                            <td class="text-muted">{{ $emp->probation_end_label ?? '-' }}</td>
+
                             <td>
                                 <span class="badge-status" style="background: {{ $statusBg }}; color: {{ $statusColor }};">
                                     {{ $statusText }}
                                 </span>
                             </td>
-                            <td class="text-right">
+                            <td style="width: 80px;">
                                 <a href="{{ route('hr.employees.show', $emp->id) }}" class="btn-detail">
                                     Detail
                                 </a>
@@ -175,7 +173,7 @@
     <style>
         /* --- UTILITY & CARD --- */
         .mb-4 { margin-bottom: 16px; }
-        .text-muted { color: #6b7280; font-size: 13px; }
+        .text-muted { color: #6b7280; font-size: 11px; }
         .text-right { text-align: right; }
         
         .card {
@@ -305,9 +303,9 @@
 
         .custom-table th {
             background: #f9fafb;
-            padding: 12px 16px;
+            padding: 10px 12px;
             text-align: left;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #6b7280;
             text-transform: uppercase;
@@ -316,9 +314,9 @@
         }
 
         .custom-table td {
-            padding: 12px 16px;
+            padding: 10px 12px;
             border-bottom: 1px solid #f3f4f6;
-            font-size: 13.5px;
+            font-size: 12px;
             color: #1f2937;
             vertical-align: middle;
         }
@@ -327,37 +325,37 @@
         .custom-table tr:hover td { background: #fdfdfd; }
 
         /* --- CONTENT FORMATTING --- */
-        .user-info { display: flex; flex-direction: column; gap: 2px; }
-        .user-name { font-weight: 600; color: #111827; text-decoration: none; }
+        .user-info { display: flex; flex-direction: column; gap: 2px; text-align: left; align-items: flex-start; justify-content: flex-start; }
+        .user-name { font-weight: 600; color: #111827; text-decoration: none; font-size: 13px; }
         .user-name:hover { color: #1e4a8d; text-decoration: underline; }
-        .user-sub { font-size: 12px; color: #6b7280; }
+        .user-sub { font-size: 11px; color: #6b7280; }
 
         .badge-pt {
             background: #f3f4f6;
             color: #374151;
             padding: 2px 8px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 500;
             border: 1px solid #e5e7eb;
         }
 
         .badge-status {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 2px 8px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
         }
 
         .btn-detail {
-            padding: 6px 14px;
+            padding: 4px 12px;
             border: 1px solid #e5e7eb;
             background: #fff;
             color: #374151;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             text-decoration: none;
             transition: all 0.2s;
         }

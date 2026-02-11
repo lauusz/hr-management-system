@@ -53,7 +53,7 @@
                         <th>Metode Bayar</th>
                         <th>Tgl Pengajuan</th>
                         <th>Status</th>
-                        <th class="text-right" style="width: 100px;">Aksi</th>
+                        <th style="width: 100px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -87,8 +87,6 @@
                                 <div class="user-info">
                                     <span class="fw-bold">{{ $loan->snapshot_name }}</span>
                                     <div class="sub-info">
-                                        <span>NIK: {{ $loan->snapshot_nik ?? '-' }}</span>
-                                        <span class="dot">•</span>
                                         <span>{{ $loan->snapshot_position ?? '-' }}</span>
                                     </div>
                                     <span class="sub-company">{{ $loan->snapshot_company ?? '-' }}</span>
@@ -120,7 +118,7 @@
                                 </span>
                             </td>
 
-                            <td class="text-right">
+                            <td style="width: 100px;">
                                 <a href="{{ route('hr.loan_requests.show', $loan->id) }}" class="btn-action">
                                     Detail
                                 </a>
@@ -248,9 +246,9 @@
 
         .custom-table th {
             background: #f9fafb;
-            padding: 12px 16px;
+            padding: 10px 12px;
             text-align: left;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #6b7280;
             text-transform: uppercase;
@@ -259,9 +257,9 @@
         }
 
         .custom-table td {
-            padding: 14px 16px;
+            padding: 10px 12px;
             border-bottom: 1px solid #f3f4f6;
-            font-size: 13.5px;
+            font-size: 12px;
             color: #1f2937;
             vertical-align: top; /* Align top karena konten bertumpuk */
         }
@@ -269,13 +267,13 @@
         .custom-table tr:hover td { background: #fdfdfd; }
 
         /* --- CONTENT STYLING --- */
-        .user-info { display: flex; flex-direction: column; gap: 3px; }
+        .user-info { display: flex; flex-direction: column; gap: 3px; text-align: left; align-items: flex-start; justify-content: flex-start; }
         .sub-info { font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;}
         .sub-company { font-size: 11px; color: #9ca3af; font-style: italic; }
         .dot { color: #d1d5db; }
 
         .money-block { display: flex; flex-direction: column; gap: 2px; }
-        .money-amount { font-weight: 700; color: #1e4a8d; font-size: 14px; }
+        .money-amount { font-weight: 700; color: #1e4a8d; font-size: 13px; }
         .money-words { font-size: 11px; color: #6b7280; font-style: italic; }
 
         .date-block { display: flex; flex-direction: column; }
@@ -287,16 +285,16 @@
             color: #374151;
             padding: 3px 8px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 500;
             border: 1px solid #e5e7eb;
         }
 
         .badge-status {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 3px 8px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
         }
@@ -308,12 +306,12 @@
 
         /* --- ACTION BUTTONS --- */
         .btn-action {
-            padding: 6px 14px;
+            padding: 4px 10px;
             border: 1px solid #d1d5db;
             background: #fff;
             color: #374151;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
             text-decoration: none;
             display: inline-block;

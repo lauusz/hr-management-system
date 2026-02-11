@@ -118,17 +118,20 @@
                                 <span class="fw-bold">{{ $row->user->name }}</span>
                             </td>
 
-                            <td class="text-muted">
-                                {{ $row->created_at?->format('d M Y H:i') ?? '-' }}
+                            <td class="text-muted" style="font-size: 11px;">
+                                {{ $row->created_at?->format('d/m/Y') ?? '-' }}<br>
+                                {{ $row->created_at?->format('H:i') ?? '' }}
                             </td>
 
                             <td>
-                                <span class="text-date">
-                                    {{ $row->start_date->format('d M Y') }}
+                                <div class="text-date" style="line-height: 1.2;">
+                                    <div>{{ $row->start_date->format('d M Y') }}</div>
                                     @if($row->end_date && $row->end_date->ne($row->start_date))
-                                        – {{ $row->end_date->format('d M Y') }}
+                                        <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">
+                                            s/d {{ $row->end_date->format('d M Y') }}
+                                        </div>
                                     @endif
-                                </span>
+                                </div>
                             </td>
 
                             <td>
@@ -274,7 +277,11 @@
         .btn-reset:hover { background: #f9fafb; }
 
         /* --- TABLE --- */
-        .table-wrapper { width: 100%; overflow-x: auto; }
+        .table-wrapper { 
+            width: 100%; 
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .custom-table { width: 100%; border-collapse: collapse; min-width: 900px; }
 
         .custom-table th {
@@ -349,11 +356,104 @@
 
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
-        @media(max-width: 768px) {
+        @media(max-width: 1024px) {
             .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
             .filter-group, .form-control { width: 100%; min-width: 0; }
             .filter-actions { margin-top: 4px; }
             .btn-primary, .btn-reset { flex: 1; text-align: center; }
+
+            /* --- RESPONSIVE CARD VIEW --- */
+            .table-wrapper { background: transparent; }
+            
+            .custom-table, 
+            .custom-table tbody, 
+            .custom-table tr, 
+            .custom-table td {
+                display: block;
+                width: 100%;
+                min-width: 0;
+            }
+
+            .custom-table thead { display: none; }
+
+            .custom-table tr {
+                background: #fff;
+                border-radius: 12px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                margin-bottom: 12px;
+                border: 1px solid #f3f4f6;
+                padding: 16px;
+                position: relative;
+            }
+
+            .custom-table td {
+                padding: 4px 0;
+                border: none;
+                text-align: left;
+            }
+
+            /* HIDE Columns */
+            .custom-table td:nth-child(1) { display: none; } /* Hide Index # */
+
+            /* 2. Header: Karyawan */
+            .custom-table td:nth-child(2) {
+                margin-bottom: 8px;
+                padding-bottom: 8px;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            .custom-table td:nth-child(2) .fw-bold { font-size: 15px; }
+
+            /* 5. Jenis (Badge) & 6. Status */
+            .custom-table td:nth-child(5),
+            .custom-table td:nth-child(6) {
+                display: inline-block;
+                width: auto;
+                margin-right: 8px;
+                margin-bottom: 8px;
+            }
+
+            /* 4. Periode Izin */
+            .custom-table td:nth-child(4) {
+                display: block;
+                background: #f9fafb;
+                padding: 6px 10px;
+                border-radius: 6px;
+                color: #4b5563;
+                font-size: 13px;
+                margin-bottom: 4px;
+            }
+            .custom-table td:nth-child(4)::before { content: '📅 '; }
+
+            /* 3. Tgl Pengajuan */
+            .custom-table td:nth-child(3) {
+                font-size: 12px;
+                color: #9ca3af;
+                margin-bottom: 8px;
+            }
+            .custom-table td:nth-child(3)::before { content: 'Diajukan: '; }
+
+            /* 7. Action Button */
+            .custom-table td:last-child {
+                border-top: 1px solid #f3f4f6;
+                margin-top: 12px;
+                padding-top: 12px;
+                text-align: center;
+            }
+            .btn-action {
+                display: block;
+                width: 100%;
+                text-align: center;
+                background: #1e4a8d;
+                color: #fff;
+                border: none;
+                padding: 8px;
+            }
+            
+            /* Support for empty state */
+            .custom-table tr:has(.empty-state) {
+                text-align: center;
+                padding: 40px 20px;
+            }
         }
     </style>
 

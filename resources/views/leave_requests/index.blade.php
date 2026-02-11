@@ -285,7 +285,11 @@
         .btn-reset:hover { background: #f9fafb; }
 
         /* --- TABLE --- */
-        .table-wrapper { width: 100%; }
+        .table-wrapper { 
+            width: 100%; 
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .custom-table { width: 100%; border-collapse: collapse; }
 
         .custom-table th {

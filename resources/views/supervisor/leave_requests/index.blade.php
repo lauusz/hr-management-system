@@ -71,12 +71,12 @@ $isApprover = $isApprover ?? false;
       <table class="custom-table">
         <thead>
           <tr>
-            <th style="min-width: 220px;">Pemohon</th>
-            <th>Jenis</th>
-            <th>Status</th>
-            <th style="min-width: 170px;">Periode Izin</th>
-            <th style="min-width: 220px;">Alasan</th>
-            <th class="text-right" style="width: 100px;">Aksi</th>
+            <th style="min-width: 150px;">Pemohon</th>
+            <th style="width: 1%; white-space: nowrap;">Jenis</th>
+            <th style="width: 1%; white-space: nowrap;">Status</th>
+            <th style="min-width: 100px;">Periode Izin</th>
+            <th style="min-width: 120px;">Alasan</th>
+            <th style="width: 80px;">Aksi</th>
           </tr>
         </thead>
         <tbody>
@@ -103,7 +103,7 @@ $isApprover = $isApprover ?? false;
                 if ($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
                     // Status ini muncul di inbox berarti menunggu action user ini
                     $statusBadge = 'badge-yellow';
-                    $statusLabel = '⏳ Menunggu Persetujuan Anda';
+                    $statusLabel = '⏳ Menunggu Approval';
                 } 
                 elseif ($lv->status == \App\Models\LeaveRequest::PENDING_HR) {
                     // Sudah di-approve user ini, lanjut ke HR
@@ -123,11 +123,7 @@ $isApprover = $isApprover ?? false;
             <tr>
                 <td>
                     <div class="employee-info">
-                        <span class="fw-bold">{{ $lv->user->name ?? '—' }}</span>
-                        <div class="sub-info">
-                            <span class="chip-role">{{ $lv->user->role }}</span>
-                            <span class="text-muted">• {{ $lv->user->division->name ?? 'Divisi -' }}</span>
-                        </div>
+                        <span class="fw-bold">{{ $lv->user->name }}</span>
                     </div>
                 </td>
 
@@ -144,12 +140,14 @@ $isApprover = $isApprover ?? false;
                 </td>
 
                 <td>
-                    <span class="text-date">
-                        {{ $lv->start_date->format('d M Y') }}
+                    <div class="text-date" style="line-height: 1.2;">
+                        <div>{{ $lv->start_date->format('d M Y') }}</div>
                         @if($lv->end_date && $lv->end_date->ne($lv->start_date))
-                        – {{ $lv->end_date->format('d M Y') }}
+                            <div style="font-size: 10px; color: #6b7280; margin-top: 1px;">
+                                s/d {{ $lv->end_date->format('d M Y') }}
+                            </div>
                         @endif
-                    </span>
+                    </div>
                 </td>
 
                 <td>
@@ -158,7 +156,7 @@ $isApprover = $isApprover ?? false;
                     </div>
                 </td>
 
-                <td class="text-right">
+                <td style="width: 80px;">
                     {{-- Tombol Aksi: Muncul HANYA jika status masih Pending --}}
                     @if($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
                         <a href="{{ route('approval.show', $lv) }}" class="btn-action btn-action-primary">
@@ -195,7 +193,9 @@ $isApprover = $isApprover ?? false;
     .fw-bold { font-weight: 600; color: #111827; }
     .text-muted { color: #6b7280; font-size: 13px; }
     .text-right { text-align: right; }
-    .text-date { font-weight: 500; color: #1f2937; font-size: 13.5px; }
+    .text-muted { color: #6b7280; font-size: 13px; }
+    .text-right { text-align: right; }
+    .text-date { font-weight: 500; color: #1f2937; font-size: 11.5px; }
     
     .employee-info { display: flex; flex-direction: column; gap: 2px; }
     .sub-info { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -212,11 +212,11 @@ $isApprover = $isApprover ?? false;
     }
 
     .text-truncate {
-        max-width: 250px;
+        max-width: 120px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        font-size: 13.5px;
+        font-size: 11px;
         color: #4b5563;
     }
 
@@ -225,22 +225,28 @@ $isApprover = $isApprover ?? false;
     .alert-danger { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px; font-size: 14px; }
 
     /* --- CARD --- */
-    .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); border: 1px solid #f3f4f6; overflow: hidden; padding: 0; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); border: 1px solid #f3f4f6; padding: 0; }
     .card-header-simple { padding: 16px 24px; border-bottom: 1px solid #f3f4f6; background: #fff; }
     .card-title-sm { margin: 0; font-size: 16px; font-weight: 700; color: #1f2937; }
     .card-subtitle-sm { margin: 4px 0 0; font-size: 13px; color: #6b7280; }
 
     /* --- TABLE --- */
-    .table-wrapper { width: 100%; }
-    .custom-table { width: 100%; border-collapse: collapse; }
+    .table-wrapper { 
+        width: 100%; 
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+    }
+    .custom-table { width: 100%; border-collapse: collapse; min-width: 800px; }
 
-    .custom-table th { background: #f9fafb; padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e5e7eb; }
-    .custom-table td { padding: 14px 16px; border-bottom: 1px solid #f3f4f6; font-size: 13.5px; color: #1f2937; vertical-align: top; }
+    .custom-table th { background: #f9fafb; padding: 10px 12px; text-align: left; font-size: 10px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e5e7eb; }
+    .custom-table td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #1f2937; vertical-align: top; }
     .custom-table tr:last-child td { border-bottom: none; }
     .custom-table tr:hover td { background: #fdfdfd; }
 
     /* --- BADGES --- */
-    .badge-type { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    /* --- BADGES --- */
+    .badge-type { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 9.5px; font-weight: 600; white-space: nowrap; }
     .badge-blue { background: #eff6ff; color: #1d4ed8; }   
     .badge-yellow { background: #fefce8; color: #a16207; } 
     .badge-orange { background: #fff7ed; color: #c2410c; } 
@@ -253,7 +259,7 @@ $isApprover = $isApprover ?? false;
     .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
 
     /* --- ACTION BUTTONS --- */
-    .btn-action { padding: 6px 14px; border: 1px solid #d1d5db; background: #fff; color: #374151; border-radius: 20px; font-size: 12px; font-weight: 500; text-decoration: none; display: inline-block; transition: all 0.2s; white-space: nowrap; }
+    .btn-action { padding: 4px 10px; border: 1px solid #d1d5db; background: #fff; color: #374151; border-radius: 20px; font-size: 11px; font-weight: 500; text-decoration: none; display: inline-block; transition: all 0.2s; white-space: nowrap; }
     .btn-action:hover { background: #f3f4f6; border-color: #9ca3af; }
 
     .btn-action-primary { background: #1e4a8d; color: #fff; border-color: #1e4a8d; }
@@ -273,6 +279,7 @@ $isApprover = $isApprover ?? false;
         .custom-table td {
             display: block;
             width: 100%;
+            min-width: 0;
         }
 
         .custom-table thead { display: none; }

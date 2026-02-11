@@ -1,4 +1,4 @@
-<x-app title="Rekap Cuti Bawahan">
+<x-app title="Rekap Daftar Izin Karyawan">
 
     {{-- Notifikasi Sukses --}}
     @if(session('success'))

@@ -4,6 +4,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <title>{{ $title ?? 'HRD System' }}</title>
 
   <link rel="icon" href="{{ asset('favicon.ico') }}">
@@ -20,7 +25,13 @@
       --text: #1f2937;
       --text-muted: #6b7280;
       --border: #e5e7eb;
-      --sidebar-width: 280px;
+      --sidebar-width: 260px;
+    }
+
+    @media (max-width: 1280px) {
+        :root {
+            --sidebar-width: 220px;
+        }
     }
 
     * { box-sizing: border-box; }

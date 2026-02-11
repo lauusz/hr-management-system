@@ -70,7 +70,7 @@
                         <th>PT</th>
                         <th>Shift Aktif</th>
                         <th>Lokasi</th>
-                        <th class="text-right" style="width: 180px;">Aksi</th>
+                        <th style="width: 100px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -101,7 +101,7 @@
                             </div>
                         </td>
 
-                        <td class="text-right">
+                        <td style="width: 100px;">
                             <div class="action-buttons">
                                 @if($item->schedule_id)
                                     <a href="{{ route('hr.schedules.edit', $item->schedule_id) }}" class="btn-action edit">
@@ -164,7 +164,7 @@
         /* --- UTILITY --- */
         .mb-4 { margin-bottom: 16px; }
         .fw-bold { font-weight: 600; color: #111827; }
-        .text-muted { color: #6b7280; font-size: 12px; }
+        .text-muted { color: #6b7280; font-size: 11px; }
         .text-right { text-align: right; }
         .text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -247,9 +247,9 @@
 
         .custom-table th {
             background: #f9fafb;
-            padding: 12px 16px;
+            padding: 10px 12px;
             text-align: left;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #6b7280;
             text-transform: uppercase;
@@ -258,9 +258,9 @@
         }
 
         .custom-table td {
-            padding: 12px 16px;
+            padding: 10px 12px;
             border-bottom: 1px solid #f3f4f6;
-            font-size: 13.5px;
+            font-size: 12px;
             color: #1f2937;
             vertical-align: middle;
         }
@@ -268,37 +268,39 @@
         .custom-table tr:hover td { background: #fdfdfd; }
 
         /* --- CONTENT STYLING --- */
-        .user-info { display: flex; flex-direction: column; gap: 2px; }
+        /* --- CONTENT STYLING --- */
+        .user-info { display: flex; flex-direction: column; gap: 2px; text-align: left; align-items: flex-start; justify-content: flex-start; }
+        .user-info .fw-bold { font-size: 13px; }
         
         .badge-basic {
             background: #f3f4f6;
             color: #374151;
             padding: 2px 8px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 10px;
             border: 1px solid #e5e7eb;
         }
 
         .badge-shift {
             background: #eff6ff;
             color: #1d4ed8;
-            padding: 4px 10px;
+            padding: 2px 8px;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 600;
         }
 
         /* --- ACTION BUTTONS --- */
         .action-buttons {
             display: flex;
-            justify-content: flex-end;
+            justify-content: flex-start;
             gap: 6px;
         }
 
         .btn-action {
-            padding: 6px 12px;
+            padding: 4px 12px;
             border-radius: 6px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
             border: 1px solid transparent;

@@ -225,27 +225,20 @@
         <x-pagination :items="$items" />
     </div>
 
-    <x-modal
-        id="attendance-photo-modal"
-        title="Foto Presensi"
-        type="info"
-        cancelLabel="Tutup">
-        <div style="display:flex;flex-direction:column;gap:12px;">
-            <div id="attendancePhotoMeta" style="font-size:14px; color:#374151; background:#f3f4f6; padding:8px 12px; border-radius:8px;">
-            </div>
-            <div style="border-radius:12px; border:1px solid #e5e7eb; overflow:hidden; background:#000; display:flex; justify-content:center;">
-                <img id="attendancePhotoImg"
-                    src=""
-                    alt="Foto presensi"
-                    style="max-width:100%; max-height:60vh; object-fit:contain; display:block;">
-            </div>
-        </div>
-    </x-modal>
+    {{-- [SIMPLE FULL SCREEN VIEWER] --}}
+    <div id="simple-viewer" class="simple-viewer-overlay" style="display: none;">
+        <button type="button" id="btn-close-simple" class="btn-close-simple">
+            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+        <img id="simple-viewer-img" src="" alt="Full Preview">
+    </div>
 
     <style>
         /* --- UTILITY --- */
         .mb-4 { margin-bottom: 16px; }
+        .mb-4 { margin-bottom: 16px; }
         .text-center { text-align: center; }
+        .fw-bold { font-weight: 600; color: #111827; }
         .fw-bold { font-weight: 600; color: #111827; }
         .text-muted { color: #9ca3af; font-size: 13px; font-style: italic; }
         .text-small { font-size: 13px; color: #4b5563; }
@@ -338,9 +331,9 @@
 
         .custom-table th {
             background: #f9fafb;
-            padding: 12px 16px;
+            padding: 10px 12px;
             text-align: left;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #6b7280;
             text-transform: uppercase;
@@ -349,9 +342,9 @@
         }
 
         .custom-table td {
-            padding: 12px 16px;
+            padding: 10px 12px;
             border-bottom: 1px solid #f3f4f6;
-            font-size: 13.5px;
+            font-size: 12px;
             color: #1f2937;
             vertical-align: middle;
         }
@@ -366,9 +359,9 @@
 
         .badge-status {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 3px 8px;
             border-radius: 20px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             text-transform: uppercase;
         }
@@ -395,9 +388,9 @@
         }
 
         .btn-pill {
-            padding: 4px 10px;
+            padding: 3px 8px;
             border-radius: 6px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             text-decoration: none;
             cursor: pointer;
@@ -422,6 +415,12 @@
 
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
+        /* --- UTILITY --- */
+        .simple-viewer-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; }
+        .btn-close-simple { position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; z-index: 100000; }
+        .btn-close-simple:hover { background: rgba(255, 255, 255, 0.3); }
+        #simple-viewer-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
+
         @media(max-width: 768px) {
             .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
             .filter-group, .form-control { width: 100%; min-width: 0; }
@@ -434,38 +433,36 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // --- Modal Logic ---
-            const modal = document.getElementById('attendance-photo-modal');
-            const modalImg = document.getElementById('attendancePhotoImg');
-            const modalMeta = document.getElementById('attendancePhotoMeta');
+            // --- Simple Viewer Logic ---
+            const viewer = document.getElementById('simple-viewer');
+            const viewerImg = document.getElementById('simple-viewer-img');
+            const closeBtn = document.getElementById('btn-close-simple');
 
-            // Kita gunakan event delegation agar aman jika ada re-render (walau di sini statis)
+            function openViewer(url) {
+                if(viewer && viewerImg && url) {
+                    viewerImg.src = url;
+                    viewer.style.display = 'flex';
+                    document.body.style.overflow = 'hidden'; 
+                }
+            }
+
+            function closeViewer() {
+                if (viewer) viewer.style.display = 'none';
+                if (viewerImg) viewerImg.src = '';
+                document.body.style.overflow = ''; 
+            }
+
+            // Event Delegation for buttons
             document.body.addEventListener('click', function(e) {
                 if (e.target && e.target.classList.contains('btn-pill') && e.target.hasAttribute('data-photo-url')) {
-                    const btn = e.target;
-                    const url = btn.getAttribute('data-photo-url');
-                    const name = btn.getAttribute('data-employee-name') || '';
-                    const datetime = btn.getAttribute('data-datetime') || '';
-                    const label = btn.getAttribute('data-label') || '';
-
-                    if (!url) return;
-
-                    modalImg.src = url;
-
-                    let metaText = `<strong>${name}</strong>`;
-                    if (datetime) {
-                        metaText += ` • ${label}: ${datetime}`;
-                    }
-                    modalMeta.innerHTML = metaText;
-
-                    // Trigger open modal function from app layout if exists, or manual
-                    const modalEl = document.getElementById('attendance-photo-modal');
-                    if(modalEl) {
-                        modalEl.style.display = 'flex';
-                        document.body.style.overflow = 'hidden';
-                    }
+                    const url = e.target.getAttribute('data-photo-url');
+                    if (url) openViewer(url);
                 }
             });
+
+            if (closeBtn) closeBtn.addEventListener('click', closeViewer);
+            if (viewer) viewer.addEventListener('click', (e) => { if (e.target === viewer) closeViewer(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer && viewer.style.display === 'flex') closeViewer(); });
 
             // --- Flatpickr Logic ---
             const rangeInput = document.getElementById('date_range');

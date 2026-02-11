@@ -4,7 +4,37 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <title>HRD Triguna</title>
+
+  <script>
+    // 1. Hapus Service Worker (Biang kerok pesan "Koneksi Terputus")
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (let r of registrations) { 
+          r.unregister(); 
+          window.location.reload(); 
+        }
+      });
+    }
+
+    // 2. Auto-Refresh Otomatis jika ini kunjungan pertama di hari yang berbeda
+    (function() {
+      const today = new Date().toDateString();
+      const lastVisit = localStorage.getItem('last_hrd_refresh');
+
+      if (lastVisit !== today) {
+        localStorage.clear(); // Bersihkan sisa login/cache lama
+        localStorage.setItem('last_hrd_refresh', today);
+        // Tambahkan query string random agar browser dipaksa ambil file baru dari server
+        window.location.href = window.location.pathname + "?update=" + Date.now();
+      }
+    })();
+  </script>
 
   <link rel="icon" href="{{ asset('favicon.ico') }}">
 

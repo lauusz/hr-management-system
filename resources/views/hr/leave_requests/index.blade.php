@@ -16,13 +16,13 @@
             <table class="custom-table">
                 <thead>
                     <tr>
-                        <th style="min-width: 160px;">Karyawan</th>
+                        <th style="min-width: 140px;">Karyawan</th>
                         <th>Jenis</th>
-                        <th>Status</th> 
-                        <th style="min-width: 120px;">Periode Izin</th>
+                        <th style="max-width: 120px;">Status</th> 
+                        <th>Periode Izin</th>
                         <th>Tgl Pengajuan</th>
-                        <th style="min-width: 150px;">Alasan</th>
-                        <th class="text-right" style="width: 80px;">Aksi</th>
+                        <th style="min-width: 120px;">Alasan</th>
+                        <th class="text-right" style="width: 60px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -79,8 +79,8 @@
                         <tr>
                             <td>
                                 <div class="user-info">
-                                    <span class="fw-bold" style="font-size: 0.9rem;">{{ $lv->user->name }}</span>
-                                    <span class="text-muted" style="font-size: 0.75rem;">{{ $lv->user->division->name ?? '-' }}</span>
+                                    <span class="fw-bold" style="font-size: 13px;">{{ $lv->user->name }}</span>
+                                    <span class="text-muted" style="font-size: 11px;">{{ $lv->user->division->name ?? '-' }}</span>
                                 </div>
                             </td>
 
@@ -117,7 +117,7 @@
                                 <div class="text-date" style="line-height: 1.2;">
                                     <div>{{ $lv->start_date->format('d M Y') }}</div>
                                     @if($lv->end_date && $lv->end_date->ne($lv->start_date))
-                                        <div style="font-size: 0.75rem; color: #6b7280; margin-top: 2px;">
+                                        <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">
                                             s/d {{ $lv->end_date->format('d M Y') }}
                                         </div>
                                     @endif
@@ -125,7 +125,7 @@
                             </td>
 
                             <td>
-                                <span class="text-muted" style="font-size: 0.8rem;">
+                                <span class="text-muted" style="font-size: 11px;">
                                     {{ $lv->created_at->format('d/m/Y') }}<br>
                                     {{ $lv->created_at->format('H:i') }}
                                 </span>
@@ -162,16 +162,16 @@
     <style>
         /* --- UTILITY --- */
         .fw-bold { font-weight: 600; color: #111827; }
-        .text-muted { color: #6b7280; font-size: 13px; }
+        .text-muted { color: #6b7280; font-size: 11px; }
         .text-right { text-align: right; }
-        .text-date { font-weight: 500; color: #1f2937; font-size: 13.5px; }
+        .text-date { font-weight: 500; color: #1f2937; font-size: 12px; }
         
         .text-truncate {
             max-width: 250px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            font-size: 13.5px;
+            font-size: 12px;
             color: #4b5563;
         }
 
@@ -206,14 +206,18 @@
         .card-subtitle-sm { margin: 4px 0 0; font-size: 13px; color: #6b7280; }
 
         /* --- TABLE --- */
-        .table-wrapper { width: 100%; }
+        .table-wrapper { 
+            width: 100%; 
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
         .custom-table { width: 100%; border-collapse: collapse; }
 
         .custom-table th {
             background: #f9fafb;
-            padding: 12px 16px;
+            padding: 10px 12px;
             text-align: left;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 700;
             color: #6b7280;
             text-transform: uppercase;
@@ -222,24 +226,28 @@
         }
 
         .custom-table td {
-            padding: 14px 16px;
+            padding: 10px 12px;
             border-bottom: 1px solid #f3f4f6;
-            font-size: 13.5px;
+            font-size: 12px;
             color: #1f2937;
-            vertical-align: top;
+            vertical-align: middle;
         }
         .custom-table tr:last-child td { border-bottom: none; }
         .custom-table tr:hover td { background: #fdfdfd; }
 
         /* --- USER INFO --- */
-        .user-info { display: flex; flex-direction: column; gap: 2px; }
+        .user-info { display: flex; flex-direction: column; gap: 2px; text-align: left; align-items: flex-start; justify-content: flex-start; }
 
         /* --- APPROVER INFO --- */
         .approver-info {
-            font-size: 11px; 
+            font-size: 10px; 
             color: #6b7280; 
-            margin-top: 6px; 
-            line-height: 1.3;
+            margin-top: 4px; 
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
         }
         .info-verifikasi {
             font-size: 10px; 
@@ -250,11 +258,13 @@
         /* --- BADGES --- */
         .badge-type {
             display: inline-block;
-            padding: 3px 10px;
+            padding: 2px 8px;
             border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 10px;
+            font-weight: 700;
             white-space: nowrap;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
         }
         
         /* Warna Badge Jenis Cuti */
@@ -273,12 +283,12 @@
 
         /* --- ACTION BUTTONS --- */
         .btn-action {
-            padding: 6px 14px;
+            padding: 4px 12px;
             border: 1px solid #d1d5db;
             background: #fff;
             color: #374151;
             border-radius: 20px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
             text-decoration: none;
             display: inline-block;
