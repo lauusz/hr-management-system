@@ -109,7 +109,7 @@ class LeaveRequestController extends Controller
         $roleStr = $this->getRoleString($user);
         if ($roleStr === 'EMPLOYEE') {
             $approvers = User::where('role', UserRole::SUPERVISOR)->where('id', '!=', $userId)->orderBy('name')->get();
-        } elseif ($roleStr === 'SUPERVISOR') {
+        } elseif ($roleStr === 'SUPERVISOR' || $roleStr === 'HRD') {
             $approvers = User::whereIn('role', [UserRole::MANAGER])->where('id', '!=', $userId)->orderBy('name')->get();
         }
 
@@ -254,7 +254,7 @@ class LeaveRequestController extends Controller
         if ($roleStr === 'EMPLOYEE') {
             if (!empty($inputApproverId)) { $user->update(['direct_supervisor_id' => $inputApproverId]); }
             if (!empty($user->direct_supervisor_id)) { $initialStatus = LeaveRequest::PENDING_SUPERVISOR; }
-        } elseif ($roleStr === 'SUPERVISOR') {
+        } elseif ($roleStr === 'SUPERVISOR' || $roleStr === 'HRD') {
             if (!empty($inputApproverId)) { $user->update(['manager_id' => $inputApproverId]); }
             if (!empty($user->manager_id)) { $initialStatus = LeaveRequest::PENDING_SUPERVISOR; }
         }

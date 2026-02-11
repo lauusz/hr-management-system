@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 
 class ApprovalController extends Controller
 {
@@ -38,20 +41,11 @@ class ApprovalController extends Controller
         // 2. Filter Status Pending (Hanya Inbox)
         $query->where('status', LeaveRequest::PENDING_SUPERVISOR);
 
-        // 3. Strict Hierarchy Logic (Hanya bawahan langsung)
+        // 3. Logic Berdasarkan Profile ID (Supervisor / Manager)
         $query->whereHas('user', function (Builder $q) use ($me) {
             $q->where(function ($subQ) use ($me) {
-                // Skenario 1: Staff -> Supervisor Approve
-                $subQ->where(function ($karyawan) use ($me) {
-                    $karyawan->where('role', UserRole::EMPLOYEE)
-                             ->where('direct_supervisor_id', $me->id);
-                });
-
-                // Skenario 2: Supervisor -> Manager Approve
-                $subQ->orWhere(function ($spv) use ($me) {
-                    $spv->whereIn('role', [UserRole::SUPERVISOR, 'SUPERVISOR'])
-                        ->where('manager_id', $me->id);
-                });
+                $subQ->where('direct_supervisor_id', $me->id)
+                     ->orWhere('manager_id', $me->id);
             });
         });
 
@@ -293,9 +287,11 @@ class ApprovalController extends Controller
     /**
      * Action: Setujui (Approve)
      */
-    public function approve(LeaveRequest $leave)
+    public function approve(Request $request, LeaveRequest $leave)
     {
-        if (!$this->checkIsAuthorizedApprover($leave->user, auth()->user())) {
+        $me = auth()->user();
+
+        if (!$this->checkIsAuthorizedApprover($leave->user, $me)) {
             abort(403, 'Anda bukan atasan langsung yang berhak menyetujui level ini.');
         }
 
@@ -303,13 +299,65 @@ class ApprovalController extends Controller
             return back()->with('error', 'Status pengajuan sudah berubah.');
         }
 
-        $leave->update([
-            'status'      => LeaveRequest::PENDING_HR, // Lanjut ke HRD
-            'approved_by' => auth()->id(), 
-            'approved_at' => now(),
-        ]);
+        // 2. Logic Approval
+        // Cek Role Applicant
+        $applicantRole = $leave->user->role instanceof \App\Enums\UserRole ? $leave->user->role->value : $leave->user->role;
+        $isHRD = in_array(strtoupper($applicantRole), ['HRD', 'HR MANAGER']);
 
-        return back()->with('success', 'Pengajuan disetujui dan diteruskan ke HRD.');
+        if ($isHRD) {
+            // [CASE KHUSUS HRD] 
+            // HRD Manager -> Manager Approve -> LANGSUNG APPROVED (Skip Pending HR)
+            // Sistem Otomatis Potong Cuti (Asumsi 5 Hari Kerja untuk HRD/Manager)
+
+            DB::transaction(function () use ($leave, $me, $request) {
+                $daysToDeduct = 0;
+                
+                // Hanya potong jika tipe CUTI
+                if ($leave->type === LeaveType::CUTI->value) {
+                    $start = Carbon::parse($leave->start_date);
+                    $end   = Carbon::parse($leave->end_date);
+                    $period = CarbonPeriod::create($start, $end);
+
+                    foreach ($period as $date) {
+                        // 5 Hari Kerja: Skip Sabtu & Minggu
+                        if (!$date->isSaturday() && !$date->isSunday()) {
+                            $daysToDeduct++;
+                        }
+                    }
+
+                    // Cek Saldo
+                    if ($leave->user->leave_balance < $daysToDeduct) {
+                         throw new \Exception("Gagal Approve: Saldo cuti HRD tidak cukup. Punya: {$leave->user->leave_balance}, Butuh: {$daysToDeduct}.");
+                    }
+
+                    // Potong Saldo
+                    if ($daysToDeduct > 0) {
+                        $leave->user->decrement('leave_balance', $daysToDeduct);
+                    }
+                }
+
+                $leave->update([
+                    'status'      => LeaveRequest::STATUS_APPROVED, // Langsung FINAL
+                    'approved_by' => $me->id,
+                    'approved_at' => now(),
+                    'notes'       => ($request->notes ? $request->notes . "\n" : '') . "[System] Disetujui oleh {$me->name}",
+                ]);
+            });
+
+            return redirect()->route('approval.index')->with('success', 'Pengajuan HRD telah disetujui sepenuhnya (Auto-Approved).');
+
+        } else {
+            // [CASE COMMMON STAFF/SPV]
+            // Masuk ke PENDING_HR dulu untuk verifikasi HRD
+            $leave->update([
+                'status'      => LeaveRequest::PENDING_HR,
+                'approved_by' => $me->id,
+                'approved_at' => now(),
+                'notes'       => $request->notes, // Optional notes from superior
+            ]);
+            
+            return redirect()->route('approval.index')->with('success', 'Pengajuan disetujui. Menunggu verifikasi HRD.');
+        }
     }
 
     /**
@@ -339,16 +387,14 @@ class ApprovalController extends Controller
      */
     private function checkIsAuthorizedApprover($applicant, $me)
     {
-        $roleValue = $applicant->role instanceof UserRole ? $applicant->role->value : $applicant->role;
-        $roleStr = strtoupper((string) $roleValue);
-
-        // Rule 1: Jika Staff -> Cek direct_supervisor_id
-        if ($roleStr === 'EMPLOYEE' && $applicant->direct_supervisor_id === $me->id) {
+        // Logic Simple Berdasarkan ID di Profile User
+        // 1. Jika saya adalah Direct Supervisor-nya
+        if ($applicant->direct_supervisor_id === $me->id) {
             return true;
         }
 
-        // Rule 2: Jika SPV -> Cek manager_id
-        if (($roleStr === 'SUPERVISOR' || $roleStr === 'SPV') && $applicant->manager_id === $me->id) {
+        // 2. Jika saya adalah Manager-nya (dan dia tidak punya direct spv atau eskalasi)
+        if ($applicant->manager_id === $me->id) {
             return true;
         }
 

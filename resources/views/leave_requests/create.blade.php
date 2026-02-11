@@ -83,6 +83,8 @@
 
             <input type="hidden" id="shift_end_time" value="{{ $shiftEndDisplay }}">
 
+
+
             {{-- 1. JENIS PENGAJUAN --}}
             <div class="form-group">
                 <label class="section-label">Jenis Pengajuan <span class="req">*</span></label>

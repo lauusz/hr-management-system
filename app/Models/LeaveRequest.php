@@ -69,6 +69,14 @@ class LeaveRequest extends Model
 
     public function getStatusLabelAttribute(): string
     {
+        // Custom Label untuk HRD yang sudah diapprove
+        if ($this->status === self::STATUS_APPROVED && $this->user) {
+            $roleVal = $this->user->role instanceof \App\Enums\UserRole ? $this->user->role->value : $this->user->role;
+            if (in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER'])) {
+                return '✅ Disetujui General Manager';
+            }
+        }
+
         return self::STATUS_OPTIONS[$this->status] ?? $this->status;
     }
 

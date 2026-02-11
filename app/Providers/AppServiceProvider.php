@@ -34,19 +34,13 @@ class AppServiceProvider extends ServiceProvider
                 // 1. JIKA USER ADALAH SUPERVISOR ATAU MANAGER
                 // Hitung pengajuan bawahan yang statusnya PENDING_SUPERVISOR
                 if (in_array($user->role, [UserRole::SUPERVISOR, UserRole::MANAGER])) {
+                    // Logic simplified to match ApprovalController::index
+                    // Menampilkan notif untuk semua user yang 'direct_supervisor' atau 'manager'-nya adalah User ini
                     $notifCount = LeaveRequest::where('status', LeaveRequest::PENDING_SUPERVISOR)
                         ->whereHas('user', function (Builder $q) use ($user) {
                             $q->where(function ($subQ) use ($user) {
-                                // Skenario: Staff -> Supervisor
-                                $subQ->where(function ($k) use ($user) {
-                                    $k->where('role', UserRole::EMPLOYEE)
-                                      ->where('direct_supervisor_id', $user->id);
-                                });
-                                // Skenario: Supervisor -> Manager
-                                $subQ->orWhere(function ($s) use ($user) {
-                                    $s->whereIn('role', [UserRole::SUPERVISOR, 'SUPERVISOR'])
-                                      ->where('manager_id', $user->id);
-                                });
+                                $subQ->where('direct_supervisor_id', $user->id)
+                                     ->orWhere('manager_id', $user->id);
                             });
                         })
                         ->count();

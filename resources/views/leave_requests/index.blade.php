@@ -89,7 +89,11 @@
 
                             if ($st === \App\Models\LeaveRequest::STATUS_APPROVED) {
                                 $badgeClass = 'badge-green';
-                                $statusLabel = 'Disetujui HRD';
+                                // Cek Role Owner
+                                $roleVal = $row->user->role instanceof \App\Enums\UserRole ? $row->user->role->value : $row->user->role;
+                                $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
+                                
+                                $statusLabel = $isOwnerHRD ? '✅ Disetujui General Manager' : 'Disetujui HRD';
                             } elseif ($st === \App\Models\LeaveRequest::STATUS_REJECTED) {
                                 $badgeClass = 'badge-red';
                                 $statusLabel = 'Ditolak';

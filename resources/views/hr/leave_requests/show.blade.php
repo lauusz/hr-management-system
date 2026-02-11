@@ -62,7 +62,11 @@
                 
                 if ($status === \App\Models\LeaveRequest::STATUS_APPROVED) {
                     $badgeClass = 'badge-green';
-                    $statusLabel = 'Disetujui HRD';
+                    // Cek Role Owner
+                    $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
+                    $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
+                    
+                    $statusLabel = $isOwnerHRD ? '✅ Disetujui General Manager' : 'Disetujui HRD';
                 } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
                     $badgeClass = 'badge-red';
                     $statusLabel = 'Ditolak';
@@ -347,7 +351,17 @@
 
                     @else
                         <div class="processed-info">
-                            Status: <strong>{{ $statusLabel }}</strong>
+                            @if($item->status === \App\Models\LeaveRequest::STATUS_APPROVED)
+                                @php
+                                    $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
+                                    $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
+                                @endphp
+                                <span style="color:#166534; font-weight:600;">
+                                    {{ $isOwnerHRD ? '✅ Disetujui General Manager' : 'Status: Disetujui HRD' }}
+                                </span>
+                            @else
+                                Status: <strong>{{ $statusLabel }}</strong>
+                            @endif
                         </div>
                     @endif
 

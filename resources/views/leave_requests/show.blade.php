@@ -45,7 +45,11 @@
                 
                 if ($status === \App\Models\LeaveRequest::STATUS_APPROVED) {
                     $badgeClass = 'badge-green';
-                    $statusLabel = 'Disetujui HRD';
+                    // Cek Role Owner untuk Label Khusus
+                    $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
+                    $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
+                    
+                    $statusLabel = $isOwnerHRD ? '✅ Disetujui General Manager' : 'Disetujui HRD';
                 } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
                     $badgeClass = 'badge-red';
                     $statusLabel = 'Ditolak';
@@ -300,7 +304,13 @@
                 @if(!$item->is_pending && !auth()->user()->can('approve', $item))
                     <div class="processed-info">
                         @if($item->status == \App\Models\LeaveRequest::STATUS_APPROVED)
-                             <span style="color:#166534; font-weight:600;">✅ Disetujui HRD</span>
+                             @php
+                                $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
+                                $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
+                             @endphp
+                             <span style="color:#166534; font-weight:600;">
+                                {{ $isOwnerHRD ? '✅ Disetujui General Manager' : '✅ Disetujui HRD' }}
+                             </span>
                         @elseif($item->status == \App\Models\LeaveRequest::STATUS_REJECTED)
                              <span style="color:#991b1b; font-weight:600;">❌ Ditolak</span>
                         @elseif($item->status == 'BATAL')
