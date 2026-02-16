@@ -341,6 +341,10 @@
           <span style="margin-right:10px;"></span>Absensi Dinas Luar
         </a>
 
+        <a href="{{ route('overtime-requests.index') }}" class="{{ request()->routeIs('overtime-requests.*') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span> Pengajuan Lembur
+        </a>
+
         <a href="{{ route('employee.loan_requests.index') }}" class="{{ request()->routeIs('employee.loan_requests.*') ? 'active' : '' }}">
           <span style="margin-right:10px;"></span> Pengajuan Hutang
         </a>
@@ -387,8 +391,39 @@
             @endif
         </a>
 
+        <a href="{{ route('supervisor.overtime-requests.index') }}" class="{{ request()->routeIs('supervisor.overtime-requests.index', 'supervisor.overtime-requests.show') ? 'active' : '' }}">
+            <span style="margin-right:10px;"></span> Approval Lembur
+            {{-- [BADGE NOTIFIKASI LEMBUR SUPERVISOR] --}}
+            @php
+                $supervisor = auth()->user();
+                $myDivisionId = $supervisor->division_id;
+                $myPtId = $supervisor->profile?->pt_id; // assuming profile relation exists
+
+                $pendingOvertimeCount = \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
+                    ->whereHas('user', function ($q) use ($myDivisionId) {
+                        $q->where('division_id', $myDivisionId);
+                    })
+                    ->when($myPtId, function ($q) use ($myPtId) {
+                        $q->whereHas('user.profile', function ($sq) use ($myPtId) {
+                            $sq->where('pt_id', $myPtId);
+                        });
+                    })
+                    ->count();
+            @endphp
+
+            @if($pendingOvertimeCount > 0)
+                <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+                    {{ $pendingOvertimeCount }}
+                </span>
+            @endif
+        </a>
+
         <a href="{{ route('supervisor.leave.master') }}" class="{{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
             <span style="margin-right:10px;"></span> Daftar Pengajuan
+        </a>
+
+        <a href="{{ route('supervisor.overtime-requests.master') }}" class="{{ request()->routeIs('supervisor.overtime-requests.master') ? 'active' : '' }}">
+            <span style="margin-right:10px;"></span> Daftar Lembur
         </a>
         @endif
 
@@ -396,7 +431,7 @@
         @if(auth()->user()->isHR())
         @php
             $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
-            $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*');
+            $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*', 'hr.overtime-requests.master');
             $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
             $hrLoanOpen = request()->routeIs('hr.loan_requests.*');
         @endphp
@@ -429,6 +464,20 @@
         </a>
         {{-- [END BARU] --}}
 
+        <a href="{{ route('hr.overtime-requests.index') }}" class="{{ request()->routeIs('hr.overtime-requests.index', 'hr.overtime-requests.show') ? 'active' : '' }}">
+          <span style="margin-right:10px;"></span> Approval Lembur
+          {{-- [BADGE NOTIFIKASI HRD LEMBUR] --}}
+          @php
+              // Hitung jumlah pending HR (Approved by Supervisor)
+              $pendingHrOvertimeCount = \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR)->count();
+          @endphp
+          @if($pendingHrOvertimeCount > 0)
+              <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+                  {{ $pendingHrOvertimeCount }}
+              </span>
+          @endif
+        </a>
+
         <button type="button" class="menu-group {{ ($hrEmployeesOpen) ? 'open' : '' }}" data-menu-group="employees">
           <span class="menu-group-label"><span style="margin-right:10px;"></span> Karyawan</span>
           <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -449,6 +498,10 @@
         </button>
         <div class="submenu {{ $hrPresensiOpen ? 'show' : '' }}" data-menu-panel="presensi">
           <a href="{{ route('hr.attendances.index') }}" class="{{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">Master Absensi</a>
+          
+          {{-- [BARU] MASTER LEMBUR --}}
+          <a href="{{ route('hr.overtime-requests.master') }}" class="{{ request()->routeIs('hr.overtime-requests.master') ? 'active' : '' }}">Master Lembur</a>
+
           <a href="{{ route('hr.shifts.index') }}" class="{{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">Master Shift</a>
           <a href="{{ route('hr.locations.index') }}" class="{{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">Lokasi Presensi</a>
           <a href="{{ route('hr.schedules.index') }}" class="{{ request()->routeIs('hr.schedules.*') ? 'active' : '' }}">Jadwal Karyawan</a>

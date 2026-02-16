@@ -13,7 +13,7 @@ use App\Http\Controllers\HR\DivisionController;
 use App\Http\Controllers\HR\PositionController;
 use App\Http\Controllers\HR\ScheduleController;
 use App\Http\Controllers\HRAttendanceController;
-use App\Http\Controllers\ApprovalAttendanceController; // [BARU] Import Controller
+use App\Http\Controllers\ApprovalAttendanceController;
 use App\Http\Controllers\HREmployeeController;
 use App\Http\Controllers\PtController;
 use App\Http\Controllers\EmployeeDocumentController;
@@ -21,6 +21,9 @@ use App\Http\Controllers\HR\OrganizationController;
 use App\Http\Controllers\EmployeeLoanRequestController;
 use App\Http\Controllers\HrLoanRequestController;
 use App\Http\Controllers\SupervisorDataController;
+use App\Http\Controllers\OvertimeRequestController;
+use App\Http\Controllers\SupervisorOvertimeController;
+use App\Http\Controllers\HrOvertimeController;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -33,6 +36,9 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('leave-requests', LeaveRequestController::class)
         ->only(['index', 'create', 'store', 'show', 'update', 'destroy']);
+
+    Route::resource('overtime-requests', OvertimeRequestController::class)
+        ->only(['index', 'create', 'store', 'update', 'destroy']);
 
     Route::get('/attendance', [AttendanceController::class, 'dashboard'])->name('attendance.dashboard');
     Route::get('/attendance/clock-in', [AttendanceController::class, 'showClockInForm'])->name('attendance.clockIn.form');
@@ -126,6 +132,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/hr/loan-requests/{id}/reject', [HrLoanRequestController::class, 'reject'])->name('hr.loan_requests.reject');
         Route::post('/hr/loan-requests/{id}/repayments', [HrLoanRequestController::class, 'storeRepayment'])->name('hr.loan_requests.repayments.store');
 
+        // Overtime Requests (HR) - Routes Manual untuk Action
+        Route::get('/hr/overtime-requests/master', [HrOvertimeController::class, 'master'])->name('hr.overtime-requests.master');
+        Route::get('/hr/overtime-requests', [HrOvertimeController::class, 'index'])->name('hr.overtime-requests.index');
+        Route::get('/hr/overtime-requests/{overtimeRequest}', [HrOvertimeController::class, 'show'])->name('hr.overtime-requests.show');
+        Route::post('/hr/overtime-requests/{overtimeRequest}/approve', [HrOvertimeController::class, 'approve'])->name('hr.overtime-requests.approve');
+        Route::post('/hr/overtime-requests/{overtimeRequest}/reject', [HrOvertimeController::class, 'reject'])->name('hr.overtime-requests.reject');
+
         Route::get('/hr/organization', [OrganizationController::class, 'index'])->name('hr.organization');
 
         Route::get('/hr/positions/create', [PositionController::class, 'create'])->name('hr.positions.create');
@@ -153,6 +166,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/leave-requests/{leave}', [ApprovalController::class, 'show'])->name('leave.show');
         Route::post('/leave-requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('leave.approve');
         Route::post('/leave-requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('leave.reject');
+
+        // Overtime Requests (Supervisor)
+        Route::get('/overtime-requests/master', [SupervisorOvertimeController::class, 'master'])->name('overtime-requests.master');
+        Route::get('/overtime-requests', [SupervisorOvertimeController::class, 'index'])->name('overtime-requests.index');
+        Route::get('/overtime-requests/{overtimeRequest}', [SupervisorOvertimeController::class, 'show'])->name('overtime-requests.show');
+        Route::post('/overtime-requests/{overtimeRequest}/approve', [SupervisorOvertimeController::class, 'approve'])->name('overtime-requests.approve');
+        Route::post('/overtime-requests/{overtimeRequest}/reject', [SupervisorOvertimeController::class, 'reject'])->name('overtime-requests.reject');
     });
 
     Route::middleware('role:SUPERVISOR,MANAGER')->group(function () {
