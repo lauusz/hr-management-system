@@ -49,7 +49,7 @@ class AppServiceProvider extends ServiceProvider
                 // 2. JIKA USER ADALAH HRD / HR STAFF
                 // Hitung yang statusnya PENDING_HR (Verifikasi) ATAU CANCEL_REQ (Request Batal)
                 // Pastikan role disesuaikan dengan Enum atau String yang Anda pakai untuk HRD
-                elseif (in_array($user->role, [UserRole::HRD, 'HR STAFF'])) {
+                elseif (in_array($user->role, [UserRole::HRD, UserRole::HR_STAFF])) {
                     $notifCount = LeaveRequest::whereIn('status', [
                         LeaveRequest::PENDING_HR, 
                         'CANCEL_REQ'
