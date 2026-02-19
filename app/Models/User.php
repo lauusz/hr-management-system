@@ -19,6 +19,7 @@ class User extends Authenticatable
         'password',
         'phone',
         'role', 
+        'can_manage_payroll', // <--- [BARU] Hak akses kelola slip gaji 
         'leave_balance',        // <--- [BARU] Tambahkan ini agar sisa cuti bisa di-update
         'division_id',
         'position_id',
@@ -40,6 +41,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password'      => 'hashed',
             'role'          => UserRole::class,
+            'can_manage_payroll' => 'boolean',
         ];
     }
 
@@ -55,6 +57,12 @@ class User extends Authenticatable
     public function isHrStaff(): bool
     {
         return $this->role === UserRole::HR_STAFF;
+    }
+
+    public function canManagePayroll(): bool
+    {
+        // Akses diberikan jika user adalah HR Manager atau punya flag can_manage_payroll = true
+        return $this->isHrManager() || $this->can_manage_payroll;
     }
 
     public function isHR(): bool
@@ -165,5 +173,10 @@ class User extends Authenticatable
     public function documents()
     {
         return $this->hasMany(EmployeeDocument::class);
+    }
+
+    public function payslips()
+    {
+        return $this->hasMany(Payslip::class, 'user_id');
     }
 }

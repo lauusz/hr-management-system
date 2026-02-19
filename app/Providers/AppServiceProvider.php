@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Builder;
 use App\Models\LeaveRequest;
 use App\Enums\UserRole;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -24,6 +25,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // GATE: Kelola Slip Gaji
+        Gate::define('manage-payroll', function ($user) {
+            return $user->canManagePayroll();
+        });
+
         // LOGIKA NOTIFIKASI GLOBAL (View Composer)
         // Logika ini akan berjalan di setiap view untuk menghitung badge notifikasi
         View::composer('*', function ($view) {

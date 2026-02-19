@@ -24,6 +24,7 @@ use App\Http\Controllers\SupervisorDataController;
 use App\Http\Controllers\OvertimeRequestController;
 use App\Http\Controllers\SupervisorOvertimeController;
 use App\Http\Controllers\HrOvertimeController;
+use App\Http\Controllers\Hr\PayslipController;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -45,7 +46,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clockIn');
     Route::get('/attendance/clock-out', [AttendanceController::class, 'showClockOutForm'])->name('attendance.clockOut.form');
     Route::post('/attendance/clock-out', [AttendanceController::class, 'clockOut'])->name('attendance.clockOut');
-    
+
     // Remote Attendance (Karyawan)
     Route::prefix('remote-attendance')->name('remote-attendance.')->group(function () {
         Route::get('/', [AttendanceController::class, 'remoteIndex'])->name('index');
@@ -110,7 +111,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/locations/{location}/edit', [AttendanceLocationController::class, 'edit'])->name('hr.locations.edit');
         Route::put('/hr/locations/{location}', [AttendanceLocationController::class, 'update'])->name('hr.locations.update');
         Route::delete('/hr/locations/{location}', [AttendanceLocationController::class, 'destroy'])->name('hr.locations.destroy');
-        
+
         Route::get('/hr/schedules', [ScheduleController::class, 'index'])->name('hr.schedules.index');
         Route::get('/hr/schedules/create', [ScheduleController::class, 'create'])->name('hr.schedules.create');
         Route::post('/hr/schedules', [ScheduleController::class, 'store'])->name('hr.schedules.store');
@@ -156,11 +157,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/pts', [PtController::class, 'index'])->name('hr.pts.index');
         Route::get('/hr/pts/create', [PtController::class, 'create'])->name('hr.pts.create');
         Route::post('/hr/pts', [PtController::class, 'store'])->name('hr.pts.store');
-        Route::get('/hr/pts/{pt}/edit', [PtController::class, 'edit'])->name('hr.pts.edit');
-        Route::put('/hr/pts/{pt}', [PtController::class, 'update'])->name('hr.pts.update');
-        Route::delete('/hr/pts/{pt}', [PtController::class, 'destroy'])->name('hr.pts.destroy');
+        // PAYSLIP MANAGEMENT
+        // Hanya bisa diakses oleh HR Manager atau user dengan hak akses khusus
+        Route::resource('/hr/payroll', PayslipController::class)
+            ->names('hr.payroll')
+            ->parameters(['payroll' => 'payslip'])
+            ->middleware('can:manage-payroll');
     });
-
     Route::middleware('role:SUPERVISOR')->prefix('supervisor')->name('supervisor.')->group(function () {
         Route::get('/leave-requests', [ApprovalController::class, 'index'])->name('leave.index');
         Route::get('/leave-requests/{leave}', [ApprovalController::class, 'show'])->name('leave.show');
@@ -188,5 +191,6 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
+
 
 Route::get('/', fn() => redirect()->route('login'));
