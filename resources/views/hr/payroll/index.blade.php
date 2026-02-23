@@ -11,9 +11,18 @@
                     </p>
                 </div>
                 <div style="text-align:right;">
-                    <a href="{{ route('hr.payroll.create') }}" class="btn-action btn-action-primary" style="padding: 6px 16px; font-size: 12px;">
-                        + Input Gaji Manual
-                    </a>
+                    <form action="{{ route('hr.payroll.import.preview') }}" method="POST" enctype="multipart/form-data" style="display:inline-block; margin-right: 8px;">
+                        @csrf
+                        {{-- Kirim filter saat ini agar bisa diproses/redirect balik dengan benar --}}
+                        <input type="hidden" name="month" value="{{ $startMonth }}">
+                        <input type="hidden" name="year" value="{{ $year }}">
+                        <input type="hidden" name="pt_id" value="{{ $ptId }}">
+
+                        <label for="file_upload" class="btn-action" style="padding: 6px 16px; font-size: 12px; cursor: pointer;">
+                            + Import File
+                        </label>
+                        <input type="file" name="file" id="file_upload" style="display: none;" onchange="this.form.submit()" accept=".xlsx,.xls,.csv">
+                    </form>
                 </div>
             </div>
         </div>
@@ -22,25 +31,29 @@
         <div style="padding: 16px; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">
             <form action="{{ route('hr.payroll.index') }}" method="GET" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end;">
                 <div>
-                    <label for="month" style="display: block; font-size: 12px; margin-bottom: 4px; color: #4b5563; font-weight: 600;">Bulan</label>
-                    <select name="month" id="month" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px; font-size: 13px;">
+                    <label for="start_month" style="display: block; font-size: 12px; margin-bottom: 4px; color: #4b5563; font-weight: 600;">Start Bulan</label>
+                    <select name="start_month" id="start_month" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px; font-size: 13px;">
                         @foreach(range(1, 12) as $m)
-                        <option value="{{ $m }}" {{ $month == $m ? 'selected' : '' }}>
-                            {{ \Carbon\Carbon::create()->month($m)->locale('id')->translatedFormat('F') }}
+                        <option value="{{ $m }}" {{ $startMonth == $m ? 'selected' : '' }}>
+                            {{ \Carbon\Carbon::create()->month((int) $m)->locale('id')->translatedFormat('F') }}
+                        </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label for="end_month" style="display: block; font-size: 12px; margin-bottom: 4px; color: #4b5563; font-weight: 600;">End Bulan</label>
+                    <select name="end_month" id="end_month" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px; font-size: 13px;">
+                        @foreach(range(1, 12) as $m)
+                        <option value="{{ $m }}" {{ $endMonth == $m ? 'selected' : '' }}>
+                            {{ \Carbon\Carbon::create()->month((int) $m)->locale('id')->translatedFormat('F') }}
                         </option>
                         @endforeach
                     </select>
                 </div>
                 <div>
                     <label for="year" style="display: block; font-size: 12px; margin-bottom: 4px; color: #4b5563; font-weight: 600;">Tahun</label>
-                    @php
-                    // Set tahun berapa aplikasi ini/perusahaan mulai beroperasi
-                    $tahunMulai = 2026;
-                    $tahunSekarang = date('Y');
-                    @endphp
-
                     <select name="year" id="year" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px; font-size: 13px;">
-                        @foreach(range($tahunSekarang + 1, $tahunMulai) as $y)
+                        @foreach(range(2019, date('Y') + 1) as $y)
                         <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>
                             {{ $y }}
                         </option>
@@ -57,9 +70,31 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <button type="submit" class="btn-action btn-action-primary" style="width: 100%; justify-content: center; padding: 7px;">
+                <div style="display: flex; gap: 8px;">
+                    <button type="submit" class="btn-action btn-action-primary" style="flex: 1; justify-content: center; padding: 7px;">
                         Filter Data
+                    </button>
+                    <a href="{{ route('hr.payroll.index') }}" class="btn-action" style="flex: 1; justify-content: center; padding: 7px; background-color: #f9fafb;">
+                        Clear
+                    </a>
+                </div>
+            </form>
+
+            <hr style="margin: 16px 0; border: 0; border-top: 1px solid #e5e7eb;">
+
+            <form action="{{ route('hr.payroll.index') }}" method="GET" style="display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: end;">
+                <input type="hidden" name="start_month" value="{{ $startMonth }}">
+                <input type="hidden" name="end_month" value="{{ $endMonth }}">
+                <input type="hidden" name="year" value="{{ $year }}">
+                <input type="hidden" name="pt_id" value="{{ $ptId }}">
+
+                <div>
+                    <label for="search" style="display: block; font-size: 12px; margin-bottom: 4px; color: #4b5563; font-weight: 600;">Cari Nama Karyawan</label>
+                    <input type="text" name="search" id="search" value="{{ request('search') }}" placeholder="Ketik nama karyawan..." style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px; font-size: 13px;">
+                </div>
+                <div>
+                    <button type="submit" class="btn-action" style="padding: 7px 20px; font-size: 12px;">
+                        Cari
                     </button>
                 </div>
             </form>
@@ -71,46 +106,51 @@
                     <tr>
                         <th style="min-width: 200px;">Karyawan</th>
                         <th style="min-width: 150px;">Jabatan & Divisi</th>
+                        <th style="min-width: 100px;">Bulan</th>
                         <th style="min-width: 100px;">Status</th>
                         <th style="text-align: right; width: 100px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($employees as $employee)
+                    @forelse($payrollData as $data)
                     <tr>
                         <td>
                             <div class="employee-info">
                                 <div>
-                                    <div class="fw-bold" style="font-size: 13px;">{{ $employee->name }}</div>
-                                    <div class="text-muted">{{ $employee->email }}</div>
+                                    <div class="fw-bold" style="font-size: 13px;">{{ $data->user->name }}</div>
+                                    <div class="text-muted">{{ $data->user->email }}</div>
                                 </div>
                             </div>
                         </td>
                         <td>
-                            <div style="font-size: 12px; color: #1f2937;">{{ $employee->position->name ?? $employee->profile->jabatan ?? '-' }}</div>
-                            <div style="font-size: 11px; color: #6b7280;">{{ $employee->division->name ?? '-' }}</div>
+                            <div style="font-size: 12px; color: #1f2937;">{{ $data->user->position->name ?? $data->user->profile->jabatan ?? '-' }}</div>
+                            <div style="font-size: 11px; color: #6b7280;">{{ $data->user->division->name ?? '-' }}</div>
                         </td>
                         <td>
-                            @if($employee->payslip_status === 'PUBLISHED')
+                            {{ \Carbon\Carbon::create()->month((int) $data->month)->locale('id')->translatedFormat('F') }} {{ $data->year }}
+                        </td>
+                        <td>
+                            @if($data->payslip_status === 'PUBLISHED')
                             <span class="badge-type badge-green">PUBLISHED</span>
-                            @elseif($employee->payslip_status === 'DRAFT')
+                            @elseif($data->payslip_status === 'DRAFT')
                             <span class="badge-type badge-yellow">DRAFT</span>
                             @else
                             <span class="badge-type badge-red">BELUM DIBUAT</span>
                             @endif
                         </td>
                         <td style="text-align: right;">
-                            @if($employee->latest_payslip)
+                            @if($data->latest_payslip)
                             <a href="{{ route('hr.payroll.edit', [
-                                  'payslip' => $employee->latest_payslip->id,
-                                'month' => request('month'),
-                                'year' => request('year'),
-                                'pt_id' => request('pt_id')
+                                  'payslip' => $data->latest_payslip->id,
+                                'filter_start_month' => $startMonth,
+                                'filter_end_month' => $endMonth,
+                                'filter_year' => $year,
+                                'filter_pt_id' => $ptId
                             ]) }}" class="btn btn-sm btn-outline-primary">
                                 Edit
                             </a>
                             @else
-                            <a href="{{ route('hr.payroll.create', ['user_id' => $employee->id, 'month' => $month, 'year' => $year, 'pt_id' => $ptId]) }}" class="btn-action btn-action-primary">
+                            <a href="{{ route('hr.payroll.create', ['user_id' => $data->user->id, 'month' => $data->month, 'year' => $data->year, 'pt_id' => $ptId, 'filter_start_month' => $startMonth, 'filter_end_month' => $endMonth, 'filter_year' => $year, 'filter_pt_id' => $ptId]) }}" class="btn-action btn-action-primary">
                                 Input
                             </a>
                             @endif

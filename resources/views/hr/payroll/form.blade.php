@@ -11,7 +11,7 @@
                     </p>
                 </div>
                 <div>
-                    <a href="{{ route('hr.payroll.index', ['month' => request('month'), 'year' => request('year'), 'pt_id' => request('pt_id')]) }}"
+                    <a href="{{ route('hr.payroll.index', ['start_month' => request('filter_start_month'), 'end_month' => request('filter_end_month'), 'year' => request('filter_year'), 'pt_id' => request('filter_pt_id')]) }}"
                         style="font-size: 13px; font-weight: 500; color: #374151; text-decoration: none; display: flex; align-items: center; gap: 6px; border: 1px solid #d1d5db; padding: 6px 16px; border-radius: 6px; background: #fff; transition: all 0.2s;">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M19 12H5" />
@@ -37,9 +37,10 @@
             <form action="{{ (isset($payslip) && $payslip->id) ? route('hr.payroll.update', $payslip->id) : route('hr.payroll.store') }}" method="POST">
                 @csrf
                 <!-- HIDDEN FILTERS TO PERSIST STATE -->
-                <input type="hidden" name="filter_month" value="{{ request('month') }}">
-                <input type="hidden" name="filter_year" value="{{ request('year') }}">
-                <input type="hidden" name="filter_pt_id" value="{{ request('pt_id') }}">
+                <input type="hidden" name="filter_start_month" value="{{ request('filter_start_month') }}">
+                <input type="hidden" name="filter_end_month" value="{{ request('filter_end_month') }}">
+                <input type="hidden" name="filter_year" value="{{ request('filter_year') }}">
+                <input type="hidden" name="filter_pt_id" value="{{ request('filter_pt_id') }}">
 
                 @if(isset($payslip))
                 @method('PUT')
@@ -67,10 +68,9 @@
                             'tunjangan_transportasi' => 'Tunjangan Transportasi',
                             'lembur' => 'Lembur'
                             ] as $field => $label)
-                            <div>
-                                <label for="{{ $field }}" class="form-label">{{ $label }}</label>
-                                <div class="input-group">
-                                    <span class="input-prefix">Rp</span>
+                            <div class="spreadsheet-row" style="display: flex; align-items: center; border-bottom: 1px solid #f3f4f6; padding: 2px 8px; transition: background-color 0.15s; border-radius: 4px;">
+                                <label for="{{ $field }}" class="form-label" style="flex: 1; margin: 0; padding: 6px 0; font-size: 13px; font-weight: 500; color: #4b5563;">{{ $label }}</label>
+                                <div style="width: 140px;">
                                     <input type="text" name="{{ $field }}" id="{{ $field }}"
                                         value="{{ old($field, isset($payslip) ? number_format($payslip->$field, 0, ',', '.') : '') }}"
                                         class="form-input income-input currency-input"
@@ -97,10 +97,9 @@
                             'potongan_bpjs_kes' => 'Potongan BPJS Kesehatan',
                             'potongan_terlambat' => 'Potongan Terlambat'
                             ] as $field => $label)
-                            <div>
-                                <label for="{{ $field }}" class="form-label">{{ $label }}</label>
-                                <div class="input-group">
-                                    <span class="input-prefix text-red">Rp</span>
+                            <div class="spreadsheet-row" style="display: flex; align-items: center; border-bottom: 1px solid #fee2e2; padding: 2px 8px; transition: background-color 0.15s; border-radius: 4px;">
+                                <label for="{{ $field }}" class="form-label" style="flex: 1; margin: 0; padding: 6px 0; font-size: 13px; font-weight: 500; color: #4b5563;">{{ $label }}</label>
+                                <div style="width: 140px;">
                                     <input type="text" name="{{ $field }}" id="{{ $field }}"
                                         value="{{ old($field, isset($payslip) ? number_format($payslip->$field, 0, ',', '.') : '') }}"
                                         class="form-input deduction-input currency-input"
@@ -122,10 +121,9 @@
                                 <span id="display_gaji_bersih" style="font-size: 20px; font-weight: 800; color: #4f46e5;">Rp 0</span>
                             </div>
 
-                            <div class="mb-4">
-                                <label for="sisa_utang" class="form-label" style="margin-bottom: 6px; display:block;">Sisa Utang (Info)</label>
-                                <div class="input-group">
-                                    <span class="input-prefix">Rp</span>
+                            <div class="spreadsheet-row" style="display: flex; align-items: center; padding: 2px 8px; margin-bottom: 24px; transition: background-color 0.15s; border-radius: 4px; border-bottom: 1px solid #e2e8f0;">
+                                <label for="sisa_utang" class="form-label" style="flex: 1; margin: 0; padding: 6px 0; font-size: 13px; font-weight: 500; color: #4b5563;">Sisa Utang (Info)</label>
+                                <div style="width: 140px;">
                                     <input type="text" name="sisa_utang" id="sisa_utang"
                                         value="{{ old('sisa_utang', isset($payslip) ? number_format($payslip->sisa_utang, 0, ',', '.') : '') }}"
                                         class="form-input currency-input"
@@ -133,27 +131,17 @@
                                 </div>
                             </div>
 
-                            <div style="margin-bottom: 20px;">
-                                <label class="form-label" style="margin-bottom: 8px; display:block;">Status Publikasi</label>
-                                <div style="display: flex; gap: 20px; padding: 4px 0;">
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1f2937; cursor: pointer;">
-                                        <input type="radio" name="status" value="DRAFT"
-                                            {{ (old('status', $payslip->status ?? 'DRAFT') == 'DRAFT') ? 'checked' : '' }}
-                                            style="width: 16px; height: 16px; accent-color: #4f46e5;">
-                                        <span>DRAFT <span style="font-size: 11px; color: #6b7280;">(Hanya HR)</span></span>
-                                    </label>
-                                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #1f2937; cursor: pointer;">
-                                        <input type="radio" name="status" value="PUBLISHED"
-                                            {{ (old('status', $payslip->status ?? '') == 'PUBLISHED') ? 'checked' : '' }}
-                                            style="width: 16px; height: 16px; accent-color: #16a34a;">
-                                        <span>PUBLISHED <span style="font-size: 11px; color: #6b7280;">(Tampil ke Karyawan)</span></span>
-                                    </label>
-                                </div>
+                            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                <a href="{{ route('hr.payroll.index', ['start_month' => request('filter_start_month'), 'end_month' => request('filter_end_month'), 'year' => request('filter_year'), 'pt_id' => request('filter_pt_id')]) }}" class="btn-action" style="padding: 10px 16px; background: #fff; border: 1px solid #d1d5db; border-radius: 6px; color: #374151; font-size: 13px; font-weight: 500; text-decoration: none; cursor: pointer;">
+                                    Batal
+                                </a>
+                                <button type="submit" name="status" value="DRAFT" class="btn-action" style="padding: 10px 16px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; color: #374151; font-size: 13px; font-weight: 500; cursor: pointer;">
+                                    Simpan DRAFT
+                                </button>
+                                <button type="submit" name="status" value="PUBLISHED" class="btn-action-primary" style="padding: 10px 16px; background: #4f46e5; border: none; border-radius: 6px; color: #fff; font-size: 13px; font-weight: 500; cursor: pointer;" onclick="return confirm('Yakin ingin mempublikasikan slip gaji ini? Email notifikasi akan dikirim ke karyawan terkait.')">
+                                    Publish & Kirim Email
+                                </button>
                             </div>
-
-                            <button type="submit" class="btn-primary-block">
-                                Simpan Slip Gaji
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -280,74 +268,73 @@
         }
 
         .form-label {
-            font-size: 13px;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 4px;
             display: block;
-        }
-
-        .input-group {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .input-prefix {
-            position: absolute;
-            left: 12px;
-            font-size: 13px;
-            color: #9ca3af;
-            pointer-events: none;
-        }
-
-        .input-prefix.text-red {
-            color: #f87171;
         }
 
         .form-input {
             width: 100%;
-            padding: 8px 12px 8px 36px;
-            /* Space for prefix */
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 14px;
+            padding: 6px 8px;
+            border: 1px solid transparent;
+            /* matches spreadsheet style */
+            border-radius: 2px;
+            background-color: transparent;
+            font-size: 13px;
             color: #1f2937;
             text-align: right;
-            transition: all 0.2s;
+            transition: all 0.15s ease-in-out;
         }
 
-        select.form-input {
-            padding-left: 12px;
-            text-align: left;
+        .form-input:hover {
+            border-color: #d1d5db;
         }
 
         .form-input:focus {
-            border-color: #4f46e5;
             outline: none;
-            box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+            border-color: #217346;
+            /* Excel green */
+            box-shadow: 0 0 0 1px #217346;
+            background-color: #fff;
+            position: relative;
+            z-index: 2;
         }
 
         .deduction-input:focus {
             border-color: #ef4444;
-            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+            box-shadow: 0 0 0 1px #ef4444;
         }
 
-        .btn-primary-block {
-            width: 100%;
-            background: #4f46e5;
-            color: white;
-            padding: 10px;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background 0.2s;
+        .spreadsheet-row:has(.form-input:focus) {
+            background-color: #f0fdf4 !important;
+            /* light green tint */
         }
 
-        .btn-primary-block:hover {
-            background: #4338ca;
+        .spreadsheet-row:has(.deduction-input:focus) {
+            background-color: #fef2f2 !important;
+            /* light red tint */
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-action:hover {
+            opacity: 0.9;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-action-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-action-primary:hover {
+            background-color: #4338ca !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
         }
     </style>
 </x-app>
