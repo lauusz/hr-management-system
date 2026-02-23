@@ -11,6 +11,17 @@
                     </p>
                 </div>
                 <div style="text-align:right;">
+                    <form action="{{ route('hr.payroll.export') }}" method="GET" style="display:inline-block; margin-right: 8px;">
+                        <input type="hidden" name="start_month" value="{{ $startMonth }}">
+                        <input type="hidden" name="end_month" value="{{ $endMonth }}">
+                        <input type="hidden" name="year" value="{{ $year }}">
+                        <input type="hidden" name="pt_id" value="{{ $ptId }}">
+                        <input type="hidden" name="search" value="{{ request('search') }}">
+
+                        <button type="submit" class="btn-action-outline-success" style="padding: 6px 16px; font-size: 12px; cursor: pointer; color: #16a34a; border: 1px solid #16a34a; background: transparent; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='transparent'">
+                            Unduh Data Excel
+                        </button>
+                    </form>
                     <form action="{{ route('hr.payroll.import.preview') }}" method="POST" enctype="multipart/form-data" style="display:inline-block; margin-right: 8px;">
                         @csrf
                         {{-- Kirim filter saat ini agar bisa diproses/redirect balik dengan benar --}}
@@ -23,6 +34,15 @@
                         </label>
                         <input type="file" name="file" id="file_upload" style="display: none;" onchange="this.form.submit()" accept=".xlsx,.xls,.csv">
                     </form>
+                    @if(auth()->user()->isHrManager())
+                    <a href="{{ route('hr.payroll.settings') }}" style="padding: 5px 14px; font-size: 13px; font-weight: 500; cursor: pointer; color: #4b5563; border: 1px solid #d1d5db; background: transparent; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s; margin-left: 2px; text-decoration: none;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='transparent'">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                        Akses
+                    </a>
+                    @endif
                 </div>
             </div>
         </div>

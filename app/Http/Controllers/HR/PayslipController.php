@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Hr;
 
+use App\Exports\PayslipTemplateExport;
+
 use App\Http\Controllers\Controller;
 use App\Models\Payslip;
 use App\Models\User;
@@ -16,6 +18,47 @@ use App\Mail\PayslipPublishedMail;
 
 class PayslipController extends Controller
 {
+    public function settings(Request $request)
+    {
+        Gate::authorize('manage-payroll');
+
+        // Allow searching employees in settings
+        $search = $request->input('search');
+
+        $usersQuery = User::query();
+        if (!empty($search)) {
+            $usersQuery->where('name', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%");
+        }
+
+        $users = $usersQuery->paginate(20)->appends(['search' => $search]);
+
+        return view('hr.payroll.settings', compact('users', 'search'));
+    }
+
+    public function updateSettings(Request $request)
+    {
+        Gate::authorize('manage-payroll');
+
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'can_manage_payroll' => 'required|boolean'
+        ]);
+
+        $user = User::findOrFail($request->user_id);
+
+        // Prevent removing permission from oneself if they are not HRD
+        // Optional safety:
+        if ($user->id === Auth::id() && !$request->can_manage_payroll && !$user->isHrManager()) {
+            return redirect()->back()->with('error', 'Anda tidak bisa mencabut akses Anda sendiri.');
+        }
+
+        $user->can_manage_payroll = $request->can_manage_payroll;
+        $user->save();
+
+        return redirect()->back()->with('success', 'Hak akses Master Payroll berhasil diperbarui untuk ' . $user->name);
+    }
+
     public function index(Request $request)
     {
         Gate::authorize('manage-payroll');
@@ -72,6 +115,46 @@ class PayslipController extends Controller
         }
 
         return view('hr.payroll.index', compact('payrollData', 'pts', 'startMonth', 'endMonth', 'year', 'ptId'));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        Gate::authorize('manage-payroll');
+
+        $startMonth = $request->input('start_month', now()->month);
+        $endMonth = $request->input('end_month', now()->month);
+        $year = $request->input('year', now()->year);
+        $ptId = $request->input('pt_id');
+
+        $ptName = 'ALL_PT';
+        if ($ptId) {
+            $pt = Pt::find($ptId);
+            if ($pt) {
+                // Remove spaces and non-alphanumeric characters for safe filename
+                $ptName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $pt->name);
+            }
+        }
+
+        $search = $request->input('search');
+
+        $namePrefix = '';
+        if (!empty($search)) {
+            $userQuery = User::whereHas('profile', function ($q) use ($ptId) {
+                if ($ptId) $q->where('pt_id', $ptId);
+            })->where('name', 'like', '%' . $search . '%')->first();
+
+            if ($userQuery) {
+                $safeSearch = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $userQuery->name);
+                $namePrefix = "{$safeSearch}_";
+            } else {
+                $safeSearch = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $search);
+                $namePrefix = "{$safeSearch}_";
+            }
+        }
+
+        $fileName = "{$namePrefix}{$ptName}_Slip_Gaji_{$startMonth}_to_{$endMonth}_{$year}.xlsx";
+
+        return Excel::download(new PayslipTemplateExport($startMonth, $endMonth, $year, $ptId, $search), $fileName);
     }
 
     public function create(Request $request)
@@ -337,38 +420,38 @@ class PayslipController extends Controller
             $gajiBersih = $totalPendapatan - $totalPotongan;
 
             $updateData = [
-                'gaji_pokok'               => $data['gaji_pokok'] ?? 0,
-                'tunjangan_jabatan'        => $data['tunjangan_jabatan'] ?? 0,
-                'tunjangan_makan'          => $data['tunjangan_makan'] ?? 0,
-                'fee_marketing'            => $data['fee_marketing'] ?? 0,
+                'gaji_pokok' => $data['gaji_pokok'] ?? 0,
+                'tunjangan_jabatan' => $data['tunjangan_jabatan'] ?? 0,
+                'tunjangan_makan' => $data['tunjangan_makan'] ?? 0,
+                'fee_marketing' => $data['fee_marketing'] ?? 0,
                 'tunjangan_telekomunikasi' => $data['tunjangan_telekomunikasi'] ?? 0,
-                'tunjangan_penempatan'     => $data['tunjangan_penempatan'] ?? 0,
-                'tunjangan_asuransi'       => $data['tunjangan_asuransi'] ?? 0,
-                'tunjangan_kelancaran'     => $data['tunjangan_kelancaran'] ?? 0,
-                'pendapatan_lain'          => $data['pendapatan_lain'] ?? 0,
-                'tunjangan_transportasi'   => $data['tunjangan_transportasi'] ?? 0,
-                'lembur'                   => $data['lembur'] ?? 0,
-                'potongan_bpjs_tk'         => $data['potongan_bpjs_tk'] ?? 0,
-                'potongan_pph21'           => $data['potongan_pph21'] ?? 0,
-                'potongan_hutang'          => $data['potongan_hutang'] ?? 0,
-                'potongan_bpjs_kes'        => $data['potongan_bpjs_kes'] ?? 0,
-                'potongan_terlambat'       => $data['potongan_terlambat'] ?? 0,
+                'tunjangan_penempatan' => $data['tunjangan_penempatan'] ?? 0,
+                'tunjangan_asuransi' => $data['tunjangan_asuransi'] ?? 0,
+                'tunjangan_kelancaran' => $data['tunjangan_kelancaran'] ?? 0,
+                'pendapatan_lain' => $data['pendapatan_lain'] ?? 0,
+                'tunjangan_transportasi' => $data['tunjangan_transportasi'] ?? 0,
+                'lembur' => $data['lembur'] ?? 0,
+                'potongan_bpjs_tk' => $data['potongan_bpjs_tk'] ?? 0,
+                'potongan_pph21' => $data['potongan_pph21'] ?? 0,
+                'potongan_hutang' => $data['potongan_hutang'] ?? 0,
+                'potongan_bpjs_kes' => $data['potongan_bpjs_kes'] ?? 0,
+                'potongan_terlambat' => $data['potongan_terlambat'] ?? 0,
 
-                'sisa_utang'               => $data['sisa_utang'] ?? 0,
+                'sisa_utang' => $data['sisa_utang'] ?? 0,
 
                 'total_pendapatan' => $totalPendapatan,
-                'total_potongan'   => $totalPotongan,
-                'gaji_bersih'      => $gajiBersih,
+                'total_potongan' => $totalPotongan,
+                'gaji_bersih' => $gajiBersih,
 
-                'status'           => $status,
-                'created_by'       => Auth::id(),
+                'status' => $status,
+                'created_by' => Auth::id(),
             ];
 
             $payslip = Payslip::updateOrCreate(
                 [
-                    'user_id'      => $data['user_id'],
+                    'user_id' => $data['user_id'],
                     'period_month' => $month,
-                    'period_year'  => $year,
+                    'period_year' => $year,
                 ],
                 $updateData
             );
@@ -407,8 +490,8 @@ class PayslipController extends Controller
 
         // Assume Indonesian formatting: 1.000.000,00
         $value = preg_replace('/[Rp\s]/', '', $value); // Remove Rp and spaces
-        $value = str_replace('.', '', $value);         // Remove thousands separator (dot)
-        $value = str_replace(',', '.', $value);        // Replace decimal separator (comma) with dot
+        $value = str_replace('.', '', $value); // Remove thousands separator (dot)
+        $value = str_replace(',', '.', $value); // Replace decimal separator (comma) with dot
 
         return is_numeric($value) ? (float) $value : 0;
     }

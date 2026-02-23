@@ -160,16 +160,20 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/pts/{pt}/edit', [PtController::class, 'edit'])->name('hr.pts.edit');
         Route::put('/hr/pts/{pt}', [PtController::class, 'update'])->name('hr.pts.update');
         Route::delete('/hr/pts/{pt}', [PtController::class, 'destroy'])->name('hr.pts.destroy');
-        // PAYSLIP IMPORT
+    });
+
+    // PAYSLIP ROUTES (Accessible by HR Manager or any user with can_manage_payroll = true)
+    Route::middleware('can:manage-payroll')->group(function () {
+        Route::get('/hr/payroll/settings', [PayslipController::class, 'settings'])->name('hr.payroll.settings');
+        Route::post('/hr/payroll/settings', [PayslipController::class, 'updateSettings'])->name('hr.payroll.settings.update');
+
         Route::post('/hr/payroll/import/preview', [PayslipController::class, 'previewImport'])->name('hr.payroll.import.preview');
         Route::post('/hr/payroll/import/store', [PayslipController::class, 'storeBulkImport'])->name('hr.payroll.import.store');
+        Route::get('/hr/payroll/export', [PayslipController::class, 'exportExcel'])->name('hr.payroll.export');
 
-        // PAYSLIP MANAGEMENT
-        // Hanya bisa diakses oleh HR Manager atau user dengan hak akses khusus
         Route::resource('/hr/payroll', PayslipController::class)
             ->names('hr.payroll')
-            ->parameters(['payroll' => 'payslip'])
-            ->middleware('can:manage-payroll');
+            ->parameters(['payroll' => 'payslip']);
     });
     Route::middleware('role:SUPERVISOR')->prefix('supervisor')->name('supervisor.')->group(function () {
         Route::get('/leave-requests', [ApprovalController::class, 'index'])->name('leave.index');

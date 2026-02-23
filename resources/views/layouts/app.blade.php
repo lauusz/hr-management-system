@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  
+
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -29,12 +29,14 @@
     }
 
     @media (max-width: 1280px) {
-        :root {
-            --sidebar-width: 220px;
-        }
+      :root {
+        --sidebar-width: 220px;
+      }
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -88,9 +90,18 @@
       scrollbar-color: #d1d5db transparent;
     }
 
-    .menu::-webkit-scrollbar { width: 4px; }
-    .menu::-webkit-scrollbar-track { background: transparent; }
-    .menu::-webkit-scrollbar-thumb { background-color: #d1d5db; border-radius: 20px; }
+    .menu::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .menu::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .menu::-webkit-scrollbar-thumb {
+      background-color: #d1d5db;
+      border-radius: 20px;
+    }
 
     .menu h3 {
       font-size: 0.75rem;
@@ -100,9 +111,13 @@
       letter-spacing: 0.05em;
       margin: 24px 12px 8px;
     }
-    .menu h3:first-child { margin-top: 0; }
 
-    .menu a, .menu-group {
+    .menu h3:first-child {
+      margin-top: 0;
+    }
+
+    .menu a,
+    .menu-group {
       display: flex;
       align-items: center;
       width: 100%;
@@ -119,7 +134,8 @@
       cursor: pointer;
     }
 
-    .menu a:hover, .menu-group:hover {
+    .menu a:hover,
+    .menu-group:hover {
       background-color: #f9fafb;
       color: #111827;
     }
@@ -130,8 +146,10 @@
       font-weight: 600;
     }
 
-    .menu-group { justify-content: space-between; }
-    
+    .menu-group {
+      justify-content: space-between;
+    }
+
     .menu-group.open {
       background-color: #f9fafb;
       color: #111827;
@@ -143,7 +161,7 @@
       transition: transform 0.2s;
       color: #9ca3af;
     }
-    
+
     .menu-group.open .menu-group-icon {
       transform: rotate(180deg);
       color: var(--navy);
@@ -158,16 +176,18 @@
     }
 
     .submenu::before {
-        content: '';
-        position: absolute;
-        left: 20px;
-        top: 0;
-        bottom: 10px;
-        width: 1px;
-        background: #e5e7eb;
+      content: '';
+      position: absolute;
+      left: 20px;
+      top: 0;
+      bottom: 10px;
+      width: 1px;
+      background: #e5e7eb;
     }
 
-    .submenu.show { display: block; }
+    .submenu.show {
+      display: block;
+    }
 
     .submenu a {
       font-size: 0.85rem;
@@ -176,24 +196,27 @@
       margin-bottom: 2px;
     }
 
-    .submenu a:hover { color: #111827; background: transparent; }
-    
+    .submenu a:hover {
+      color: #111827;
+      background: transparent;
+    }
+
     .submenu a.active {
       color: var(--navy);
       background: transparent;
       position: relative;
     }
-    
+
     .submenu a.active::before {
-        content: '';
-        position: absolute;
-        left: -8px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 5px;
-        height: 5px;
-        border-radius: 50%;
-        background: var(--navy);
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--navy);
     }
 
     .logout {
@@ -248,19 +271,40 @@
       justify-content: space-between;
       margin-bottom: 32px;
     }
-    
+
     .page-title {
-        font-size: 1.5rem;
-        margin: 0;
-        font-weight: 700;
-        color: #111827;
-        letter-spacing: -0.025em;
+      font-size: 1.5rem;
+      margin: 0;
+      font-weight: 700;
+      color: #111827;
+      letter-spacing: -0.025em;
     }
 
-    .user-info { display: flex; align-items: center; gap: 12px; }
-    .userchip { text-align: right; }
-    .user-name { font-size: 0.9rem; font-weight: 600; color: #111827; display: block; }
-    .user-role { font-size: 0.75rem; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; display: block; }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .userchip {
+      text-align: right;
+    }
+
+    .user-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #111827;
+      display: block;
+    }
+
+    .user-role {
+      font-size: 0.75rem;
+      color: #6b7280;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: block;
+    }
 
     .burger {
       display: none;
@@ -270,43 +314,124 @@
       border-radius: 8px;
       cursor: pointer;
       color: var(--navy);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
       border: 1px solid var(--border);
     }
 
     /* --- MOBILE --- */
     @media (max-width: 1024px) {
-      .sidenav { position: fixed; left: 0; transform: translateX(-100%); box-shadow: none; }
-      .sidenav.open { transform: translateX(0); box-shadow: 10px 0 30px rgba(0,0,0,0.1); }
-      .content { padding: 20px; }
-      .topbar { margin-bottom: 24px; align-items: center; gap: 16px; justify-content: flex-start; }
-      .page-title { font-size: 1.25rem; flex: 1; }
-      .user-info { display: none; }
-      .burger { display: block; }
-      
-      /* [BARU] Dot merah di burger menu jika ada notif */
-      .burger { position: relative; }
-      .burger.has-notif::after {
-          content: '';
-          position: absolute;
-          top: 6px;
-          right: 6px;
-          width: 8px;
-          height: 8px;
-          background: #ef4444;
-          border-radius: 50%;
-          border: 1px solid #fff;
+      .sidenav {
+        position: fixed;
+        left: 0;
+        transform: translateX(-100%);
+        box-shadow: none;
       }
 
-      .backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.3); opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 990; backdrop-filter: blur(2px); }
-      .backdrop.show { opacity: 1; pointer-events: auto; }
+      .sidenav.open {
+        transform: translateX(0);
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+      }
+
+      .content {
+        padding: 20px;
+      }
+
+      .topbar {
+        margin-bottom: 24px;
+        align-items: center;
+        gap: 16px;
+        justify-content: flex-start;
+      }
+
+      .page-title {
+        font-size: 1.25rem;
+        flex: 1;
+      }
+
+      .user-info {
+        display: none;
+      }
+
+      .burger {
+        display: block;
+      }
+
+      /* [BARU] Dot merah di burger menu jika ada notif */
+      .burger {
+        position: relative;
+      }
+
+      .burger.has-notif::after {
+        content: '';
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        width: 8px;
+        height: 8px;
+        background: #ef4444;
+        border-radius: 50%;
+        border: 1px solid #fff;
+      }
+
+      .backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.3);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+        z-index: 990;
+        backdrop-filter: blur(2px);
+      }
+
+      .backdrop.show {
+        opacity: 1;
+        pointer-events: auto;
+      }
     }
 
     /* Components */
-    .card { background: #fff; padding: 24px; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #f3f4f6; }
-    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 2000; padding: 20px; backdrop-filter: blur(2px); }
-    .modal-content { background: #fff; padding: 24px; border-radius: 16px; width: 100%; max-width: 420px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); animation: modalPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    @keyframes modalPop { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .card {
+      background: #fff;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      border: 1px solid #f3f4f6;
+    }
+
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      padding: 20px;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal-content {
+      background: #fff;
+      padding: 24px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      animation: modalPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes modalPop {
+      from {
+        opacity: 0;
+        transform: scale(0.95);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
   </style>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -317,12 +442,17 @@
     <div class="backdrop" id="backdrop"></div>
 
     <aside class="sidenav" id="sidenav" aria-label="Sidenav">
-      
+
       <div class="brand">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:10px; color:#1e4a8d;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-          HRD System
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:10px; color:#1e4a8d;">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        HRD System
       </div>
-      
+
       <nav class="menu" role="navigation">
         <h3>General</h3>
         <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
@@ -352,88 +482,88 @@
         <a href="{{ route('settings.password') }}" class="{{ request()->routeIs('settings.password') ? 'active' : '' }}">
           <span style="margin-right:10px;"></span> Pengaturan Akun
         </a>
-        
+
         @php
-            // Cek apakah sedang aktif di menu dinas luar
-            $isRemoteOpen = request()->routeIs('remote-attendance.*');
+        // Cek apakah sedang aktif di menu dinas luar
+        $isRemoteOpen = request()->routeIs('remote-attendance.*');
         @endphp
-        
+
         {{-- MANAGER AREA --}}
         @if(auth()->user()->isManager())
         <h3>Manager Area</h3>
-        
+
         <a href="{{ route('approval.index') }}" class="{{ request()->routeIs('approval.index', 'approval.show') ? 'active' : '' }}">
-            <span style="margin-right:10px;"></span> Approval Pengajuan
-            {{-- [BADGE NOTIFIKASI MANAGER] --}}
-            @if(isset($notifCount) && $notifCount > 0)
-                <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
-                    {{ $notifCount }}
-                </span>
-            @endif
+          <span style="margin-right:10px;"></span> Approval Pengajuan
+          {{-- [BADGE NOTIFIKASI MANAGER] --}}
+          @if(isset($notifCount) && $notifCount > 0)
+          <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+            {{ $notifCount }}
+          </span>
+          @endif
         </a>
-        
+
         <a href="{{ route('supervisor.leave.master') }}" class="{{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
-            <span style="margin-right:10px;"></span> Daftar Pengajuan
+          <span style="margin-right:10px;"></span> Daftar Pengajuan
         </a>
         @endif
 
         {{-- SUPERVISOR AREA --}}
         @if(auth()->user()->isSupervisor())
         <h3>Supervisor Area</h3>
-        
+
         <a href="{{ route('approval.index') }}" class="{{ request()->routeIs('approval.index', 'approval.show') ? 'active' : '' }}">
-            <span style="margin-right:10px;"></span> Mengetahui Pengajuan
-            {{-- [BADGE NOTIFIKASI SUPERVISOR] --}}
-            @if(isset($notifCount) && $notifCount > 0)
-                <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
-                    {{ $notifCount }}
-                </span>
-            @endif
+          <span style="margin-right:10px;"></span> Mengetahui Pengajuan
+          {{-- [BADGE NOTIFIKASI SUPERVISOR] --}}
+          @if(isset($notifCount) && $notifCount > 0)
+          <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+            {{ $notifCount }}
+          </span>
+          @endif
         </a>
 
         <a href="{{ route('supervisor.overtime-requests.index') }}" class="{{ request()->routeIs('supervisor.overtime-requests.index', 'supervisor.overtime-requests.show') ? 'active' : '' }}">
-            <span style="margin-right:10px;"></span> Approval Lembur
-            {{-- [BADGE NOTIFIKASI LEMBUR SUPERVISOR] --}}
-            @php
-                $supervisor = auth()->user();
-                $myDivisionId = $supervisor->division_id;
-                $myPtId = $supervisor->profile?->pt_id; // assuming profile relation exists
+          <span style="margin-right:10px;"></span> Approval Lembur
+          {{-- [BADGE NOTIFIKASI LEMBUR SUPERVISOR] --}}
+          @php
+          $supervisor = auth()->user();
+          $myDivisionId = $supervisor->division_id;
+          $myPtId = $supervisor->profile?->pt_id; // assuming profile relation exists
 
-                $pendingOvertimeCount = \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
-                    ->whereHas('user', function ($q) use ($myDivisionId) {
-                        $q->where('division_id', $myDivisionId);
-                    })
-                    ->when($myPtId, function ($q) use ($myPtId) {
-                        $q->whereHas('user.profile', function ($sq) use ($myPtId) {
-                            $sq->where('pt_id', $myPtId);
-                        });
-                    })
-                    ->count();
-            @endphp
+          $pendingOvertimeCount = \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
+          ->whereHas('user', function ($q) use ($myDivisionId) {
+          $q->where('division_id', $myDivisionId);
+          })
+          ->when($myPtId, function ($q) use ($myPtId) {
+          $q->whereHas('user.profile', function ($sq) use ($myPtId) {
+          $sq->where('pt_id', $myPtId);
+          });
+          })
+          ->count();
+          @endphp
 
-            @if($pendingOvertimeCount > 0)
-                <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
-                    {{ $pendingOvertimeCount }}
-                </span>
-            @endif
+          @if($pendingOvertimeCount > 0)
+          <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+            {{ $pendingOvertimeCount }}
+          </span>
+          @endif
         </a>
 
         <a href="{{ route('supervisor.leave.master') }}" class="{{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
-            <span style="margin-right:10px;"></span> Daftar Pengajuan
+          <span style="margin-right:10px;"></span> Daftar Pengajuan
         </a>
 
         <a href="{{ route('supervisor.overtime-requests.master') }}" class="{{ request()->routeIs('supervisor.overtime-requests.master') ? 'active' : '' }}">
-            <span style="margin-right:10px;"></span> Daftar Lembur
+          <span style="margin-right:10px;"></span> Daftar Lembur
         </a>
         @endif
 
         {{-- HRD PANEL --}}
         @if(auth()->user()->isHR())
         @php
-            $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
-            $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*', 'hr.overtime-requests.master');
-            $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
-            $hrLoanOpen = request()->routeIs('hr.loan_requests.*');
+        $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
+        $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*', 'hr.overtime-requests.master');
+        $hrLeaveMasterOpen = request()->routeIs('hr.leave.master');
+        $hrLoanOpen = request()->routeIs('hr.loan_requests.*', 'hr.payroll.*');
         @endphp
 
         <h3>HRD Panel</h3>
@@ -442,25 +572,25 @@
           <span style="margin-right:10px;"></span> Approval Izin/Cuti
           {{-- [BADGE NOTIFIKASI HRD] --}}
           @if(isset($notifCount) && $notifCount > 0)
-              <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
-                  {{ $notifCount }}
-              </span>
+          <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+            {{ $notifCount }}
+          </span>
           @endif
         </a>
 
         {{-- [BARU] MENU APPROVAL ABSENSI (DINAS LUAR) --}}
         <a href="{{ route('hr.approval_attendance.index') }}" class="{{ request()->routeIs('hr.approval_attendance.*') ? 'active' : '' }}">
-            <span style="margin-right:10px;"></span> Approval Absensi
-            {{-- [BADGE MERAH PENDING APPROVAL] --}}
-            @php
-                // Hitung jumlah pending langsung (cara cepat)
-                $pendingAttendanceCount = \App\Models\Attendance::where('approval_status', 'PENDING')->count();
-            @endphp
-            @if($pendingAttendanceCount > 0)
-                <span style="background-color:#dc2626; color:white; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
-                    {{ $pendingAttendanceCount }}
-                </span>
-            @endif
+          <span style="margin-right:10px;"></span> Approval Absensi
+          {{-- [BADGE MERAH PENDING APPROVAL] --}}
+          @php
+          // Hitung jumlah pending langsung (cara cepat)
+          $pendingAttendanceCount = \App\Models\Attendance::where('approval_status', 'PENDING')->count();
+          @endphp
+          @if($pendingAttendanceCount > 0)
+          <span style="background-color:#dc2626; color:white; font-size:11px; font-weight:bold; padding:2px 8px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+            {{ $pendingAttendanceCount }}
+          </span>
+          @endif
         </a>
         {{-- [END BARU] --}}
 
@@ -468,19 +598,21 @@
           <span style="margin-right:10px;"></span> Approval Lembur
           {{-- [BADGE NOTIFIKASI HRD LEMBUR] --}}
           @php
-              // Hitung jumlah pending HR (Approved by Supervisor)
-              $pendingHrOvertimeCount = \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR)->count();
+          // Hitung jumlah pending HR (Approved by Supervisor)
+          $pendingHrOvertimeCount = \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR)->count();
           @endphp
           @if($pendingHrOvertimeCount > 0)
-              <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
-                  {{ $pendingHrOvertimeCount }}
-              </span>
+          <span style="background-color:#ef4444; color:white; font-size:11px; font-weight:bold; padding:2px 6px; border-radius:9999px; margin-left:auto; min-width:20px; text-align:center; display:inline-flex; align-items:center; justify-content:center; line-height:1;">
+            {{ $pendingHrOvertimeCount }}
+          </span>
           @endif
         </a>
 
         <button type="button" class="menu-group {{ ($hrEmployeesOpen) ? 'open' : '' }}" data-menu-group="employees">
           <span class="menu-group-label"><span style="margin-right:10px;"></span> Karyawan</span>
-          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
         </button>
         <div class="submenu {{ ($hrEmployeesOpen) ? 'show' : '' }}" data-menu-panel="employees">
           <a href="{{ route('hr.employees.index') }}" class="{{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">Daftar Karyawan</a>
@@ -494,11 +626,13 @@
 
         <button type="button" class="menu-group {{ $hrPresensiOpen ? 'open' : '' }}" data-menu-group="presensi">
           <span class="menu-group-label"><span style="margin-right:10px;"></span> Presensi &amp; Shift</span>
-          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
         </button>
         <div class="submenu {{ $hrPresensiOpen ? 'show' : '' }}" data-menu-panel="presensi">
           <a href="{{ route('hr.attendances.index') }}" class="{{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">Master Absensi</a>
-          
+
           {{-- [BARU] MASTER LEMBUR --}}
           <a href="{{ route('hr.overtime-requests.master') }}" class="{{ request()->routeIs('hr.overtime-requests.master') ? 'active' : '' }}">Master Lembur</a>
 
@@ -509,7 +643,9 @@
 
         <button type="button" class="menu-group {{ $hrLeaveMasterOpen ? 'open' : '' }}" data-menu-group="izin">
           <span class="menu-group-label"><span style="margin-right:10px;"></span> Pengaturan Izin</span>
-          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
         </button>
         <div class="submenu {{ $hrLeaveMasterOpen ? 'show' : '' }}" data-menu-panel="izin">
           <a href="{{ route('hr.leave.master') }}" class="{{ request()->routeIs('hr.leave.master') ? 'active' : '' }}">Master Jenis Izin</a>
@@ -517,24 +653,31 @@
 
         <button type="button" class="menu-group {{ $hrLoanOpen ? 'open' : '' }}" data-menu-group="keuangan">
           <span class="menu-group-label"><span style="margin-right:10px;"></span> Keuangan</span>
-          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+          <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
         </button>
         <div class="submenu {{ $hrLoanOpen ? 'show' : '' }}" data-menu-panel="keuangan">
           <a href="{{ route('hr.loan_requests.index') }}" class="{{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">Pengajuan Hutang</a>
+          @can('manage-payroll')
+          <a href="{{ route('hr.payroll.index') }}" class="{{ request()->routeIs('hr.payroll.*') ? 'active' : '' }}">Master Payroll</a>
+          @endcan
         </div>
         @endif
-        
+
         <div style="height: 20px;"></div>
 
-      </nav> 
-      
+      </nav>
+
       <div class="logout">
         <button class="btn-logout" type="button" data-modal-target="confirm-logout">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          </svg>
           Keluar Sistem
         </button>
       </div>
-      
+
     </aside>
 
     <main class="content">
@@ -546,19 +689,19 @@
               <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          
+
           <h2 class="page-title">{{ $title ?? 'Dashboard' }}</h2>
-          
+
           <div class="user-info">
-             <div class="userchip">
-                 <span class="user-name">{{ auth()->user()->name }}</span>
-                 <span class="user-role">
-                    {{ auth()->user()->role instanceof \App\Enums\UserRole ? auth()->user()->role->label() : auth()->user()->role }}
-                 </span>
-             </div>
-             <div style="width:36px; height:36px; background:#e0e7ff; color:#1e4a8d; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">
-                 {{ substr(auth()->user()->name, 0, 1) }}
-             </div>
+            <div class="userchip">
+              <span class="user-name">{{ auth()->user()->name }}</span>
+              <span class="user-role">
+                {{ auth()->user()->role instanceof \App\Enums\UserRole ? auth()->user()->role->label() : auth()->user()->role }}
+              </span>
+            </div>
+            <div style="width:36px; height:36px; background:#e0e7ff; color:#1e4a8d; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700;">
+              {{ substr(auth()->user()->name, 0, 1) }}
+            </div>
           </div>
         </div>
 
@@ -585,18 +728,18 @@
 
     // Logic Mobile Menu
     function toggleMobile() {
-        const isOpen = sidenav.classList.contains('open');
-        if (isOpen) {
-            sidenav.classList.remove('open');
-            backdrop.classList.remove('show');
-        } else {
-            sidenav.classList.add('open');
-            backdrop.classList.add('show');
-        }
+      const isOpen = sidenav.classList.contains('open');
+      if (isOpen) {
+        sidenav.classList.remove('open');
+        backdrop.classList.remove('show');
+      } else {
+        sidenav.classList.add('open');
+        backdrop.classList.add('show');
+      }
     }
 
-    if(burger) burger.addEventListener('click', toggleMobile);
-    if(backdrop) backdrop.addEventListener('click', toggleMobile);
+    if (burger) burger.addEventListener('click', toggleMobile);
+    if (backdrop) backdrop.addEventListener('click', toggleMobile);
 
     // Logic Modal
     document.addEventListener('DOMContentLoaded', function() {
@@ -626,10 +769,10 @@
 
       menuGroups.forEach(btn => {
         const icon = btn.querySelector('.menu-group-icon');
-        
+
         // Initialize state
-        if(btn.classList.contains('open') && icon) {
-             icon.style.transform = 'rotate(180deg)';
+        if (btn.classList.contains('open') && icon) {
+          icon.style.transform = 'rotate(180deg)';
         }
 
         btn.addEventListener('click', function() {
@@ -639,28 +782,28 @@
 
           // 1. Close ALL other menus first
           menuGroups.forEach(otherBtn => {
-              if (otherBtn !== this) {
-                  otherBtn.classList.remove('open');
-                  const otherIcon = otherBtn.querySelector('.menu-group-icon');
-                  if(otherIcon) otherIcon.style.transform = 'rotate(0deg)';
+            if (otherBtn !== this) {
+              otherBtn.classList.remove('open');
+              const otherIcon = otherBtn.querySelector('.menu-group-icon');
+              if (otherIcon) otherIcon.style.transform = 'rotate(0deg)';
 
-                  const otherGroupAttr = otherBtn.getAttribute('data-menu-group');
-                  const otherPanel = document.querySelector(`[data-menu-panel="${otherGroupAttr}"]`);
-                  if(otherPanel) otherPanel.classList.remove('show');
-              }
+              const otherGroupAttr = otherBtn.getAttribute('data-menu-group');
+              const otherPanel = document.querySelector(`[data-menu-panel="${otherGroupAttr}"]`);
+              if (otherPanel) otherPanel.classList.remove('show');
+            }
           });
 
           // 2. Toggle the CURRENT menu
           if (isOpen) {
-              // Close if it was open
-              this.classList.remove('open');
-              if(targetPanel) targetPanel.classList.remove('show');
-              if(icon) icon.style.transform = 'rotate(0deg)';
+            // Close if it was open
+            this.classList.remove('open');
+            if (targetPanel) targetPanel.classList.remove('show');
+            if (icon) icon.style.transform = 'rotate(0deg)';
           } else {
-              // Open if it was closed
-              this.classList.add('open');
-              if(targetPanel) targetPanel.classList.add('show');
-              if(icon) icon.style.transform = 'rotate(180deg)';
+            // Open if it was closed
+            this.classList.add('open');
+            if (targetPanel) targetPanel.classList.add('show');
+            if (icon) icon.style.transform = 'rotate(180deg)';
           }
         });
       });
@@ -671,4 +814,5 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 </body>
+
 </html>
