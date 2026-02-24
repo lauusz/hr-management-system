@@ -14,15 +14,13 @@ use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\RateLimiter; 
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
 class LeaveRequestController extends Controller
 {
     // Inject ImageCompressor
-    public function __construct(protected ImageCompressor $imageCompressor)
-    {
-    }
+    public function __construct(protected ImageCompressor $imageCompressor) {}
 
     public function index(Request $request)
     {
@@ -57,10 +55,15 @@ class LeaveRequestController extends Controller
                 } elseif (count($parts) >= 2) {
                     $from = Carbon::parse(trim($parts[0]))->startOfDay();
                     $to = Carbon::parse(trim($parts[1]))->endOfDay();
-                    if ($from->gt($to)) { $temp = $from; $from = $to; $to = $temp; }
+                    if ($from->gt($to)) {
+                        $temp = $from;
+                        $from = $to;
+                        $to = $temp;
+                    }
                     $query->whereBetween('created_at', [$from, $to]);
                 }
-            } catch (\Exception $e) {}
+            } catch (\Exception $e) {
+            }
         }
 
         $items = $query->paginate(100)->appends([
@@ -79,8 +82,8 @@ class LeaveRequestController extends Controller
     public function create()
     {
         $userId = Auth::id();
-        $user = Auth::user(); 
-        
+        $user = Auth::user();
+
         $shiftEndTime = null;
         $employeeShift = EmployeeShift::where('user_id', $userId)->first();
 
@@ -91,7 +94,10 @@ class LeaveRequestController extends Controller
                 ->where('day_of_week', $dayOfWeek)->where('is_holiday', false)->first();
 
             if ($shiftDay && $shiftDay->end_time) {
-                try { $shiftEndTime = Carbon::parse($shiftDay->end_time)->format('H:i'); } catch (\Throwable $e) {}
+                try {
+                    $shiftEndTime = Carbon::parse($shiftDay->end_time)->format('H:i');
+                } catch (\Throwable $e) {
+                }
             }
         }
 
@@ -114,8 +120,10 @@ class LeaveRequestController extends Controller
         }
 
         return view('leave_requests.create', [
-            'shiftEndTime' => $shiftEndTime, 'canOffSpv' => $canOffSpv,
-            'offSpvInfo' => $offInfo, 'managers' => $approvers, 
+            'shiftEndTime' => $shiftEndTime,
+            'canOffSpv' => $canOffSpv,
+            'offSpvInfo' => $offInfo,
+            'managers' => $approvers,
         ]);
     }
 
@@ -145,7 +153,7 @@ class LeaveRequestController extends Controller
             'longitude'  => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy_m' => ['nullable', 'numeric', 'min:0', 'max:5000'],
             'location_captured_at' => ['nullable', 'date'],
-            'manager_id' => ['nullable', 'exists:users,id'], 
+            'manager_id' => ['nullable', 'exists:users,id'],
             'substitute_pic' => ['nullable', 'string', 'max:255', Rule::requiredIf(fn() => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
             'substitute_phone' => ['nullable', 'string', 'max:50', Rule::requiredIf(fn() => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
             'special_leave_detail' => ['nullable', 'string', Rule::requiredIf(fn() => $request->type === LeaveType::CUTI_KHUSUS->value)],
@@ -171,7 +179,7 @@ class LeaveRequestController extends Controller
 
             $startDate = Carbon::parse($validated['start_date']);
             $endDate   = Carbon::parse($validated['end_date']);
-            
+
             // --- LOGIC HITUNG HARI KERJA (BERDASARKAN ROLE) ---
             $period = CarbonPeriod::create($startDate, $endDate);
             $daysRequested = 0;
@@ -198,29 +206,36 @@ class LeaveRequestController extends Controller
         $notesParts = [];
         if ($type === LeaveType::CUTI_KHUSUS->value) {
             $category = $validated['special_leave_detail'];
-            $limits = ['NIKAH_KARYAWAN'=>4,'ISTRI_MELAHIRKAN'=>2,'ISTRI_KEGUGURAN'=>2,'KHITANAN_ANAK'=>2,'PEMBAPTISAN_ANAK'=>2,'NIKAH_ANAK'=>2,'DEATH_EXTENDED'=>2,'DEATH_CORE'=>2,'DEATH_HOUSE'=>1,'HAJI'=>40,'UMROH'=>14];
+            $limits = ['NIKAH_KARYAWAN' => 4, 'ISTRI_MELAHIRKAN' => 2, 'ISTRI_KEGUGURAN' => 2, 'KHITANAN_ANAK' => 2, 'PEMBAPTISAN_ANAK' => 2, 'NIKAH_ANAK' => 2, 'DEATH_EXTENDED' => 2, 'DEATH_CORE' => 2, 'DEATH_HOUSE' => 1, 'HAJI' => 40, 'UMROH' => 14];
             $maxDays = $limits[$category] ?? 0;
             $startDate = Carbon::parse($validated['start_date']);
             $endDate = Carbon::parse($validated['end_date']);
-            $diffDays = $startDate->diffInDays($endDate) + 1; 
+            $diffDays = $startDate->diffInDays($endDate) + 1;
             if ($maxDays > 0 && $diffDays > $maxDays) $notesParts[] = "Durasi pengajuan {$diffDays} hari melebihi batas maksimal {$maxDays} hari.";
         }
 
         $isOffSpv = $type === LeaveType::OFF_SPV->value;
         if ($isOffSpv) {
             if (!$this->isSpvUser($user)) return back()->withErrors('Tipe OFF hanya untuk Supervisor.')->withInput();
+
+            if (Carbon::parse($validated['start_date'])->format('Y-m') !== now()->format('Y-m')) {
+                return back()->withInput()->withErrors(['error' => 'Pengajuan OFF SPV hanya dapat dilakukan untuk bulan ini (tidak bisa untuk bulan depan).']);
+            }
+
             $monthRef = Carbon::parse($validated['start_date'])->startOfMonth();
             $limit = $this->offSpvMonthlyLimitByMonth($monthRef);
             $approvedCount = $this->offSpvApprovedCountInMonth($userId, $monthRef);
             if (($limit - $approvedCount) <= 0) return back()->withErrors('Kuota OFF Supervisor habis.')->withInput();
-            
+
             $startDate = Carbon::parse($validated['start_date']);
             $weekStart = $startDate->copy()->startOfWeek(Carbon::MONDAY);
             $weekEnd = $weekStart->copy()->addDays(6);
             $alreadyInWeek = LeaveRequest::query()->where('user_id', $userId)->where('type', LeaveType::OFF_SPV->value)
                 ->whereBetween('start_date', [$weekStart->toDateString(), $weekEnd->toDateString()])->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])->exists();
             if ($alreadyInWeek) return back()->withErrors('Pengajuan OFF SPV maksimal 1x seminggu.')->withInput();
-            $validated['end_date'] = $validated['start_date']; $validated['start_time'] = null; $validated['end_time'] = null;
+            $validated['end_date'] = $validated['start_date'];
+            $validated['start_time'] = null;
+            $validated['end_time'] = null;
         }
 
         $start = Carbon::parse($validated['start_date'])->startOfDay();
@@ -247,25 +262,43 @@ class LeaveRequestController extends Controller
             $photoBasename = basename($fullPath);
         }
 
-        $inputApproverId = $request->input('manager_id'); 
+        $inputApproverId = $request->input('manager_id');
         $roleStr = $this->getRoleString($user);
-        $initialStatus = LeaveRequest::PENDING_HR; 
-        
+        $initialStatus = LeaveRequest::PENDING_HR;
+
         if ($roleStr === 'EMPLOYEE') {
-            if (!empty($inputApproverId)) { $user->update(['direct_supervisor_id' => $inputApproverId]); }
-            if (!empty($user->direct_supervisor_id)) { $initialStatus = LeaveRequest::PENDING_SUPERVISOR; }
+            if (!empty($inputApproverId)) {
+                $user->update(['direct_supervisor_id' => $inputApproverId]);
+            }
+            if (!empty($user->direct_supervisor_id)) {
+                $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
+            }
         } elseif ($roleStr === 'SUPERVISOR' || $roleStr === 'HRD') {
-            if (!empty($inputApproverId)) { $user->update(['manager_id' => $inputApproverId]); }
-            if (!empty($user->manager_id)) { $initialStatus = LeaveRequest::PENDING_SUPERVISOR; }
+            if (!empty($inputApproverId)) {
+                $user->update(['manager_id' => $inputApproverId]);
+            }
+            if (!empty($user->manager_id)) {
+                $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
+            }
         }
 
         LeaveRequest::create([
-            'user_id' => $userId, 'type' => $type, 'start_date' => $validated['start_date'], 'end_date' => $validated['end_date'],
+            'user_id' => $userId,
+            'type' => $type,
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
             'start_time' => ($isIzinTengahKerja || $isIzinPulangAwal || $isIzinTelat) ? $rawStartTime : null,
             'end_time' => $isIzinTengahKerja ? $rawEndTime : null,
-            'reason' => $validated['reason'], 'photo' => $photoBasename, 'status' => $initialStatus, 'notes' => $notes,
-            'latitude' => $validated['latitude'] ?? null, 'longitude' => $validated['longitude'] ?? null, 'accuracy_m' => $validated['accuracy_m'] ?? null, 'location_captured_at' => $validated['location_captured_at'] ?? null,
-            'substitute_pic' => $validated['substitute_pic'] ?? null, 'substitute_phone' => $validated['substitute_phone'] ?? null,
+            'reason' => $validated['reason'],
+            'photo' => $photoBasename,
+            'status' => $initialStatus,
+            'notes' => $notes,
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
+            'accuracy_m' => $validated['accuracy_m'] ?? null,
+            'location_captured_at' => $validated['location_captured_at'] ?? null,
+            'substitute_pic' => $validated['substitute_pic'] ?? null,
+            'substitute_phone' => $validated['substitute_phone'] ?? null,
             'special_leave_category' => $validated['special_leave_detail'] ?? null,
         ]);
 
@@ -312,12 +345,18 @@ class LeaveRequestController extends Controller
         } else {
             $validated['special_leave_category'] = null;
         }
-        unset($validated['special_leave_detail']); 
+        unset($validated['special_leave_detail']);
 
         $isTimeBased = in_array($validated['type'], [
-            LeaveType::IZIN_TELAT->value, LeaveType::IZIN_TENGAH_KERJA->value, LeaveType::IZIN_PULANG_AWAL->value, LeaveType::IZIN->value 
+            LeaveType::IZIN_TELAT->value,
+            LeaveType::IZIN_TENGAH_KERJA->value,
+            LeaveType::IZIN_PULANG_AWAL->value,
+            LeaveType::IZIN->value
         ]);
-        if (!$isTimeBased) { $validated['start_time'] = null; $validated['end_time'] = null; }
+        if (!$isTimeBased) {
+            $validated['start_time'] = null;
+            $validated['end_time'] = null;
+        }
 
         if ($request->hasFile('photo')) {
             if ($leaveRequest->photo) Storage::disk('public')->delete('leave_photos/' . $leaveRequest->photo);
@@ -341,7 +380,7 @@ class LeaveRequestController extends Controller
                 return back()->with('error', 'Hanya pengajuan yang masih pending yang bisa dibatalkan oleh pemohon.');
             }
         }
-        
+
         $leaveTypeValue = $leaveRequest->type instanceof LeaveType ? $leaveRequest->type->value : $leaveRequest->type;
         $targetValue = LeaveType::CUTI->value;
 
@@ -350,8 +389,8 @@ class LeaveRequestController extends Controller
             $start = Carbon::parse($leaveRequest->start_date);
             $end   = Carbon::parse($leaveRequest->end_date);
             $period = CarbonPeriod::create($start, $end);
-            
-            $leaveUser = $leaveRequest->user; 
+
+            $leaveUser = $leaveRequest->user;
             $userRoleStr = $this->getRoleString($leaveUser);
             $fiveDayWorkWeekRoles = ['HRD', 'HR STAFF', 'MANAGER'];
             $isFiveDay = in_array($userRoleStr, $fiveDayWorkWeekRoles);
@@ -378,26 +417,34 @@ class LeaveRequestController extends Controller
     }
 
     // --- Private Helpers ---
-    private function getRoleString($user) {
+    private function getRoleString($user)
+    {
         if (!$user) return '';
         return strtoupper((string) ($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role));
     }
-    private function isSpvUser($user): bool {
+    private function isSpvUser($user): bool
+    {
         if (!$user) return false;
         if (method_exists($user, 'isSupervisor')) return $user->isSupervisor();
         return $this->getRoleString($user) === 'SUPERVISOR';
     }
-    private function offSpvMonthlyLimitByMonth(Carbon $monthStart): int {
-        $start = $monthStart->copy()->startOfMonth()->startOfDay();
-        $end = $monthStart->copy()->endOfMonth()->startOfDay();
-        $fridayCount = 0; $cursor = $start->copy();
-        while ($cursor->lte($end)) { if ((int) $cursor->dayOfWeekIso === 5) $fridayCount++; $cursor->addDay(); }
+    private function offSpvMonthlyLimitByMonth(Carbon $monthStart): int
+    {
+        $fridayCount = $monthStart->copy()->startOfMonth()->daysUntil($monthStart->copy()->endOfMonth())
+            ->filter(fn($date) => $date->isFriday())
+            ->count();
+
         return max(0, $fridayCount - 2);
     }
-    private function offSpvApprovedCountInMonth(int $userId, Carbon $monthStart): int {
+    private function offSpvApprovedCountInMonth(int $userId, Carbon $monthStart): int
+    {
         $start = $monthStart->copy()->startOfMonth()->toDateString();
         $end = $monthStart->copy()->endOfMonth()->toDateString();
-        return LeaveRequest::query()->where('user_id', $userId)->where('type', LeaveType::OFF_SPV->value)
-            ->where('status', LeaveRequest::STATUS_APPROVED)->whereBetween('start_date', [$start, $end])->count();
+        return LeaveRequest::query()
+            ->where('user_id', $userId)
+            ->where('type', LeaveType::OFF_SPV->value)
+            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
+            ->whereBetween('start_date', [$start, $end])
+            ->count();
     }
 }
