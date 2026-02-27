@@ -115,18 +115,22 @@
         <table style="margin-bottom: 5px; border:none; width: 100%;">
             <tr>
                 <td style="width: 15%; padding: 0;">
-                    <!-- Logo Placeholer untuk PDF -->
+                    <!-- Logo Dinamis untuk PDF (Base64 for stability) -->
+                    @if($payslip->getLogoBase64($ptName ?? null))
+                    <img src="{{ $payslip->getLogoBase64($ptName ?? null) }}" height="65" style="height: 65px; width: auto; max-width: 150px;">
+                    @else
                     <div style="width: 80px; height: 80px; border: 1px dashed #999; text-align: center; line-height: 80px; font-size: 10px; color: #666; margin: 0 auto;">LOGO</div>
+                    @endif
                 </td>
                 <td style="width: 60%; vertical-align: middle; padding: 0 10px;">
-                    <h3 style="font-size: 16px; margin-bottom: 3px; font-family: sans-serif;">PT. EXPRESS LINTAS INDONESIA</h3>
+                    <h3 style="font-size: 16px; margin-bottom: 3px; font-family: sans-serif;">{{ $ptName ?? $payslip->user->profile->pt->name ?? 'PT. EXPRESS LINTAS INDONESIA' }}</h3>
                     <p style="font-family: sans-serif;">Jl. Tanjung Batu 15Q</p>
                     <p style="font-family: sans-serif;">Surabaya</p>
                     <p style="font-family: sans-serif;">Jawa Timur</p>
                 </td>
                 <td style="width: 25%; text-align: right; vertical-align: top; padding: 0;">
                     <h3 style="font-size: 16px; margin-bottom: 3px; font-family: sans-serif;">SLIP GAJI</h3>
-                    <p class="font-bold" style="font-family: sans-serif;">{{ \Carbon\Carbon::createFromDate($payslip->period_year, $payslip->period_month, 1)->format('M-y') }}</p>
+                    <p class="font-bold" style="font-family: sans-serif;">{{ \Carbon\Carbon::createFromDate((int)$payslip->period_year, (int)$payslip->period_month, 1)->format('M-y') }}</p>
                 </td>
             </tr>
         </table>
@@ -303,15 +307,21 @@
                     <br>
                     <p style="margin-bottom: 5px;">HR-DEPARTMENT</p>
                     <table style="width:100%;">
-                        <td align="center">
-                            <div class="box-ttd">
-                                <table style="width:100%;height:100%;">
-                                    <tr>
-                                        <td valign="middle" align="center" style="font-size:10px;color:#999;line-height:1.2;">STEMPEL<br>&<br>TTD DI SINI</td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </td>
+                        <tr>
+                            <td align="center">
+                                @if($payslip->getStampBase64($ptName ?? null))
+                                <img src="{{ $payslip->getStampBase64($ptName ?? null) }}" style="max-width: 110px; max-height: 60px; object-fit: contain;">
+                                @else
+                                <div class="box-ttd">
+                                    <table style="width:100%;height:100%;">
+                                        <tr>
+                                            <td valign="middle" align="center" style="font-size:10px;color:#999;line-height:1.2;">STEMPEL<br>&<br>TTD DI SINI</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                @endif
+                            </td>
+                        </tr>
                     </table>
                     <p class="font-bold" style="text-decoration: underline;">RIDA CHOLIDHATUS S</p>
                 </td>

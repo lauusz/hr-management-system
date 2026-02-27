@@ -1,10 +1,18 @@
 <x-app title="Preview Import Slip Gaji">
     <div class="card">
-        <div class="card-header-simple">
-            <h4 class="card-title-sm">Preview Import Data Gaji</h4>
-            <p class="card-subtitle-sm">
-                Silakan periksa data sebelum disimpan. Anda dapat mengedit angka jika diperlukan.
-            </p>
+        <div class="card-header-simple" style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="display: flex; gap: 16px; align-items: center;">
+
+
+                <div>
+                    <h4 class="card-title-sm">Preview Import Data Gaji</h4>
+                    <p style="font-size: 12px; color: #6b7280; margin-top: 2px;">
+                        Silakan periksa data sebelum disimpan. Anda dapat mengedit angka jika diperlukan.
+                    </p>
+                </div>
+            </div>
+
+
         </div>
 
         <form action="{{ route('hr.payroll.import.store') }}" method="POST">
@@ -28,7 +36,7 @@
                         <label for="year" style="display: block; font-size: 12px; margin-bottom: 4px; color: #4b5563; font-weight: 600;">Tahun</label>
                         <select name="year" id="year" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px; font-size: 13px;" required>
                             <option value="">-- Pilih Tahun --</option>
-                            @foreach(range(2019, date('Y') + 1) as $y)
+                            @foreach(range(date('Y') + 1, 2023) as $y)
                             <option value="{{ $y }}">
                                 {{ $y }}
                             </option>
@@ -287,6 +295,19 @@
 
             // Find all rows (excluding header)
             const rows = table.querySelectorAll('tbody tr');
+
+            // Mapping assets for JS
+
+
+            const ptSelect = document.getElementById('pt_id');
+            const companyNameDisplay = document.getElementById('company-name-display');
+
+            ptSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+
+                // Update Name text
+                companyNameDisplay.textContent = selectedOption.text.trim();
+            });
 
             window.formatInput = function(input) {
                 // Strip non-numeric except comma

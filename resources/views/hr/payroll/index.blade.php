@@ -1,13 +1,13 @@
-<x-app title="Master Payroll">
+<x-app title="Master Gaji Karyawan">
     <div class="card">
         <div class="card-header-simple">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div>
                     <h4 class="card-title-sm">
-                        Master Payroll
+                        Master Gaji Karyawan
                     </h4>
                     <p class="card-subtitle-sm">
-                        Kelola data penggajian karyawan bulanan.
+                        Kelola data Gaji karyawan bulanan.
                     </p>
                 </div>
                 <div style="text-align:right;">
@@ -73,7 +73,7 @@
                 <div>
                     <label for="year" style="display: block; font-size: 12px; margin-bottom: 4px; color: #4b5563; font-weight: 600;">Tahun</label>
                     <select name="year" id="year" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px; font-size: 13px;">
-                        @foreach(range(2019, date('Y') + 1) as $y)
+                        @foreach(range(date('Y') + 1, 2023) as $y)
                         <option value="{{ $y }}" {{ $year == $y ? 'selected' : '' }}>
                             {{ $y }}
                         </option>

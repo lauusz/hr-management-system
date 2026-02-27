@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Helpers\CompanyAssetHelper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -44,5 +45,81 @@ class Payslip extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the absolute path for the logo.
+     */
+    public function getLogoPath(?string $ptNameOverride = null): ?string
+    {
+        $ptName = $ptNameOverride ?: ($this->user->profile->pt->name ?? null);
+        if (!$ptName) return null;
+
+        $filename = CompanyAssetHelper::getLogo($ptName);
+        return $filename ? public_path('images/' . $filename) : null;
+    }
+
+    /**
+     * Get the absolute path for the stamp.
+     */
+    public function getStampPath(?string $ptNameOverride = null): ?string
+    {
+        $ptName = $ptNameOverride ?: ($this->user->profile->pt->name ?? null);
+        if (!$ptName) return null;
+
+        $filename = CompanyAssetHelper::getStamp($ptName);
+        return $filename ? public_path('images/' . $filename) : null;
+    }
+
+    /**
+     * Get the public URL for the logo.
+     */
+    public function getLogoUrl(?string $ptNameOverride = null): ?string
+    {
+        $ptName = $ptNameOverride ?: ($this->user->profile->pt->name ?? null);
+        if (!$ptName) return null;
+
+        $filename = CompanyAssetHelper::getLogo($ptName);
+        return $filename ? asset('images/' . $filename) : null;
+    }
+
+    /**
+     * Get the public URL for the stamp.
+     */
+    public function getStampUrl(?string $ptNameOverride = null): ?string
+    {
+        $ptName = $ptNameOverride ?: ($this->user->profile->pt->name ?? null);
+        if (!$ptName) return null;
+
+        $filename = CompanyAssetHelper::getStamp($ptName);
+        return $filename ? asset('images/' . $filename) : null;
+    }
+
+    /**
+     * Get the base64 encoded logo for PDF.
+     */
+    public function getLogoBase64(?string $ptNameOverride = null): ?string
+    {
+        $path = $this->getLogoPath($ptNameOverride);
+        if ($path && file_exists($path)) {
+            $type = pathinfo($path, PATHINFO_EXTENSION);
+            $data = file_get_contents($path);
+            return 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+        return null;
+    }
+
+    /**
+     * Get the base64 encoded stamp for PDF.
+     */
+    public function getStampBase64(?string $ptNameOverride = null): ?string
+    {
+        $path = $this->getStampPath($ptNameOverride);
+        if ($path && file_exists($path)) {
+            $type = pathinfo($path, PATHINFO_EXTENSION);
+            $data = file_get_contents($path);
+            return 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
+        return null;
     }
 }

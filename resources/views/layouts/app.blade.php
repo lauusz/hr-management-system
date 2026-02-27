@@ -660,7 +660,7 @@
         <div class="submenu {{ $hrLoanOpen ? 'show' : '' }}" data-menu-panel="keuangan">
           <a href="{{ route('hr.loan_requests.index') }}" class="{{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">Pengajuan Hutang</a>
           @can('manage-payroll')
-          <a href="{{ route('hr.payroll.index') }}" class="{{ request()->routeIs('hr.payroll.*') ? 'active' : '' }}">Master Payroll</a>
+          <a href="{{ route('hr.payroll.index') }}" class="{{ request()->routeIs('hr.payroll.*') ? 'active' : '' }}">Master Gaji Karyawan</a>
           @endcan
         </div>
         @endif

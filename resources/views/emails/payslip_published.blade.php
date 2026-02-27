@@ -96,18 +96,29 @@
         <table style="margin-bottom: 5px;">
             <tr>
                 <td style="width: 15%;">
-                    <!-- Logo Placeholer -->
-                    <div style="width: 80px; height: 80px; border: 1px dashed #999; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666;">LOGO</div>
+                    <!-- Logo Dinamis untuk Email -->
+                    @if($payslip->getLogoUrl($ptName ?? null))
+                    @php
+                    $logoPath = str_replace(url('/'), public_path(), $payslip->getLogoUrl($ptName ?? null));
+                    @endphp
+                    <img src="{{ $message->embed($logoPath) }}" height="65" style="height: 65px; width: auto; max-width: 150px;" alt="Logo">
+                    @else
+                    <table style="width:80px;height:80px;border:1px dashed #999;margin:0;">
+                        <tr>
+                            <td valign="middle" align="center" style="font-size:10px;color:#666;">LOGO</td>
+                        </tr>
+                    </table>
+                    @endif
                 </td>
                 <td style="width: 60%; vertical-align: middle;">
-                    <h3 style="font-size: 16px; margin-bottom: 3px;">PT. EXPRESS LINTAS INDONESIA</h3>
+                    <h3 style="font-size: 16px; margin-bottom: 3px;">{{ $ptName ?? $payslip->user->profile->pt->name ?? 'PT. EXPRESS LINTAS INDONESIA' }}</h3>
                     <p>Jl. Tanjung Batu 15Q</p>
                     <p>Surabaya</p>
                     <p>Jawa Timur</p>
                 </td>
                 <td style="width: 25%; text-align: right; vertical-align: top;">
                     <h3 style="font-size: 16px; margin-bottom: 3px;">SLIP GAJI</h3>
-                    <p class="font-bold">{{ \Carbon\Carbon::createFromDate($payslip->period_year, $payslip->period_month, 1)->format('M-y') }}</p>
+                    <p class="font-bold">{{ \Carbon\Carbon::createFromDate((int)$payslip->period_year, (int)$payslip->period_month, 1)->format('M-y') }}</p>
                 </td>
             </tr>
         </table>
@@ -257,19 +268,19 @@
             </tr>
         </table>
 
-        <table>
+        <table style="width: 100%;">
             <tr>
-                <td style="width: 60%; padding-top: 5px;">
+                <td style="width: 65%; padding-top: 5px; vertical-align: top;">
                     <table style="width: 100%;">
                         <tr>
-                            <td class="font-bold" style="width: 30%;">ket/sisa utang &nbsp; &nbsp;:</td>
+                            <td class="font-bold" style="width: 35%;">ket/sisa utang &nbsp; &nbsp;:</td>
                             <td class="bg-cyan font-bold" style="width: 5%; border: 1px solid #000; border-right: none; padding: 2px 4px;">Rp</td>
                             <td class="bg-cyan text-right font-bold" style="width: 40%; border: 1px solid #000; border-left: none; padding: 2px 4px;">{{ number_format($payslip->sisa_utang, 2, ',', '.') }}</td>
-                            <td style="width: 25%;"></td>
+                            <td style="width: 20%;"></td>
                         </tr>
 
                         <tr>
-                            <td colspan="4" style="height: 10px;"></td>
+                            <td colspan="4" style="height: 5px;"></td>
                         </tr>
 
                         <tr>
@@ -287,11 +298,27 @@
                     </table>
                 </td>
 
-                <td style="width: 40%; text-align: center; vertical-align: bottom;">
-                    <p>HR-DEPARTMENT</p>
-                    <div style="width: 130px; height: 70px; border: 1px dashed #999; margin: 5px auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #999;">
-                        STEMPEL<br>&<br>TTD DI SINI
-                    </div>
+                <td style="width: 35%; text-align: center; vertical-align: bottom;">
+                    <br>
+                    <p style="margin-bottom: 5px;">HR-DEPARTMENT</p>
+                    <table style="width:100%;">
+                        <tr>
+                            <td align="center">
+                                @if($payslip->getStampUrl($ptName ?? null))
+                                @php
+                                $stampPath = str_replace(url('/'), public_path(), $payslip->getStampUrl($ptName ?? null));
+                                @endphp
+                                <img src="{{ $message->embed($stampPath) }}" style="max-width: 130px; max-height: 70px; width: auto; height: auto;" alt="Stamp">
+                                @else
+                                <table style="width:110px;height:60px;border:1px dashed #999;margin:0 auto;">
+                                    <tr>
+                                        <td valign="middle" align="center" style="font-size:10px;color:#999;line-height:1.2;">STEMPEL<br>&<br>TTD DI SINI</td>
+                                    </tr>
+                                </table>
+                                @endif
+                            </td>
+                        </tr>
+                    </table>
                     <p class="font-bold" style="text-decoration: underline;">RIDA CHOLIDHATUS S</p>
                 </td>
             </tr>

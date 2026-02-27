@@ -238,7 +238,9 @@ class PayslipController extends Controller
 
         // Send email if status is PUBLISHED
         if ($payslip->status === 'PUBLISHED' && $payslip->user->email) {
-            Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip));
+            $ptId = $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null);
+            $ptName = \App\Models\Pt::find($ptId)->name ?? null;
+            Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
         }
 
         return redirect()->route('hr.payroll.index', [
@@ -303,7 +305,9 @@ class PayslipController extends Controller
 
         // Hanya kirim email jika HRD baru saja mengubah statusnya jadi PUBLISHED
         if ($isNewlyPublished && $payslip->user->email) {
-            Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip));
+            $ptId = $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null);
+            $ptName = \App\Models\Pt::find($ptId)->name ?? null;
+            Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
         }
 
         return redirect()->route('hr.payroll.index', [
@@ -456,12 +460,13 @@ class PayslipController extends Controller
                 $updateData
             );
 
-            // Cek apakah email perlu dikirim (jika action Publish dan status sebelumnya belum Published)
-            $shouldSendEmail = ($status === 'PUBLISHED') &&
-                ($payslip->wasRecentlyCreated || $payslip->wasChanged('status'));
+            // Cek apakah email perlu dikirim (Blasting email ke semua jika action Publish)
+            $shouldSendEmail = ($status === 'PUBLISHED');
 
             if ($shouldSendEmail && $payslip->user && $payslip->user->email) {
-                Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip));
+                $ptId = $request->input('pt_id');
+                $ptName = \App\Models\Pt::find($ptId)->name ?? null;
+                Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
             }
 
             $count++;

@@ -1,10 +1,10 @@
-<x-app title="Pengaturan Akses Master Payroll">
+<x-app title="Pengaturan Akses Master Gaji Karyawan">
     <div class="card">
         <div class="card-header-simple">
             <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                 <div>
                     <h4 class="card-title-sm">
-                        Pengaturan Akses Master Payroll
+                        Pengaturan Akses Master Gaji Karyawan
                     </h4>
                     <p class="card-subtitle-sm">
                         Tentukan siapa saja yang memiliki izin mengelola Data Penggajian.
