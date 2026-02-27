@@ -190,7 +190,9 @@ class PayslipController extends Controller
             ])->with('warning', 'Slip gaji untuk periode ini sudah ada. Mengalihkan ke halaman edit.');
         }
 
-        return view('hr.payroll.form', compact('user', 'month', 'year'));
+        $pts = \App\Models\Pt::orderBy('name')->get();
+
+        return view('hr.payroll.form', compact('user', 'month', 'year', 'pts'));
     }
 
     public function store(Request $request)
@@ -238,7 +240,7 @@ class PayslipController extends Controller
 
         // Send email if status is PUBLISHED
         if ($payslip->status === 'PUBLISHED' && $payslip->user->email) {
-            $ptId = $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null);
+            $ptId = $request->input('pt_id', $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null));
             $ptName = \App\Models\Pt::find($ptId)->name ?? null;
             Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
         }
@@ -259,7 +261,9 @@ class PayslipController extends Controller
         $month = $payslip->period_month;
         $year = $payslip->period_year;
 
-        return view('hr.payroll.form', compact('payslip', 'user', 'month', 'year'));
+        $pts = \App\Models\Pt::orderBy('name')->get();
+
+        return view('hr.payroll.form', compact('payslip', 'user', 'month', 'year', 'pts'));
     }
 
     public function update(Request $request, Payslip $payslip)
@@ -298,14 +302,13 @@ class PayslipController extends Controller
         $data['total_potongan'] = $totalPotongan;
         $data['gaji_bersih'] = $gajiBersih;
 
-        // Cek apakah statusnya BERUBAH menjadi PUBLISHED di update kali ini
-        $isNewlyPublished = ($data['status'] === 'PUBLISHED' && $payslip->status !== 'PUBLISHED');
+        // Send email if status is PUBLISHED (allows re-sending if already published)
+        $shouldSendEmail = ($data['status'] === 'PUBLISHED');
 
         $payslip->update($data);
 
-        // Hanya kirim email jika HRD baru saja mengubah statusnya jadi PUBLISHED
-        if ($isNewlyPublished && $payslip->user->email) {
-            $ptId = $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null);
+        if ($shouldSendEmail && $payslip->user->email) {
+            $ptId = $request->input('pt_id', $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null));
             $ptName = \App\Models\Pt::find($ptId)->name ?? null;
             Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
         }
@@ -315,7 +318,7 @@ class PayslipController extends Controller
             'end_month' => $request->input('filter_end_month', $payslip->period_month),
             'year' => $request->input('filter_year', $payslip->period_year),
             'pt_id' => $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null),
-        ])->with('success', 'Slip Gaji berhasil diperbarui.' . ($isNewlyPublished ? ' Email notifikasi telah dikirim.' : ''));
+        ])->with('success', 'Slip Gaji berhasil diperbarui.' . ($shouldSendEmail ? ' Email notifikasi telah dikirim.' : ''));
     }
 
     public function previewImport(Request $request)

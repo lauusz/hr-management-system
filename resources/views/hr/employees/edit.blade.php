@@ -135,9 +135,9 @@
                     <div class="form-group">
                         <label for="leave_balance" style="color:#1e4a8d; font-weight:600;">Sisa Cuti (Saldo Tahunan)</label>
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <input id="leave_balance" type="number" name="leave_balance" class="form-control" 
-                                   value="{{ old('leave_balance', $item->leave_balance ?? 0) }}" 
-                                   min="0" step="1">
+                            <input id="leave_balance" type="number" name="leave_balance" class="form-control"
+                                value="{{ old('leave_balance', $item->leave_balance ?? 0) }}"
+                                min="0" step="1">
                             <span style="font-size: 13px; color: #6b7280; white-space: nowrap;">Hari</span>
                         </div>
                         <small class="helper-text">Ubah angka ini untuk koreksi manual saldo cuti karyawan.</small>
@@ -292,8 +292,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="no_npwp">Nomor NPWP</label>
-                        <input id="no_npwp" type="text" name="no_npwp" class="form-control" value="{{ old('no_npwp', optional($profile)->no_npwp) }}">
+                        <label for="nomor_npwp">Nomor NPWP</label>
+                        <input id="nomor_npwp" type="text" name="nomor_npwp" class="form-control" value="{{ old('nomor_npwp', optional($profile)->nomor_npwp) }}">
                     </div>
                     <div class="form-group">
                         <label for="ptkp">Status PTKP</label>
@@ -354,62 +354,62 @@
                 {{-- SECTION 5: MASA KERJA --}}
                 <div class="form-section-title">Masa Kerja</div>
                 <div class="form-grid">
-                    
+
                     {{-- [FIXED LOGIC MASA KERJA] --}}
                     @php
-                        // 1. Ambil data manual dari database
-                        $masaKerjaValue = old('masa_kerja', optional($profile)->masa_kerja);
+                    // 1. Ambil data manual dari database
+                    $masaKerjaValue = old('masa_kerja', optional($profile)->masa_kerja);
 
-                        // 2. Jika kosong atau formatnya aneh (ada desimal panjang), kita hitung ulang otomatis
-                        $joinDate = optional($profile)->tgl_bergabung;
-                        
-                        if ($joinDate && (!$masaKerjaValue || str_contains($masaKerjaValue, '.'))) {
-                            try {
-                                // Hitung selisih waktu dari Tgl Bergabung sampai Sekarang
-                                $joinCarbon = \Carbon\Carbon::parse($joinDate);
-                                $now = \Carbon\Carbon::now();
-                                
-                                $diff = $joinCarbon->diff($now);
-                                
-                                // Format string rapi: "2 Tahun 5 Bulan"
-                                $parts = [];
-                                if ($diff->y > 0) $parts[] = $diff->y . ' Tahun';
-                                if ($diff->m > 0) $parts[] = $diff->m . ' Bulan';
-                                
-                                // Jika baru gabung (kurang dari sebulan), tampilkan hari
-                                if (empty($parts) && $diff->d > 0) {
-                                    $parts[] = $diff->d . ' Hari';
-                                }
+                    // 2. Jika kosong atau formatnya aneh (ada desimal panjang), kita hitung ulang otomatis
+                    $joinDate = optional($profile)->tgl_bergabung;
 
-                                // Gabungkan jadi string
-                                $masaKerjaValue = implode(' ', $parts);
+                    if ($joinDate && (!$masaKerjaValue || str_contains($masaKerjaValue, '.'))) {
+                    try {
+                    // Hitung selisih waktu dari Tgl Bergabung sampai Sekarang
+                    $joinCarbon = \Carbon\Carbon::parse($joinDate);
+                    $now = \Carbon\Carbon::now();
 
-                            } catch (\Exception $e) {
-                                // Fallback jika tanggal error
-                                $masaKerjaValue = '';
-                            }
-                        }
+                    $diff = $joinCarbon->diff($now);
+
+                    // Format string rapi: "2 Tahun 5 Bulan"
+                    $parts = [];
+                    if ($diff->y > 0) $parts[] = $diff->y . ' Tahun';
+                    if ($diff->m > 0) $parts[] = $diff->m . ' Bulan';
+
+                    // Jika baru gabung (kurang dari sebulan), tampilkan hari
+                    if (empty($parts) && $diff->d > 0) {
+                    $parts[] = $diff->d . ' Hari';
+                    }
+
+                    // Gabungkan jadi string
+                    $masaKerjaValue = implode(' ', $parts);
+
+                    } catch (\Exception $e) {
+                    // Fallback jika tanggal error
+                    $masaKerjaValue = '';
+                    }
+                    }
                     @endphp
 
                     <div class="form-group full-width">
                         <label for="masa_kerja">Masa Kerja (Hitung Otomatis / Opsional)</label>
-                        <input id="masa_kerja" type="text" name="masa_kerja" class="form-control" 
-                               value="{{ $masaKerjaValue }}" 
-                               placeholder="Contoh: 2 Tahun 5 Bulan"
-                               disabled>
+                        <input id="masa_kerja" type="text" name="masa_kerja" class="form-control"
+                            value="{{ $masaKerjaValue }}"
+                            placeholder="Contoh: 2 Tahun 5 Bulan"
+                            disabled>
                         <small class="helper-text" style="color:#6b7280;">Sistem otomatis menghitung berdasarkan Tanggal Bergabung di bawah.</small>
                     </div>
 
                     <div class="form-group">
                         <label for="tgl_bergabung">Tanggal Bergabung</label>
-                        <input id="tgl_bergabung" type="date" name="tgl_bergabung" class="form-control" 
-                               value="{{ old('tgl_bergabung', optional(optional($profile)->tgl_bergabung)->format('Y-m-d')) }}">
+                        <input id="tgl_bergabung" type="date" name="tgl_bergabung" class="form-control"
+                            value="{{ old('tgl_bergabung', optional(optional($profile)->tgl_bergabung)->format('Y-m-d')) }}">
                     </div>
 
                     <div class="form-group">
                         <label for="tgl_akhir_percobaan">Tanggal Akhir Percobaan (Probation)</label>
-                        <input id="tgl_akhir_percobaan" type="date" name="tgl_akhir_percobaan" class="form-control" 
-                               value="{{ old('tgl_akhir_percobaan', optional(optional($profile)->tgl_akhir_percobaan)->format('Y-m-d')) }}">
+                        <input id="tgl_akhir_percobaan" type="date" name="tgl_akhir_percobaan" class="form-control"
+                            value="{{ old('tgl_akhir_percobaan', optional(optional($profile)->tgl_akhir_percobaan)->format('Y-m-d')) }}">
                     </div>
                 </div>
 
@@ -442,7 +442,7 @@
             <form action="{{ route('hr.employees.reset-password', $item->id) }}" method="POST">
                 @csrf
                 @method('PATCH')
-                
+
                 <div style="display: flex; gap: 10px; justify-content: center;">
                     <button type="button" class="btn-secondary" data-modal-close="true">Batal</button>
                     <button type="submit" class="btn-primary" style="background-color: #dc2626; border-color: #dc2626;">Ya, Reset Password</button>

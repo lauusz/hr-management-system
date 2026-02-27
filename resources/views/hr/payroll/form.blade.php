@@ -50,6 +50,25 @@
                 <input type="hidden" name="period_year" value="{{ $year }}">
                 @endif
 
+                @php
+                $selectedPtId = request('filter_pt_id') ?: (isset($payslip) ? ($payslip->user->profile->pt_id ?? '') : ($user->profile->pt_id ?? ''));
+                @endphp
+
+                <div style="margin-bottom: 24px; padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <label for="pt_id" style="display: block; font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">Perusahaan (PT) untuk Logo PDF & Email</label>
+                    <select name="pt_id" id="pt_id" style="width: 100%; max-width: 400px; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; background-color: #fff; cursor: pointer; color: #334155;" required>
+                        <option value="">-- Pilih PT --</option>
+                        @foreach($pts as $p)
+                        <option value="{{ $p->id }}" {{ $selectedPtId == $p->id ? 'selected' : '' }}>
+                            {{ $p->name }}
+                        </option>
+                        @endforeach
+                    </select>
+                    <p style="margin: 8px 0 0 0; font-size: 12px; color: #64748b;">
+                        <em>Pastikan PT sesuai. Logo dan stampel pada Slip Gaji (PDF & Email) akan mengikuti pilihan ini jika ditekan "Publish & Kirim Email".</em>
+                    </p>
+                </div>
+
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 32px;">
                     <!-- PENDAPATAN -->
                     <div>

@@ -80,11 +80,11 @@
                             <option value="">-- Tidak Ada / Langsung HRD --</option>
                             {{-- Pastikan Controller mengirim variabel $managers --}}
                             @if(isset($managers))
-                                @foreach($managers as $mgr)
-                                <option value="{{ $mgr->id }}" @selected(old('manager_id') == $mgr->id)>
-                                    {{ $mgr->name }} ({{ $mgr->position->name ?? 'Manager' }})
-                                </option>
-                                @endforeach
+                            @foreach($managers as $mgr)
+                            <option value="{{ $mgr->id }}" @selected(old('manager_id')==$mgr->id)>
+                                {{ $mgr->name }} ({{ $mgr->position->name ?? 'Manager' }})
+                            </option>
+                            @endforeach
                             @endif
                         </select>
                     </div>
@@ -95,9 +95,9 @@
                         <select id="direct_supervisor_id" name="direct_supervisor_id" class="form-control">
                             <option value="">-- Tidak Ada --</option>
                             @foreach($supervisors as $spv)
-                                <option value="{{ $spv->id }}" @selected(old('direct_supervisor_id') == $spv->id)>
-                                    {{ $spv->name }} - {{ $spv->position->name ?? $spv->role->value }}
-                                </option>
+                            <option value="{{ $spv->id }}" @selected(old('direct_supervisor_id')==$spv->id)>
+                                {{ $spv->name }} - {{ $spv->position->name ?? $spv->role->value }}
+                            </option>
                             @endforeach
                         </select>
                     </div>
@@ -117,8 +117,8 @@
                     <div class="form-group">
                         <label for="status">Status Akun</label>
                         <select id="status" name="status" class="form-control">
-                            <option value="ACTIVE" @selected(old('status')==='ACTIVE')>Aktif</option>
-                            <option value="INACTIVE" @selected(old('status')==='INACTIVE')>Nonaktif</option>
+                            <option value="ACTIVE" @selected(old('status')==='ACTIVE' )>Aktif</option>
+                            <option value="INACTIVE" @selected(old('status')==='INACTIVE' )>Nonaktif</option>
                         </select>
                     </div>
 
@@ -142,7 +142,7 @@
                         <select id="pt_id" name="pt_id" class="form-control">
                             <option value="">Pilih PT</option>
                             @foreach($ptOptions as $ptOption)
-                            <option value="{{ $ptOption->id }}" @selected(old('pt_id') == $ptOption->id)>{{ $ptOption->name }}</option>
+                            <option value="{{ $ptOption->id }}" @selected(old('pt_id')==$ptOption->id)>{{ $ptOption->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -151,8 +151,8 @@
                         <label for="kategori">Kategori Pegawai</label>
                         <select id="kategori" name="kategori" class="form-control">
                             <option value="">Pilih Kategori</option>
-                            <option value="TETAP" @selected(old('kategori')==='TETAP')>Karyawan Tetap</option>
-                            <option value="KONTRAK" @selected(old('kategori')==='KONTRAK')>Karyawan Kontrak</option>
+                            <option value="TETAP" @selected(old('kategori')==='TETAP' )>Karyawan Tetap</option>
+                            <option value="KONTRAK" @selected(old('kategori')==='KONTRAK' )>Karyawan Kontrak</option>
                         </select>
                     </div>
 
@@ -195,8 +195,8 @@
                         <label for="jenis_kelamin">Jenis Kelamin</label>
                         <select id="jenis_kelamin" name="jenis_kelamin" class="form-control">
                             <option value="">Pilih</option>
-                            <option value="L" @selected(old('jenis_kelamin')==='L')>Laki-laki</option>
-                            <option value="P" @selected(old('jenis_kelamin')==='P')>Perempuan</option>
+                            <option value="L" @selected(old('jenis_kelamin')==='L' )>Laki-laki</option>
+                            <option value="P" @selected(old('jenis_kelamin')==='P' )>Perempuan</option>
                         </select>
                     </div>
 
@@ -261,8 +261,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="no_npwp">Nomor NPWP</label>
-                        <input id="no_npwp" type="text" name="no_npwp" class="form-control" value="{{ old('no_npwp') }}">
+                        <label for="nomor_npwp">Nomor NPWP</label>
+                        <input id="nomor_npwp" type="text" name="nomor_npwp" class="form-control" value="{{ old('nomor_npwp') }}">
                     </div>
                     <div class="form-group">
                         <label for="ptkp">Status PTKP</label>

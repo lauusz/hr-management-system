@@ -140,7 +140,7 @@
         <table style="margin-bottom: 4px; width: 100%;">
             <tr>
                 <td style="width: 15%;">NIP</td>
-                <td style="width: 35%;">: {{ $payslip->user->nik ?? '-' }}</td>
+                <td style="width: 35%;">: {{ $payslip->user->profile->nik ?? '-' }}</td>
                 <td style="width: 15%;">Jabatan</td>
                 <td style="width: 35%;">: {{ $payslip->user->position->name ?? $payslip->user->profile->jabatan ?? '-' }}</td>
             </tr>
@@ -148,7 +148,7 @@
                 <td>Nama Karyawan</td>
                 <td>: {{ strtoupper($payslip->user->name) }}</td>
                 <td>NPWP</td>
-                <td>: {{ $payslip->user->profile->npwp ?? '-' }}</td>
+                <td>: {{ $payslip->user->profile->nomor_npwp ?? '-' }}</td>
             </tr>
         </table>
 

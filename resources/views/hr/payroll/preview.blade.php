@@ -62,7 +62,8 @@
                     <table class="custom-table" style="font-size: 11px;">
                         <thead>
                             <tr style="background-color: #f3f4f6;">
-                                <th rowspan="2" style="min-width: 150px; vertical-align: middle;">Karyawan</th>
+                                <th rowspan="2" style="width: 40px; text-align: center; vertical-align: middle;" class="col-sticky-1">#</th>
+                                <th rowspan="2" style="min-width: 150px; vertical-align: middle;" class="col-sticky-2">Karyawan</th>
                                 <th colspan="12" class="text-center" style="border-bottom: 1px solid #d1d5db;">PENDAPATAN</th>
                                 <th colspan="6" class="text-center" style="border-bottom: 1px solid #d1d5db;">PENGELUARAN</th>
                                 <th rowspan="2" style="min-width: 100px; vertical-align: middle;">Total Penghasilan</th>
@@ -95,7 +96,8 @@
                         <tbody>
                             @foreach($payslips as $index => $row)
                             <tr>
-                                <td>
+                                <td style="text-align: center;" class="col-sticky-1">{{ $index + 1 }}</td>
+                                <td class="col-sticky-2">
                                     <div class="fw-bold">{{ $row['user_name'] }}</div>
                                     <div class="text-muted">{{ $row['nik'] }}</div>
                                     <input type="hidden" name="payslips[{{ $index }}][user_id]" value="{{ $row['user_id'] }}">
@@ -203,7 +205,7 @@
             border-radius: 12px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
             border: 1px solid #f3f4f6;
-            overflow: hidden;
+            margin-bottom: 20px;
         }
 
         .card-header-simple {
@@ -227,8 +229,13 @@
 
         .table-wrapper {
             width: 100%;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+            overflow: auto;
+            max-height: calc(100vh - 350px);
+            min-height: 300px;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 4px;
+            position: relative;
         }
 
         .custom-table {
@@ -246,6 +253,54 @@
             color: #6b7280;
             text-transform: uppercase;
             border-bottom: 1px solid #e5e7eb;
+            /* Sticky Header */
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            box-shadow: inset 0 -1px 0 #e5e7eb;
+        }
+
+        /* Specific sticky offset for second row of header */
+        .custom-table thead tr:nth-child(2) th {
+            top: 35px;
+            /* Adjust to match the first row height exactly */
+            z-index: 19;
+        }
+
+        /* Sticky columns logic */
+        .col-sticky-1 {
+            position: sticky;
+            left: 0;
+            z-index: 21;
+            background: #f9fafb;
+            border-right: 1px solid #e5e7eb;
+            width: 40px;
+            min-width: 40px;
+        }
+
+        .col-sticky-2 {
+            position: sticky;
+            left: 40px;
+            /* Width of col-sticky-1 */
+            z-index: 21;
+            background: #f9fafb;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        td.col-sticky-1 {
+            z-index: 10;
+            background: #fff;
+        }
+
+        td.col-sticky-2 {
+            z-index: 10;
+            background: #fff;
+        }
+
+        /* Adjust z-index for intersection of sticky header and sticky columns */
+        thead tr:nth-child(1) th.col-sticky-1,
+        thead tr:nth-child(1) th.col-sticky-2 {
+            z-index: 30;
         }
 
         .custom-table td {

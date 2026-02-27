@@ -200,11 +200,11 @@ class HREmployeeController extends Controller
 
         // [LOGIC DROPDOwN APPROVER]
         $managers = User::with('position')
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('role', UserRole::MANAGER)
-                  ->orWhere('role', UserRole::HRD);
+                    ->orWhere('role', UserRole::HRD);
             })
-            ->whereDoesntHave('position', function($q) {
+            ->whereDoesntHave('position', function ($q) {
                 $q->where('name', 'like', '%Staff%');
             })
             ->orderBy('name')
@@ -227,17 +227,17 @@ class HREmployeeController extends Controller
 
     public function store(Request $request)
     {
-        $roleValues = array_map(fn (UserRole $r) => $r->value, UserRole::cases());
+        $roleValues = array_map(fn(UserRole $r) => $r->value, UserRole::cases());
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'username' => ['nullable', 'string', 'max:255', 'unique:users,username'],
             'phone' => ['required', 'string', 'max:255'],
             'role' => ['required', Rule::in($roleValues)],
-            
+
             'manager_id'           => ['nullable', 'exists:users,id'],
             'direct_supervisor_id' => ['nullable', 'exists:users,id'],
-            
+
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'pt_id' => ['nullable', 'exists:pts,id'],
@@ -262,7 +262,7 @@ class HREmployeeController extends Controller
             'desa_kelurahan' => ['nullable', 'string', 'max:100'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
             'ptkp' => ['nullable', 'string', 'max:50'],
-            'no_npwp' => ['nullable', 'string', 'max:50'],
+            'nomor_npwp' => ['nullable', 'string', 'max:50'],
             'bpjs_tk' => ['nullable', 'string', 'max:50'],
             'no_bpjs_kesehatan' => ['nullable', 'string', 'max:50'],
             'kelas_bpjs' => ['nullable', 'string', 'max:50'],
@@ -353,11 +353,11 @@ class HREmployeeController extends Controller
         // [LOGIC DROPDOwN APPROVER - EDIT]
         $managers = User::with('position')
             ->where('id', '!=', $employee->id) // Exclude diri sendiri
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('role', UserRole::MANAGER)
-                  ->orWhere('role', UserRole::HRD);
+                    ->orWhere('role', UserRole::HRD);
             })
-            ->whereDoesntHave('position', function($q) {
+            ->whereDoesntHave('position', function ($q) {
                 $q->where('name', 'like', '%Staff%');
             })
             ->orderBy('name')
@@ -385,14 +385,14 @@ class HREmployeeController extends Controller
     // =================================================================
     public function update(Request $request, User $employee)
     {
-        $roleValues = array_map(fn (UserRole $r) => $r->value, UserRole::cases());
+        $roleValues = array_map(fn(UserRole $r) => $r->value, UserRole::cases());
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'username' => ['nullable', 'string', 'max:255', Rule::unique('users', 'username')->ignore($employee->id)],
             'phone' => ['required', 'string', 'max:255'],
             'role' => ['required', Rule::in($roleValues)],
-            
+
             // Validasi Saldo Cuti Manual
             'leave_balance' => ['nullable', 'integer', 'min:0'],
 
@@ -422,7 +422,7 @@ class HREmployeeController extends Controller
             'desa_kelurahan' => ['nullable', 'string', 'max:100'],
             'kode_pos' => ['nullable', 'string', 'max:10'],
             'ptkp' => ['nullable', 'string', 'max:50'],
-            'no_npwp' => ['nullable', 'string', 'max:50'],
+            'nomor_npwp' => ['nullable', 'string', 'max:50'],
             'bpjs_tk' => ['nullable', 'string', 'max:50'],
             'no_bpjs_kesehatan' => ['nullable', 'string', 'max:50'],
             'kelas_bpjs' => ['nullable', 'string', 'max:50'],
@@ -435,16 +435,16 @@ class HREmployeeController extends Controller
         ]);
 
         return DB::transaction(function () use ($request, $employee, $validated) {
-            
+
             // -------------------------------------------------------------
             // [LOGIC PINTAR] DETEKSI EDIT MANUAL
             // -------------------------------------------------------------
             // Kita cek dulu: Apakah HRD mengubah angka 'leave_balance' di form?
             // Caranya: Bandingkan saldo lama di DB vs saldo baru dari Form.
-            
+
             $oldBalance = (int) $employee->leave_balance;
             $newBalance = isset($validated['leave_balance']) ? (int) $validated['leave_balance'] : $oldBalance;
-            
+
             // Jika angkanya beda, berarti ini adalah EDIT MANUAL (Prioritas Tertinggi)
             $isManualEdit = $oldBalance !== $newBalance;
 
@@ -481,7 +481,7 @@ class HREmployeeController extends Controller
                 'path_kartu_keluarga',
                 'path_ktp',
                 'email',
-                'leave_balance', 
+                'leave_balance',
             ]);
 
             $profileData['email'] = $validated['email'] ?? null;
