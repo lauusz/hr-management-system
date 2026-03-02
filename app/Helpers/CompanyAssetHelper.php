@@ -19,6 +19,7 @@ class CompanyAssetHelper
     ];
 
     protected static $stampMapping = [
+        'BAHARI'      => 'bahari-stamp.png',
         'ELI'      => 'eli-stamp.png',
         'KHARISMA' => 'kharisma-stamp.png',
         'PESONA'   => 'pesona-stamp.png',
