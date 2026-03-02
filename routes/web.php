@@ -170,6 +170,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/hr/payroll/import/preview', [PayslipController::class, 'previewImport'])->name('hr.payroll.import.preview');
         Route::post('/hr/payroll/import/store', [PayslipController::class, 'storeBulkImport'])->name('hr.payroll.import.store');
         Route::get('/hr/payroll/export', [PayslipController::class, 'exportExcel'])->name('hr.payroll.export');
+        Route::post('/hr/payroll/send-email', [PayslipController::class, 'sendSelectedEmails'])->name('hr.payroll.send-email');
 
         Route::resource('/hr/payroll', PayslipController::class)
             ->names('hr.payroll')

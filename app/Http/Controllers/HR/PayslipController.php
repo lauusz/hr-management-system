@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use App\Imports\PayslipPreviewImport;
+use App\Models\EmployeeProfile;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PayslipPublishedMail;
@@ -79,38 +80,34 @@ class PayslipController extends Controller
         // Ambil list PT untuk filter
         $pts = Pt::all();
 
-        // Jika tidak ada PT yang dipilih, default ke PT pertama (jika ada)
-        if (!$ptId && $pts->isNotEmpty()) {
-            $ptId = $pts->first()->id;
-        }
-
         $payrollData = collect();
 
-        if ($ptId) {
-            $employees = User::whereHas('profile', function ($query) use ($ptId) {
-                $query->where('pt_id', $ptId);
+        $employees = User::query()
+            ->when($ptId, function ($query) use ($ptId) {
+                $query->whereHas('profile', function ($profileQuery) use ($ptId) {
+                    $profileQuery->where('pt_id', $ptId);
+                });
             })
-                ->when($search, function ($query) use ($search) {
-                    $query->where('name', 'like', '%' . $search . '%');
-                })
-                ->with(['profile', 'position', 'division', 'payslips' => function ($q) use ($startMonth, $endMonth, $year) {
-                    $q->whereBetween('period_month', [$startMonth, $endMonth])
-                        ->where('period_year', $year);
-                }])
-                ->get();
+            ->when($search, function ($query) use ($search) {
+                $query->where('name', 'like', '%' . $search . '%');
+            })
+            ->with(['profile', 'position', 'division', 'payslips' => function ($q) use ($startMonth, $endMonth, $year) {
+                $q->whereBetween('period_month', [$startMonth, $endMonth])
+                    ->where('period_year', $year);
+            }])
+            ->get();
 
-            foreach ($employees as $employee) {
-                for ($m = $startMonth; $m <= $endMonth; $m++) {
-                    $payslip = $employee->payslips->firstWhere('period_month', $m);
+        foreach ($employees as $employee) {
+            for ($m = $startMonth; $m <= $endMonth; $m++) {
+                $payslip = $employee->payslips->firstWhere('period_month', $m);
 
-                    $payrollData->push((object)[
-                        'user' => $employee,
-                        'month' => $m,
-                        'year' => $year,
-                        'payslip_status' => $payslip ? $payslip->status : 'BELUM_DIBUAT',
-                        'latest_payslip' => $payslip
-                    ]);
-                }
+                $payrollData->push((object)[
+                    'user' => $employee,
+                    'month' => $m,
+                    'year' => $year,
+                    'payslip_status' => $payslip ? $payslip->status : 'BELUM_DIBUAT',
+                    'latest_payslip' => $payslip
+                ]);
             }
         }
 
@@ -240,8 +237,7 @@ class PayslipController extends Controller
 
         // Send email if status is PUBLISHED
         if ($payslip->status === 'PUBLISHED' && $payslip->user->email) {
-            $ptId = $request->input('pt_id', $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null));
-            $ptName = \App\Models\Pt::find($ptId)->name ?? null;
+            $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
             Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
         }
 
@@ -308,8 +304,7 @@ class PayslipController extends Controller
         $payslip->update($data);
 
         if ($shouldSendEmail && $payslip->user->email) {
-            $ptId = $request->input('pt_id', $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null));
-            $ptName = \App\Models\Pt::find($ptId)->name ?? null;
+            $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
             Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
         }
 
@@ -394,8 +389,7 @@ class PayslipController extends Controller
                 'potongan_pph21',
                 'potongan_hutang',
                 'potongan_bpjs_kes',
-                'potongan_terlambat',
-                'sisa_utang'
+                'potongan_terlambat'
             ];
 
             foreach ($monetaryKeys as $key) {
@@ -444,7 +438,7 @@ class PayslipController extends Controller
                 'potongan_bpjs_kes' => $data['potongan_bpjs_kes'] ?? 0,
                 'potongan_terlambat' => $data['potongan_terlambat'] ?? 0,
 
-                'sisa_utang' => $data['sisa_utang'] ?? 0,
+                'sisa_utang' => isset($data['sisa_utang']) ? trim((string) $data['sisa_utang']) : null,
 
                 'total_pendapatan' => $totalPendapatan,
                 'total_potongan' => $totalPotongan,
@@ -467,8 +461,7 @@ class PayslipController extends Controller
             $shouldSendEmail = ($status === 'PUBLISHED');
 
             if ($shouldSendEmail && $payslip->user && $payslip->user->email) {
-                $ptId = $request->input('pt_id');
-                $ptName = \App\Models\Pt::find($ptId)->name ?? null;
+                $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
                 Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
             }
 
@@ -481,6 +474,85 @@ class PayslipController extends Controller
             'year' => $year,
             'pt_id' => $request->input('pt_id'),
         ])->with('success', "Berhasil mengimpor $count data slip gaji ($status).");
+    }
+
+    public function sendSelectedEmails(Request $request)
+    {
+        Gate::authorize('manage-payroll');
+
+        $selectedRows = collect($request->input('selected_rows', []))
+            ->filter(function ($value) {
+                return is_string($value) && preg_match('/^\d+-\d{1,2}-\d{4}$/', $value);
+            })
+            ->unique()
+            ->values();
+
+        if ($selectedRows->isEmpty()) {
+            return redirect()->back()->with('error', 'Pilih minimal satu data karyawan untuk kirim email.');
+        }
+
+        $sentCount = 0;
+        $draftPublishedCount = 0;
+        $missingPayslipCount = 0;
+        $missingEmailCount = 0;
+
+        foreach ($selectedRows as $rowKey) {
+            [$userId, $month, $year] = array_map('intval', explode('-', $rowKey));
+
+            $payslip = Payslip::where('user_id', $userId)
+                ->where('period_month', $month)
+                ->where('period_year', $year)
+                ->first();
+
+            if (!$payslip) {
+                $missingPayslipCount++;
+                continue;
+            }
+
+            if ($payslip->status === 'DRAFT') {
+                $payslip->status = 'PUBLISHED';
+                $payslip->save();
+                $draftPublishedCount++;
+            }
+
+            if (!$payslip->user || empty($payslip->user->email)) {
+                $missingEmailCount++;
+                continue;
+            }
+
+            $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
+            Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
+            $sentCount++;
+        }
+
+        $messages = ["{$sentCount} email berhasil diproses."];
+
+        if ($draftPublishedCount > 0) {
+            $messages[] = "{$draftPublishedCount} slip DRAFT diubah menjadi PUBLISHED.";
+        }
+        if ($missingPayslipCount > 0) {
+            $messages[] = "{$missingPayslipCount} data dilewati karena slip belum dibuat.";
+        }
+        if ($missingEmailCount > 0) {
+            $messages[] = "{$missingEmailCount} data dilewati karena email karyawan kosong.";
+        }
+
+        return redirect()->route('hr.payroll.index', [
+            'start_month' => $request->input('start_month', now()->month),
+            'end_month' => $request->input('end_month', now()->month),
+            'year' => $request->input('year', now()->year),
+            'pt_id' => $request->input('pt_id'),
+            'search' => $request->input('search'),
+        ])->with($sentCount > 0 ? 'success' : 'warning', implode(' ', $messages));
+    }
+
+    private function resolvePtNameByPayslipUserId(int $userId): ?string
+    {
+        $profile = EmployeeProfile::with('pt:id,name')
+            ->where('user_id', $userId)
+            ->first();
+
+        return $profile?->pt?->name;
     }
 
     private function cleanAndFormatCurrency($value)

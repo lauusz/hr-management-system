@@ -149,7 +149,7 @@
         <td>{{ optional($slip)->potongan_terlambat ?? 0 }}</td>
         <td>{{ optional($slip)->total_potongan ?? 0 }}</td>
         <td>{{ (optional($slip)->total_pendapatan ?? 0) - (optional($slip)->total_potongan ?? 0) }}</td>
-        <td>{{ optional($slip)->sisa_utang ?? 0 }}</td>
+        <td>{{ optional($slip)->sisa_utang ?? '' }}</td>
     </tr>
     @endforeach
 </table>

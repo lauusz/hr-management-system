@@ -135,7 +135,7 @@
                                 </td>
 
                                 <td>
-                                    <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][sisa_utang]" value="{{ number_format($row['sisa_utang'] ?? 0, 0, ',', '.') }}" class="form-control-sm" style="min-width: 100px;">
+                                    <input type="text" name="payslips[{{ $index }}][sisa_utang]" value="{{ $row['sisa_utang'] ?? '' }}" class="form-control-sm" style="min-width: 100px;">
                                 </td>
                             </tr>
                             @endforeach

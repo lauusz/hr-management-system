@@ -279,8 +279,8 @@
                     <table style="width: 100%;">
                         <tr>
                             <td class="font-bold" style="width: 35%;">ket/sisa utang &nbsp; &nbsp;:</td>
-                            <td class="bg-cyan font-bold" style="width: 5%; border: 1px solid #000; border-right: none; padding: 2px 4px;">Rp</td>
-                            <td class="bg-cyan text-right font-bold" style="width: 40%; border: 1px solid #000; border-left: none; padding: 2px 4px;">{{ number_format($payslip->sisa_utang, 2, ',', '.') }}</td>
+                            <td class="bg-cyan font-bold" style="width: 5%; border: 1px solid #000; border-right: none; padding: 2px 4px;"></td>
+                            <td class="bg-cyan text-right font-bold" style="width: 40%; border: 1px solid #000; border-left: none; padding: 2px 4px;">{{ $payslip->sisa_utang ?: '-' }}</td>
                             <td style="width: 20%;"></td>
                         </tr>
 

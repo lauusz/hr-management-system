@@ -11,12 +11,32 @@
                     </p>
                 </div>
                 <div style="text-align:right;">
-                    <form action="{{ route('hr.payroll.export') }}" method="GET" style="display:inline-block; margin-right: 8px;">
+                    <span style="display: inline-flex; align-items: center; margin-right: 8px; vertical-align: middle;">
+                        <span id="selected-count-badge" style="display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 24px; padding: 0 8px; border-radius: 9999px; font-size: 11px; font-weight: 700; color: #1f2937; background: #f3f4f6; border: 1px solid #d1d5db;">
+                            0
+                        </span>
+                        <span style="margin-left: 6px; font-size: 12px; color: #4b5563; font-weight: 500;">data dipilih</span>
+                    </span>
+                    <form id="payroll-send-email-form" action="{{ route('hr.payroll.send-email') }}" method="POST" style="display:inline-block; margin-right: 8px;">
+                        @csrf
                         <input type="hidden" name="start_month" value="{{ $startMonth }}">
                         <input type="hidden" name="end_month" value="{{ $endMonth }}">
                         <input type="hidden" name="year" value="{{ $year }}">
                         <input type="hidden" name="pt_id" value="{{ $ptId }}">
                         <input type="hidden" name="search" value="{{ request('search') }}">
+                        <div id="selected_rows_email_container"></div>
+
+                        <button type="button" id="open-send-email-confirm" class="btn-action" style="padding: 6px 16px; font-size: 12px; cursor: pointer;">
+                            Kirim Email
+                        </button>
+                    </form>
+                    <form id="payroll-export-form" action="{{ route('hr.payroll.export') }}" method="GET" style="display:inline-block; margin-right: 8px;">
+                        <input type="hidden" name="start_month" value="{{ $startMonth }}">
+                        <input type="hidden" name="end_month" value="{{ $endMonth }}">
+                        <input type="hidden" name="year" value="{{ $year }}">
+                        <input type="hidden" name="pt_id" value="{{ $ptId }}">
+                        <input type="hidden" name="search" value="{{ request('search') }}">
+                        <div id="selected_rows_container"></div>
 
                         <button type="submit" class="btn-action-outline-success" style="padding: 6px 16px; font-size: 12px; cursor: pointer; color: #16a34a; border: 1px solid #16a34a; background: transparent; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s;" onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='transparent'">
                             Unduh Data Excel
@@ -83,6 +103,7 @@
                 <div>
                     <label for="pt_id" style="display: block; font-size: 12px; margin-bottom: 4px; color: #4b5563; font-weight: 600;">Perusahaan (PT)</label>
                     <select name="pt_id" id="pt_id" style="width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px; font-size: 13px;">
+                        <option value="" {{ empty($ptId) ? 'selected' : '' }}>Semua PT</option>
                         @foreach($pts as $pt)
                         <option value="{{ $pt->id }}" {{ $ptId == $pt->id ? 'selected' : '' }}>
                             {{ $pt->name }}
@@ -124,6 +145,9 @@
             <table class="custom-table">
                 <thead>
                     <tr>
+                        <th style="width: 40px; text-align: center;">
+                            <input type="checkbox" id="select_all_payroll" title="Pilih semua">
+                        </th>
                         <th style="min-width: 200px;">Karyawan</th>
                         <th style="min-width: 150px;">Jabatan & Divisi</th>
                         <th style="min-width: 100px;">Bulan</th>
@@ -134,6 +158,9 @@
                 <tbody>
                     @forelse($payrollData as $data)
                     <tr>
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="payroll-row-checkbox" value="{{ $data->user->id }}-{{ $data->month }}-{{ $data->year }}" title="Pilih baris ini">
+                        </td>
                         <td>
                             <div class="employee-info">
                                 <div>
@@ -178,7 +205,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="4" class="empty-state">
+                        <td colspan="6" class="empty-state">
                             Tidak ada data karyawan ditemukan.
                         </td>
                     </tr>
@@ -187,6 +214,198 @@
             </table>
         </div>
     </div>
+
+    <x-modal
+        id="modal-send-email-confirm"
+        title="Konfirmasi Kirim Email"
+        type="form">
+        <p style="margin:0; color:#374151;">
+            Kirim email slip gaji ke semua data yang dicentang? Status DRAFT akan diubah menjadi PUBLISHED.
+        </p>
+
+        <div style="margin-top: 16px; display:flex; justify-content:flex-end; gap:10px;">
+            <button
+                type="button"
+                data-modal-close="true"
+                style="padding:9px 16px; border-radius:8px; border:1px solid #d1d5db; background:#fff; color:#374151; font-size:0.9rem; font-weight:600; cursor:pointer;">
+                Batal
+            </button>
+            <button
+                type="button"
+                id="confirm-send-email-submit"
+                style="padding:9px 20px; border-radius:8px; border:1px solid transparent; background:#1e4a8d; color:#fff; font-size:0.9rem; font-weight:600; cursor:pointer;">
+                Ya, Kirim Email
+            </button>
+        </div>
+    </x-modal>
+
+    <x-modal
+        id="modal-send-email-empty"
+        title="Data Belum Dipilih"
+        type="info"
+        cancelLabel="Tutup">
+        <p style="margin:0; color:#374151;">
+            Pilih minimal satu data karyawan yang akan dikirim email.
+        </p>
+    </x-modal>
+
+    <x-modal
+        id="modal-send-email-loading"
+        title="Mengirim Email"
+        type="form">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span class="payroll-loading-spinner" aria-hidden="true"></span>
+            <div style="color:#374151;">Proses pengiriman email sedang berjalan, mohon tunggu...</div>
+        </div>
+    </x-modal>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const exportForm = document.getElementById('payroll-export-form');
+            const sendEmailForm = document.getElementById('payroll-send-email-form');
+            const sendEmailTriggerButton = document.getElementById('open-send-email-confirm');
+            const confirmSendEmailSubmitButton = document.getElementById('confirm-send-email-submit');
+            const selectAllCheckbox = document.getElementById('select_all_payroll');
+            const selectedRowsContainer = document.getElementById('selected_rows_container');
+            const selectedRowsEmailContainer = document.getElementById('selected_rows_email_container');
+            const selectedCountBadge = document.getElementById('selected-count-badge');
+            const sendEmailConfirmModalId = 'modal-send-email-confirm';
+            const sendEmailEmptyModalId = 'modal-send-email-empty';
+            const sendEmailLoadingModalId = 'modal-send-email-loading';
+
+            const toggleModalById = (id, show) => {
+                const modal = document.getElementById(id);
+                if (!modal) {
+                    return;
+                }
+
+                modal.style.display = show ? 'flex' : 'none';
+                document.body.style.overflow = show ? 'hidden' : '';
+            };
+
+            const closeSendEmailConfirmModal = () => toggleModalById(sendEmailConfirmModalId, false);
+            const openSendEmailConfirmModal = () => toggleModalById(sendEmailConfirmModalId, true);
+            const openSendEmailEmptyModal = () => toggleModalById(sendEmailEmptyModalId, true);
+            const openSendEmailLoadingModal = () => toggleModalById(sendEmailLoadingModalId, true);
+
+            const getRowCheckboxes = () => Array.from(document.querySelectorAll('.payroll-row-checkbox'));
+
+            const syncSelectAllState = () => {
+                const rowCheckboxes = getRowCheckboxes();
+                const checkedCount = rowCheckboxes.filter((checkbox) => checkbox.checked).length;
+
+                if (!selectAllCheckbox) return;
+
+                if (selectedCountBadge) {
+                    selectedCountBadge.textContent = String(checkedCount);
+                    selectedCountBadge.style.background = checkedCount > 0 ? '#eef2ff' : '#f3f4f6';
+                    selectedCountBadge.style.borderColor = checkedCount > 0 ? '#c7d2fe' : '#d1d5db';
+                    selectedCountBadge.style.color = checkedCount > 0 ? '#3730a3' : '#1f2937';
+                }
+
+                if (rowCheckboxes.length === 0) {
+                    selectAllCheckbox.checked = false;
+                    selectAllCheckbox.indeterminate = false;
+                    return;
+                }
+
+                selectAllCheckbox.checked = checkedCount === rowCheckboxes.length;
+                selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < rowCheckboxes.length;
+            };
+
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function() {
+                    getRowCheckboxes().forEach((checkbox) => {
+                        checkbox.checked = this.checked;
+                    });
+                    syncSelectAllState();
+                });
+            }
+
+            getRowCheckboxes().forEach((checkbox) => {
+                checkbox.addEventListener('change', syncSelectAllState);
+            });
+
+            const appendSelectedRowsToContainer = (container, checkedRows) => {
+                if (!container) {
+                    return;
+                }
+
+                container.innerHTML = '';
+                checkedRows.forEach((checkbox) => {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = 'selected_rows[]';
+                    hiddenInput.value = checkbox.value;
+                    container.appendChild(hiddenInput);
+                });
+            };
+
+            const bindSelectedRowsSubmit = (form, container, emptyMessage, confirmMessage = null) => {
+                if (!form) {
+                    return;
+                }
+
+                form.addEventListener('submit', function(event) {
+                    const checkedRows = getRowCheckboxes().filter((checkbox) => checkbox.checked);
+
+                    if (checkedRows.length === 0) {
+                        event.preventDefault();
+                        alert(emptyMessage);
+                        return;
+                    }
+
+                    if (confirmMessage && !confirm(confirmMessage)) {
+                        event.preventDefault();
+                        return;
+                    }
+
+                    appendSelectedRowsToContainer(container, checkedRows);
+                });
+            };
+
+            bindSelectedRowsSubmit(
+                exportForm,
+                selectedRowsContainer,
+                'Pilih minimal satu data karyawan yang akan diunduh.'
+            );
+
+            if (sendEmailTriggerButton) {
+                sendEmailTriggerButton.addEventListener('click', function() {
+                    const checkedRows = getRowCheckboxes().filter((checkbox) => checkbox.checked);
+
+                    if (checkedRows.length === 0) {
+                        openSendEmailEmptyModal();
+                        return;
+                    }
+
+                    appendSelectedRowsToContainer(selectedRowsEmailContainer, checkedRows);
+                    openSendEmailConfirmModal();
+                });
+            }
+
+            if (confirmSendEmailSubmitButton && sendEmailForm) {
+                confirmSendEmailSubmitButton.addEventListener('click', function() {
+                    closeSendEmailConfirmModal();
+                    openSendEmailLoadingModal();
+                    sendEmailForm.submit();
+                });
+            }
+
+            const sendEmailLoadingModal = document.getElementById(sendEmailLoadingModalId);
+            if (sendEmailLoadingModal) {
+                sendEmailLoadingModal.querySelectorAll('[data-modal-close="true"]').forEach((button) => {
+                    button.style.display = 'none';
+                });
+
+                sendEmailLoadingModal.addEventListener('click', function(event) {
+                    event.stopPropagation();
+                }, true);
+            }
+
+            syncSelectAllState();
+        });
+    </script>
 
     <!-- STYLES COPIED FROM supervisor/leave_requests/index.blade.php FOR CONSISTENCY -->
     <style>
@@ -306,6 +525,22 @@
         .badge-red {
             background: #fee2e2;
             color: #991b1b;
+        }
+
+        .payroll-loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #e5e7eb;
+            border-top-color: #1e4a8d;
+            border-radius: 9999px;
+            display: inline-block;
+            animation: payroll-spin 0.8s linear infinite;
+        }
+
+        @keyframes payroll-spin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         /* --- ACTION BUTTONS --- */

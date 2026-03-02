@@ -82,7 +82,7 @@ class PayslipPreviewImport implements ToArray, WithStartRow
                 'potongan_terlambat'       => $this->cleanCurrency($row[23] ?? 0),
 
                 // Tambahan (Kolom AA / Index 26)
-                'sisa_utang'               => $this->cleanCurrency($row[26] ?? 0),
+                'sisa_utang'               => $this->cleanText($row[26] ?? ''),
             ];
 
             // Calculate totals
@@ -128,5 +128,16 @@ class PayslipPreviewImport implements ToArray, WithStartRow
         $value = str_replace(',', '.', $value);
 
         return (float) $value;
+    }
+
+    private function cleanText($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $text = trim((string) $value);
+
+        return $text === '' ? null : $text;
     }
 }

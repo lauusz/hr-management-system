@@ -144,9 +144,10 @@
                                 <label for="sisa_utang" class="form-label" style="flex: 1; margin: 0; padding: 6px 0; font-size: 13px; font-weight: 500; color: #4b5563;">Sisa Utang (Info)</label>
                                 <div style="width: 140px;">
                                     <input type="text" name="sisa_utang" id="sisa_utang"
-                                        value="{{ old('sisa_utang', isset($payslip) ? number_format($payslip->sisa_utang, 0, ',', '.') : '') }}"
-                                        class="form-input currency-input"
-                                        placeholder="0">
+                                        value="{{ old('sisa_utang', $payslip->sisa_utang ?? '') }}"
+                                        class="form-input"
+                                        placeholder="Keterangan"
+                                        style="text-align: left;">
                                 </div>
                             </div>
 

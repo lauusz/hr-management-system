@@ -14,7 +14,7 @@ class CompanyAssetHelper
         'PESONA'   => 'pesona-logo.png',
         'SIGAP'    => 'sigap-logo.jpg',
         'TRIGUNA'  => 'triguna-logo.png',
-        'TES'      => 'eli-logo.jpg', // Map test to eli for now
+        'TES'      => 'kharisma-logo.jpeg', // Map test to eli for now
         // Fallback or missing ones will return null
     ];
 
@@ -25,7 +25,7 @@ class CompanyAssetHelper
         'PESONA'   => 'pesona-stamp.png',
         'SIGAP'    => 'sigap-stamp.png',
         'TRIGUNA'  => 'triguna-stamp.png',
-        'TES'      => 'eli-stamp.png', // Map test to eli for now
+        'TES'      => 'kharisma-stamp.png', // Map test to eli for now
     ];
 
     /**
