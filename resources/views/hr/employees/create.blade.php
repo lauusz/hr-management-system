@@ -35,8 +35,8 @@
             <form class="form-content" method="POST" action="{{ route('hr.employees.store') }}" enctype="multipart/form-data">
                 @csrf
 
-                {{-- SECTION 1: AKUN & AKSES --}}
-                <div class="form-section-title">Data Akun & Akses</div>
+                {{-- SECTION 1: DATA KARYAWAN (URUT EXCEL) --}}
+                <div class="form-section-title">Data Karyawan</div>
                 <div class="form-grid">
                     <div class="form-group full-width">
                         <label for="name">Nama Lengkap <span class="req">*</span></label>
@@ -44,8 +44,27 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="username">Username</label>
-                        <input id="username" type="text" name="username" class="form-control" value="{{ old('username') }}" placeholder="Opsional">
+                        <label for="pt_id">Perusahaan (PT)</label>
+                        <select id="pt_id" name="pt_id" class="form-control">
+                            <option value="">Pilih PT</option>
+                            @foreach($ptOptions as $ptOption)
+                            <option value="{{ $ptOption->id }}" @selected(old('pt_id')==$ptOption->id)>{{ $ptOption->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="kategori">Kategori Pegawai</label>
+                        <select id="kategori" name="kategori" class="form-control">
+                            <option value="">Pilih Kategori</option>
+                            <option value="TETAP" @selected(old('kategori')==='TETAP' )>Karyawan Tetap</option>
+                            <option value="KONTRAK" @selected(old('kategori')==='KONTRAK' )>Karyawan Kontrak</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nik">NIK (Nomor Induk Karyawan)</label>
+                        <input id="nik" type="text" name="nik" class="form-control" value="{{ old('nik') }}">
                     </div>
 
                     <div class="form-group">
@@ -54,11 +73,16 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="role">Role / Peran <span class="req">*</span></label>
-                        <select id="role" name="role" class="form-control" required>
-                            <option value="">Pilih Role</option>
-                            @foreach ($roles as $role)
-                            <option value="{{ $role->value }}" @selected(old('role')===$role->value)>{{ $role->value }}</option>
+                        <label for="email">Email Kantor</label>
+                        <input id="email" type="email" name="email" class="form-control" value="{{ old('email') }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="position_id">Jabatan</label>
+                        <select id="position_id" name="position_id" class="form-control">
+                            <option value="">Tidak ada / Belum ditentukan</option>
+                            @foreach ($positions as $position)
+                            <option value="{{ $position->id }}" @selected(old('position_id')==$position->id)>{{ $position->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -73,12 +97,169 @@
                         </select>
                     </div>
 
-                    {{-- [BARU] 1. MANAGER (APPROVER) --}}
+                    <div class="form-group">
+                        <label for="kewarganegaraan">Kewarganegaraan</label>
+                        <input id="kewarganegaraan" type="text" name="kewarganegaraan" class="form-control" value="{{ old('kewarganegaraan') }}" placeholder="Misal: WNI">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="agama">Agama</label>
+                        <input id="agama" type="text" name="agama" class="form-control" value="{{ old('agama') }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="path_kartu_keluarga">Upload Kartu Keluarga</label>
+                        <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept=".jpg,.jpeg,.png" class="form-control-file">
+                        <small class="helper-text">Format: JPG/PNG, Maks 2MB.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="path_ktp">Upload KTP</label>
+                        <input id="path_ktp" type="file" name="path_ktp" accept=".jpg,.jpeg,.png" class="form-control-file">
+                        <small class="helper-text">Format: JPG/PNG, Maks 2MB.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nama_bank">Nama Bank</label>
+                        <input id="nama_bank" type="text" name="nama_bank" class="form-control" value="{{ old('nama_bank') }}" placeholder="Contoh: BCA">
+                    </div>
+                    <div class="form-group">
+                        <label for="no_rekening">Nomor Rekening</label>
+                        <input id="no_rekening" type="text" name="no_rekening" class="form-control" value="{{ old('no_rekening') }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pendidikan">Pendidikan Terakhir</label>
+                        <input id="pendidikan" type="text" name="pendidikan" class="form-control" value="{{ old('pendidikan') }}" placeholder="Contoh: S1 Teknik Informatika">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="jenis_kelamin">Jenis Kelamin</label>
+                        <select id="jenis_kelamin" name="jenis_kelamin" class="form-control">
+                            <option value="">Pilih</option>
+                            <option value="L" @selected(old('jenis_kelamin')==='L' )>Laki-laki</option>
+                            <option value="P" @selected(old('jenis_kelamin')==='P' )>Perempuan</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tgl_lahir">Tanggal Lahir</label>
+                        <input id="tgl_lahir" type="date" name="tgl_lahir" class="form-control" value="{{ old('tgl_lahir') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="tempat_lahir">Tempat Lahir</label>
+                        <input id="tempat_lahir" type="text" name="tempat_lahir" class="form-control" value="{{ old('tempat_lahir') }}">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                {{-- SECTION 2: DOMISILI --}}
+                <div class="form-section-title">Alamat Domisili</div>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="alamat1">Alamat Utama</label>
+                        <textarea id="alamat1" name="alamat1" rows="2" class="form-control">{{ old('alamat1') }}</textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="alamat2">Detail Alamat / Alamat Tambahan</label>
+                        <textarea id="alamat2" name="alamat2" rows="2" class="form-control" placeholder="Contoh: Blok B No. 12">{{ old('alamat2') }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="provinsi">Provinsi</label>
+                        <input id="provinsi" type="text" name="provinsi" class="form-control" value="{{ old('provinsi') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="kab_kota">Kabupaten / Kota</label>
+                        <input id="kab_kota" type="text" name="kab_kota" class="form-control" value="{{ old('kab_kota') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="kecamatan">Kecamatan</label>
+                        <input id="kecamatan" type="text" name="kecamatan" class="form-control" value="{{ old('kecamatan') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="desa_kelurahan">Desa / Kelurahan</label>
+                        <input id="desa_kelurahan" type="text" name="desa_kelurahan" class="form-control" value="{{ old('desa_kelurahan') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="kode_pos">Kode Pos</label>
+                        <input id="kode_pos" type="text" name="kode_pos" class="form-control" value="{{ old('kode_pos') }}">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                {{-- SECTION 3: PAJAK & BPJS --}}
+                <div class="form-section-title">Pajak & BPJS</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ptkp">Status PTKP</label>
+                        <input id="ptkp" type="text" name="ptkp" class="form-control" value="{{ old('ptkp') }}" placeholder="Contoh: TK/0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nomor_npwp">Nomor NPWP</label>
+                        <input id="nomor_npwp" type="text" name="nomor_npwp" class="form-control" value="{{ old('nomor_npwp') }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bpjs_tk">BPJS Ketenagakerjaan</label>
+                        <input id="bpjs_tk" type="text" name="bpjs_tk" class="form-control" value="{{ old('bpjs_tk') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="no_bpjs_kesehatan">BPJS Kesehatan</label>
+                        <input id="no_bpjs_kesehatan" type="text" name="no_bpjs_kesehatan" class="form-control" value="{{ old('no_bpjs_kesehatan') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="kelas_bpjs">Kelas BPJS</label>
+                        <input id="kelas_bpjs" type="text" name="kelas_bpjs" class="form-control" value="{{ old('kelas_bpjs') }}" placeholder="Contoh: Kelas 1">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                {{-- SECTION 4: MASA KERJA --}}
+                <div class="form-section-title">Masa Kerja</div>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="masa_kerja">Masa Kerja (Opsional)</label>
+                        <input id="masa_kerja" type="text" name="masa_kerja" class="form-control" value="{{ old('masa_kerja') }}" placeholder="Contoh: 2 Tahun 5 Bulan">
+                    </div>
+                    <div class="form-group">
+                        <label for="tgl_bergabung">Tanggal Bergabung</label>
+                        <input id="tgl_bergabung" type="date" name="tgl_bergabung" class="form-control" value="{{ old('tgl_bergabung') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="tgl_akhir_percobaan">Tanggal Akhir Percobaan (Probation)</label>
+                        <input id="tgl_akhir_percobaan" type="date" name="tgl_akhir_percobaan" class="form-control" value="{{ old('tgl_akhir_percobaan') }}">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                {{-- SECTION 5: AKUN & AKSES (DI LUAR EXCEL) --}}
+                <div class="form-section-title">Data Akun & Akses</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input id="username" type="text" name="username" class="form-control" value="{{ old('username') }}" placeholder="Opsional">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="role">Role / Peran <span class="req">*</span></label>
+                        <select id="role" name="role" class="form-control" required>
+                            <option value="">Pilih Role</option>
+                            @foreach ($roles as $role)
+                            <option value="{{ $role->value }}" @selected(old('role')===$role->value)>{{ $role->value }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- 1. MANAGER (APPROVER) --}}
                     <div class="form-group">
                         <label for="manager_id" style="color:#1e4a8d; font-weight:600;">Manager (Approver / Penyetuju)</label>
                         <select id="manager_id" name="manager_id" class="form-control">
                             <option value="">-- Tidak Ada / Langsung HRD --</option>
-                            {{-- Pastikan Controller mengirim variabel $managers --}}
                             @if(isset($managers))
                             @foreach($managers as $mgr)
                             <option value="{{ $mgr->id }}" @selected(old('manager_id')==$mgr->id)>
@@ -89,7 +270,7 @@
                         </select>
                     </div>
 
-                    {{-- [MODIFIKASI] 2. DIRECT SUPERVISOR (OBSERVER) --}}
+                    {{-- 2. DIRECT SUPERVISOR (OBSERVER) --}}
                     <div class="form-group">
                         <label for="direct_supervisor_id">Supervisor (Observer)</label>
                         <select id="direct_supervisor_id" name="direct_supervisor_id" class="form-control">
@@ -129,187 +310,6 @@
                             <line x1="12" y1="8" x2="12.01" y2="8"></line>
                         </svg>
                         Password default untuk karyawan baru adalah <b>123456</b>.
-                    </div>
-                </div>
-
-                <div class="section-divider"></div>
-
-                {{-- SECTION 2: INFO KARYAWAN --}}
-                <div class="form-section-title">Informasi Karyawan</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="pt_id">Perusahaan (PT)</label>
-                        <select id="pt_id" name="pt_id" class="form-control">
-                            <option value="">Pilih PT</option>
-                            @foreach($ptOptions as $ptOption)
-                            <option value="{{ $ptOption->id }}" @selected(old('pt_id')==$ptOption->id)>{{ $ptOption->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="kategori">Kategori Pegawai</label>
-                        <select id="kategori" name="kategori" class="form-control">
-                            <option value="">Pilih Kategori</option>
-                            <option value="TETAP" @selected(old('kategori')==='TETAP' )>Karyawan Tetap</option>
-                            <option value="KONTRAK" @selected(old('kategori')==='KONTRAK' )>Karyawan Kontrak</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="nik">NIK (Nomor Induk Karyawan)</label>
-                        <input id="nik" type="text" name="nik" class="form-control" value="{{ old('nik') }}">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="email">Email Kantor</label>
-                        <input id="email" type="email" name="email" class="form-control" value="{{ old('email') }}">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="position_id">Jabatan</label>
-                        <select id="position_id" name="position_id" class="form-control">
-                            <option value="">Tidak ada / Belum ditentukan</option>
-                            @foreach ($positions as $position)
-                            <option value="{{ $position->id }}" @selected(old('position_id')==$position->id)>{{ $position->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="kewarganegaraan">Kewarganegaraan</label>
-                        <input id="kewarganegaraan" type="text" name="kewarganegaraan" class="form-control" value="{{ old('kewarganegaraan') }}" placeholder="Misal: WNI">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="agama">Agama</label>
-                        <input id="agama" type="text" name="agama" class="form-control" value="{{ old('agama') }}">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="pendidikan">Pendidikan Terakhir</label>
-                        <input id="pendidikan" type="text" name="pendidikan" class="form-control" value="{{ old('pendidikan') }}" placeholder="Contoh: S1 Teknik Informatika">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="jenis_kelamin">Jenis Kelamin</label>
-                        <select id="jenis_kelamin" name="jenis_kelamin" class="form-control">
-                            <option value="">Pilih</option>
-                            <option value="L" @selected(old('jenis_kelamin')==='L' )>Laki-laki</option>
-                            <option value="P" @selected(old('jenis_kelamin')==='P' )>Perempuan</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="tgl_lahir">Tanggal Lahir</label>
-                        <input id="tgl_lahir" type="date" name="tgl_lahir" class="form-control" value="{{ old('tgl_lahir') }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="tempat_lahir">Tempat Lahir</label>
-                        <input id="tempat_lahir" type="text" name="tempat_lahir" class="form-control" value="{{ old('tempat_lahir') }}">
-                    </div>
-                </div>
-
-                <div class="section-divider"></div>
-
-                {{-- SECTION 3: DOMISILI --}}
-                <div class="form-section-title">Alamat Domisili</div>
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label for="alamat1">Alamat Utama</label>
-                        <textarea id="alamat1" name="alamat1" rows="2" class="form-control">{{ old('alamat1') }}</textarea>
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="alamat2">Detail Alamat / Alamat Tambahan</label>
-                        <textarea id="alamat2" name="alamat2" rows="2" class="form-control" placeholder="Contoh: Blok B No. 12">{{ old('alamat2') }}</textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="provinsi">Provinsi</label>
-                        <input id="provinsi" type="text" name="provinsi" class="form-control" value="{{ old('provinsi') }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="kab_kota">Kabupaten / Kota</label>
-                        <input id="kab_kota" type="text" name="kab_kota" class="form-control" value="{{ old('kab_kota') }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="kecamatan">Kecamatan</label>
-                        <input id="kecamatan" type="text" name="kecamatan" class="form-control" value="{{ old('kecamatan') }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="desa_kelurahan">Desa / Kelurahan</label>
-                        <input id="desa_kelurahan" type="text" name="desa_kelurahan" class="form-control" value="{{ old('desa_kelurahan') }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="kode_pos">Kode Pos</label>
-                        <input id="kode_pos" type="text" name="kode_pos" class="form-control" value="{{ old('kode_pos') }}">
-                    </div>
-                </div>
-
-                <div class="section-divider"></div>
-
-                {{-- SECTION 4: KEUANGAN & DOKUMEN --}}
-                <div class="form-section-title">Keuangan, Pajak & Dokumen</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="nama_bank">Nama Bank</label>
-                        <input id="nama_bank" type="text" name="nama_bank" class="form-control" value="{{ old('nama_bank') }}" placeholder="Contoh: BCA">
-                    </div>
-                    <div class="form-group">
-                        <label for="no_rekening">Nomor Rekening</label>
-                        <input id="no_rekening" type="text" name="no_rekening" class="form-control" value="{{ old('no_rekening') }}">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="nomor_npwp">Nomor NPWP</label>
-                        <input id="nomor_npwp" type="text" name="nomor_npwp" class="form-control" value="{{ old('nomor_npwp') }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="ptkp">Status PTKP</label>
-                        <input id="ptkp" type="text" name="ptkp" class="form-control" value="{{ old('ptkp') }}" placeholder="Contoh: TK/0">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="bpjs_tk">BPJS Ketenagakerjaan</label>
-                        <input id="bpjs_tk" type="text" name="bpjs_tk" class="form-control" value="{{ old('bpjs_tk') }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="no_bpjs_kesehatan">BPJS Kesehatan</label>
-                        <input id="no_bpjs_kesehatan" type="text" name="no_bpjs_kesehatan" class="form-control" value="{{ old('no_bpjs_kesehatan') }}">
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="kelas_bpjs">Kelas BPJS</label>
-                        <input id="kelas_bpjs" type="text" name="kelas_bpjs" class="form-control" value="{{ old('kelas_bpjs') }}" placeholder="Contoh: Kelas 1">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="path_ktp">Upload KTP</label>
-                        <input id="path_ktp" type="file" name="path_ktp" accept=".jpg,.jpeg,.png" class="form-control-file">
-                        <small class="helper-text">Format: JPG/PNG, Maks 2MB.</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="path_kartu_keluarga">Upload Kartu Keluarga</label>
-                        <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept=".jpg,.jpeg,.png" class="form-control-file">
-                        <small class="helper-text">Format: JPG/PNG, Maks 2MB.</small>
-                    </div>
-                </div>
-
-                <div class="section-divider"></div>
-
-                {{-- SECTION 5: MASA KERJA --}}
-                <div class="form-section-title">Masa Kerja</div>
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label for="masa_kerja">Masa Kerja (Opsional)</label>
-                        <input id="masa_kerja" type="text" name="masa_kerja" class="form-control" value="{{ old('masa_kerja') }}" placeholder="Contoh: 2 Tahun 5 Bulan">
-                    </div>
-                    <div class="form-group">
-                        <label for="tgl_bergabung">Tanggal Bergabung</label>
-                        <input id="tgl_bergabung" type="date" name="tgl_bergabung" class="form-control" value="{{ old('tgl_bergabung') }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="tgl_akhir_percobaan">Tanggal Akhir Percobaan (Probation)</label>
-                        <input id="tgl_akhir_percobaan" type="date" name="tgl_akhir_percobaan" class="form-control" value="{{ old('tgl_akhir_percobaan') }}">
                     </div>
                 </div>
 

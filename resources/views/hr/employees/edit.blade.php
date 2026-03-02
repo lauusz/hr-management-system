@@ -41,8 +41,8 @@
                 $profile = $item->profile;
                 @endphp
 
-                {{-- SECTION 1: AKUN & AKSES --}}
-                <div class="form-section-title">Data Akun & Akses</div>
+                {{-- SECTION 1: DATA KARYAWAN (URUT EXCEL) --}}
+                <div class="form-section-title">Data Karyawan (Sesuai Excel)</div>
                 <div class="form-grid">
                     <div class="form-group full-width">
                         <label for="name">Nama Lengkap <span class="req">*</span></label>
@@ -50,8 +50,27 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="username">Username</label>
-                        <input id="username" type="text" name="username" class="form-control" value="{{ old('username', $item->username) }}">
+                        <label for="pt_id">Perusahaan (PT)</label>
+                        <select id="pt_id" name="pt_id" class="form-control">
+                            <option value="">Pilih PT</option>
+                            @foreach($ptOptions as $ptOption)
+                            <option value="{{ $ptOption->id }}" @selected(old('pt_id', optional($profile)->pt_id) == $ptOption->id)>{{ $ptOption->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="kategori">Kategori Pegawai</label>
+                        <select id="kategori" name="kategori" class="form-control">
+                            <option value="">Pilih Kategori</option>
+                            <option value="TETAP" @selected(old('kategori', optional($profile)->kategori) === 'TETAP')>Karyawan Tetap</option>
+                            <option value="KONTRAK" @selected(old('kategori', optional($profile)->kategori) === 'KONTRAK')>Karyawan Kontrak</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nik">NIK (Nomor Induk Karyawan)</label>
+                        <input id="nik" type="text" name="nik" class="form-control" value="{{ old('nik', optional($profile)->nik) }}">
                     </div>
 
                     <div class="form-group">
@@ -60,16 +79,16 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="role">Role / Peran <span class="req">*</span></label>
-                        <select id="role" name="role" class="form-control" required>
-                            <option value="">Pilih Role</option>
-                            @foreach ($roles as $role)
-                            @php
-                            $currentRole = old('role', $item->role);
-                            $currentRoleValue = $currentRole instanceof \UnitEnum ? $currentRole->value : $currentRole;
-                            @endphp
+                        <label for="email">Email Kantor</label>
+                        <input id="email" type="email" name="email" class="form-control" value="{{ old('email', optional($profile)->email) }}">
+                    </div>
 
-                            <option value="{{ $role->value }}" @selected($currentRoleValue==$role->value)>{{ $role->value }}</option>
+                    <div class="form-group">
+                        <label for="position_id">Jabatan</label>
+                        <select id="position_id" name="position_id" class="form-control">
+                            <option value="">Tidak ada / Belum ditentukan</option>
+                            @foreach ($positions as $position)
+                            <option value="{{ $position->id }}" @selected(old('position_id', $item->position_id) == $position->id)>{{ $position->name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -80,6 +99,238 @@
                             <option value="">Tidak ada / Belum ditentukan</option>
                             @foreach ($divisions as $division)
                             <option value="{{ $division->id }}" @selected(old('division_id', $item->division_id) == $division->id)>{{ $division->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="kewarganegaraan">Kewarganegaraan</label>
+                        <input id="kewarganegaraan" type="text" name="kewarganegaraan" class="form-control" value="{{ old('kewarganegaraan', optional($profile)->kewarganegaraan) }}" placeholder="Misal: WNI">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="agama">Agama</label>
+                        <input id="agama" type="text" name="agama" class="form-control" value="{{ old('agama', optional($profile)->agama) }}">
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label for="path_kartu_keluarga">Upload Kartu Keluarga</label>
+                            @if(optional($profile)->path_kartu_keluarga)
+                            @php $kkModalId = 'modal-kk-'.$item->id; @endphp
+                            <button type="button" class="btn-sm-view" data-modal-open="{{ $kkModalId }}">Lihat File Saat Ini</button>
+
+                            <x-modal :id="$kkModalId" title="Kartu Keluarga" type="info">
+                                <div style="text-align:center;">
+                                    <img src="{{ asset('storage/' . $profile->path_kartu_keluarga) }}" alt="Kartu Keluarga" style="max-width:100%; border-radius:8px;">
+                                </div>
+                            </x-modal>
+                            @endif
+                        </div>
+                        <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept=".jpg,.jpeg,.png" class="form-control-file">
+                        <small class="helper-text">Format: JPG/PNG, Maks 2MB. Kosongkan jika tidak ingin mengubah.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label for="path_ktp">Upload KTP</label>
+                            @if(optional($profile)->path_ktp)
+                            @php $ktpModalId = 'modal-ktp-'.$item->id; @endphp
+                            <button type="button" class="btn-sm-view" data-modal-open="{{ $ktpModalId }}">Lihat File Saat Ini</button>
+
+                            <x-modal :id="$ktpModalId" title="KTP" type="info">
+                                <div style="text-align:center;">
+                                    <img src="{{ asset('storage/' . $profile->path_ktp) }}" alt="KTP" style="max-width:100%; border-radius:8px;">
+                                </div>
+                            </x-modal>
+                            @endif
+                        </div>
+                        <input id="path_ktp" type="file" name="path_ktp" accept=".jpg,.jpeg,.png" class="form-control-file">
+                        <small class="helper-text">Format: JPG/PNG, Maks 2MB. Kosongkan jika tidak ingin mengubah.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nama_bank">Nama Bank</label>
+                        <input id="nama_bank" type="text" name="nama_bank" class="form-control" value="{{ old('nama_bank', optional($profile)->nama_bank) }}" placeholder="Contoh: BCA">
+                    </div>
+                    <div class="form-group">
+                        <label for="no_rekening">Nomor Rekening</label>
+                        <input id="no_rekening" type="text" name="no_rekening" class="form-control" value="{{ old('no_rekening', optional($profile)->no_rekening) }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pendidikan">Pendidikan Terakhir</label>
+                        <input id="pendidikan" type="text" name="pendidikan" class="form-control" value="{{ old('pendidikan', optional($profile)->pendidikan) }}" placeholder="Contoh: S1 Teknik Informatika">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="jenis_kelamin">Jenis Kelamin</label>
+                        <select id="jenis_kelamin" name="jenis_kelamin" class="form-control">
+                            <option value="">Pilih</option>
+                            <option value="L" @selected(old('jenis_kelamin', optional($profile)->jenis_kelamin) === 'L')>Laki-laki</option>
+                            <option value="P" @selected(old('jenis_kelamin', optional($profile)->jenis_kelamin) === 'P')>Perempuan</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tgl_lahir">Tanggal Lahir</label>
+                        <input id="tgl_lahir" type="date" name="tgl_lahir" class="form-control" value="{{ old('tgl_lahir', optional(optional($profile)->tgl_lahir)->format('Y-m-d')) }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="tempat_lahir">Tempat Lahir</label>
+                        <input id="tempat_lahir" type="text" name="tempat_lahir" class="form-control" value="{{ old('tempat_lahir', optional($profile)->tempat_lahir) }}">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                {{-- SECTION 2: DOMISILI --}}
+                <div class="form-section-title">Alamat Domisili</div>
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label for="alamat1">Alamat Utama</label>
+                        <textarea id="alamat1" name="alamat1" rows="2" class="form-control">{{ old('alamat1', optional($profile)->alamat1) }}</textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="alamat2">Detail Alamat / Alamat Tambahan</label>
+                        <textarea id="alamat2" name="alamat2" rows="2" class="form-control" placeholder="Contoh: Blok B No. 12">{{ old('alamat2', optional($profile)->alamat2) }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="provinsi">Provinsi</label>
+                        <input id="provinsi" type="text" name="provinsi" class="form-control" value="{{ old('provinsi', optional($profile)->provinsi) }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="kab_kota">Kabupaten / Kota</label>
+                        <input id="kab_kota" type="text" name="kab_kota" class="form-control" value="{{ old('kab_kota', optional($profile)->kab_kota) }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="kecamatan">Kecamatan</label>
+                        <input id="kecamatan" type="text" name="kecamatan" class="form-control" value="{{ old('kecamatan', optional($profile)->kecamatan) }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="desa_kelurahan">Desa / Kelurahan</label>
+                        <input id="desa_kelurahan" type="text" name="desa_kelurahan" class="form-control" value="{{ old('desa_kelurahan', optional($profile)->desa_kelurahan) }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="kode_pos">Kode Pos</label>
+                        <input id="kode_pos" type="text" name="kode_pos" class="form-control" value="{{ old('kode_pos', optional($profile)->kode_pos) }}">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                {{-- SECTION 3: PAJAK & BPJS --}}
+                <div class="form-section-title">Pajak & BPJS</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ptkp">Status PTKP</label>
+                        <input id="ptkp" type="text" name="ptkp" class="form-control" value="{{ old('ptkp', optional($profile)->ptkp) }}" placeholder="Contoh: TK/0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nomor_npwp">Nomor NPWP</label>
+                        <input id="nomor_npwp" type="text" name="nomor_npwp" class="form-control" value="{{ old('nomor_npwp', optional($profile)->nomor_npwp) }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bpjs_tk">BPJS Ketenagakerjaan</label>
+                        <input id="bpjs_tk" type="text" name="bpjs_tk" class="form-control" value="{{ old('bpjs_tk', optional($profile)->bpjs_tk) }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="no_bpjs_kesehatan">BPJS Kesehatan</label>
+                        <input id="no_bpjs_kesehatan" type="text" name="no_bpjs_kesehatan" class="form-control" value="{{ old('no_bpjs_kesehatan', optional($profile)->no_bpjs_kesehatan) }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="kelas_bpjs">Kelas BPJS</label>
+                        <input id="kelas_bpjs" type="text" name="kelas_bpjs" class="form-control" value="{{ old('kelas_bpjs', optional($profile)->kelas_bpjs) }}" placeholder="Contoh: Kelas 1">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+                {{-- SECTION 4: MASA KERJA --}}
+                <div class="form-section-title">Masa Kerja</div>
+                <div class="form-grid">
+
+                    {{-- [FIXED LOGIC MASA KERJA] --}}
+                    @php
+                    // 1. Ambil data manual dari database
+                    $masaKerjaValue = old('masa_kerja', optional($profile)->masa_kerja);
+
+                    // 2. Jika kosong atau formatnya aneh (ada desimal panjang), kita hitung ulang otomatis
+                    $joinDate = optional($profile)->tgl_bergabung;
+
+                    if ($joinDate && (!$masaKerjaValue || str_contains($masaKerjaValue, '.'))) {
+                    try {
+                    // Hitung selisih waktu dari Tgl Bergabung sampai Sekarang
+                    $joinCarbon = \Carbon\Carbon::parse($joinDate);
+                    $now = \Carbon\Carbon::now();
+
+                    $diff = $joinCarbon->diff($now);
+
+                    // Format string rapi: "2 Tahun 5 Bulan"
+                    $parts = [];
+                    if ($diff->y > 0) $parts[] = $diff->y . ' Tahun';
+                    if ($diff->m > 0) $parts[] = $diff->m . ' Bulan';
+
+                    // Jika baru gabung (kurang dari sebulan), tampilkan hari
+                    if (empty($parts) && $diff->d > 0) {
+                    $parts[] = $diff->d . ' Hari';
+                    }
+
+                    // Gabungkan jadi string
+                    $masaKerjaValue = implode(' ', $parts);
+
+                    } catch (\Exception $e) {
+                    // Fallback jika tanggal error
+                    $masaKerjaValue = '';
+                    }
+                    }
+                    @endphp
+
+                    <div class="form-group full-width">
+                        <label for="masa_kerja">Masa Kerja (Hitung Otomatis / Opsional)</label>
+                        <input id="masa_kerja" type="text" name="masa_kerja" class="form-control"
+                            value="{{ $masaKerjaValue }}"
+                            placeholder="Contoh: 2 Tahun 5 Bulan"
+                            disabled>
+                        <small class="helper-text" style="color:#6b7280;">Sistem otomatis menghitung berdasarkan Tanggal Bergabung di bawah.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tgl_bergabung">Tanggal Bergabung</label>
+                        <input id="tgl_bergabung" type="date" name="tgl_bergabung" class="form-control"
+                            value="{{ old('tgl_bergabung', optional(optional($profile)->tgl_bergabung)->format('Y-m-d')) }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tgl_akhir_percobaan">Tanggal Akhir Percobaan (Probation)</label>
+                        <input id="tgl_akhir_percobaan" type="date" name="tgl_akhir_percobaan" class="form-control"
+                            value="{{ old('tgl_akhir_percobaan', optional(optional($profile)->tgl_akhir_percobaan)->format('Y-m-d')) }}">
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                {{-- SECTION 5: AKUN & AKSES (DI LUAR EXCEL) --}}
+                <div class="form-section-title">Data Akun & Akses</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input id="username" type="text" name="username" class="form-control" value="{{ old('username', $item->username) }}">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="role">Role / Peran <span class="req">*</span></label>
+                        <select id="role" name="role" class="form-control" required>
+                            <option value="">Pilih Role</option>
+                            @foreach ($roles as $role)
+                            @php
+                            $currentRole = old('role', $item->role);
+                            $currentRoleValue = $currentRole instanceof \BackedEnum ? $currentRole->value : $currentRole;
+                            @endphp
+
+                            <option value="{{ $role->value }}" @selected($currentRoleValue==$role->value)>{{ $role->value }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -152,7 +403,7 @@
                         Password tidak ditampilkan. Gunakan tombol di bawah ini jika ingin mereset password menjadi default (123456).
                     </div>
 
-                    {{-- [BARU] Tombol Reset Password --}}
+                    {{-- Tombol Reset Password --}}
                     <div class="form-group full-width" style="margin-top: 8px;">
                         <button type="button" class="btn-reset-danger" data-modal-open="modal-reset-password">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -160,256 +411,6 @@
                             </svg>
                             Reset Password
                         </button>
-                    </div>
-                </div>
-
-                <div class="section-divider"></div>
-
-                {{-- SECTION 2: INFO KARYAWAN --}}
-                <div class="form-section-title">Informasi Karyawan</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="pt_id">Perusahaan (PT)</label>
-                        <select id="pt_id" name="pt_id" class="form-control">
-                            <option value="">Pilih PT</option>
-                            @foreach($ptOptions as $ptOption)
-                            <option value="{{ $ptOption->id }}" @selected(old('pt_id', optional($profile)->pt_id) == $ptOption->id)>{{ $ptOption->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="kategori">Kategori Pegawai</label>
-                        <select id="kategori" name="kategori" class="form-control">
-                            <option value="">Pilih Kategori</option>
-                            <option value="TETAP" @selected(old('kategori', optional($profile)->kategori) === 'TETAP')>Karyawan Tetap</option>
-                            <option value="KONTRAK" @selected(old('kategori', optional($profile)->kategori) === 'KONTRAK')>Karyawan Kontrak</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="nik">NIK (Nomor Induk Karyawan)</label>
-                        <input id="nik" type="text" name="nik" class="form-control" value="{{ old('nik', optional($profile)->nik) }}">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="email">Email Kantor</label>
-                        <input id="email" type="email" name="email" class="form-control" value="{{ old('email', optional($profile)->email) }}">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="position_id">Jabatan</label>
-                        <select id="position_id" name="position_id" class="form-control">
-                            <option value="">Tidak ada / Belum ditentukan</option>
-                            @foreach ($positions as $position)
-                            <option value="{{ $position->id }}" @selected(old('position_id', $item->position_id) == $position->id)>{{ $position->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="kewarganegaraan">Kewarganegaraan</label>
-                        <input id="kewarganegaraan" type="text" name="kewarganegaraan" class="form-control" value="{{ old('kewarganegaraan', optional($profile)->kewarganegaraan) }}" placeholder="Misal: WNI">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="agama">Agama</label>
-                        <input id="agama" type="text" name="agama" class="form-control" value="{{ old('agama', optional($profile)->agama) }}">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="pendidikan">Pendidikan Terakhir</label>
-                        <input id="pendidikan" type="text" name="pendidikan" class="form-control" value="{{ old('pendidikan', optional($profile)->pendidikan) }}" placeholder="Contoh: S1 Teknik Informatika">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="jenis_kelamin">Jenis Kelamin</label>
-                        <select id="jenis_kelamin" name="jenis_kelamin" class="form-control">
-                            <option value="">Pilih</option>
-                            <option value="L" @selected(old('jenis_kelamin', optional($profile)->jenis_kelamin) === 'L')>Laki-laki</option>
-                            <option value="P" @selected(old('jenis_kelamin', optional($profile)->jenis_kelamin) === 'P')>Perempuan</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="tgl_lahir">Tanggal Lahir</label>
-                        <input id="tgl_lahir" type="date" name="tgl_lahir" class="form-control" value="{{ old('tgl_lahir', optional(optional($profile)->tgl_lahir)->format('Y-m-d')) }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="tempat_lahir">Tempat Lahir</label>
-                        <input id="tempat_lahir" type="text" name="tempat_lahir" class="form-control" value="{{ old('tempat_lahir', optional($profile)->tempat_lahir) }}">
-                    </div>
-                </div>
-
-                <div class="section-divider"></div>
-
-                {{-- SECTION 3: DOMISILI --}}
-                <div class="form-section-title">Alamat Domisili</div>
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label for="alamat1">Alamat Utama</label>
-                        <textarea id="alamat1" name="alamat1" rows="2" class="form-control">{{ old('alamat1', optional($profile)->alamat1) }}</textarea>
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="alamat2">Detail Alamat / Alamat Tambahan</label>
-                        <textarea id="alamat2" name="alamat2" rows="2" class="form-control" placeholder="Contoh: Blok B No. 12">{{ old('alamat2', optional($profile)->alamat2) }}</textarea>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="provinsi">Provinsi</label>
-                        <input id="provinsi" type="text" name="provinsi" class="form-control" value="{{ old('provinsi', optional($profile)->provinsi) }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="kab_kota">Kabupaten / Kota</label>
-                        <input id="kab_kota" type="text" name="kab_kota" class="form-control" value="{{ old('kab_kota', optional($profile)->kab_kota) }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="kecamatan">Kecamatan</label>
-                        <input id="kecamatan" type="text" name="kecamatan" class="form-control" value="{{ old('kecamatan', optional($profile)->kecamatan) }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="desa_kelurahan">Desa / Kelurahan</label>
-                        <input id="desa_kelurahan" type="text" name="desa_kelurahan" class="form-control" value="{{ old('desa_kelurahan', optional($profile)->desa_kelurahan) }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="kode_pos">Kode Pos</label>
-                        <input id="kode_pos" type="text" name="kode_pos" class="form-control" value="{{ old('kode_pos', optional($profile)->kode_pos) }}">
-                    </div>
-                </div>
-
-                <div class="section-divider"></div>
-
-                {{-- SECTION 4: KEUANGAN & DOKUMEN --}}
-                <div class="form-section-title">Keuangan, Pajak & Dokumen</div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="nama_bank">Nama Bank</label>
-                        <input id="nama_bank" type="text" name="nama_bank" class="form-control" value="{{ old('nama_bank', optional($profile)->nama_bank) }}" placeholder="Contoh: BCA">
-                    </div>
-                    <div class="form-group">
-                        <label for="no_rekening">Nomor Rekening</label>
-                        <input id="no_rekening" type="text" name="no_rekening" class="form-control" value="{{ old('no_rekening', optional($profile)->no_rekening) }}">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="nomor_npwp">Nomor NPWP</label>
-                        <input id="nomor_npwp" type="text" name="nomor_npwp" class="form-control" value="{{ old('nomor_npwp', optional($profile)->nomor_npwp) }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="ptkp">Status PTKP</label>
-                        <input id="ptkp" type="text" name="ptkp" class="form-control" value="{{ old('ptkp', optional($profile)->ptkp) }}" placeholder="Contoh: TK/0">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="bpjs_tk">BPJS Ketenagakerjaan</label>
-                        <input id="bpjs_tk" type="text" name="bpjs_tk" class="form-control" value="{{ old('bpjs_tk', optional($profile)->bpjs_tk) }}">
-                    </div>
-                    <div class="form-group">
-                        <label for="no_bpjs_kesehatan">BPJS Kesehatan</label>
-                        <input id="no_bpjs_kesehatan" type="text" name="no_bpjs_kesehatan" class="form-control" value="{{ old('no_bpjs_kesehatan', optional($profile)->no_bpjs_kesehatan) }}">
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="kelas_bpjs">Kelas BPJS</label>
-                        <input id="kelas_bpjs" type="text" name="kelas_bpjs" class="form-control" value="{{ old('kelas_bpjs', optional($profile)->kelas_bpjs) }}" placeholder="Contoh: Kelas 1">
-                    </div>
-
-                    <div class="form-group">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <label for="path_ktp">Upload KTP</label>
-                            @if(optional($profile)->path_ktp)
-                            @php $ktpModalId = 'modal-ktp-'.$item->id; @endphp
-                            <button type="button" class="btn-sm-view" data-modal-open="{{ $ktpModalId }}">Lihat File Saat Ini</button>
-
-                            <x-modal :id="$ktpModalId" title="KTP" type="info">
-                                <div style="text-align:center;">
-                                    <img src="{{ asset('storage/' . $profile->path_ktp) }}" alt="KTP" style="max-width:100%; border-radius:8px;">
-                                </div>
-                            </x-modal>
-                            @endif
-                        </div>
-                        <input id="path_ktp" type="file" name="path_ktp" accept=".jpg,.jpeg,.png" class="form-control-file">
-                        <small class="helper-text">Format: JPG/PNG, Maks 2MB. Kosongkan jika tidak ingin mengubah.</small>
-                    </div>
-
-                    <div class="form-group">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <label for="path_kartu_keluarga">Upload Kartu Keluarga</label>
-                            @if(optional($profile)->path_kartu_keluarga)
-                            @php $kkModalId = 'modal-kk-'.$item->id; @endphp
-                            <button type="button" class="btn-sm-view" data-modal-open="{{ $kkModalId }}">Lihat File Saat Ini</button>
-
-                            <x-modal :id="$kkModalId" title="Kartu Keluarga" type="info">
-                                <div style="text-align:center;">
-                                    <img src="{{ asset('storage/' . $profile->path_kartu_keluarga) }}" alt="Kartu Keluarga" style="max-width:100%; border-radius:8px;">
-                                </div>
-                            </x-modal>
-                            @endif
-                        </div>
-                        <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept=".jpg,.jpeg,.png" class="form-control-file">
-                        <small class="helper-text">Format: JPG/PNG, Maks 2MB. Kosongkan jika tidak ingin mengubah.</small>
-                    </div>
-                </div>
-
-                <div class="section-divider"></div>
-                {{-- SECTION 5: MASA KERJA --}}
-                <div class="form-section-title">Masa Kerja</div>
-                <div class="form-grid">
-
-                    {{-- [FIXED LOGIC MASA KERJA] --}}
-                    @php
-                    // 1. Ambil data manual dari database
-                    $masaKerjaValue = old('masa_kerja', optional($profile)->masa_kerja);
-
-                    // 2. Jika kosong atau formatnya aneh (ada desimal panjang), kita hitung ulang otomatis
-                    $joinDate = optional($profile)->tgl_bergabung;
-
-                    if ($joinDate && (!$masaKerjaValue || str_contains($masaKerjaValue, '.'))) {
-                    try {
-                    // Hitung selisih waktu dari Tgl Bergabung sampai Sekarang
-                    $joinCarbon = \Carbon\Carbon::parse($joinDate);
-                    $now = \Carbon\Carbon::now();
-
-                    $diff = $joinCarbon->diff($now);
-
-                    // Format string rapi: "2 Tahun 5 Bulan"
-                    $parts = [];
-                    if ($diff->y > 0) $parts[] = $diff->y . ' Tahun';
-                    if ($diff->m > 0) $parts[] = $diff->m . ' Bulan';
-
-                    // Jika baru gabung (kurang dari sebulan), tampilkan hari
-                    if (empty($parts) && $diff->d > 0) {
-                    $parts[] = $diff->d . ' Hari';
-                    }
-
-                    // Gabungkan jadi string
-                    $masaKerjaValue = implode(' ', $parts);
-
-                    } catch (\Exception $e) {
-                    // Fallback jika tanggal error
-                    $masaKerjaValue = '';
-                    }
-                    }
-                    @endphp
-
-                    <div class="form-group full-width">
-                        <label for="masa_kerja">Masa Kerja (Hitung Otomatis / Opsional)</label>
-                        <input id="masa_kerja" type="text" name="masa_kerja" class="form-control"
-                            value="{{ $masaKerjaValue }}"
-                            placeholder="Contoh: 2 Tahun 5 Bulan"
-                            disabled>
-                        <small class="helper-text" style="color:#6b7280;">Sistem otomatis menghitung berdasarkan Tanggal Bergabung di bawah.</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="tgl_bergabung">Tanggal Bergabung</label>
-                        <input id="tgl_bergabung" type="date" name="tgl_bergabung" class="form-control"
-                            value="{{ old('tgl_bergabung', optional(optional($profile)->tgl_bergabung)->format('Y-m-d')) }}">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="tgl_akhir_percobaan">Tanggal Akhir Percobaan (Probation)</label>
-                        <input id="tgl_akhir_percobaan" type="date" name="tgl_akhir_percobaan" class="form-control"
-                            value="{{ old('tgl_akhir_percobaan', optional(optional($profile)->tgl_akhir_percobaan)->format('Y-m-d')) }}">
                     </div>
                 </div>
 
