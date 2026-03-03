@@ -141,10 +141,18 @@
                             </div>
 
                             <div class="spreadsheet-row" style="display: flex; align-items: center; padding: 2px 8px; margin-bottom: 24px; transition: background-color 0.15s; border-radius: 4px; border-bottom: 1px solid #e2e8f0;">
-                                <label for="sisa_utang" class="form-label" style="flex: 1; margin: 0; padding: 6px 0; font-size: 13px; font-weight: 500; color: #4b5563;">Sisa Utang (Info)</label>
+                                <label for="sisa_utang" class="form-label" style="flex: 1; margin: 0; padding: 6px 0; font-size: 13px; font-weight: 500; color: #4b5563;">Ket / Sisa Utang</label>
                                 <div style="width: 140px;">
+                                    @php
+                                        $sisaUtangValue = old('sisa_utang', $payslip->sisa_utang ?? '');
+                                        $sisaUtangText = trim((string) $sisaUtangValue);
+                                        $normalizedSisaUtang = str_ireplace('rp', '', preg_replace('/\s+/', '', $sisaUtangText));
+                                        if ($sisaUtangText === '' || preg_match('/^0+([.,]0+)?$/', $normalizedSisaUtang)) {
+                                            $sisaUtangValue = '';
+                                        }
+                                    @endphp
                                     <input type="text" name="sisa_utang" id="sisa_utang"
-                                        value="{{ old('sisa_utang', $payslip->sisa_utang ?? '') }}"
+                                        value="{{ $sisaUtangValue }}"
                                         class="form-input"
                                         placeholder="Keterangan"
                                         style="text-align: left;">

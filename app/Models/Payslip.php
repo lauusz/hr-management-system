@@ -122,4 +122,25 @@ class Payslip extends Model
         }
         return null;
     }
+
+    public function getDisplaySisaUtangAttribute(): string
+    {
+        if ($this->sisa_utang === null) {
+            return '-';
+        }
+
+        $text = trim((string) $this->sisa_utang);
+        if ($text === '') {
+            return '-';
+        }
+
+        $normalized = preg_replace('/\s+/', '', $text);
+        $normalized = str_ireplace('rp', '', $normalized);
+
+        if (preg_match('/^0+([.,]0+)?$/', $normalized)) {
+            return '-';
+        }
+
+        return $text;
+    }
 }

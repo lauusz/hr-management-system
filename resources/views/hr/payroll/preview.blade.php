@@ -15,8 +15,9 @@
 
         </div>
 
-        <form action="{{ route('hr.payroll.import.store') }}" method="POST">
+        <form id="payroll-import-form" action="{{ route('hr.payroll.import.store') }}" method="POST">
             @csrf
+            <input type="hidden" name="action" id="payroll-action-input" value="">
 
             <!-- Filter Section -->
             <div style="padding: 16px; background: #f9fafb; border-bottom: 1px solid #f3f4f6;">
@@ -68,6 +69,7 @@
                                 <th colspan="6" class="text-center" style="border-bottom: 1px solid #d1d5db;">PENGELUARAN</th>
                                 <th rowspan="2" style="min-width: 100px; vertical-align: middle;">Total Penghasilan</th>
                                 <th rowspan="2" style="min-width: 120px; vertical-align: middle;">Ket/Sisa Utang</th>
+                                <th rowspan="2" style="min-width: 90px; text-align: center; vertical-align: middle;">Aksi</th>
                             </tr>
                             <tr>
                                 <!-- Pendapatan -->
@@ -137,6 +139,11 @@
                                 <td>
                                     <input type="text" name="payslips[{{ $index }}][sisa_utang]" value="{{ $row['sisa_utang'] ?? '' }}" class="form-control-sm" style="min-width: 100px;">
                                 </td>
+                                <td style="text-align: center;">
+                                    <button type="button" class="btn-action btn-delete-row" style="padding: 4px 10px; border-color: #ef4444; color: #dc2626;">
+                                        Delete
+                                    </button>
+                                </td>
                             </tr>
                             @endforeach
                         </tbody>
@@ -147,15 +154,57 @@
                     <a href="{{ route('hr.payroll.index') }}" class="btn-action" style="padding: 8px 16px;">
                         Batal
                     </a>
-                    <button type="submit" name="action" value="draft" class="btn-action" style="background: #f3f4f6; color: #374151; padding: 8px 16px;">
+                    <button type="button" id="btn-save-draft" class="btn-action" style="background: #f3f4f6; color: #374151; padding: 8px 16px;">
                         Simpan DRAFT
                     </button>
-                    <button type="submit" name="action" value="publish" class="btn-action btn-action-primary" style="padding: 8px 16px;" onclick="return confirm('Yakin ingin mempublikasikan dan mengirim email ke semua karyawan terkait?')">
+                    <button type="button" id="btn-publish-email" class="btn-action btn-action-primary" style="padding: 8px 16px;">
                         Publish & Kirim Email
                     </button>
                 </div>
             </div>
         </form>
+    </div>
+
+    <div id="publish-confirm-modal" class="confirm-modal" style="display: none;">
+        <div class="confirm-modal-backdrop"></div>
+        <div class="confirm-modal-content" role="dialog" aria-modal="true" aria-labelledby="publish-confirm-title">
+            <h3 id="publish-confirm-title" style="margin: 0 0 8px; font-size: 16px; color: #111827;">Konfirmasi Publish</h3>
+            <p style="margin: 0 0 16px; font-size: 13px; color: #4b5563;">Yakin ingin mempublikasikan dan mengirim email ke semua karyawan terkait?</p>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" id="btn-cancel-publish" class="btn-action" style="padding: 8px 14px;">Batal</button>
+                <button type="button" id="btn-confirm-publish" class="btn-action btn-action-primary" style="padding: 8px 14px;">Ya, Publish</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-confirm-modal" class="confirm-modal" style="display: none;">
+        <div class="confirm-modal-backdrop"></div>
+        <div class="confirm-modal-content" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-title">
+            <h3 id="delete-confirm-title" style="margin: 0 0 8px; font-size: 16px; color: #111827;">Konfirmasi Hapus Baris</h3>
+            <p style="margin: 0 0 16px; font-size: 13px; color: #4b5563;">Baris ini akan dihapus dari proses import. Lanjutkan?</p>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" id="btn-cancel-delete" class="btn-action" style="padding: 8px 14px;">Batal</button>
+                <button type="button" id="btn-confirm-delete" class="btn-action" style="padding: 8px 14px; border-color: #ef4444; color: #dc2626;">Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="warning-modal" class="confirm-modal" style="display: none;">
+        <div class="confirm-modal-backdrop"></div>
+        <div class="confirm-modal-content" role="dialog" aria-modal="true" aria-labelledby="warning-title">
+            <h3 id="warning-title" style="margin: 0 0 8px; font-size: 16px; color: #111827;">Peringatan</h3>
+            <p id="warning-message" style="margin: 0 0 16px; font-size: 13px; color: #4b5563;">Mohon lengkapi data yang wajib diisi.</p>
+            <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                <button type="button" id="btn-warning-ok" class="btn-action btn-action-primary" style="padding: 8px 14px;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="submit-loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-card">
+            <div class="loading-spinner"></div>
+            <p id="loading-message" style="margin: 10px 0 0; font-size: 13px; color: #374151;">Sedang memproses...</p>
+        </div>
     </div>
 
     <style>
@@ -342,11 +391,92 @@
             border-color: #4338ca;
             color: #fff;
         }
+
+        .confirm-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .confirm-modal-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(17, 24, 39, 0.4);
+        }
+
+        .confirm-modal-content {
+            position: relative;
+            width: min(420px, calc(100% - 32px));
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 16px;
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
+            background: rgba(255, 255, 255, 0.72);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-card {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 16px 18px;
+            min-width: 250px;
+            text-align: center;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .loading-spinner {
+            width: 28px;
+            height: 28px;
+            border-radius: 9999px;
+            border: 3px solid #e5e7eb;
+            border-top-color: #4f46e5;
+            margin: 0 auto;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('payroll-import-form');
+            const actionInput = document.getElementById('payroll-action-input');
+            const btnSaveDraft = document.getElementById('btn-save-draft');
+            const btnPublishEmail = document.getElementById('btn-publish-email');
+            const confirmModal = document.getElementById('publish-confirm-modal');
+            const btnCancelPublish = document.getElementById('btn-cancel-publish');
+            const btnConfirmPublish = document.getElementById('btn-confirm-publish');
+            const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+            const btnCancelDelete = document.getElementById('btn-cancel-delete');
+            const btnConfirmDelete = document.getElementById('btn-confirm-delete');
+            const warningModal = document.getElementById('warning-modal');
+            const warningMessage = document.getElementById('warning-message');
+            const btnWarningOk = document.getElementById('btn-warning-ok');
+            const loadingOverlay = document.getElementById('submit-loading-overlay');
+            const loadingMessage = document.getElementById('loading-message');
             const table = document.querySelector('.custom-table');
+            const tbody = table.querySelector('tbody');
+            const monthSelect = document.getElementById('month');
+            const yearSelect = document.getElementById('year');
+            let isSubmitting = false;
+            let pendingDeleteRow = null;
 
             // Find all rows (excluding header)
             const rows = table.querySelectorAll('tbody tr');
@@ -357,12 +487,14 @@
             const ptSelect = document.getElementById('pt_id');
             const companyNameDisplay = document.getElementById('company-name-display');
 
-            ptSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
+            if (ptSelect && companyNameDisplay) {
+                ptSelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
 
-                // Update Name text
-                companyNameDisplay.textContent = selectedOption.text.trim();
-            });
+                    // Update Name text
+                    companyNameDisplay.textContent = selectedOption.text.trim();
+                });
+            }
 
             window.formatInput = function(input) {
                 // Strip non-numeric except comma
@@ -393,6 +525,190 @@
                     input.addEventListener('input', () => updateTotals(row));
                 });
             });
+
+            tbody.addEventListener('click', function(event) {
+                const deleteButton = event.target.closest('.btn-delete-row');
+                if (!deleteButton) return;
+
+                const row = deleteButton.closest('tr');
+                if (!row) return;
+
+                pendingDeleteRow = row;
+                openDeleteModal();
+            });
+
+            form.addEventListener('submit', function(event) {
+                if (isSubmitting) {
+                    event.preventDefault();
+                    return;
+                }
+
+                if (!validateRequiredFilters()) {
+                    event.preventDefault();
+                    return;
+                }
+
+                if (tbody.querySelectorAll('tr').length === 0) {
+                    event.preventDefault();
+                    showWarning('Tidak ada baris data untuk disimpan.');
+                }
+            });
+
+            btnSaveDraft.addEventListener('click', function() {
+                try {
+                    submitWithAction('draft');
+                } catch (error) {
+                    console.error(error);
+                    showWarning('Terjadi kesalahan saat menyimpan draft. Silakan coba lagi.');
+                }
+            });
+
+            btnPublishEmail.addEventListener('click', function() {
+                openPublishModal();
+            });
+
+            btnCancelPublish.addEventListener('click', function() {
+                closePublishModal();
+            });
+
+            btnConfirmPublish.addEventListener('click', function() {
+                closePublishModal();
+                try {
+                    submitWithAction('publish');
+                } catch (error) {
+                    console.error(error);
+                    showWarning('Terjadi kesalahan saat publish. Silakan coba lagi.');
+                }
+            });
+
+            btnCancelDelete.addEventListener('click', function() {
+                closeDeleteModal();
+            });
+
+            btnConfirmDelete.addEventListener('click', function() {
+                if (pendingDeleteRow) {
+                    pendingDeleteRow.remove();
+                    renumberRows();
+                }
+                closeDeleteModal();
+            });
+
+            confirmModal.querySelector('.confirm-modal-backdrop').addEventListener('click', function() {
+                closePublishModal();
+            });
+
+            deleteConfirmModal.querySelector('.confirm-modal-backdrop').addEventListener('click', function() {
+                closeDeleteModal();
+            });
+
+            warningModal.querySelector('.confirm-modal-backdrop').addEventListener('click', function() {
+                closeWarning();
+            });
+
+            btnWarningOk.addEventListener('click', function() {
+                closeWarning();
+            });
+
+            function openPublishModal() {
+                if (isSubmitting) return;
+
+                if (!validateRequiredFilters()) {
+                    return;
+                }
+
+                if (tbody.querySelectorAll('tr').length === 0) {
+                    showWarning('Tidak ada baris data untuk disimpan.');
+                    return;
+                }
+
+                confirmModal.style.display = 'flex';
+            }
+
+            function closePublishModal() {
+                confirmModal.style.display = 'none';
+            }
+
+            function openDeleteModal() {
+                if (isSubmitting) return;
+                deleteConfirmModal.style.display = 'flex';
+            }
+
+            function closeDeleteModal() {
+                deleteConfirmModal.style.display = 'none';
+                pendingDeleteRow = null;
+            }
+
+            function submitWithAction(action) {
+                if (isSubmitting) {
+                    return;
+                }
+
+                if (!validateRequiredFilters()) {
+                    return;
+                }
+
+                if (tbody.querySelectorAll('tr').length === 0) {
+                    showWarning('Tidak ada baris data untuk disimpan.');
+                    return;
+                }
+
+                actionInput.value = action;
+                isSubmitting = true;
+
+                if (action === 'publish') {
+                    showLoading('Sedang publish & kirim email, mohon tunggu...');
+                } else {
+                    showLoading('Sedang menyimpan draft, mohon tunggu...');
+                }
+
+                disableActions();
+                form.submit();
+            }
+
+            function validateRequiredFilters() {
+                const monthValue = monthSelect ? monthSelect.value : '';
+                const yearValue = yearSelect ? yearSelect.value : '';
+
+                if (!monthValue || !yearValue) {
+                    showWarning('Bulan dan Tahun wajib dipilih sebelum Simpan Draft atau Publish & Kirim Email.');
+                    return false;
+                }
+
+                return true;
+            }
+
+            function showWarning(message) {
+                warningMessage.textContent = message;
+                warningModal.style.display = 'flex';
+            }
+
+            function closeWarning() {
+                warningModal.style.display = 'none';
+            }
+
+            function showLoading(message) {
+                loadingMessage.textContent = message;
+                loadingOverlay.style.display = 'flex';
+            }
+
+            function disableActions() {
+                btnSaveDraft.disabled = true;
+                btnPublishEmail.disabled = true;
+                btnCancelPublish.disabled = true;
+                btnConfirmPublish.disabled = true;
+                btnCancelDelete.disabled = true;
+                btnConfirmDelete.disabled = true;
+            }
+
+            function renumberRows() {
+                const currentRows = tbody.querySelectorAll('tr');
+                currentRows.forEach((row, index) => {
+                    const numberCell = row.querySelector('td.col-sticky-1');
+                    if (numberCell) {
+                        numberCell.textContent = index + 1;
+                    }
+                });
+            }
 
             function updateTotals(row) {
                 let totalIncome = 0;

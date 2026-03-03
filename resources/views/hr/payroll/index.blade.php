@@ -187,15 +187,25 @@
                         </td>
                         <td style="text-align: right;">
                             @if($data->latest_payslip)
-                            <a href="{{ route('hr.payroll.edit', [
-                                  'payslip' => $data->latest_payslip->id,
-                                'filter_start_month' => $startMonth,
-                                'filter_end_month' => $endMonth,
-                                'filter_year' => $year,
-                                'filter_pt_id' => $ptId
-                            ]) }}" class="btn btn-sm btn-outline-primary">
-                                Edit
-                            </a>
+                            <div class="action-buttons-row">
+                                <a href="{{ route('hr.payroll.edit', [
+                                      'payslip' => $data->latest_payslip->id,
+                                    'filter_start_month' => $startMonth,
+                                    'filter_end_month' => $endMonth,
+                                    'filter_year' => $year,
+                                    'filter_pt_id' => $ptId
+                                ]) }}" class="btn-action btn-action-edit">
+                                    Edit
+                                </a>
+                                <button
+                                    type="button"
+                                    class="btn-action btn-action-clear open-clear-confirm"
+                                    data-delete-url="{{ route('hr.payroll.destroy', $data->latest_payslip->id) }}"
+                                    data-employee-name="{{ $data->user->name }}"
+                                    data-month-label="{{ \Carbon\Carbon::create()->month((int) $data->month)->locale('id')->translatedFormat('F') }} {{ $data->year }}">
+                                    Clear
+                                </button>
+                            </div>
                             @else
                             <a href="{{ route('hr.payroll.create', ['user_id' => $data->user->id, 'month' => $data->month, 'year' => $data->year, 'pt_id' => $ptId, 'filter_start_month' => $startMonth, 'filter_end_month' => $endMonth, 'filter_year' => $year, 'filter_pt_id' => $ptId]) }}" class="btn-action btn-action-primary">
                                 Input
@@ -259,6 +269,38 @@
         </div>
     </x-modal>
 
+    <x-modal
+        id="modal-clear-payslip-confirm"
+        title="Konfirmasi Hapus Data Gaji"
+        type="form">
+        <p id="clear-payslip-confirm-text" style="margin:0; color:#374151;"></p>
+
+        <div style="margin-top: 16px; display:flex; justify-content:flex-end; gap:10px;">
+            <button
+                type="button"
+                data-modal-close="true"
+                style="padding:9px 16px; border-radius:8px; border:1px solid #d1d5db; background:#fff; color:#374151; font-size:0.9rem; font-weight:600; cursor:pointer;">
+                Batal
+            </button>
+            <button
+                type="button"
+                id="confirm-clear-payslip-submit"
+                style="padding:9px 20px; border-radius:8px; border:1px solid transparent; background:#dc2626; color:#fff; font-size:0.9rem; font-weight:600; cursor:pointer;">
+                Ya, Hapus Data
+            </button>
+        </div>
+    </x-modal>
+
+    <form id="clear-payslip-form" method="POST" style="display:none;">
+        @csrf
+        @method('DELETE')
+        <input type="hidden" name="filter_start_month" value="{{ $startMonth }}">
+        <input type="hidden" name="filter_end_month" value="{{ $endMonth }}">
+        <input type="hidden" name="filter_year" value="{{ $year }}">
+        <input type="hidden" name="filter_pt_id" value="{{ $ptId }}">
+        <input type="hidden" name="search" value="{{ request('search') }}">
+    </form>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const exportForm = document.getElementById('payroll-export-form');
@@ -272,6 +314,11 @@
             const sendEmailConfirmModalId = 'modal-send-email-confirm';
             const sendEmailEmptyModalId = 'modal-send-email-empty';
             const sendEmailLoadingModalId = 'modal-send-email-loading';
+            const clearPayslipConfirmModalId = 'modal-clear-payslip-confirm';
+            const clearPayslipForm = document.getElementById('clear-payslip-form');
+            const clearPayslipText = document.getElementById('clear-payslip-confirm-text');
+            const confirmClearPayslipSubmitButton = document.getElementById('confirm-clear-payslip-submit');
+            let pendingClearPayslipUrl = null;
 
             const toggleModalById = (id, show) => {
                 const modal = document.getElementById(id);
@@ -287,6 +334,8 @@
             const openSendEmailConfirmModal = () => toggleModalById(sendEmailConfirmModalId, true);
             const openSendEmailEmptyModal = () => toggleModalById(sendEmailEmptyModalId, true);
             const openSendEmailLoadingModal = () => toggleModalById(sendEmailLoadingModalId, true);
+            const closeClearPayslipConfirmModal = () => toggleModalById(clearPayslipConfirmModalId, false);
+            const openClearPayslipConfirmModal = () => toggleModalById(clearPayslipConfirmModalId, true);
 
             const getRowCheckboxes = () => Array.from(document.querySelectorAll('.payroll-row-checkbox'));
 
@@ -389,6 +438,47 @@
                     closeSendEmailConfirmModal();
                     openSendEmailLoadingModal();
                     sendEmailForm.submit();
+                });
+            }
+
+            document.querySelectorAll('.open-clear-confirm').forEach((button) => {
+                button.addEventListener('click', function() {
+                    const deleteUrl = this.dataset.deleteUrl;
+                    const employeeName = this.dataset.employeeName || 'Karyawan';
+                    const monthLabel = this.dataset.monthLabel || '-';
+
+                    pendingClearPayslipUrl = deleteUrl;
+
+                    if (clearPayslipText) {
+                        clearPayslipText.textContent = `Data gaji ${employeeName} untuk periode ${monthLabel} akan dihapus. Yakin ingin melanjutkan?`;
+                    }
+
+                    openClearPayslipConfirmModal();
+                });
+            });
+
+            if (confirmClearPayslipSubmitButton && clearPayslipForm) {
+                confirmClearPayslipSubmitButton.addEventListener('click', function() {
+                    if (!pendingClearPayslipUrl) {
+                        closeClearPayslipConfirmModal();
+                        return;
+                    }
+
+                    clearPayslipForm.action = pendingClearPayslipUrl;
+                    this.disabled = true;
+                    clearPayslipForm.submit();
+                });
+            }
+
+            const clearPayslipModal = document.getElementById(clearPayslipConfirmModalId);
+            if (clearPayslipModal) {
+                clearPayslipModal.addEventListener('click', function(event) {
+                    if (event.target.matches('[data-modal-close="true"]')) {
+                        pendingClearPayslipUrl = null;
+                        if (confirmClearPayslipSubmitButton) {
+                            confirmClearPayslipSubmitButton.disabled = false;
+                        }
+                    }
                 });
             }
 
@@ -574,6 +664,37 @@
             background: #4338ca;
             border-color: #4338ca;
             color: #fff;
+        }
+
+        .action-buttons-row {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-action-edit {
+            border-color: #60a5fa;
+            color: #1d4ed8;
+            background: #eff6ff;
+        }
+
+        .btn-action-edit:hover {
+            background: #dbeafe;
+            border-color: #3b82f6;
+            color: #1e40af;
+        }
+
+        .btn-action-clear {
+            border-color: #fecaca;
+            color: #b91c1c;
+            background: #fff1f2;
+            cursor: pointer;
+        }
+
+        .btn-action-clear:hover {
+            background: #ffe4e6;
+            border-color: #fda4af;
+            color: #991b1b;
         }
 
         .empty-state {

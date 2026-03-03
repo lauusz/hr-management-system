@@ -274,8 +274,8 @@
                     <table style="width: 100%;">
                         <tr>
                             <td class="font-bold" style="width: 35%;">ket/sisa utang &nbsp; &nbsp;:</td>
-                            <td class="bg-cyan font-bold" style="width: 5%; border: 1px solid #000; border-right: none; padding: 2px 4px;"></td>
-                            <td class="bg-cyan text-right font-bold" style="width: 40%; border: 1px solid #000; border-left: none; padding: 2px 4px;">{{ $payslip->sisa_utang ?: '-' }}</td>
+                            <td class="bg-cyan" style="width: 5%; border: 1px solid #000; border-right: none; padding: 2px 4px;"></td>
+                            <td class="bg-cyan text-right font-bold" style="width: 40%; border: 1px solid #000; border-left: none; padding: 2px 4px;">{{ $payslip->display_sisa_utang }}</td>
                             <td style="width: 20%;"></td>
                         </tr>
 
@@ -291,9 +291,10 @@
                         </tr>
                         <tr>
                             <td></td>
-                            <td colspan="3" class="font-bold font-italic" style="padding-top: 3px;">
+                            <td colspan="2" class="font-bold font-italic" style="padding-top: 3px;">
                                 {{ App\Helpers\TerbilangHelper::convert($payslip->gaji_bersih) }} Rupiah
                             </td>
+                            <td></td>
                         </tr>
                     </table>
                 </td>

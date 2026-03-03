@@ -231,6 +231,7 @@ class PayslipController extends Controller
         $data['total_pendapatan'] = $totalPendapatan;
         $data['total_potongan'] = $totalPotongan;
         $data['gaji_bersih'] = $gajiBersih;
+        $data['sisa_utang'] = $this->normalizeSisaUtang($data['sisa_utang'] ?? null);
         $data['created_by'] = Auth::id();
 
         $payslip = Payslip::create($data);
@@ -297,6 +298,7 @@ class PayslipController extends Controller
         $data['total_pendapatan'] = $totalPendapatan;
         $data['total_potongan'] = $totalPotongan;
         $data['gaji_bersih'] = $gajiBersih;
+        $data['sisa_utang'] = $this->normalizeSisaUtang($data['sisa_utang'] ?? null);
 
         // Send email if status is PUBLISHED (allows re-sending if already published)
         $shouldSendEmail = ($data['status'] === 'PUBLISHED');
@@ -314,6 +316,26 @@ class PayslipController extends Controller
             'year' => $request->input('filter_year', $payslip->period_year),
             'pt_id' => $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null),
         ])->with('success', 'Slip Gaji berhasil diperbarui.' . ($shouldSendEmail ? ' Email notifikasi telah dikirim.' : ''));
+    }
+
+    public function destroy(Request $request, Payslip $payslip)
+    {
+        Gate::authorize('manage-payroll');
+
+        $month = $payslip->period_month;
+        $year = $payslip->period_year;
+        $ptId = $payslip->user->profile->pt_id ?? null;
+        $employeeName = $payslip->user->name ?? 'Karyawan';
+
+        $payslip->delete();
+
+        return redirect()->route('hr.payroll.index', [
+            'start_month' => $request->input('filter_start_month', $month),
+            'end_month' => $request->input('filter_end_month', $month),
+            'year' => $request->input('filter_year', $year),
+            'pt_id' => $request->input('filter_pt_id', $ptId),
+            'search' => $request->input('search'),
+        ])->with('success', "Data slip gaji {$employeeName} berhasil dihapus.");
     }
 
     public function previewImport(Request $request)
@@ -438,7 +460,7 @@ class PayslipController extends Controller
                 'potongan_bpjs_kes' => $data['potongan_bpjs_kes'] ?? 0,
                 'potongan_terlambat' => $data['potongan_terlambat'] ?? 0,
 
-                'sisa_utang' => isset($data['sisa_utang']) ? trim((string) $data['sisa_utang']) : null,
+                'sisa_utang' => $this->normalizeSisaUtang($data['sisa_utang'] ?? null),
 
                 'total_pendapatan' => $totalPendapatan,
                 'total_potongan' => $totalPotongan,
@@ -574,5 +596,26 @@ class PayslipController extends Controller
         $value = str_replace(',', '.', $value); // Replace decimal separator (comma) with dot
 
         return is_numeric($value) ? (float) $value : 0;
+    }
+
+    private function normalizeSisaUtang($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $text = trim((string) $value);
+        if ($text === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/\s+/', '', $text);
+        $normalized = str_ireplace('rp', '', $normalized);
+
+        if (preg_match('/^0+([.,]0+)?$/', $normalized)) {
+            return null;
+        }
+
+        return $text;
     }
 }

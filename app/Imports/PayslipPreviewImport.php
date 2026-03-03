@@ -138,6 +138,17 @@ class PayslipPreviewImport implements ToArray, WithStartRow
 
         $text = trim((string) $value);
 
-        return $text === '' ? null : $text;
+        if ($text === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/\s+/', '', $text);
+        $normalized = str_ireplace('rp', '', $normalized);
+
+        if (preg_match('/^0+([.,]0+)?$/', $normalized)) {
+            return null;
+        }
+
+        return $text;
     }
 }
