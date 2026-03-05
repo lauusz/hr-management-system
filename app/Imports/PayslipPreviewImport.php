@@ -61,28 +61,30 @@ class PayslipPreviewImport implements ToArray, WithStartRow
                 'user_name' => $user->name,
                 'nik' => $user->profile?->nik ?? $row[3] ?? '-', // Get NIK from profile or Excel
 
-                // Income (Kolom H - R / Index 7 - 17)
+                // Income (Kolom H - T / Index 7 - 19)
                 'gaji_pokok'               => $this->cleanCurrency($row[7] ?? 0),
                 'tunjangan_jabatan'        => $this->cleanCurrency($row[8] ?? 0),
                 'tunjangan_makan'          => $this->cleanCurrency($row[9] ?? 0),
                 'fee_marketing'            => $this->cleanCurrency($row[10] ?? 0),
-                'tunjangan_telekomunikasi' => $this->cleanCurrency($row[11] ?? 0),
-                'tunjangan_penempatan'     => $this->cleanCurrency($row[12] ?? 0),
-                'tunjangan_asuransi'       => $this->cleanCurrency($row[13] ?? 0),
-                'tunjangan_kelancaran'     => $this->cleanCurrency($row[14] ?? 0),
-                'pendapatan_lain'          => $this->cleanCurrency($row[15] ?? 0),
-                'tunjangan_transportasi'   => $this->cleanCurrency($row[16] ?? 0),
-                'lembur'                   => $this->cleanCurrency($row[17] ?? 0),
+                'bonus_bulanan'            => $this->cleanCurrency($row[11] ?? 0),
+                'tunjangan_telekomunikasi' => $this->cleanCurrency($row[12] ?? 0),
+                'tunjangan_lainnya'        => $this->cleanCurrency($row[13] ?? 0),
+                'tunjangan_penempatan'     => $this->cleanCurrency($row[14] ?? 0),
+                'tunjangan_asuransi'       => $this->cleanCurrency($row[15] ?? 0),
+                'tunjangan_kelancaran'     => $this->cleanCurrency($row[16] ?? 0),
+                'pendapatan_lain'          => $this->cleanCurrency($row[17] ?? 0),
+                'tunjangan_transportasi'   => $this->cleanCurrency($row[18] ?? 0),
+                'lembur'                   => $this->cleanCurrency($row[19] ?? 0),
 
-                // Deductions (Kolom T - X / Index 19 - 23)
-                'potongan_bpjs_tk'         => $this->cleanCurrency($row[19] ?? 0),
-                'potongan_pph21'           => $this->cleanCurrency($row[20] ?? 0),
-                'potongan_hutang'          => $this->cleanCurrency($row[21] ?? 0),
-                'potongan_bpjs_kes'        => $this->cleanCurrency($row[22] ?? 0),
-                'potongan_terlambat'       => $this->cleanCurrency($row[23] ?? 0),
+                // Deductions (Kolom V - Z / Index 21 - 25)
+                'potongan_bpjs_tk'         => $this->cleanCurrency($row[21] ?? 0),
+                'potongan_pph21'           => $this->cleanCurrency($row[22] ?? 0),
+                'potongan_hutang'          => $this->cleanCurrency($row[23] ?? 0),
+                'potongan_bpjs_kes'        => $this->cleanCurrency($row[24] ?? 0),
+                'potongan_terlambat'       => $this->cleanCurrency($row[25] ?? 0),
 
-                // Tambahan (Kolom AA / Index 26)
-                'sisa_utang'               => $this->cleanText($row[26] ?? ''),
+                // Tambahan (Kolom AC / Index 28)
+                'sisa_utang'               => $this->cleanText($row[28] ?? ''),
             ];
 
             // Calculate totals
@@ -91,7 +93,9 @@ class PayslipPreviewImport implements ToArray, WithStartRow
                 $formattedData['tunjangan_jabatan'] +
                 $formattedData['tunjangan_makan'] +
                 $formattedData['fee_marketing'] +
+                $formattedData['bonus_bulanan'] +
                 $formattedData['tunjangan_telekomunikasi'] +
+                $formattedData['tunjangan_lainnya'] +
                 $formattedData['tunjangan_penempatan'] +
                 $formattedData['tunjangan_asuransi'] +
                 $formattedData['tunjangan_kelancaran'] +

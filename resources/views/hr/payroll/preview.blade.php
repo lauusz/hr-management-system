@@ -65,7 +65,7 @@
                             <tr style="background-color: #f3f4f6;">
                                 <th rowspan="2" style="width: 40px; text-align: center; vertical-align: middle;" class="col-sticky-1">#</th>
                                 <th rowspan="2" style="min-width: 150px; vertical-align: middle;" class="col-sticky-2">Karyawan</th>
-                                <th colspan="12" class="text-center" style="border-bottom: 1px solid #d1d5db;">PENDAPATAN</th>
+                                <th colspan="14" class="text-center" style="border-bottom: 1px solid #d1d5db;">PENDAPATAN</th>
                                 <th colspan="6" class="text-center" style="border-bottom: 1px solid #d1d5db;">PENGELUARAN</th>
                                 <th rowspan="2" style="min-width: 100px; vertical-align: middle;">Total Penghasilan</th>
                                 <th rowspan="2" style="min-width: 120px; vertical-align: middle;">Ket/Sisa Utang</th>
@@ -77,7 +77,9 @@
                                 <th style="min-width: 110px;">Tunj. Jabatan</th>
                                 <th style="min-width: 110px;">Tunj. Makan</th>
                                 <th style="min-width: 120px;">Fee Marketing</th>
+                                <th style="min-width: 120px;">Bonus Bulanan</th>
                                 <th style="min-width: 120px;">Telekomunikasi</th>
+                                <th style="min-width: 120px;">Tunj. Lainnya</th>
                                 <th style="min-width: 110px;">Penempatan</th>
                                 <th style="min-width: 110px;">Asuransi</th>
                                 <th style="min-width: 110px;">Kelancaran</th>
@@ -110,7 +112,9 @@
                                 <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_jabatan]" value="{{ number_format($row['tunjangan_jabatan'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
                                 <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_makan]" value="{{ number_format($row['tunjangan_makan'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
                                 <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][fee_marketing]" value="{{ number_format($row['fee_marketing'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][bonus_bulanan]" value="{{ number_format($row['bonus_bulanan'] ?? 0, 0, ',', '.') }}" class="form-control-sm input-income"> </td>
                                 <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_telekomunikasi]" value="{{ number_format($row['tunjangan_telekomunikasi'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_lainnya]" value="{{ number_format($row['tunjangan_lainnya'] ?? 0, 0, ',', '.') }}" class="form-control-sm input-income"> </td>
                                 <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_penempatan]" value="{{ number_format($row['tunjangan_penempatan'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
                                 <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_asuransi]" value="{{ number_format($row['tunjangan_asuransi'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
                                 <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_kelancaran]" value="{{ number_format($row['tunjangan_kelancaran'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>

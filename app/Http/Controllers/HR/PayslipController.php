@@ -211,7 +211,9 @@ class PayslipController extends Controller
             ($data['tunjangan_jabatan'] ?? 0) +
             ($data['tunjangan_makan'] ?? 0) +
             ($data['fee_marketing'] ?? 0) +
+            ($data['bonus_bulanan'] ?? 0) +
             ($data['tunjangan_telekomunikasi'] ?? 0) +
+            ($data['tunjangan_lainnya'] ?? 0) +
             ($data['tunjangan_penempatan'] ?? 0) +
             ($data['tunjangan_asuransi'] ?? 0) +
             ($data['tunjangan_kelancaran'] ?? 0) +
@@ -278,7 +280,9 @@ class PayslipController extends Controller
             ($data['tunjangan_jabatan'] ?? 0) +
             ($data['tunjangan_makan'] ?? 0) +
             ($data['fee_marketing'] ?? 0) +
+            ($data['bonus_bulanan'] ?? 0) +
             ($data['tunjangan_telekomunikasi'] ?? 0) +
+            ($data['tunjangan_lainnya'] ?? 0) +
             ($data['tunjangan_penempatan'] ?? 0) +
             ($data['tunjangan_asuransi'] ?? 0) +
             ($data['tunjangan_kelancaran'] ?? 0) +
@@ -400,7 +404,9 @@ class PayslipController extends Controller
                 'tunjangan_jabatan',
                 'tunjangan_makan',
                 'fee_marketing',
+                'bonus_bulanan',
                 'tunjangan_telekomunikasi',
+                'tunjangan_lainnya',
                 'tunjangan_penempatan',
                 'tunjangan_asuransi',
                 'tunjangan_kelancaran',
@@ -425,7 +431,9 @@ class PayslipController extends Controller
                 ($data['tunjangan_jabatan'] ?? 0) +
                 ($data['tunjangan_makan'] ?? 0) +
                 ($data['fee_marketing'] ?? 0) +
+                ($data['bonus_bulanan'] ?? 0) +
                 ($data['tunjangan_telekomunikasi'] ?? 0) +
+                ($data['tunjangan_lainnya'] ?? 0) +
                 ($data['tunjangan_penempatan'] ?? 0) +
                 ($data['tunjangan_asuransi'] ?? 0) +
                 ($data['tunjangan_kelancaran'] ?? 0) +
@@ -447,7 +455,9 @@ class PayslipController extends Controller
                 'tunjangan_jabatan' => $data['tunjangan_jabatan'] ?? 0,
                 'tunjangan_makan' => $data['tunjangan_makan'] ?? 0,
                 'fee_marketing' => $data['fee_marketing'] ?? 0,
+                'bonus_bulanan' => $data['bonus_bulanan'] ?? 0,
                 'tunjangan_telekomunikasi' => $data['tunjangan_telekomunikasi'] ?? 0,
+                'tunjangan_lainnya' => $data['tunjangan_lainnya'] ?? 0,
                 'tunjangan_penempatan' => $data['tunjangan_penempatan'] ?? 0,
                 'tunjangan_asuransi' => $data['tunjangan_asuransi'] ?? 0,
                 'tunjangan_kelancaran' => $data['tunjangan_kelancaran'] ?? 0,

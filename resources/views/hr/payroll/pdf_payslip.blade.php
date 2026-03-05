@@ -190,9 +190,9 @@
                 <td class="text-right">{{ number_format($payslip->potongan_hutang, 2, ',', '.') }}</td>
             </tr>
             <tr>
-                <td>FEE MARKETING</td>
+                <td>{{ (float) ($payslip->fee_marketing ?? 0) > 0 ? 'FEE MARKETING' : 'BONUS BULANAN' }}</td>
                 <td>Rp</td>
-                <td class="text-right">{{ number_format($payslip->fee_marketing, 2, ',', '.') }}</td>
+                <td class="text-right">{{ number_format((float) ($payslip->fee_marketing ?? 0) > 0 ? ($payslip->fee_marketing ?? 0) : ($payslip->bonus_bulanan ?? 0), 2, ',', '.') }}</td>
                 <td></td>
                 <td>BPJS. KES</td>
                 <td>Rp</td>
@@ -208,9 +208,9 @@
                 <td class="text-right">{{ number_format($payslip->potongan_terlambat, 2, ',', '.') }}</td>
             </tr>
             <tr>
-                <td>TUNJANGAN PENEMPATAN/PO</td>
+                <td>{{ (float) ($payslip->tunjangan_lainnya ?? 0) > 0 ? 'TUNJANGAN LAINNYA' : 'TUNJANGAN PENEMPATAN/PO' }}</td>
                 <td>Rp</td>
-                <td class="text-right">{{ number_format($payslip->tunjangan_penempatan, 2, ',', '.') }}</td>
+                <td class="text-right">{{ number_format((float) ($payslip->tunjangan_lainnya ?? 0) > 0 ? ($payslip->tunjangan_lainnya ?? 0) : ($payslip->tunjangan_penempatan ?? 0), 2, ',', '.') }}</td>
                 <td></td>
                 <td></td>
                 <td></td>
