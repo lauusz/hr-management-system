@@ -383,7 +383,7 @@ class PayslipController extends Controller
             'payslips' => 'required|array',
             'month' => 'required|integer',
             'year' => 'required|integer',
-            'pt_id' => 'required|integer',
+            'pt_id' => 'nullable|integer',
             'action' => 'required|in:draft,publish',
         ]);
 
@@ -392,11 +392,25 @@ class PayslipController extends Controller
         $year = $request->input('year');
         $action = $request->input('action');
 
+        // Jika action publish dan ada selected_rows, hanya proses yang dipilih
+        $selectedRows = collect($request->input('selected_rows', []))
+            ->filter(fn($v) => is_string($v) && preg_match('/^\d+-\d{1,2}-\d{4}$/', $v))
+            ->unique()
+            ->values();
+
         $status = ($action === 'publish') ? 'PUBLISHED' : 'DRAFT';
         $count = 0;
 
         foreach ($payslipsData as $data) {
             if (empty($data['user_id'])) continue;
+
+            // Jika publish, skip baris yang tidak dipilih
+            if ($action === 'publish' && $selectedRows->isNotEmpty()) {
+                $rowKey = $data['user_id'] . '-' . ($data['period_month'] ?? $month) . '-' . ($data['period_year'] ?? $year);
+                if (!$selectedRows->contains($rowKey)) {
+                    continue;
+                }
+            }
 
             // Clean currency inputs
             $monetaryKeys = [
@@ -419,6 +433,13 @@ class PayslipController extends Controller
                 'potongan_bpjs_kes',
                 'potongan_terlambat'
             ];
+
+            $rowMonth = isset($data['period_month']) ? (int) $data['period_month'] : (int) $month;
+            $rowYear = isset($data['period_year']) ? (int) $data['period_year'] : (int) $year;
+
+            if ($rowMonth < 1 || $rowMonth > 12 || $rowYear < 2020) {
+                continue;
+            }
 
             foreach ($monetaryKeys as $key) {
                 if (isset($data[$key])) {
@@ -483,8 +504,8 @@ class PayslipController extends Controller
             $payslip = Payslip::updateOrCreate(
                 [
                     'user_id' => $data['user_id'],
-                    'period_month' => $month,
-                    'period_year' => $year,
+                    'period_month' => $rowMonth,
+                    'period_year' => $rowYear,
                 ],
                 $updateData
             );
@@ -501,8 +522,8 @@ class PayslipController extends Controller
         }
 
         return redirect()->route('hr.payroll.index', [
-            'start_month' => $month,
-            'end_month' => $month,
+            'start_month' => $request->input('start_month', $month),
+            'end_month' => $request->input('end_month', $month),
             'year' => $year,
             'pt_id' => $request->input('pt_id'),
         ])->with('success', "Berhasil mengimpor $count data slip gaji ($status).");

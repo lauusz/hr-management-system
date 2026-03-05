@@ -45,6 +45,7 @@
         <td></td>
         <td></td>
         <td></td>
+        <td></td>
         <td>TOTAL PENDAPATAN</td>
         <td>POTONGAN</td>
         <td></td>
@@ -68,7 +69,9 @@
         <td>TUNJANGAN JABATAN</td>
         <td>TUNJANGAN MAKAN</td>
         <td>FEE MARKETING</td>
-        <td>TUNJANGAN TELEKOMUNIKASI</td>
+        <td>BONUS BULANAN</td>
+        <td>TELEKOMUNIKASI</td>
+        <td>TUNJANGAN LAINNYA</td>
         <td>TUNJANGAN PENEMPATAN</td>
         <td>TUNJANGAN ASURANSI</td>
         <td>TUNJANGAN KELANCARAN</td>
@@ -81,7 +84,6 @@
         <td>POTONGAN HUTANG</td>
         <td>POTONGAN BPJS KES</td>
         <td>POTONGAN TERLAMBAT</td>
-        <td></td>
         <td></td>
         <td></td>
     </tr>
@@ -114,6 +116,7 @@
         <td>25</td>
         <td>26</td>
         <td>27</td>
+        <td>28</td>
     </tr>
     @foreach($payrollRows as $index => $row)
     @php
@@ -134,7 +137,9 @@
         <td>{{ optional($slip)->tunjangan_jabatan ?? 0 }}</td>
         <td>{{ optional($slip)->tunjangan_makan ?? 0 }}</td>
         <td>{{ optional($slip)->fee_marketing ?? 0 }}</td>
+        <td>{{ optional($slip)->bonus_bulanan ?? 0 }}</td>
         <td>{{ optional($slip)->tunjangan_telekomunikasi ?? 0 }}</td>
+        <td>{{ optional($slip)->tunjangan_lainnya ?? 0 }}</td>
         <td>{{ optional($slip)->tunjangan_penempatan ?? 0 }}</td>
         <td>{{ optional($slip)->tunjangan_asuransi ?? 0 }}</td>
         <td>{{ optional($slip)->tunjangan_kelancaran ?? 0 }}</td>
