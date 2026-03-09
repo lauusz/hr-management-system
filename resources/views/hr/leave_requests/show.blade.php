@@ -293,10 +293,10 @@
 
         <div class="action-footer">
             <div class="left-action">
-                <a href="{{ route('hr.leave.master') }}" class="btn-modern btn-back">
+                <button type="button" class="btn-modern btn-back" onclick="sessionStorage.setItem('hrLeaveForceRefreshOnBack', '1'); history.back();">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     Kembali
-                </a>
+                </button>
             </div>
 
             <div class="right-action">

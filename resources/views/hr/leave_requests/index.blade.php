@@ -402,4 +402,17 @@
             }
         }    </style>
 
+    <script>
+        window.addEventListener("pageshow", function (event) {
+            var shouldRefresh = sessionStorage.getItem('hrLeaveForceRefreshOnBack') === '1';
+            var historyTraversal = event.persisted ||
+                (typeof window.performance != "undefined" && window.performance.navigation.type === 2);
+
+            if (shouldRefresh && historyTraversal) {
+                sessionStorage.removeItem('hrLeaveForceRefreshOnBack');
+                window.location.reload();
+            }
+        });
+    </script>
+
 </x-app>

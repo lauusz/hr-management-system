@@ -181,7 +181,7 @@
                                 </div>
                                 <div class="info-list">
                                     <div class="info-row">
-                                        <label>NIK (KTP)</label>
+                                        <label>NIK (Nomor Induk Karyawan)</label>
                                         <div>{{ $profile?->nik ?? '-' }}</div>
                                     </div>
                                     <div class="info-row">
