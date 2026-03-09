@@ -922,6 +922,24 @@
             }
         });
     </script>
+
+    {{-- [BARU] MODAL PERINGATAN DUPLIKAT --}}
+    <x-modal
+        id="duplicate-warning-modal"
+        title="Pengajuan Duplikat"
+        type="warning"
+        cancelLabel="Kembali">
+        <div id="duplicate-content" style="color: #1e293b; line-height: 1.6;">
+            <p style="margin: 0 0 12px 0;"><strong>Anda sudah memiliki pengajuan pada periode tanggal yang sama.</strong></p>
+            <div id="duplicate-list" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 4px; margin-bottom: 12px;">
+                {{-- Will be populated by JavaScript --}}
+            </div>
+            <p style="margin: 0; font-size: 13px; color: #6b7280;">
+                <strong>ℹ️ Catatan:</strong> Hanya HRD yang dapat membatalkan pengajuan. Silakan hubungi HRD untuk menghapus pengajuan yang duplikat.
+            </p>
+        </div>
+    </x-modal>
+
     <style>
         .animate-spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -930,4 +948,134 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    {{-- [BARU] SCRIPT CECK DUPLIKAT SEBELUM SUBMIT --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const formIzin = document.getElementById('form-create-izin');
+            const btnSubmit = document.getElementById('btn-submit-izin');
+            const duplicateModal = document.getElementById('duplicate-warning-modal');
+            const duplicateList = document.getElementById('duplicate-list');
+            
+            let hasDuplicate = false; // Flag jika ada duplikat
+            let originalBtnText = null; // Simpan text button asli
+
+            if (formIzin) {
+                formIzin.addEventListener('submit', function(e) {
+                    // Jika ada duplikat, block submission
+                    if (hasDuplicate) {
+                        e.preventDefault();
+                        return false;
+                    }
+
+                    // Cek validasi HTML5 dulu
+                    if (!formIzin.checkValidity()) {
+                        return;
+                    }
+
+                    // Jika valid, cek duplikat dulu
+                    e.preventDefault();
+
+                    const startDate = document.getElementById('start_date').value;
+                    const endDate = document.getElementById('end_date').value;
+
+                    if (!startDate || !endDate) {
+                        alert('Silakan isi tanggal pengajuan terlebih dahulu');
+                        return;
+                    }
+
+                    // AJAX: Cek duplikat ke backend
+                    checkDuplicate(startDate, endDate);
+                });
+            }
+
+            function checkDuplicate(startDate, endDate) {
+                // Show loading state
+                if (btnSubmit) {
+                    btnSubmit.disabled = true;
+                    originalBtnText = btnSubmit.innerHTML;
+                    btnSubmit.innerHTML = `
+                        <svg class="animate-spin" style="width:16px;height:16px;margin-right:5px;display:inline-block;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Memeriksa...
+                    `;
+
+                    fetch('{{ route("leave-requests.checkDuplicate") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                        },
+                        body: JSON.stringify({
+                            start_date: startDate,
+                            end_date: endDate
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerHTML = originalBtnText;
+
+                        if (data.has_duplicate) {
+                            // Ada duplikat, tampilkan modal saja (jangan submit)
+                            hasDuplicate = true;
+                            showDuplicateWarning(data.duplicates);
+                        } else {
+                            // Tidak ada duplikat, submit form langsung
+                            hasDuplicate = false;
+                            formIzin.submit();
+                        }
+                    })
+                    .catch(error => {
+                        btnSubmit.disabled = false;
+                        btnSubmit.innerHTML = originalBtnText;
+                        console.error('Error:', error);
+                        // Jika error, set flag dan tampilkan info
+                        hasDuplicate = false;
+                    });
+                }
+            }
+
+            function showDuplicateWarning(duplicates) {
+                // Build HTML list dari duplikat
+                let html = '<ul style="margin: 0; padding-left: 16px; font-size: 13px;">';
+                
+                duplicates.forEach(function(dup, index) {
+                    html += `<li style="margin-bottom: 6px;">
+                        <strong>${dup.type}</strong><br>
+                        <span style="font-size: 12px; color: #6b7280;">
+                            ${dup.start_date} s/d ${dup.end_date} | Status: <strong>${dup.status}</strong>
+                        </span>
+                    </li>`;
+                });
+                
+                html += '</ul>';
+                duplicateList.innerHTML = html;
+
+                // Tampilkan modal
+                if (duplicateModal) {
+                    duplicateModal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+
+                    // Setup close button untuk modal info
+                    const closeBtn = duplicateModal.querySelector('[data-modal-close="true"]');
+                    if (closeBtn) {
+                        closeBtn.onclick = function() {
+                            duplicateModal.style.display = 'none';
+                            document.body.style.overflow = '';
+                            // Reset button state sebelum close modal
+                            if (btnSubmit) {
+                                btnSubmit.disabled = false;
+                                btnSubmit.innerHTML = originalBtnText;
+                            }
+                            // Reset flag saat close modal
+                            hasDuplicate = false;
+                        };
+                    }
+                }
+            }
+        });
+    </script>
 </x-app>

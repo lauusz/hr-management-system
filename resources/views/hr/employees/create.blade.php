@@ -68,8 +68,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="phone">No. Telepon <span class="req">*</span></label>
-                        <input id="phone" type="text" name="phone" class="form-control" value="{{ old('phone') }}" required>
+                        <label for="phone">No. Telepon</label>
+                        <input id="phone" type="text" name="phone" class="form-control" value="{{ old('phone') }}">
                     </div>
 
                     <div class="form-group">
@@ -294,14 +294,6 @@
                         </select>
                     </div>
                     @endisset
-
-                    <div class="form-group">
-                        <label for="status">Status Akun</label>
-                        <select id="status" name="status" class="form-control">
-                            <option value="ACTIVE" @selected(old('status')==='ACTIVE' )>Aktif</option>
-                            <option value="INACTIVE" @selected(old('status')==='INACTIVE' )>Nonaktif</option>
-                        </select>
-                    </div>
 
                     <div class="form-info full-width">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

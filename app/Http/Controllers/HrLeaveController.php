@@ -283,6 +283,9 @@ class HrLeaveController extends Controller
                     'approved_at' => now(),
                     'notes_hrd'   => $request->notes_hrd,
                 ]);
+
+                // [AUTO DELETE DUPLIKAT] Hapus pengajuan duplikat yang masih pending
+                $this->deleteDuplicateLeaveRequests($leave);
             });
 
             // Pesan sukses
@@ -313,14 +316,56 @@ class HrLeaveController extends Controller
              return back()->with('error', 'Etika Profesi: Anda tidak dapat menolak pengajuan Anda sendiri.');
         }
 
-        $leave->update([
-            'status'      => LeaveRequest::STATUS_REJECTED,
-            'approved_by' => auth()->id(),
-            'approved_at' => now(),
-            'notes_hrd'   => $request->notes_hrd, 
-        ]);
+        try {
+            DB::transaction(function () use ($request, $leave) {
+                // [REFUND LOGIC] Kembalikan saldo jika pengajuan ini sudah APPROVED sebelumnya dan tipe CUTI
+                $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : $leave->type;
+                $targetValue = LeaveType::CUTI->value;
+                
+                if ($leave->status === LeaveRequest::STATUS_APPROVED && $leaveTypeValue === $targetValue) {
+                    $user = $leave->user;
+                    
+                    // 1. Tentukan Range Tanggal
+                    $start = Carbon::parse($leave->start_date);
+                    $end   = Carbon::parse($leave->end_date);
+                    $period = CarbonPeriod::create($start, $end);
 
-        return back()->with('success', 'Pengajuan ditolak.');
+                    // 2. DETEKSI ROLE (5 Hari Kerja vs 6 Hari Kerja)
+                    $roleStr = strtoupper((string) ($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role));
+                    $fiveDayWorkWeekRoles = ['HRD', 'HR STAFF', 'MANAGER'];
+                    $isFiveDayWorkWeek = in_array($roleStr, $fiveDayWorkWeekRoles);
+
+                    // 3. HITUNG HARI EFEKTIF UNTUK REFUND
+                    $daysToRefund = 0;
+                    foreach ($period as $date) {
+                        if ($isFiveDayWorkWeek) {
+                            if ($date->isSaturday() || $date->isSunday()) continue;
+                        } else {
+                            if ($date->isSunday()) continue;
+                        }
+                        $daysToRefund++;
+                    }
+
+                    // 4. KEMBALIKAN SALDO
+                    if ($daysToRefund > 0) {
+                        $user->increment('leave_balance', $daysToRefund);
+                    }
+                }
+
+                // Update status menjadi REJECTED
+                $leave->update([
+                    'status'      => LeaveRequest::STATUS_REJECTED,
+                    'approved_by' => auth()->id(),
+                    'approved_at' => now(),
+                    'notes_hrd'   => $request->notes_hrd, 
+                ]);
+            });
+
+            return back()->with('success', 'Pengajuan ditolak & saldo (jika ada) dikembalikan.');
+
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     private function authorizeAccess()
@@ -331,6 +376,33 @@ class HrLeaveController extends Controller
             if (!in_array($user->role, ['HRD', 'HR STAFF', 'MANAGER HR'])) {
                  abort(403, 'Akses khusus HRD');
             }
+        }
+    }
+
+    /**
+     * [HELPER] Hapus pengajuan duplikat yang masih pending di tanggal yang sama
+     */
+    private function deleteDuplicateLeaveRequests(LeaveRequest $approvedLeave)
+    {
+        // Cari pengajuan lain dari user yang sama, di tanggal yang overlap, masih pending
+        $duplicates = LeaveRequest::where('user_id', $approvedLeave->user_id)
+            ->where('id', '!=', $approvedLeave->id)
+            ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR])
+            ->where(function ($query) use ($approvedLeave) {
+                // Cek overlap tanggal: start_date atau end_date berada dalam range
+                $query->whereBetween('start_date', [$approvedLeave->start_date, $approvedLeave->end_date])
+                    ->orWhereBetween('end_date', [$approvedLeave->start_date, $approvedLeave->end_date])
+                    ->orWhere(function ($q) use ($approvedLeave) {
+                        // Atau pengajuan duplikat yang range-nya "meliputi" pengajuan approved
+                        $q->where('start_date', '<=', $approvedLeave->start_date)
+                          ->where('end_date', '>=', $approvedLeave->end_date);
+                    });
+            })
+            ->get();
+
+        // Delete semua duplikat yang ditemukan
+        foreach ($duplicates as $duplicate) {
+            $duplicate->delete();
         }
     }
 }
