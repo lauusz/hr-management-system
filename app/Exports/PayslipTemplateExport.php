@@ -41,6 +41,7 @@ class PayslipTemplateExport implements FromView, ShouldAutoSize
         $year = $this->year;
 
         $usersQuery = User::query()
+            ->active()
             ->when($ptId, function ($query) use ($ptId) {
                 $query->whereHas('profile', function ($profileQuery) use ($ptId) {
                     $profileQuery->where('pt_id', $ptId);

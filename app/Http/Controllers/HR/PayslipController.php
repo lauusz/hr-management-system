@@ -26,10 +26,12 @@ class PayslipController extends Controller
         // Allow searching employees in settings
         $search = $request->input('search');
 
-        $usersQuery = User::query();
+        $usersQuery = User::query()->active();
         if (!empty($search)) {
-            $usersQuery->where('name', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%");
+            $usersQuery->where(function ($query) use ($search) {
+                $query->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
         }
 
         $users = $usersQuery->paginate(20)->appends(['search' => $search]);
@@ -46,7 +48,10 @@ class PayslipController extends Controller
             'can_manage_payroll' => 'required|boolean'
         ]);
 
-        $user = User::findOrFail($request->user_id);
+        $user = User::query()->active()->find($request->user_id);
+        if (!$user) {
+            return redirect()->back()->with('error', 'Akses payroll hanya dapat diubah untuk karyawan berstatus ACTIVE.');
+        }
 
         // Prevent removing permission from oneself if they are not HRD
         // Optional safety:
@@ -83,6 +88,7 @@ class PayslipController extends Controller
         $payrollData = collect();
 
         $employees = User::query()
+            ->active()
             ->when($ptId, function ($query) use ($ptId) {
                 $query->whereHas('profile', function ($profileQuery) use ($ptId) {
                     $profileQuery->where('pt_id', $ptId);
@@ -136,7 +142,7 @@ class PayslipController extends Controller
 
         $namePrefix = '';
         if (!empty($search)) {
-            $userQuery = User::whereHas('profile', function ($q) use ($ptId) {
+            $userQuery = User::query()->active()->whereHas('profile', function ($q) use ($ptId) {
                 if ($ptId) $q->where('pt_id', $ptId);
             })->where('name', 'like', '%' . $search . '%')->first();
 
@@ -166,10 +172,10 @@ class PayslipController extends Controller
             return redirect()->route('hr.payroll.index')->with('error', 'User ID is required to create a payslip.');
         }
 
-        $user = User::find($userId);
+        $user = User::query()->active()->find($userId);
 
         if (!$user) {
-            return redirect()->route('hr.payroll.index')->with('error', 'User not found.');
+            return redirect()->route('hr.payroll.index')->with('error', 'User tidak ditemukan atau tidak berstatus ACTIVE.');
         }
 
         // Cek apakah sudah ada payslip
@@ -235,6 +241,16 @@ class PayslipController extends Controller
         $data['gaji_bersih'] = $gajiBersih;
         $data['sisa_utang'] = $this->normalizeSisaUtang($data['sisa_utang'] ?? null);
         $data['created_by'] = Auth::id();
+
+        $activeUser = User::query()->active()->find($data['user_id']);
+        if (!$activeUser) {
+            return redirect()->route('hr.payroll.index', [
+                'start_month' => $request->input('filter_start_month', $request->period_month),
+                'end_month' => $request->input('filter_end_month', $request->period_month),
+                'year' => $request->input('filter_year', $request->period_year),
+                'pt_id' => $request->input('filter_pt_id'),
+            ])->with('error', 'Slip gaji hanya dapat dibuat untuk karyawan dengan status ACTIVE.');
+        }
 
         $payslip = Payslip::create($data);
 
@@ -400,9 +416,21 @@ class PayslipController extends Controller
 
         $status = ($action === 'publish') ? 'PUBLISHED' : 'DRAFT';
         $count = 0;
+        $inactiveSkippedCount = 0;
+
+        $activeUserIds = User::query()
+            ->active()
+            ->whereIn('id', collect($payslipsData)->pluck('user_id')->filter()->unique()->values())
+            ->pluck('id')
+            ->flip();
 
         foreach ($payslipsData as $data) {
             if (empty($data['user_id'])) continue;
+
+            if (!$activeUserIds->has((int) $data['user_id'])) {
+                $inactiveSkippedCount++;
+                continue;
+            }
 
             // Jika publish, skip baris yang tidak dipilih
             if ($action === 'publish' && $selectedRows->isNotEmpty()) {
@@ -521,12 +549,17 @@ class PayslipController extends Controller
             $count++;
         }
 
+        $message = "Berhasil mengimpor $count data slip gaji ($status).";
+        if ($inactiveSkippedCount > 0) {
+            $message .= " {$inactiveSkippedCount} data dilewati karena karyawan tidak berstatus ACTIVE.";
+        }
+
         return redirect()->route('hr.payroll.index', [
             'start_month' => $request->input('start_month', $month),
             'end_month' => $request->input('end_month', $month),
             'year' => $year,
             'pt_id' => $request->input('pt_id'),
-        ])->with('success', "Berhasil mengimpor $count data slip gaji ($status).");
+        ])->with('success', $message);
     }
 
     public function sendSelectedEmails(Request $request)
@@ -548,6 +581,7 @@ class PayslipController extends Controller
         $draftPublishedCount = 0;
         $missingPayslipCount = 0;
         $missingEmailCount = 0;
+        $inactiveUserCount = 0;
 
         foreach ($selectedRows as $rowKey) {
             [$userId, $month, $year] = array_map('intval', explode('-', $rowKey));
@@ -562,13 +596,18 @@ class PayslipController extends Controller
                 continue;
             }
 
+            if (!$payslip->user || $payslip->user->status !== User::STATUS_ACTIVE) {
+                $inactiveUserCount++;
+                continue;
+            }
+
             if ($payslip->status === 'DRAFT') {
                 $payslip->status = 'PUBLISHED';
                 $payslip->save();
                 $draftPublishedCount++;
             }
 
-            if (!$payslip->user || empty($payslip->user->email)) {
+            if (empty($payslip->user->email)) {
                 $missingEmailCount++;
                 continue;
             }
@@ -588,6 +627,9 @@ class PayslipController extends Controller
         }
         if ($missingEmailCount > 0) {
             $messages[] = "{$missingEmailCount} data dilewati karena email karyawan kosong.";
+        }
+        if ($inactiveUserCount > 0) {
+            $messages[] = "{$inactiveUserCount} data dilewati karena karyawan tidak berstatus ACTIVE.";
         }
 
         return redirect()->route('hr.payroll.index', [

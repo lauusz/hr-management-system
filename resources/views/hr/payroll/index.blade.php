@@ -4,7 +4,7 @@
             <div class="header-top-row">
                 <div>
                     <h4 class="card-title-sm">Master Gaji Karyawan</h4>
-                    <p class="card-subtitle-sm">Kelola data gaji karyawan bulanan dalam format spreadsheet.</p>
+                    <p class="card-subtitle-sm">Kelola data gaji karyawan bulanan (menampilkan karyawan berstatus ACTIVE).</p>
                 </div>
 
                 <div class="header-actions">
