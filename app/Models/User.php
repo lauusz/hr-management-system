@@ -12,6 +12,8 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
+    public const STATUS_ACTIVE = 'ACTIVE';
+
     protected $fillable = [
         'name',
         'email',
@@ -86,6 +88,16 @@ class User extends Authenticatable
     public function isEmployee(): bool
     {
         return $this->role === UserRole::EMPLOYEE;
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === self::STATUS_ACTIVE;
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', self::STATUS_ACTIVE);
     }
 
     public function canApprove(): bool

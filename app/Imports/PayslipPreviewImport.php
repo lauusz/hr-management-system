@@ -3,6 +3,7 @@
 namespace App\Imports;
 
 use App\Models\EmployeeProfile;
+use App\Models\User;
 use Maatwebsite\Excel\Concerns\ToArray;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 
@@ -32,14 +33,22 @@ class PayslipPreviewImport implements ToArray, WithStartRow
 
             if (!empty($name) && !empty($nik)) {
                 // Try to find the user matching both exactly
-                $user = \App\Models\User::where('name', $name)->whereHas('profile', function ($q) use ($nik) {
-                    $q->where('nik', $nik);
-                })->first();
+                $user = User::query()
+                    ->active()
+                    ->where('name', $name)
+                    ->whereHas('profile', function ($q) use ($nik) {
+                        $q->where('nik', $nik);
+                    })
+                    ->first();
             }
 
             // Fallback 1: Match by NIK only (if name mismatch or empty)
             if (!$user && !empty($nik)) {
-                $profile = \App\Models\EmployeeProfile::where('nik', $nik)->first();
+                $profile = EmployeeProfile::where('nik', $nik)
+                    ->whereHas('user', function ($q) {
+                        $q->active();
+                    })
+                    ->first();
                 if ($profile) {
                     $user = $profile->user;
                 }
@@ -47,7 +56,7 @@ class PayslipPreviewImport implements ToArray, WithStartRow
 
             // Fallback 2: Match by Name only (if NIK mismatch or empty)
             if (!$user && !empty($name)) {
-                $user = \App\Models\User::where('name', $name)->first();
+                $user = User::query()->active()->where('name', $name)->first();
             }
 
             // Skip if user not found at all
