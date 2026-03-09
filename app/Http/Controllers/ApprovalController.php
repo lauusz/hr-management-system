@@ -342,6 +342,9 @@ class ApprovalController extends Controller
                     'approved_at' => now(),
                     'notes'       => ($request->notes ? $request->notes . "\n" : '') . "[System] Disetujui oleh {$me->name}",
                 ]);
+
+                // [AUTO DELETE DUPLIKAT] Hapus pengajuan duplikat yang masih pending
+                $this->deleteDuplicateLeaveRequests($leave);
             });
 
             return redirect()->route('approval.index')->with('success', 'Pengajuan HRD telah disetujui sepenuhnya (Auto-Approved).');
@@ -380,6 +383,33 @@ class ApprovalController extends Controller
         ]);
 
         return back()->with('success', 'Pengajuan ditolak.');
+    }
+
+    /**
+     * [HELPER] Hapus pengajuan duplikat yang masih pending di tanggal yang sama
+     */
+    private function deleteDuplicateLeaveRequests(LeaveRequest $approvedLeave)
+    {
+        // Cari pengajuan lain dari user yang sama, di tanggal yang overlap, masih pending
+        $duplicates = LeaveRequest::where('user_id', $approvedLeave->user_id)
+            ->where('id', '!=', $approvedLeave->id)
+            ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR])
+            ->where(function ($query) use ($approvedLeave) {
+                // Cek overlap tanggal: start_date atau end_date berada dalam range
+                $query->whereBetween('start_date', [$approvedLeave->start_date, $approvedLeave->end_date])
+                    ->orWhereBetween('end_date', [$approvedLeave->start_date, $approvedLeave->end_date])
+                    ->orWhere(function ($q) use ($approvedLeave) {
+                        // Atau pengajuan duplikat yang range-nya "meliputi" pengajuan approved
+                        $q->where('start_date', '<=', $approvedLeave->start_date)
+                          ->where('end_date', '>=', $approvedLeave->end_date);
+                    });
+            })
+            ->get();
+
+        // Delete semua duplikat yang ditemukan
+        foreach ($duplicates as $duplicate) {
+            $duplicate->delete();
+        }
     }
 
     /**

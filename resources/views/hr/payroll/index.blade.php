@@ -173,7 +173,7 @@
                                 </td>
                                 <td class="col-sticky-2">
                                     <div class="fw-bold">{{ $data->user->name }}</div>
-                                    <div class="text-muted">{{ $data->user->profile->nik ?? $data->user->email }}</div>
+                                        <div class="text-muted">{{ $data->user->email }}</div>
 
                                     <input type="hidden" name="payslips[{{ $index }}][user_id]" value="{{ $data->user->id }}">
                                     <input type="hidden" name="payslips[{{ $index }}][period_month]" value="{{ $data->month }}">

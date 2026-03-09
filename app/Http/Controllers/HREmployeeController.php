@@ -232,7 +232,7 @@ class HREmployeeController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'username' => ['nullable', 'string', 'max:255', 'unique:users,username'],
-            'phone' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:255'],
             'role' => ['required', Rule::in($roleValues)],
 
             'manager_id'           => ['nullable', 'exists:users,id'],
@@ -390,8 +390,9 @@ class HREmployeeController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'username' => ['nullable', 'string', 'max:255', Rule::unique('users', 'username')->ignore($employee->id)],
-            'phone' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:255'],
             'role' => ['required', Rule::in($roleValues)],
+            'status' => ['nullable', 'string', 'in:ACTIVE,INACTIVE'],
 
             // Validasi Saldo Cuti Manual
             'leave_balance' => ['nullable', 'integer', 'min:0'],
@@ -456,6 +457,7 @@ class HREmployeeController extends Controller
                 'username',
                 'phone',
                 'role',
+                'status',
                 'manager_id',
                 'direct_supervisor_id',
                 'division_id',
@@ -531,7 +533,7 @@ class HREmployeeController extends Controller
             }
 
             return redirect()->route('hr.employees.index')
-                ->with('success', 'Data karyawan & Saldo Cuti berhasil diperbarui.');
+                ->with('success', 'Data karyawan berhasil diperbarui.');
         });
     }
 

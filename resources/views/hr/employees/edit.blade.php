@@ -74,8 +74,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="phone">No. Telepon <span class="req">*</span></label>
-                        <input id="phone" type="text" name="phone" class="form-control" value="{{ old('phone', $item->phone) }}" required>
+                        <label for="phone">No. Telepon </label>
+                        <input id="phone" type="text" name="phone" class="form-control" value="{{ old('phone', $item->phone) }}" >
                     </div>
 
                     <div class="form-group">
@@ -377,10 +377,44 @@
 
                     <div class="form-group">
                         <label for="status">Status Akun</label>
-                        <select id="status" name="status" class="form-control">
-                            <option value="ACTIVE" @selected(old('status', $item->status) === 'ACTIVE')>Aktif</option>
-                            <option value="INACTIVE" @selected(old('status', $item->status) === 'INACTIVE')>Nonaktif</option>
-                        </select>
+                        <div data-status-container style="display: flex; align-items: center; gap: 12px;">
+                            @if(old('status', $item->status) === 'ACTIVE')
+                                <span class="status-badge status-active">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                    </svg>
+                                    Aktif
+                                </span>
+                            @else
+                                <span class="status-badge status-inactive">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                                    </svg>
+                                    Nonaktif
+                                </span>
+                            @endif
+                            
+                            <button type="button" class="btn-toggle-status" data-modal-open="modal-toggle-status">
+                                @if(old('status', $item->status) === 'ACTIVE')
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                                    </svg>
+                                    Nonaktifkan Akun
+                                @else
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                    </svg>
+                                    Aktifkan Akun
+                                @endif
+                            </button>
+                        </div>
+                        <input type="hidden" id="status" name="status" value="{{ old('status', $item->status) }}">
                     </div>
 
                     <div class="form-group">
@@ -452,6 +486,53 @@
         </div>
     </div>
 
+    {{-- Modal Toggle Status Akun --}}
+    <div id="modal-toggle-status" class="modal-backdrop" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 50; justify-content: center; align-items: center;">
+        <div class="modal-content" style="background: white; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center;">
+            @if(old('status', $item->status) === 'ACTIVE')
+                <div style="margin-bottom: 16px; color: #dc2626;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                </div>
+                <h3 style="margin: 0 0 8px; font-size: 18px; color: #111827;">Nonaktifkan Akun?</h3>
+                <p style="margin: 0 0 20px; color: #6b7280; font-size: 14px;">
+                    Akun karyawan <b>{{ $item->name }}</b> akan dinonaktifkan dan tidak dapat login ke sistem.
+                </p>
+            @else
+                <div style="margin-bottom: 16px; color: #059669;">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </div>
+                <h3 style="margin: 0 0 8px; font-size: 18px; color: #111827;">Aktifkan Akun?</h3>
+                <p style="margin: 0 0 20px; color: #6b7280; font-size: 14px;">
+                    Akun karyawan <b>{{ $item->name }}</b> akan diaktifkan kembali dan dapat login ke sistem.
+                </p>
+            @endif
+
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button type="button" class="btn-secondary" data-modal-close="true">Batal</button>
+                <button type="button" id="confirm-toggle-status" class="btn-primary" 
+                    @if(old('status', $item->status) === 'ACTIVE')
+                        style="background-color: #dc2626; border-color: #dc2626;"
+                    @else
+                        style="background-color: #059669; border-color: #059669;"
+                    @endif
+                >
+                    @if(old('status', $item->status) === 'ACTIVE')
+                        Ya, Nonaktifkan
+                    @else
+                        Ya, Aktifkan
+                    @endif
+                </button>
+            </div>
+        </div>
+    </div>
+
     {{-- SCRIPT --}}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -474,6 +555,25 @@
                     modal.style.display = 'none';
                 });
             });
+
+            // Handle toggle status confirmation - langsung submit form
+            var confirmToggleBtn = document.getElementById('confirm-toggle-status');
+            if (confirmToggleBtn) {
+                confirmToggleBtn.addEventListener('click', function() {
+                    var statusInput = document.getElementById('status');
+                    var currentStatus = statusInput.value;
+                    
+                    // Toggle status
+                    var newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+                    statusInput.value = newStatus;
+                    
+                    // Langsung submit form - tidak perlu klik Update Data Karyawan lagi
+                    var form = document.querySelector('form[action*="employees"]');
+                    if (form) {
+                        form.submit();
+                    }
+                });
+            }
         });
     </script>
 
@@ -727,6 +827,67 @@
         }
 
         .btn-reset-danger:hover {
+            background-color: #fee2e2;
+            border-color: #fda4af;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background-color: #d1fae5;
+            color: #059669;
+            border: 1px solid #86efac;
+        }
+
+        .status-inactive {
+            background-color: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        /* Button Toggle Status */
+        .btn-toggle-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-toggle-status:has(svg:first-child path[d*="22 11.08"]) {
+            /* Aktifkan button (green) */
+            background-color: #d1fae5;
+            color: #059669;
+            border: 1px solid #86efac;
+        }
+
+        .btn-toggle-status:has(svg:first-child path[d*="22 11.08"]):hover {
+            background-color: #a7f3d0;
+            border-color: #6ee7b7;
+        }
+
+        .btn-toggle-status:has(svg:first-child circle) {
+            /* Nonaktifkan button (red) */
+            background-color: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .btn-toggle-status:has(svg:first-child circle):hover {
             background-color: #fee2e2;
             border-color: #fda4af;
         }

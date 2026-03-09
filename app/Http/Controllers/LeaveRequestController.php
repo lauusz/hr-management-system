@@ -447,4 +447,61 @@ class LeaveRequestController extends Controller
             ->whereBetween('start_date', [$start, $end])
             ->count();
     }
+
+    /**
+     * [AJAX] Cek pengajuan duplikat (tanggal overlap)
+     */
+    public function checkDuplicate(Request $request)
+    {
+        $userId = Auth::id();
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        // Validasi input
+        if (!$startDate || !$endDate) {
+            return response()->json([
+                'has_duplicate' => false,
+                'message' => 'Tanggal tidak valid'
+            ]);
+        }
+
+        // Cari pengajuan yang overlap di tanggal yang sama (masih pending)
+        $duplicates = LeaveRequest::where('user_id', $userId)
+            ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR])
+            ->where(function ($query) use ($startDate, $endDate) {
+                // Cek overlap tanggal
+                $query->whereBetween('start_date', [$startDate, $endDate])
+                    ->orWhereBetween('end_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate, $endDate) {
+                        // Pengajuan yang range-nya meliputi range sekarang
+                        $q->where('start_date', '<=', $startDate)
+                          ->where('end_date', '>=', $endDate);
+                    });
+            })
+            ->get(['id', 'type', 'start_date', 'end_date', 'status', 'created_at']);
+
+        if ($duplicates->isNotEmpty()) {
+            $duplicateData = $duplicates->map(function ($dup) {
+                return [
+                    'id' => $dup->id,
+                    'type' => $dup->type instanceof LeaveType ? $dup->type->label() : $dup->type,
+                    'start_date' => Carbon::parse($dup->start_date)->format('d M Y'),
+                    'end_date' => Carbon::parse($dup->end_date)->format('d M Y'),
+                    'status' => $dup->status,
+                    'created_at' => $dup->created_at->format('d M Y H:i'),
+                ];
+            });
+
+            return response()->json([
+                'has_duplicate' => true,
+                'message' => 'Anda sudah memiliki pengajuan pada tanggal tersebut',
+                'duplicates' => $duplicateData
+            ]);
+        }
+
+        return response()->json([
+            'has_duplicate' => false,
+            'message' => 'Tanggal tersedia'
+        ]);
+    }
 }

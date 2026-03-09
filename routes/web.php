@@ -37,6 +37,9 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('leave-requests', LeaveRequestController::class)
         ->only(['index', 'create', 'store', 'show', 'update', 'destroy']);
+    
+    // [BARU] Endpoint untuk cek duplikat pengajuan
+    Route::post('/leave-requests/check-duplicate', [LeaveRequestController::class, 'checkDuplicate'])->name('leave-requests.checkDuplicate');
 
     Route::resource('overtime-requests', OvertimeRequestController::class)
         ->only(['index', 'create', 'store', 'update', 'destroy']);
