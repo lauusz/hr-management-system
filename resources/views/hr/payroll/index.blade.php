@@ -105,6 +105,13 @@
                     <button type="submit" class="btn-action">Cari</button>
                 </div>
             </form>
+
+            <div style="margin-top: 8px; display: flex; justify-content: flex-start;">
+                <label for="thr_only_toggle" class="thr-only-toggle" title="Tampilkan hanya kolom THR">
+                    <input type="checkbox" id="thr_only_toggle">
+                    <span>THR</span>
+                </label>
+            </div>
         </div>
 
         <form id="payroll-bulk-form" action="{{ route('hr.payroll.import.store') }}" method="POST">
@@ -115,6 +122,7 @@
             <input type="hidden" name="pt_id" value="{{ $ptId }}">
             <input type="hidden" name="start_month" value="{{ $startMonth }}">
             <input type="hidden" name="end_month" value="{{ $endMonth }}">
+            <input type="hidden" name="thr_only_mode" id="thr_only_mode_input" value="0">
 
             <div class="table-wrapper">
                 <table class="custom-table">
@@ -126,11 +134,11 @@
                             <th rowspan="2" class="col-sticky-2" style="min-width: 220px;">Karyawan</th>
                             <th rowspan="2" style="min-width: 120px;">Periode</th>
                             <th rowspan="2" style="min-width: 90px;">Status</th>
-                            <th colspan="16" class="text-center">Pendapatan</th>
-                            <th colspan="6" class="text-center">Pengeluaran</th>
-                            <th rowspan="2" style="min-width: 130px;">Total Penghasilan</th>
-                            <th rowspan="2" style="min-width: 140px;">Ket / Sisa Utang</th>
-                            <th rowspan="2" style="min-width: 90px;" class="text-center">Aksi</th>
+                            <th colspan="16" class="text-center" id="th-group-pendapatan">Pendapatan</th>
+                            <th colspan="6" class="text-center" id="th-group-pengeluaran">Pengeluaran</th>
+                            <th rowspan="2" style="min-width: 130px;" id="th-total-penghasilan">Total Penghasilan</th>
+                            <th rowspan="2" style="min-width: 140px;" id="th-sisa-utang">Ket / Sisa Utang</th>
+                            <th rowspan="2" style="min-width: 90px;" class="text-center" id="th-aksi">Aksi</th>
                         </tr>
                         <tr>
                             <th style="min-width: 110px;">Gaji Pokok</th>
@@ -194,28 +202,28 @@
                                     @endif
                                 </td>
 
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][gaji_pokok]" value="{{ number_format($payslip->gaji_pokok ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_jabatan]" value="{{ number_format($payslip->tunjangan_jabatan ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_makan]" value="{{ number_format($payslip->tunjangan_makan ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][fee_marketing]" value="{{ number_format($payslip->fee_marketing ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][bonus_bulanan]" value="{{ number_format($payslip->bonus_bulanan ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_telekomunikasi]" value="{{ number_format($payslip->tunjangan_telekomunikasi ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_lainnya]" value="{{ number_format($payslip->tunjangan_lainnya ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_penempatan]" value="{{ number_format($payslip->tunjangan_penempatan ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_asuransi]" value="{{ number_format($payslip->tunjangan_asuransi ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_kelancaran]" value="{{ number_format($payslip->tunjangan_kelancaran ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][pendapatan_lain]" value="{{ number_format($payslip->pendapatan_lain ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_transportasi]" value="{{ number_format($payslip->tunjangan_transportasi ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][lembur]" value="{{ number_format($payslip->lembur ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][thr]" value="{{ number_format($payslip->thr ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][bonus]" value="{{ number_format($payslip->bonus ?? 0, 0, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][gaji_pokok]" value="{{ number_format($payslip->gaji_pokok ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_jabatan]" value="{{ number_format($payslip->tunjangan_jabatan ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_makan]" value="{{ number_format($payslip->tunjangan_makan ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][fee_marketing]" value="{{ number_format($payslip->fee_marketing ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][bonus_bulanan]" value="{{ number_format($payslip->bonus_bulanan ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_telekomunikasi]" value="{{ number_format($payslip->tunjangan_telekomunikasi ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_lainnya]" value="{{ number_format($payslip->tunjangan_lainnya ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_penempatan]" value="{{ number_format($payslip->tunjangan_penempatan ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_asuransi]" value="{{ number_format($payslip->tunjangan_asuransi ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_kelancaran]" value="{{ number_format($payslip->tunjangan_kelancaran ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][pendapatan_lain]" value="{{ number_format($payslip->pendapatan_lain ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_transportasi]" value="{{ number_format($payslip->tunjangan_transportasi ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][lembur]" value="{{ number_format($payslip->lembur ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][thr]" value="{{ number_format($payslip->thr ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-income" oninput="formatInput(this)" name="payslips[{{ $index }}][bonus]" value="{{ number_format($payslip->bonus ?? 0, 2, ',', '.') }}"></td>
                                 <td style="background:#f9fafb;"><span class="fw-bold text-success total-income">{{ number_format($payslip->total_pendapatan ?? 0, 0, ',', '.') }}</span></td>
 
-                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_bpjs_tk]" value="{{ number_format($payslip->potongan_bpjs_tk ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_pph21]" value="{{ number_format($payslip->potongan_pph21 ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_hutang]" value="{{ number_format($payslip->potongan_hutang ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_bpjs_kes]" value="{{ number_format($payslip->potongan_bpjs_kes ?? 0, 0, ',', '.') }}"></td>
-                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_terlambat]" value="{{ number_format($payslip->potongan_terlambat ?? 0, 0, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_bpjs_tk]" value="{{ number_format($payslip->potongan_bpjs_tk ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_pph21]" value="{{ number_format($payslip->potongan_pph21 ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_hutang]" value="{{ number_format($payslip->potongan_hutang ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_bpjs_kes]" value="{{ number_format($payslip->potongan_bpjs_kes ?? 0, 2, ',', '.') }}"></td>
+                                <td><input type="text" class="form-control-sm input-deduction" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_terlambat]" value="{{ number_format($payslip->potongan_terlambat ?? 0, 2, ',', '.') }}"></td>
                                 <td style="background:#f9fafb;"><span class="fw-bold text-danger total-deduction">{{ number_format($payslip->total_potongan ?? 0, 0, ',', '.') }}</span></td>
 
                                 <td><span class="fw-bold text-primary total-thp">{{ number_format($payslip->gaji_bersih ?? 0, 0, ',', '.') }}</span></td>
@@ -308,7 +316,14 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            if (sessionStorage.getItem('payroll_refresh_after_back') === '1') {
+                sessionStorage.removeItem('payroll_refresh_after_back');
+                window.location.reload();
+                return;
+            }
+
             const exportForm = document.getElementById('payroll-export-form');
+            const thrOnlyToggle = document.getElementById('thr_only_toggle');
             const selectAllCheckbox = document.getElementById('select_all_payroll');
             const selectedRowsContainer = document.getElementById('selected_rows_container');
             const selectedCountBadge = document.getElementById('selected-count-badge');
@@ -317,6 +332,7 @@
             const confirmClearPayslipSubmitButton = document.getElementById('confirm-clear-payslip-submit');
             const bulkForm = document.getElementById('payroll-bulk-form');
             const bulkActionInput = document.getElementById('payroll-action-input');
+            const thrOnlyModeInput = document.getElementById('thr_only_mode_input');
             const btnSaveDraft = document.getElementById('btn-save-draft');
             const btnPublishEmail = document.getElementById('btn-publish-email');
             const confirmPublishSubmitButton = document.getElementById('confirm-publish-submit');
@@ -326,6 +342,14 @@
             const publishConfirmModalId = 'modal-publish-confirm';
             const publishLoadingModalId = 'modal-publish-loading';
             const publishWarningModalId = 'modal-publish-warning';
+            const groupPendapatanHeader = document.getElementById('th-group-pendapatan');
+            const groupPengeluaranHeader = document.getElementById('th-group-pengeluaran');
+            const totalPenghasilanHeader = document.getElementById('th-total-penghasilan');
+            const sisaUtangHeader = document.getElementById('th-sisa-utang');
+            const aksiHeader = document.getElementById('th-aksi');
+            const secondHeaderRow = document.querySelector('.custom-table thead tr:nth-child(2)');
+            const payrollTable = document.querySelector('.custom-table');
+            const stickyKaryawanColumns = document.querySelectorAll('.col-sticky-2');
 
             let pendingClearPayslipUrl = null;
             let isSubmitting = false;
@@ -338,6 +362,110 @@
             };
 
             const getRowCheckboxes = () => Array.from(document.querySelectorAll('.payroll-row-checkbox'));
+
+            const toggleThrOnlyMode = (enabled) => {
+                // Keep: checkbox, karyawan, periode, status, THR, aksi
+                const visibleColumnIndexes = [1, 2, 3, 4, 18, 29];
+
+                const secondHeaderColumns = document.querySelectorAll('.custom-table thead tr:nth-child(2) th');
+                secondHeaderColumns.forEach((th, index) => {
+                    const currentIndex = index + 1;
+                    const isThrColumn = currentIndex === 14;
+                    th.style.display = enabled && !isThrColumn ? 'none' : '';
+                });
+
+                if (groupPendapatanHeader) {
+                    groupPendapatanHeader.colSpan = enabled ? 1 : 16;
+                    groupPendapatanHeader.textContent = enabled ? 'THR' : 'Pendapatan';
+                    if (enabled) {
+                        groupPendapatanHeader.setAttribute('rowspan', '2');
+                    } else {
+                        groupPendapatanHeader.removeAttribute('rowspan');
+                    }
+                }
+                if (groupPengeluaranHeader) {
+                    groupPengeluaranHeader.style.display = enabled ? 'none' : '';
+                }
+                if (totalPenghasilanHeader) {
+                    totalPenghasilanHeader.style.display = enabled ? 'none' : '';
+                }
+                if (sisaUtangHeader) {
+                    sisaUtangHeader.style.display = enabled ? 'none' : '';
+                }
+                if (aksiHeader) {
+                    aksiHeader.style.display = '';
+                }
+
+                if (secondHeaderRow) {
+                    secondHeaderRow.style.display = enabled ? 'none' : '';
+                }
+
+                if (payrollTable) {
+                    payrollTable.style.minWidth = enabled ? '860px' : '2600px';
+                    payrollTable.style.tableLayout = enabled ? 'fixed' : '';
+                }
+
+                stickyKaryawanColumns.forEach((column) => {
+                    column.style.minWidth = enabled ? '220px' : '';
+                    column.style.width = enabled ? '220px' : '';
+                    column.style.maxWidth = enabled ? '220px' : '';
+                });
+
+                // Keep THR header compact and centered in THR-only mode.
+                if (groupPendapatanHeader) {
+                    groupPendapatanHeader.style.minWidth = enabled ? '170px' : '';
+                    groupPendapatanHeader.style.width = enabled ? '170px' : '';
+                    groupPendapatanHeader.style.maxWidth = enabled ? '170px' : '';
+                    groupPendapatanHeader.style.textAlign = enabled ? 'center' : '';
+                    groupPendapatanHeader.style.paddingLeft = enabled ? '8px' : '';
+                    groupPendapatanHeader.style.paddingRight = enabled ? '8px' : '';
+                }
+
+                document.querySelectorAll('.custom-table tbody tr').forEach((row) => {
+                    const emptyStateCell = row.querySelector('td.empty-state');
+                    if (emptyStateCell) {
+                        emptyStateCell.colSpan = enabled ? 6 : 33;
+                        return;
+                    }
+
+                    row.querySelectorAll('td').forEach((cell, index) => {
+                        const currentIndex = index + 1;
+                        const shouldShow = !enabled || visibleColumnIndexes.includes(currentIndex);
+                        cell.style.display = shouldShow ? '' : 'none';
+
+                        if (!enabled) {
+                            cell.style.minWidth = '';
+                            cell.style.width = '';
+                            cell.style.maxWidth = '';
+                            return;
+                        }
+
+                        // Compact widths for THR-only visible columns.
+                        if (currentIndex === 2) {
+                            cell.style.minWidth = '220px';
+                            cell.style.width = '220px';
+                            cell.style.maxWidth = '220px';
+                        } else if (currentIndex === 3) {
+                            cell.style.minWidth = '140px';
+                            cell.style.width = '140px';
+                            cell.style.maxWidth = '140px';
+                        } else if (currentIndex === 4) {
+                            cell.style.minWidth = '110px';
+                            cell.style.width = '110px';
+                            cell.style.maxWidth = '110px';
+                        } else if (currentIndex === 18) {
+                            // Wide enough for 2-digit million values with decimals.
+                            cell.style.minWidth = '170px';
+                            cell.style.width = '170px';
+                            cell.style.maxWidth = '170px';
+                        } else if (currentIndex === 29) {
+                            cell.style.minWidth = '90px';
+                            cell.style.width = '90px';
+                            cell.style.maxWidth = '90px';
+                        }
+                    });
+                });
+            };
 
             const appendSelectedRowsToContainer = (container, checkedRows) => {
                 if (!container) return;
@@ -436,6 +564,15 @@
                 });
             }
 
+            if (thrOnlyToggle) {
+                thrOnlyToggle.addEventListener('change', function() {
+                    toggleThrOnlyMode(this.checked);
+                    if (thrOnlyModeInput) {
+                        thrOnlyModeInput.value = this.checked ? '1' : '0';
+                    }
+                });
+            }
+
             getRowCheckboxes().forEach((checkbox) => {
                 checkbox.addEventListener('change', syncSelectAllState);
             });
@@ -530,6 +667,9 @@
                     });
 
                     bulkActionInput.value = 'publish';
+                    if (thrOnlyModeInput && thrOnlyToggle) {
+                        thrOnlyModeInput.value = thrOnlyToggle.checked ? '1' : '0';
+                    }
                     bulkForm.submit();
                 });
             }
@@ -561,6 +701,10 @@
             });
 
             syncSelectAllState();
+            toggleThrOnlyMode(false);
+            if (thrOnlyModeInput) {
+                thrOnlyModeInput.value = '0';
+            }
         });
     </script>
 
@@ -593,6 +737,27 @@
             align-items: center;
             flex-wrap: wrap;
             justify-content: flex-end;
+        }
+
+        .thr-only-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: #fff;
+            color: #374151;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .thr-only-toggle input {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
         }
 
         .selected-info {

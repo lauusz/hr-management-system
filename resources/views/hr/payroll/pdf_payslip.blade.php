@@ -154,6 +154,7 @@
 
         <table style="margin-bottom: 4px; width: 100%;">
             @php
+                $thrOnlyMode = !empty($thrOnly);
                 $totalPendapatanAdjusted =
                     ($payslip->gaji_pokok ?? 0) +
                     ($payslip->tunjangan_jabatan ?? 0) +
@@ -170,14 +171,34 @@
                     ($payslip->lembur ?? 0) +
                     ($payslip->thr ?? 0) +
                     ($payslip->bonus ?? 0);
+
+                if ($thrOnlyMode) {
+                    $totalPendapatanAdjusted = (float) ($payslip->thr ?? 0);
+                }
+
+                $totalPotonganDisplay = $thrOnlyMode ? 0 : (float) ($payslip->total_potongan ?? 0);
+                $gajiBersihDisplay = $thrOnlyMode ? (float) ($payslip->thr ?? 0) : (float) ($payslip->gaji_bersih ?? 0);
             @endphp
             <!-- colgroup terkadang tidak bekerja sempurna di DomPDF, set max min secara manual -->
             <tr class="bg-gray border-top-thick border-bottom-thick font-bold">
                 <td colspan="3" style="width: 48%; padding: 5px 2px;">PENDAPATAN</td>
                 <td style="background-color: #fff; width: 4%;"></td>
-                <td colspan="3" style="width: 48%; padding: 5px 2px;">POTONGAN</td>
+                <td colspan="3" style="width: 48%; padding: 5px 2px;">{{ $thrOnlyMode ? '' : 'POTONGAN' }}</td>
             </tr>
 
+            @if($thrOnlyMode)
+            <tr>
+                <td style="width: 30%;">THR</td>
+                <td style="width: 3%;">Rp</td>
+                <td class="text-right" style="width: 15%;">{{ number_format($payslip->thr ?? 0, 2, ',', '.') }}</td>
+
+                <td style="width: 4%;"></td>
+
+                <td style="width: 30%;"></td>
+                <td style="width: 3%;"></td>
+                <td class="text-right" style="width: 15%;"></td>
+            </tr>
+            @else
             <tr>
                 <td style="width: 30%;">GAJI POKOK</td>
                 <td style="width: 3%;">Rp</td>
@@ -301,6 +322,7 @@
                 <td></td>
             </tr>
             @endif
+            @endif
 
             <tr class="bg-gray border-top-thick border-bottom-double font-bold">
                 <td style="padding: 5px 2px;">JUMLAH PENDAPATAN</td>
@@ -309,7 +331,7 @@
                 <td style="background-color: #fff;"></td>
                 <td style="padding: 5px 2px;">JUMLAH POTONGAN</td>
                 <td style="padding: 5px 2px;">Rp</td>
-                <td class="text-right" style="padding: 5px 2px;">{{ number_format($payslip->total_potongan, 0, ',', '.') }}</td>
+                <td class="text-right" style="padding: 5px 2px;">{{ number_format($totalPotonganDisplay, 0, ',', '.') }}</td>
             </tr>
         </table>
 
@@ -331,13 +353,13 @@
                         <tr>
                             <td class="font-bold">GAJI BERSIH &nbsp; &nbsp; &nbsp;:</td>
                             <td class="bg-yellow font-bold" style="border: 1px solid #000; border-right: none; padding: 2px 4px;">Rp</td>
-                            <td class="bg-yellow text-right font-bold" style="border: 1px solid #000; border-left: none; padding: 2px 4px;">{{ number_format($payslip->gaji_bersih, 0, ',', '.') }}</td>
+                            <td class="bg-yellow text-right font-bold" style="border: 1px solid #000; border-left: none; padding: 2px 4px;">{{ number_format($gajiBersihDisplay, 0, ',', '.') }}</td>
                             <td></td>
                         </tr>
                         <tr>
                             <td></td>
                             <td colspan="2" class="font-bold font-italic" style="padding-top: 5px;">
-                                {{ App\Helpers\TerbilangHelper::convert($payslip->gaji_bersih) }} Rupiah
+                                {{ App\Helpers\TerbilangHelper::convert($gajiBersihDisplay) }} Rupiah
                             </td>
                             <td></td>
                         </tr>

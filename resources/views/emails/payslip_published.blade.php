@@ -142,6 +142,7 @@
 
         <table style="margin-bottom: 10px;">
             @php
+                $thrOnlyMode = !empty($thrOnly);
                 $totalPendapatanAdjusted =
                     ($payslip->gaji_pokok ?? 0) +
                     ($payslip->tunjangan_jabatan ?? 0) +
@@ -158,6 +159,13 @@
                     ($payslip->lembur ?? 0) +
                     ($payslip->thr ?? 0) +
                     ($payslip->bonus ?? 0);
+
+                if ($thrOnlyMode) {
+                    $totalPendapatanAdjusted = (float) ($payslip->thr ?? 0);
+                }
+
+                $totalPotonganDisplay = $thrOnlyMode ? 0 : (float) ($payslip->total_potongan ?? 0);
+                $gajiBersihDisplay = $thrOnlyMode ? (float) ($payslip->thr ?? 0) : (float) ($payslip->gaji_bersih ?? 0);
             @endphp
             <colgroup>
                 <col style="width: 28%;">
@@ -172,9 +180,20 @@
             <tr class="bg-gray border-top-thick border-bottom-thick font-bold">
                 <td colspan="3">PENDAPATAN</td>
                 <td style="background-color: #fff;"></td>
-                <td colspan="3">POTONGAN</td>
+                <td colspan="3">{{ $thrOnlyMode ? '' : 'POTONGAN' }}</td>
             </tr>
 
+            @if($thrOnlyMode)
+            <tr>
+                <td>THR</td>
+                <td>Rp</td>
+                <td class="text-right">{{ number_format($payslip->thr ?? 0, 2, ',', '.') }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            @else
             <tr>
                 <td>GAJI POKOK</td>
                 <td>Rp</td>
@@ -296,6 +315,7 @@
                 <td></td>
             </tr>
             @endif
+            @endif
 
             <tr class="bg-gray border-top-thick border-bottom-double font-bold">
                 <td>JUMLAH PENDAPATAN</td>
@@ -304,7 +324,7 @@
                 <td style="background-color: #fff;"></td>
                 <td>JUMLAH POTONGAN</td>
                 <td>Rp</td>
-                <td class="text-right">{{ number_format($payslip->total_potongan, 0, ',', '.') }}</td>
+                <td class="text-right">{{ number_format($totalPotonganDisplay, 0, ',', '.') }}</td>
             </tr>
         </table>
 
@@ -326,13 +346,13 @@
                         <tr>
                             <td class="font-bold">GAJI BERSIH &nbsp; &nbsp; &nbsp;:</td>
                             <td class="bg-yellow font-bold" style="border: 1px solid #000; border-right: none; padding: 2px 4px;">Rp</td>
-                            <td class="bg-yellow text-right font-bold" style="border: 1px solid #000; border-left: none; padding: 2px 4px;">{{ number_format($payslip->gaji_bersih, 0, ',', '.') }}</td>
+                            <td class="bg-yellow text-right font-bold" style="border: 1px solid #000; border-left: none; padding: 2px 4px;">{{ number_format($gajiBersihDisplay, 0, ',', '.') }}</td>
                             <td></td>
                         </tr>
                         <tr>
                             <td></td>
                             <td colspan="2" class="font-bold font-italic" style="padding-top: 3px;">
-                                {{ App\Helpers\TerbilangHelper::convert($payslip->gaji_bersih) }} Rupiah
+                                {{ App\Helpers\TerbilangHelper::convert($gajiBersihDisplay) }} Rupiah
                             </td>
                             <td></td>
                         </tr>

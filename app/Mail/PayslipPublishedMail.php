@@ -18,6 +18,7 @@ class PayslipPublishedMail extends Mailable implements ShouldQueue
 
     public $payslip;
     public $ptName;
+    public $thrOnly;
 
     /**
      * Create a new message instance.
@@ -26,6 +27,7 @@ class PayslipPublishedMail extends Mailable implements ShouldQueue
     {
         $this->payslip = $payslip;
         $this->ptName = $ptName;
+        $this->thrOnly = false;
     }
 
     /**
@@ -48,6 +50,7 @@ class PayslipPublishedMail extends Mailable implements ShouldQueue
             view: 'emails.payslip_published',
             with: [
                 'ptName' => $this->ptName,
+                'thrOnly' => $this->thrOnly,
             ],
         );
     }
@@ -61,7 +64,8 @@ class PayslipPublishedMail extends Mailable implements ShouldQueue
     {
         $pdf = Pdf::loadView('hr.payroll.pdf_payslip', [
             'payslip' => $this->payslip,
-            'ptName' => $this->ptName
+            'ptName' => $this->ptName,
+            'thrOnly' => $this->thrOnly,
         ])->setPaper('a5', 'landscape');
         $monthName = \Carbon\Carbon::create()->month((int)$this->payslip->period_month)->locale('id')->translatedFormat('F');
 

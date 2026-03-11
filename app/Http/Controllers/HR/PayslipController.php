@@ -405,12 +405,14 @@ class PayslipController extends Controller
             'year' => 'required|integer',
             'pt_id' => 'nullable|integer',
             'action' => 'required|in:draft,publish',
+            'thr_only_mode' => 'nullable|boolean',
         ]);
 
         $payslipsData = $request->input('payslips');
         $month = $request->input('month');
         $year = $request->input('year');
         $action = $request->input('action');
+        $thrOnlyMode = $request->boolean('thr_only_mode') && $action === 'publish';
 
         // Jika action publish dan ada selected_rows, hanya proses yang dipilih
         $selectedRows = collect($request->input('selected_rows', []))
@@ -553,7 +555,9 @@ class PayslipController extends Controller
 
             if ($shouldSendEmail && $payslip->user && $payslip->user->email) {
                 $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
-                Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
+                $mail = new PayslipPublishedMail($payslip, $ptName);
+                $mail->thrOnly = $thrOnlyMode;
+                Mail::to($payslip->user->email)->send($mail);
             }
 
             $count++;
@@ -575,6 +579,8 @@ class PayslipController extends Controller
     public function sendSelectedEmails(Request $request)
     {
         Gate::authorize('manage-payroll');
+
+        $thrOnlyMode = $request->boolean('thr_only_mode');
 
         $selectedRows = collect($request->input('selected_rows', []))
             ->filter(function ($value) {
@@ -623,7 +629,9 @@ class PayslipController extends Controller
             }
 
             $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
-            Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
+            $mail = new PayslipPublishedMail($payslip, $ptName);
+            $mail->thrOnly = $thrOnlyMode;
+            Mail::to($payslip->user->email)->send($mail);
             $sentCount++;
         }
 

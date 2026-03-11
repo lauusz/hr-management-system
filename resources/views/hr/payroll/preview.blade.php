@@ -105,36 +105,36 @@
                                 <td style="text-align: center;" class="col-sticky-1">{{ $index + 1 }}</td>
                                 <td class="col-sticky-2">
                                     <div class="fw-bold">{{ $row['user_name'] }}</div>
-                                    <div class="text-muted">{{ $row['nik'] }}</div>
+                                    <div class="text-muted">{{ $row['email'] ?? '-' }}</div>
                                     <input type="hidden" name="payslips[{{ $index }}][user_id]" value="{{ $row['user_id'] }}">
                                 </td>
 
                                 <!-- Pendapatan -->
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][gaji_pokok]" value="{{ number_format($row['gaji_pokok'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_jabatan]" value="{{ number_format($row['tunjangan_jabatan'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_makan]" value="{{ number_format($row['tunjangan_makan'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][fee_marketing]" value="{{ number_format($row['fee_marketing'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][bonus_bulanan]" value="{{ number_format($row['bonus_bulanan'] ?? 0, 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_telekomunikasi]" value="{{ number_format($row['tunjangan_telekomunikasi'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_lainnya]" value="{{ number_format($row['tunjangan_lainnya'] ?? 0, 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_penempatan]" value="{{ number_format($row['tunjangan_penempatan'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_asuransi]" value="{{ number_format($row['tunjangan_asuransi'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_kelancaran]" value="{{ number_format($row['tunjangan_kelancaran'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][pendapatan_lain]" value="{{ number_format($row['pendapatan_lain'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_transportasi]" value="{{ number_format($row['tunjangan_transportasi'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][lembur]" value="{{ number_format($row['lembur'], 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][thr]" value="{{ number_format($row['thr'] ?? 0, 0, ',', '.') }}" class="form-control-sm input-income"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][bonus]" value="{{ number_format($row['bonus'] ?? 0, 0, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][gaji_pokok]" value="{{ number_format($row['gaji_pokok'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_jabatan]" value="{{ number_format($row['tunjangan_jabatan'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_makan]" value="{{ number_format($row['tunjangan_makan'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][fee_marketing]" value="{{ number_format($row['fee_marketing'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][bonus_bulanan]" value="{{ number_format($row['bonus_bulanan'] ?? 0, 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_telekomunikasi]" value="{{ number_format($row['tunjangan_telekomunikasi'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_lainnya]" value="{{ number_format($row['tunjangan_lainnya'] ?? 0, 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_penempatan]" value="{{ number_format($row['tunjangan_penempatan'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_asuransi]" value="{{ number_format($row['tunjangan_asuransi'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_kelancaran]" value="{{ number_format($row['tunjangan_kelancaran'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][pendapatan_lain]" value="{{ number_format($row['pendapatan_lain'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][tunjangan_transportasi]" value="{{ number_format($row['tunjangan_transportasi'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][lembur]" value="{{ number_format($row['lembur'], 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][thr]" value="{{ number_format($row['thr'] ?? 0, 2, ',', '.') }}" class="form-control-sm input-income"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][bonus]" value="{{ number_format($row['bonus'] ?? 0, 2, ',', '.') }}" class="form-control-sm input-income"> </td>
                                 <td style="background-color: #f9fafb;">
                                     <span class="fw-bold text-success total-income">{{ number_format($row['total_pendapatan'], 0, ',', '.') }}</span>
                                 </td>
 
                                 <!-- Pengeluaran -->
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_bpjs_tk]" value="{{ number_format($row['potongan_bpjs_tk'], 0, ',', '.') }}" class="form-control-sm input-deduction"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_pph21]" value="{{ number_format($row['potongan_pph21'], 0, ',', '.') }}" class="form-control-sm input-deduction"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_hutang]" value="{{ number_format($row['potongan_hutang'], 0, ',', '.') }}" class="form-control-sm input-deduction"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_bpjs_kes]" value="{{ number_format($row['potongan_bpjs_kes'], 0, ',', '.') }}" class="form-control-sm input-deduction"> </td>
-                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_terlambat]" value="{{ number_format($row['potongan_terlambat'], 0, ',', '.') }}" class="form-control-sm input-deduction"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_bpjs_tk]" value="{{ number_format($row['potongan_bpjs_tk'], 2, ',', '.') }}" class="form-control-sm input-deduction"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_pph21]" value="{{ number_format($row['potongan_pph21'], 2, ',', '.') }}" class="form-control-sm input-deduction"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_hutang]" value="{{ number_format($row['potongan_hutang'], 2, ',', '.') }}" class="form-control-sm input-deduction"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_bpjs_kes]" value="{{ number_format($row['potongan_bpjs_kes'], 2, ',', '.') }}" class="form-control-sm input-deduction"> </td>
+                                <td> <input type="text" oninput="formatInput(this)" name="payslips[{{ $index }}][potongan_terlambat]" value="{{ number_format($row['potongan_terlambat'], 2, ',', '.') }}" class="form-control-sm input-deduction"> </td>
                                 <td style="background-color: #f9fafb;">
                                     <span class="fw-bold text-danger total-deduction">{{ number_format($row['total_potongan'], 0, ',', '.') }}</span>
                                 </td>
@@ -159,9 +159,9 @@
                 </div>
 
                 <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
-                    <a href="{{ route('hr.payroll.index') }}" class="btn-action" style="padding: 8px 16px;">
+                    <button type="button" id="btn-back-history" class="btn-action" style="padding: 8px 16px;">
                         Batal
-                    </a>
+                    </button>
                     <button type="button" id="btn-save-draft" class="btn-action" style="background: #f3f4f6; color: #374151; padding: 8px 16px;">
                         Simpan DRAFT
                     </button>
@@ -483,8 +483,22 @@
             const tbody = table.querySelector('tbody');
             const monthSelect = document.getElementById('month');
             const yearSelect = document.getElementById('year');
+            const btnBackHistory = document.getElementById('btn-back-history');
             let isSubmitting = false;
             let pendingDeleteRow = null;
+
+            if (btnBackHistory) {
+                btnBackHistory.addEventListener('click', function() {
+                    sessionStorage.setItem('payroll_refresh_after_back', '1');
+
+                    if (window.history.length > 1) {
+                        window.history.back();
+                        return;
+                    }
+
+                    window.location.href = "{{ route('hr.payroll.index') }}";
+                });
+            }
 
             // Find all rows (excluding header)
             const rows = table.querySelectorAll('tbody tr');
