@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Gate;
 use App\Imports\PayslipPreviewImport;
 use App\Models\EmployeeProfile;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\PayslipPublishedMail;
 
@@ -423,6 +424,7 @@ class PayslipController extends Controller
         $status = ($action === 'publish') ? 'PUBLISHED' : 'DRAFT';
         $count = 0;
         $inactiveSkippedCount = 0;
+        $emailDelaySeconds = 0;
 
         $activeUserIds = User::query()
             ->active()
@@ -557,13 +559,16 @@ class PayslipController extends Controller
                 $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
                 $mail = new PayslipPublishedMail($payslip, $ptName);
                 $mail->thrOnly = $thrOnlyMode;
-                Mail::to($payslip->user->email)->send($mail);
+                $this->queueBulkPayslipEmail($payslip->user->email, $mail, $emailDelaySeconds);
             }
 
             $count++;
         }
 
         $message = "Berhasil mengimpor $count data slip gaji ($status).";
+        if ($status === 'PUBLISHED') {
+            $message .= ' Email dijadwalkan ke queue dengan jeda acak 10-15 detik per email.';
+        }
         if ($inactiveSkippedCount > 0) {
             $message .= " {$inactiveSkippedCount} data dilewati karena karyawan tidak berstatus ACTIVE.";
         }
@@ -598,6 +603,7 @@ class PayslipController extends Controller
         $missingPayslipCount = 0;
         $missingEmailCount = 0;
         $inactiveUserCount = 0;
+        $emailDelaySeconds = 0;
 
         foreach ($selectedRows as $rowKey) {
             [$userId, $month, $year] = array_map('intval', explode('-', $rowKey));
@@ -631,11 +637,11 @@ class PayslipController extends Controller
             $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
             $mail = new PayslipPublishedMail($payslip, $ptName);
             $mail->thrOnly = $thrOnlyMode;
-            Mail::to($payslip->user->email)->send($mail);
+            $this->queueBulkPayslipEmail($payslip->user->email, $mail, $emailDelaySeconds);
             $sentCount++;
         }
 
-        $messages = ["{$sentCount} email berhasil diproses."];
+        $messages = ["{$sentCount} email dijadwalkan ke queue dengan jeda acak 10-15 detik per email."];
 
         if ($draftPublishedCount > 0) {
             $messages[] = "{$draftPublishedCount} slip DRAFT diubah menjadi PUBLISHED.";
@@ -666,6 +672,15 @@ class PayslipController extends Controller
             ->first();
 
         return $profile?->pt?->name;
+    }
+
+    private function queueBulkPayslipEmail(string $email, PayslipPublishedMail $mail, int &$delaySeconds): void
+    {
+        $delaySeconds += random_int(10, 15);
+
+        Mail::to($email)->queue(
+            $mail->onQueue('emails')->delay(Carbon::now()->addSeconds($delaySeconds))
+        );
     }
 
     private function cleanAndFormatCurrency($value)
