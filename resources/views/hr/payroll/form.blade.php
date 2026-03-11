@@ -87,7 +87,9 @@
                             'tunjangan_kelancaran' => 'Tunjangan Kelancaran',
                             'pendapatan_lain' => 'Pendapatan Lain',
                             'tunjangan_transportasi' => 'Tunjangan Transportasi',
-                            'lembur' => 'Lembur'
+                            'lembur' => 'Lembur',
+                            'thr' => 'THR',
+                            'bonus' => 'Bonus'
                             ] as $field => $label)
                             <div class="spreadsheet-row" style="display: flex; align-items: center; border-bottom: 1px solid #f3f4f6; padding: 2px 8px; transition: background-color 0.15s; border-radius: 4px;">
                                 <label for="{{ $field }}" class="form-label" style="flex: 1; margin: 0; padding: 6px 0; font-size: 13px; font-weight: 500; color: #4b5563;">{{ $label }}</label>

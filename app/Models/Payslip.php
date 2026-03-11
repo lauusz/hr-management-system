@@ -27,6 +27,8 @@ class Payslip extends Model
         'pendapatan_lain',
         'tunjangan_transportasi',
         'lembur',
+        'thr',
+        'bonus',
         'potongan_bpjs_tk',
         'potongan_pph21',
         'potongan_hutang',

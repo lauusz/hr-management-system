@@ -141,6 +141,24 @@
         </table>
 
         <table style="margin-bottom: 10px;">
+            @php
+                $totalPendapatanAdjusted =
+                    ($payslip->gaji_pokok ?? 0) +
+                    ($payslip->tunjangan_jabatan ?? 0) +
+                    ($payslip->tunjangan_makan ?? 0) +
+                    ($payslip->fee_marketing ?? 0) +
+                    ($payslip->bonus_bulanan ?? 0) +
+                    ($payslip->tunjangan_telekomunikasi ?? 0) +
+                    ($payslip->tunjangan_lainnya ?? 0) +
+                    ($payslip->tunjangan_penempatan ?? 0) +
+                    ($payslip->tunjangan_asuransi ?? 0) +
+                    ($payslip->tunjangan_kelancaran ?? 0) +
+                    ($payslip->pendapatan_lain ?? 0) +
+                    ($payslip->tunjangan_transportasi ?? 0) +
+                    ($payslip->lembur ?? 0) +
+                    ($payslip->thr ?? 0) +
+                    ($payslip->bonus ?? 0);
+            @endphp
             <colgroup>
                 <col style="width: 28%;">
                 <col style="width: 4%;">
@@ -256,11 +274,33 @@
                 <td></td>
                 <td></td>
             </tr>
+            @if((float) ($payslip->thr ?? 0) > 0)
+            <tr>
+                <td>THR</td>
+                <td>Rp</td>
+                <td class="text-right">{{ number_format($payslip->thr ?? 0, 2, ',', '.') }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            @endif
+            @if((float) ($payslip->bonus ?? 0) > 0)
+            <tr>
+                <td>BONUS</td>
+                <td>Rp</td>
+                <td class="text-right">{{ number_format($payslip->bonus ?? 0, 2, ',', '.') }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            @endif
 
             <tr class="bg-gray border-top-thick border-bottom-double font-bold">
                 <td>JUMLAH PENDAPATAN</td>
                 <td>Rp</td>
-                <td class="text-right">{{ number_format($payslip->total_pendapatan, 0, ',', '.') }}</td>
+                <td class="text-right">{{ number_format($totalPendapatanAdjusted, 0, ',', '.') }}</td>
                 <td style="background-color: #fff;"></td>
                 <td>JUMLAH POTONGAN</td>
                 <td>Rp</td>

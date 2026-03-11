@@ -225,7 +225,9 @@ class PayslipController extends Controller
             ($data['tunjangan_kelancaran'] ?? 0) +
             ($data['pendapatan_lain'] ?? 0) +
             ($data['tunjangan_transportasi'] ?? 0) +
-            ($data['lembur'] ?? 0);
+            ($data['lembur'] ?? 0) +
+            ($data['thr'] ?? 0) +
+            ($data['bonus'] ?? 0);
 
         $totalPotongan =
             ($data['potongan_bpjs_tk'] ?? 0) +
@@ -304,7 +306,9 @@ class PayslipController extends Controller
             ($data['tunjangan_kelancaran'] ?? 0) +
             ($data['pendapatan_lain'] ?? 0) +
             ($data['tunjangan_transportasi'] ?? 0) +
-            ($data['lembur'] ?? 0);
+            ($data['lembur'] ?? 0) +
+            ($data['thr'] ?? 0) +
+            ($data['bonus'] ?? 0);
 
         $totalPotongan =
             ($data['potongan_bpjs_tk'] ?? 0) +
@@ -455,6 +459,8 @@ class PayslipController extends Controller
                 'pendapatan_lain',
                 'tunjangan_transportasi',
                 'lembur',
+                'thr',
+                'bonus',
                 'potongan_bpjs_tk',
                 'potongan_pph21',
                 'potongan_hutang',
@@ -488,7 +494,9 @@ class PayslipController extends Controller
                 ($data['tunjangan_kelancaran'] ?? 0) +
                 ($data['pendapatan_lain'] ?? 0) +
                 ($data['tunjangan_transportasi'] ?? 0) +
-                ($data['lembur'] ?? 0);
+                ($data['lembur'] ?? 0) +
+                ($data['thr'] ?? 0) +
+                ($data['bonus'] ?? 0);
 
             $totalPotongan =
                 ($data['potongan_bpjs_tk'] ?? 0) +
@@ -513,6 +521,8 @@ class PayslipController extends Controller
                 'pendapatan_lain' => $data['pendapatan_lain'] ?? 0,
                 'tunjangan_transportasi' => $data['tunjangan_transportasi'] ?? 0,
                 'lembur' => $data['lembur'] ?? 0,
+                'thr' => $data['thr'] ?? 0,
+                'bonus' => $data['bonus'] ?? 0,
                 'potongan_bpjs_tk' => $data['potongan_bpjs_tk'] ?? 0,
                 'potongan_pph21' => $data['potongan_pph21'] ?? 0,
                 'potongan_hutang' => $data['potongan_hutang'] ?? 0,

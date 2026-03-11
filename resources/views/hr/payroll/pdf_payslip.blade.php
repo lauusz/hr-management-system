@@ -153,6 +153,24 @@
         </table>
 
         <table style="margin-bottom: 4px; width: 100%;">
+            @php
+                $totalPendapatanAdjusted =
+                    ($payslip->gaji_pokok ?? 0) +
+                    ($payslip->tunjangan_jabatan ?? 0) +
+                    ($payslip->tunjangan_makan ?? 0) +
+                    ($payslip->fee_marketing ?? 0) +
+                    ($payslip->bonus_bulanan ?? 0) +
+                    ($payslip->tunjangan_telekomunikasi ?? 0) +
+                    ($payslip->tunjangan_lainnya ?? 0) +
+                    ($payslip->tunjangan_penempatan ?? 0) +
+                    ($payslip->tunjangan_asuransi ?? 0) +
+                    ($payslip->tunjangan_kelancaran ?? 0) +
+                    ($payslip->pendapatan_lain ?? 0) +
+                    ($payslip->tunjangan_transportasi ?? 0) +
+                    ($payslip->lembur ?? 0) +
+                    ($payslip->thr ?? 0) +
+                    ($payslip->bonus ?? 0);
+            @endphp
             <!-- colgroup terkadang tidak bekerja sempurna di DomPDF, set max min secara manual -->
             <tr class="bg-gray border-top-thick border-bottom-thick font-bold">
                 <td colspan="3" style="width: 48%; padding: 5px 2px;">PENDAPATAN</td>
@@ -261,11 +279,33 @@
                 <td></td>
                 <td></td>
             </tr>
+            @if((float) ($payslip->thr ?? 0) > 0)
+            <tr>
+                <td>THR</td>
+                <td>Rp</td>
+                <td class="text-right">{{ number_format($payslip->thr ?? 0, 2, ',', '.') }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            @endif
+            @if((float) ($payslip->bonus ?? 0) > 0)
+            <tr>
+                <td>BONUS</td>
+                <td>Rp</td>
+                <td class="text-right">{{ number_format($payslip->bonus ?? 0, 2, ',', '.') }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            @endif
 
             <tr class="bg-gray border-top-thick border-bottom-double font-bold">
                 <td style="padding: 5px 2px;">JUMLAH PENDAPATAN</td>
                 <td style="padding: 5px 2px;">Rp</td>
-                <td class="text-right" style="padding: 5px 2px;">{{ number_format($payslip->total_pendapatan, 0, ',', '.') }}</td>
+                <td class="text-right" style="padding: 5px 2px;">{{ number_format($totalPendapatanAdjusted, 0, ',', '.') }}</td>
                 <td style="background-color: #fff;"></td>
                 <td style="padding: 5px 2px;">JUMLAH POTONGAN</td>
                 <td style="padding: 5px 2px;">Rp</td>

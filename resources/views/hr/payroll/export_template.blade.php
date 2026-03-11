@@ -46,6 +46,8 @@
         <td></td>
         <td></td>
         <td></td>
+        <td></td>
+        <td></td>
         <td>TOTAL PENDAPATAN</td>
         <td>POTONGAN</td>
         <td></td>
@@ -78,6 +80,8 @@
         <td>PENDAPATAN LAIN</td>
         <td>TUNJANGAN TRANSPORTASI</td>
         <td>LEMBUR</td>
+        <td>THR</td>
+        <td>BONUS</td>
         <td></td>
         <td>POTONGAN BPJS TK</td>
         <td>POTONGAN PPH21</td>
@@ -117,12 +121,32 @@
         <td>26</td>
         <td>27</td>
         <td>28</td>
+        <td>29</td>
+        <td>30</td>
+        <td>31</td>
     </tr>
     @foreach($payrollRows as $index => $row)
     @php
     $emp = $row['user'];
     $slip = $row['latest_payslip'];
     $m = $row['month_number'];
+    $totalPendapatanAdjusted =
+        (optional($slip)->gaji_pokok ?? 0) +
+        (optional($slip)->tunjangan_jabatan ?? 0) +
+        (optional($slip)->tunjangan_makan ?? 0) +
+        (optional($slip)->fee_marketing ?? 0) +
+        (optional($slip)->bonus_bulanan ?? 0) +
+        (optional($slip)->tunjangan_telekomunikasi ?? 0) +
+        (optional($slip)->tunjangan_lainnya ?? 0) +
+        (optional($slip)->tunjangan_penempatan ?? 0) +
+        (optional($slip)->tunjangan_asuransi ?? 0) +
+        (optional($slip)->tunjangan_kelancaran ?? 0) +
+        (optional($slip)->pendapatan_lain ?? 0) +
+        (optional($slip)->tunjangan_transportasi ?? 0) +
+        (optional($slip)->lembur ?? 0) +
+        (optional($slip)->thr ?? 0) +
+        (optional($slip)->bonus ?? 0);
+    $totalPotongan = optional($slip)->total_potongan ?? 0;
     @endphp
     <tr>
         <td></td>
@@ -146,14 +170,16 @@
         <td>{{ optional($slip)->pendapatan_lain ?? 0 }}</td>
         <td>{{ optional($slip)->tunjangan_transportasi ?? 0 }}</td>
         <td>{{ optional($slip)->lembur ?? 0 }}</td>
-        <td>{{ optional($slip)->total_pendapatan ?? 0 }}</td>
+        <td>{{ optional($slip)->thr ?? 0 }}</td>
+        <td>{{ optional($slip)->bonus ?? 0 }}</td>
+        <td>{{ $totalPendapatanAdjusted }}</td>
         <td>{{ optional($slip)->potongan_bpjs_tk ?? 0 }}</td>
         <td>{{ optional($slip)->potongan_pph21 ?? 0 }}</td>
         <td>{{ optional($slip)->potongan_hutang ?? 0 }}</td>
         <td>{{ optional($slip)->potongan_bpjs_kes ?? 0 }}</td>
         <td>{{ optional($slip)->potongan_terlambat ?? 0 }}</td>
-        <td>{{ optional($slip)->total_potongan ?? 0 }}</td>
-        <td>{{ (optional($slip)->total_pendapatan ?? 0) - (optional($slip)->total_potongan ?? 0) }}</td>
+        <td>{{ $totalPotongan }}</td>
+        <td>{{ $totalPendapatanAdjusted - $totalPotongan }}</td>
         <td>{{ optional($slip)->sisa_utang ?? '' }}</td>
     </tr>
     @endforeach
