@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Slip Gaji - PT Express Lintas Indonesia</title>
+    <title>{{ !empty($thrOnly) ? 'Slip THR' : 'Slip Gaji' }} - PT Express Lintas Indonesia</title>
     <style>
         @page {
             margin: 15px 20px;
@@ -129,7 +129,7 @@
                     <p style="font-family: sans-serif;">Jawa Timur</p>
                 </td>
                 <td style="width: 25%; text-align: right; vertical-align: top; padding: 0;">
-                    <h3 style="font-size: 16px; margin-bottom: 3px; font-family: sans-serif;">SLIP GAJI</h3>
+                    <h3 style="font-size: 16px; margin-bottom: 3px; font-family: sans-serif;">{{ !empty($thrOnly) ? 'SLIP THR' : 'SLIP GAJI' }}</h3>
                     <p class="font-bold" style="font-family: sans-serif;">{{ \Carbon\Carbon::createFromDate((int)$payslip->period_year, (int)$payslip->period_month, 1)->format('M-y') }}</p>
                 </td>
             </tr>

@@ -5,13 +5,15 @@ namespace App\Mail;
 use App\Models\Payslip;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class PayslipPublishedMail extends Mailable
+class PayslipPublishedMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
@@ -34,9 +36,12 @@ class PayslipPublishedMail extends Mailable
      */
     public function envelope(): Envelope
     {
-        $monthName = \Carbon\Carbon::create()->month((int)$this->payslip->period_month)->locale('id')->translatedFormat('F');
+        $monthName = \Carbon\Carbon::create()->month((int) $this->payslip->period_month)->locale('id')->translatedFormat('F');
+        $mailTitle = $this->thrOnly ? 'Slip THR' : 'Slip Gaji';
+
         return new Envelope(
-            subject: 'Slip Gaji ' . $monthName . ' ' . $this->payslip->period_year,
+            from: new Address(config('mail.from.address'), $mailTitle),
+            subject: $mailTitle . ' ' . $monthName . ' ' . $this->payslip->period_year,
         );
     }
 
@@ -66,10 +71,12 @@ class PayslipPublishedMail extends Mailable
             'ptName' => $this->ptName,
             'thrOnly' => $this->thrOnly,
         ])->setPaper('a5', 'landscape');
-        $monthName = \Carbon\Carbon::create()->month((int)$this->payslip->period_month)->locale('id')->translatedFormat('F');
+
+        $monthName = \Carbon\Carbon::create()->month((int) $this->payslip->period_month)->locale('id')->translatedFormat('F');
+        $mailTitle = $this->thrOnly ? 'Slip THR' : 'Slip Gaji';
 
         return [
-            Attachment::fromData(fn() => $pdf->output(), 'Slip Gaji ' . $monthName . ' ' . $this->payslip->period_year . '.pdf')
+            Attachment::fromData(fn() => $pdf->output(), $mailTitle . ' ' . $monthName . ' ' . $this->payslip->period_year . '.pdf')
                 ->withMime('application/pdf'),
         ];
     }
