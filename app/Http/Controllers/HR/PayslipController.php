@@ -16,6 +16,8 @@ use App\Imports\PayslipPreviewImport;
 use App\Models\EmployeeProfile;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class PayslipController extends Controller
 {
@@ -371,26 +373,36 @@ class PayslipController extends Controller
             'pt_id' => 'required|exists:pts,id',
         ]);
 
-        $file = $request->file('file');
+        try {
+            $file = $request->file('file');
 
-        // INSTANSIASI CLASS IMPORT DAN AMBIL DATA DARI "KANTONG"
-        $import = new PayslipPreviewImport();
-        Excel::import($import, $file);
+            // INSTANSIASI CLASS IMPORT DAN AMBIL DATA DARI "KANTONG"
+            $import = new PayslipPreviewImport();
+            Excel::import($import, $file);
 
-        // Ambil data yang sudah bersih dari properti mappedData
-        $payslips = $import->mappedData;
+            // Ambil data yang sudah bersih dari properti mappedData
+            $payslips = $import->mappedData;
 
-        if (empty($payslips)) {
-            return back()->with('error', 'Tidak ada data valid yang ditemukan dalam file. Pastikan NIK di baris ke-9 sesuai dengan database.');
+            if (empty($payslips)) {
+                return back()->with('error', 'Tidak ada data valid yang ditemukan dalam file. Pastikan NIK di baris ke-9 sesuai dengan database.');
+            }
+
+            $month = $request->input('month');
+            $year = $request->input('year');
+            $ptId = $request->input('pt_id');
+            $pt = Pt::find($ptId);
+            $pts = Pt::orderBy('name')->get();
+
+            return view('hr.payroll.preview', compact('payslips', 'month', 'year', 'pt', 'pts'));
+        } catch (Throwable $e) {
+            Log::error('Payroll preview import failed', [
+                'user_id' => Auth::id(),
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Terjadi kesalahan saat memproses file import. Silakan cek format file atau hubungi tim IT.');
         }
-
-        $month = $request->input('month');
-        $year = $request->input('year');
-        $ptId = $request->input('pt_id');
-        $pt = Pt::find($ptId);
-        $pts = Pt::orderBy('name')->get();
-
-        return view('hr.payroll.preview', compact('payslips', 'month', 'year', 'pt', 'pts'));
     }
 
     public function storeBulkImport(Request $request)
@@ -404,6 +416,7 @@ class PayslipController extends Controller
             'pt_id' => 'nullable|integer',
             'action' => 'required|in:draft,publish',
             'thr_only_mode' => 'nullable|boolean',
+            'expected_rows' => 'nullable|integer|min:1',
         ]);
 
         $payslipsData = $request->input('payslips');
@@ -411,6 +424,13 @@ class PayslipController extends Controller
         $year = $request->input('year');
         $action = $request->input('action');
         $thrOnlyMode = $request->boolean('thr_only_mode') && $action === 'publish';
+
+        $expectedRows = (int) $request->input('expected_rows', 0);
+        if ($expectedRows > 0 && count($payslipsData) < $expectedRows) {
+            return back()->with('error', 'Jumlah data yang diterima server tidak lengkap. Kemungkinan batas max_input_vars di server terlalu kecil. Hubungi tim IT untuk menaikkan max_input_vars.');
+        }
+
+        try {
 
         // Jika action publish dan ada selected_rows, hanya proses yang dipilih
         $selectedRows = collect($request->input('selected_rows', []))
@@ -567,12 +587,26 @@ class PayslipController extends Controller
             $message .= " {$inactiveSkippedCount} data dilewati karena karyawan tidak berstatus ACTIVE.";
         }
 
-        return redirect()->route('hr.payroll.index', [
-            'start_month' => $request->input('start_month', $month),
-            'end_month' => $request->input('end_month', $month),
-            'year' => $year,
-            'pt_id' => $request->input('pt_id'),
-        ])->with('success', $message);
+            return redirect()->route('hr.payroll.index', [
+                'start_month' => $request->input('start_month', $month),
+                'end_month' => $request->input('end_month', $month),
+                'year' => $year,
+                'pt_id' => $request->input('pt_id'),
+            ])->with('success', $message);
+        } catch (Throwable $e) {
+            Log::error('Payroll bulk import failed', [
+                'user_id' => Auth::id(),
+                'month' => $month,
+                'year' => $year,
+                'action' => $action,
+                'thr_only_mode' => $thrOnlyMode,
+                'rows_count' => is_array($payslipsData) ? count($payslipsData) : 0,
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return back()->with('error', 'Terjadi kesalahan saat menyimpan data payroll. Detail error sudah dicatat di log server.');
+        }
     }
 
     public function sendSelectedEmails(Request $request)
