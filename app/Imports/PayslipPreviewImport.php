@@ -5,9 +5,10 @@ namespace App\Imports;
 use App\Models\EmployeeProfile;
 use App\Models\User;
 use Maatwebsite\Excel\Concerns\ToArray;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 
-class PayslipPreviewImport implements ToArray, WithStartRow
+class PayslipPreviewImport implements ToArray, WithStartRow, WithMultipleSheets
 {
     // 1. BUAT KANTONG PENAMPUNGAN DI SINI
     public $mappedData = [];
@@ -15,6 +16,14 @@ class PayslipPreviewImport implements ToArray, WithStartRow
     public function startRow(): int
     {
         return 11;
+    }
+
+    public function sheets(): array
+    {
+        // Force import to read only first worksheet (index 0), regardless of sheet name.
+        return [
+            0 => $this,
+        ];
     }
 
     public function array(array $array)

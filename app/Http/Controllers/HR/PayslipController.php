@@ -362,6 +362,59 @@ class PayslipController extends Controller
         ])->with('success', "Data slip gaji {$employeeName} berhasil dihapus.");
     }
 
+    public function destroySelected(Request $request)
+    {
+        Gate::authorize('manage-payroll');
+
+        $selectedRows = collect($request->input('selected_rows', []))
+            ->filter(fn($value) => is_string($value) && preg_match('/^\d+-\d{1,2}-\d{4}$/', $value))
+            ->unique()
+            ->values();
+
+        if ($selectedRows->isEmpty()) {
+            return redirect()->route('hr.payroll.index', [
+                'start_month' => $request->input('filter_start_month', now()->month),
+                'end_month' => $request->input('filter_end_month', now()->month),
+                'year' => $request->input('filter_year', now()->year),
+                'pt_id' => $request->input('filter_pt_id'),
+                'search' => $request->input('search'),
+            ])->with('error', 'Pilih minimal satu data payroll yang akan dihapus.');
+        }
+
+        $deletedCount = 0;
+        $missingCount = 0;
+
+        foreach ($selectedRows as $rowKey) {
+            [$userId, $month, $year] = array_map('intval', explode('-', $rowKey));
+
+            $deleted = Payslip::where('user_id', $userId)
+                ->where('period_month', $month)
+                ->where('period_year', $year)
+                ->delete();
+
+            if ($deleted > 0) {
+                $deletedCount += $deleted;
+            } else {
+                $missingCount++;
+            }
+        }
+
+        $flashType = $deletedCount > 0 ? 'success' : 'warning';
+        $message = "{$deletedCount} data slip gaji berhasil dihapus.";
+
+        if ($missingCount > 0) {
+            $message .= " {$missingCount} data dilewati karena slip gaji tidak ditemukan.";
+        }
+
+        return redirect()->route('hr.payroll.index', [
+            'start_month' => $request->input('filter_start_month', now()->month),
+            'end_month' => $request->input('filter_end_month', now()->month),
+            'year' => $request->input('filter_year', now()->year),
+            'pt_id' => $request->input('filter_pt_id'),
+            'search' => $request->input('search'),
+        ])->with($flashType, $message);
+    }
+
     public function previewImport(Request $request)
     {
         Gate::authorize('manage-payroll');

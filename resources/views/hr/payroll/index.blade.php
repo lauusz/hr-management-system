@@ -262,6 +262,7 @@
             </div>
 
             <div class="bulk-footer-actions">
+                <button type="button" id="btn-clear-selected" class="btn-action btn-action-clear" disabled>Hapus Data</button>
                 <button type="button" id="btn-save-draft" class="btn-action">Simpan DRAFT</button>
                 <button type="button" id="btn-publish-email" class="btn-action btn-action-primary">Publish & Kirim Email</button>
             </div>
@@ -307,6 +308,14 @@
         </div>
     </x-modal>
 
+    <x-modal id="modal-clear-selected-confirm" title="Konfirmasi Hapus Data Terpilih" type="form">
+        <p id="clear-selected-confirm-text" style="margin:0; color:#374151;"></p>
+        <div style="margin-top: 16px; display:flex; justify-content:flex-end; gap:10px;">
+            <button type="button" data-modal-close="true" class="modal-btn-light">Batal</button>
+            <button type="button" id="confirm-clear-selected-submit" class="modal-btn-danger">Ya, Hapus Data Terpilih</button>
+        </div>
+    </x-modal>
+
     <form id="clear-payslip-form" method="POST" style="display:none;">
         @csrf
         @method('DELETE')
@@ -315,6 +324,17 @@
         <input type="hidden" name="filter_year" value="{{ $year }}">
         <input type="hidden" name="filter_pt_id" value="{{ $ptId }}">
         <input type="hidden" name="search" value="{{ request('search') }}">
+    </form>
+
+    <form id="clear-selected-payslips-form" action="{{ route('hr.payroll.destroy-selected') }}" method="POST" style="display:none;">
+        @csrf
+        @method('DELETE')
+        <input type="hidden" name="filter_start_month" value="{{ $startMonth }}">
+        <input type="hidden" name="filter_end_month" value="{{ $endMonth }}">
+        <input type="hidden" name="filter_year" value="{{ $year }}">
+        <input type="hidden" name="filter_pt_id" value="{{ $ptId }}">
+        <input type="hidden" name="search" value="{{ request('search') }}">
+        <div id="clear_selected_rows_container"></div>
     </form>
 
     <script>
@@ -331,8 +351,13 @@
             const selectedRowsContainer = document.getElementById('selected_rows_container');
             const selectedCountBadge = document.getElementById('selected-count-badge');
             const clearPayslipForm = document.getElementById('clear-payslip-form');
+            const clearSelectedPayslipsForm = document.getElementById('clear-selected-payslips-form');
             const clearPayslipText = document.getElementById('clear-payslip-confirm-text');
+            const clearSelectedConfirmText = document.getElementById('clear-selected-confirm-text');
             const confirmClearPayslipSubmitButton = document.getElementById('confirm-clear-payslip-submit');
+            const confirmClearSelectedSubmitButton = document.getElementById('confirm-clear-selected-submit');
+            const btnClearSelected = document.getElementById('btn-clear-selected');
+            const clearSelectedRowsContainer = document.getElementById('clear_selected_rows_container');
             const bulkForm = document.getElementById('payroll-bulk-form');
             const bulkActionInput = document.getElementById('payroll-action-input');
             const thrOnlyModeInput = document.getElementById('thr_only_mode_input');
@@ -342,6 +367,7 @@
             const publishConfirmCount = document.getElementById('publish-confirm-count');
 
             const clearPayslipConfirmModalId = 'modal-clear-payslip-confirm';
+            const clearSelectedConfirmModalId = 'modal-clear-selected-confirm';
             const publishConfirmModalId = 'modal-publish-confirm';
             const publishLoadingModalId = 'modal-publish-loading';
             const publishWarningModalId = 'modal-publish-warning';
@@ -493,6 +519,10 @@
                     selectedCountBadge.style.color = checkedCount > 0 ? '#3730a3' : '#1f2937';
                 }
 
+                if (btnClearSelected) {
+                    btnClearSelected.disabled = checkedCount === 0;
+                }
+
                 if (!selectAllCheckbox) return;
                 if (rowCheckboxes.length === 0) {
                     selectAllCheckbox.checked = false;
@@ -620,6 +650,35 @@
                 });
             }
 
+            if (btnClearSelected) {
+                btnClearSelected.addEventListener('click', function() {
+                    const checkedRows = getRowCheckboxes().filter((checkbox) => checkbox.checked);
+                    if (checkedRows.length === 0) {
+                        return;
+                    }
+
+                    if (clearSelectedConfirmText) {
+                        clearSelectedConfirmText.textContent = `${checkedRows.length} data gaji terpilih akan dihapus (clear dari payslips). Yakin ingin melanjutkan?`;
+                    }
+
+                    toggleModalById(clearSelectedConfirmModalId, true);
+                });
+            }
+
+            if (confirmClearSelectedSubmitButton && clearSelectedPayslipsForm) {
+                confirmClearSelectedSubmitButton.addEventListener('click', function() {
+                    const checkedRows = getRowCheckboxes().filter((checkbox) => checkbox.checked);
+                    if (checkedRows.length === 0) {
+                        toggleModalById(clearSelectedConfirmModalId, false);
+                        return;
+                    }
+
+                    appendSelectedRowsToContainer(clearSelectedRowsContainer, checkedRows);
+                    this.disabled = true;
+                    clearSelectedPayslipsForm.submit();
+                });
+            }
+
             if (btnSaveDraft && bulkForm) {
                 btnSaveDraft.addEventListener('click', function() {
                     if (isSubmitting) return;
@@ -694,6 +753,12 @@
                     if (modal.id === publishConfirmModalId) {
                         if (confirmPublishSubmitButton) {
                             confirmPublishSubmitButton.disabled = false;
+                        }
+                    }
+
+                    if (modal.id === clearSelectedConfirmModalId) {
+                        if (confirmClearSelectedSubmitButton) {
+                            confirmClearSelectedSubmitButton.disabled = false;
                         }
                     }
                 });
@@ -1045,6 +1110,14 @@
         .btn-action-clear:hover {
             background: #ffe4e6;
             border-color: #fda4af;
+        }
+
+        .btn-action:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f9fafb;
+            border-color: #e5e7eb;
+            color: #9ca3af;
         }
 
         .bulk-footer-actions {
