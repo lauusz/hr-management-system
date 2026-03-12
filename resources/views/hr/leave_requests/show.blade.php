@@ -66,7 +66,7 @@
                     $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
                     $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
                     
-                    $statusLabel = $isOwnerHRD ? '✅ Disetujui General Manager' : 'Disetujui HRD';
+                    $statusLabel = $isOwnerHRD ? '✅ Disetujui' : 'Disetujui HRD';
                 } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
                     $badgeClass = 'badge-red';
                     $statusLabel = 'Ditolak';
@@ -333,7 +333,7 @@
                         Batalkan
                     </button>
 
-                    @if($item->status == \App\Models\LeaveRequest::PENDING_HR)
+                    @if($canApprove && in_array($item->status, [\App\Models\LeaveRequest::PENDING_HR, \App\Models\LeaveRequest::PENDING_SUPERVISOR], true))
                         
                         <div style="height:24px; width:1px; background:#e5e7eb; margin-right:16px;"></div>
 
@@ -346,7 +346,7 @@
                         {{-- Tombol Approve --}}
                         <button type="button" data-modal-target="modal-approve" class="btn-modern btn-approve">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            Setujui Final
+                            Setujui
                         </button>
 
                     @else
@@ -357,7 +357,7 @@
                                     $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
                                 @endphp
                                 <span style="color:#166534; font-weight:600;">
-                                    {{ $isOwnerHRD ? '✅ Disetujui General Manager' : 'Status: Disetujui HRD' }}
+                                    {{ $isOwnerHRD ? '✅ Disetujui' : 'Status: Disetujui HRD' }}
                                 </span>
                             @else
                                 Status: <strong>{{ $statusLabel }}</strong>

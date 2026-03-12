@@ -73,7 +73,7 @@ class LeaveRequest extends Model
         if ($this->status === self::STATUS_APPROVED && $this->user) {
             $roleVal = $this->user->role instanceof \App\Enums\UserRole ? $this->user->role->value : $this->user->role;
             if (in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER'])) {
-                return '✅ Disetujui General Manager';
+                return '✅ Disetujui';
             }
         }
 

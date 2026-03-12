@@ -49,7 +49,7 @@
                     $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
                     $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
                     
-                    $statusLabel = $isOwnerHRD ? '✅ Disetujui General Manager' : 'Disetujui HRD';
+                    $statusLabel = $isOwnerHRD ? '✅ Disetujui' : 'Disetujui HRD';
                 } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
                     $badgeClass = 'badge-red';
                     $statusLabel = 'Ditolak';
@@ -309,7 +309,7 @@
                                 $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
                              @endphp
                              <span style="color:#166534; font-weight:600;">
-                                {{ $isOwnerHRD ? '✅ Disetujui General Manager' : '✅ Disetujui HRD' }}
+                                {{ $isOwnerHRD ? '✅ Disetujui' : '✅ Disetujui HRD' }}
                              </span>
                         @elseif($item->status == \App\Models\LeaveRequest::STATUS_REJECTED)
                              <span style="color:#991b1b; font-weight:600;">❌ Ditolak</span>

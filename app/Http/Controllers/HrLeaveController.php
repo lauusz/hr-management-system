@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\LeaveType;
 use App\Models\LeaveRequest;
 use App\Models\Pt;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
@@ -161,29 +162,8 @@ class HrLeaveController extends Controller
         // Load relasi yang diperlukan
         $leave->load(['user.profile.pt', 'user.division', 'user.position', 'approver']);
 
-        // [LOGIC TOMBOL APPROVE]
-        $canApprove = false;
-        $userId = Auth::id();
-
-        if ($leave->user_id === $userId) {
-            $canApprove = false;
-        } 
-        else {
-            if ($leave->status === LeaveRequest::PENDING_HR) {
-                $canApprove = true;
-            }
-            elseif ($leave->status === LeaveRequest::PENDING_SUPERVISOR) {
-                if ($leave->user->direct_supervisor_id === $userId) {
-                    $canApprove = true;
-                }
-                elseif (empty($leave->user->direct_supervisor_id)) {
-                    $canApprove = true;
-                }
-            }
-            elseif ($leave->status === 'CANCEL_REQ') {
-                $canApprove = true;
-            }
-        }
+        // [LOGIC TOMBOL APPROVE] Gunakan rule yang sama dengan endpoint approve/reject
+        $canApprove = $this->canHrActOnLeave(auth()->user(), $leave);
 
         return view('hr.leave_requests.show', [
             'item' => $leave,
@@ -207,6 +187,8 @@ class HrLeaveController extends Controller
         // Pastikan status valid
         $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR, 'CANCEL_REQ'];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk disetujui.');
+
+        abort_unless($this->canHrActOnLeave(auth()->user(), $leave), 403, 'Anda tidak memiliki izin untuk menyetujui pengajuan ini.');
 
         if ($leave->user_id === auth()->id()) {
              return back()->with('error', 'Etika Profesi: Anda tidak dapat menyetujui pengajuan Anda sendiri.');
@@ -312,6 +294,8 @@ class HrLeaveController extends Controller
         $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk ditolak.');
 
+        abort_unless($this->canHrActOnLeave(auth()->user(), $leave), 403, 'Anda tidak memiliki izin untuk menolak pengajuan ini.');
+
         if ($leave->user_id === auth()->id()) {
              return back()->with('error', 'Etika Profesi: Anda tidak dapat menolak pengajuan Anda sendiri.');
         }
@@ -377,6 +361,49 @@ class HrLeaveController extends Controller
                  abort(403, 'Akses khusus HRD');
             }
         }
+    }
+
+    private function canHrActOnLeave(User $actor, LeaveRequest $leave): bool
+    {
+        if ($leave->user_id === $actor->id) {
+            return false;
+        }
+
+        if ($leave->status === LeaveRequest::PENDING_HR || $leave->status === 'CANCEL_REQ') {
+            return true;
+        }
+
+        if ($leave->status !== LeaveRequest::PENDING_SUPERVISOR) {
+            return false;
+        }
+
+        if ((int) $leave->user->direct_supervisor_id === (int) $actor->id || empty($leave->user->direct_supervisor_id)) {
+            return true;
+        }
+
+        // Rule khusus: HRD (Master) dapat memproses pengajuan milik HR Staff.
+        return $this->isHrdMaster($actor) && $this->isHrStaff($leave->user);
+    }
+
+    private function isHrdMaster(User $user): bool
+    {
+        $role = $this->normalizeRole($user->role);
+
+        return in_array($role, ['HRD', 'HR MANAGER'], true);
+    }
+
+    private function isHrStaff(User $user): bool
+    {
+        return $this->normalizeRole($user->role) === 'HR STAFF';
+    }
+
+    private function normalizeRole(mixed $role): string
+    {
+        if ($role instanceof \App\Enums\UserRole) {
+            $role = $role->value;
+        }
+
+        return strtoupper(str_replace('_', ' ', trim((string) $role)));
     }
 
     /**
