@@ -283,13 +283,16 @@
     <x-modal id="modal-publish-loading" title="Memproses Publish & Kirim Email" type="form">
         <div style="text-align:center; padding: 20px 0;">
             <div class="payroll-loading-spinner" style="width:40px; height:40px; border-width:3px; margin:0 auto 16px;"></div>
-            <p style="margin:0; color:#374151; font-weight:600;">Sedang memproses...</p>
-            <p style="margin:8px 0 0; color:#6b7280; font-size:0.85rem;">Mohon tunggu, data sedang dipublish dan email sedang dikirim.<br>Jangan tutup atau refresh halaman ini.</p>
+            <p style="margin:0; color:#374151; font-weight:600;">Data sedang dipublish ke queue email...</p>
+            <p style="margin:8px 0 0; color:#6b7280; font-size:0.85rem;">Email akan terkirim bertahap dan estimasi selesai semua sekitar <strong>45 menit</strong> untuk pengiriman massal.<br>Modal ini boleh ditutup, tetapi sebaiknya jangan tutup tab atau pindah halaman sebelum submit selesai.</p>
+            <div style="margin-top:16px; display:flex; justify-content:center;">
+                <button type="button" data-modal-close="true" class="modal-btn-light">Tutup Info</button>
+            </div>
         </div>
     </x-modal>
 
     <x-modal id="modal-publish-confirm" title="Konfirmasi Publish & Kirim Email" type="form">
-        <p style="margin:0; color:#374151;">Anda akan mempublish dan mengirim email ke <strong id="publish-confirm-count">0</strong> karyawan yang dipilih. Lanjutkan?</p>
+        <p style="margin:0; color:#374151;">Anda akan mempublish dan menjadwalkan email ke <strong id="publish-confirm-count">0</strong> karyawan yang dipilih. Estimasi pengiriman selesai sekitar <strong>45 menit</strong>. Lanjutkan?</p>
         <div style="margin-top: 16px; display:flex; justify-content:flex-end; gap:10px;">
             <button type="button" data-modal-close="true" class="modal-btn-light">Batal</button>
             <button type="button" id="confirm-publish-submit" class="modal-btn-primary">Ya, Publish & Kirim</button>

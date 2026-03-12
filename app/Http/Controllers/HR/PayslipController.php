@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Hr;
 
 use App\Exports\PayslipTemplateExport;
+use App\Jobs\SendPayslipEmailJob;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payslip;
@@ -15,8 +16,6 @@ use App\Imports\PayslipPreviewImport;
 use App\Models\EmployeeProfile;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\PayslipPublishedMail;
 
 class PayslipController extends Controller
 {
@@ -259,8 +258,7 @@ class PayslipController extends Controller
 
         // Send email if status is PUBLISHED
         if ($payslip->status === 'PUBLISHED' && $payslip->user->email) {
-            $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
-            Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
+            $this->dispatchPayslipEmailJob($payslip);
         }
 
         return redirect()->route('hr.payroll.index', [
@@ -268,7 +266,7 @@ class PayslipController extends Controller
             'end_month' => $request->input('filter_end_month', $request->period_month),
             'year' => $request->input('filter_year', $request->period_year),
             'pt_id' => $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null),
-        ])->with('success', 'Slip Gaji berhasil dibuat.' . ($payslip->status === 'PUBLISHED' ? ' Email notifikasi telah dikirim.' : ''));
+        ])->with('success', 'Slip Gaji berhasil dibuat.' . ($payslip->status === 'PUBLISHED' ? ' Email notifikasi dijadwalkan ke queue.' : ''));
     }
 
     public function edit(Payslip $payslip)
@@ -331,8 +329,7 @@ class PayslipController extends Controller
         $payslip->update($data);
 
         if ($shouldSendEmail && $payslip->user->email) {
-            $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
-            Mail::to($payslip->user->email)->send(new PayslipPublishedMail($payslip, $ptName));
+            $this->dispatchPayslipEmailJob($payslip);
         }
 
         return redirect()->route('hr.payroll.index', [
@@ -340,7 +337,7 @@ class PayslipController extends Controller
             'end_month' => $request->input('filter_end_month', $payslip->period_month),
             'year' => $request->input('filter_year', $payslip->period_year),
             'pt_id' => $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null),
-        ])->with('success', 'Slip Gaji berhasil diperbarui.' . ($shouldSendEmail ? ' Email notifikasi telah dikirim.' : ''));
+        ])->with('success', 'Slip Gaji berhasil diperbarui.' . ($shouldSendEmail ? ' Email notifikasi dijadwalkan ke queue.' : ''));
     }
 
     public function destroy(Request $request, Payslip $payslip)
@@ -556,10 +553,7 @@ class PayslipController extends Controller
             $shouldSendEmail = ($status === 'PUBLISHED');
 
             if ($shouldSendEmail && $payslip->user && $payslip->user->email) {
-                $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
-                $mail = new PayslipPublishedMail($payslip, $ptName);
-                $mail->thrOnly = $thrOnlyMode;
-                $this->queueBulkPayslipEmail($payslip->user->email, $mail, $emailDelaySeconds);
+                $this->dispatchPayslipEmailJob($payslip, $thrOnlyMode, $emailDelaySeconds);
             }
 
             $count++;
@@ -634,10 +628,7 @@ class PayslipController extends Controller
                 continue;
             }
 
-            $ptName = $this->resolvePtNameByPayslipUserId($payslip->user_id);
-            $mail = new PayslipPublishedMail($payslip, $ptName);
-            $mail->thrOnly = $thrOnlyMode;
-            $this->queueBulkPayslipEmail($payslip->user->email, $mail, $emailDelaySeconds);
+            $this->dispatchPayslipEmailJob($payslip, $thrOnlyMode, $emailDelaySeconds);
             $sentCount++;
         }
 
@@ -674,13 +665,27 @@ class PayslipController extends Controller
         return $profile?->pt?->name;
     }
 
-    private function queueBulkPayslipEmail(string $email, PayslipPublishedMail $mail, int &$delaySeconds): void
+    private function dispatchPayslipEmailJob(Payslip $payslip, bool $thrOnly = false, ?int &$delaySeconds = null): void
     {
-        $delaySeconds += random_int(10, 15);
+        $scheduledDelaySeconds = 0;
 
-        Mail::to($email)->queue(
-            $mail->onQueue('emails')->delay(Carbon::now()->addSeconds($delaySeconds))
-        );
+        if ($delaySeconds !== null) {
+            $delaySeconds += random_int(10, 15);
+            $scheduledDelaySeconds = $delaySeconds;
+        }
+
+        $pendingDispatch = SendPayslipEmailJob::dispatch(
+            $payslip->id,
+            $payslip->user->name ?? '-',
+            $payslip->user->email,
+            $this->resolvePtNameByPayslipUserId($payslip->user_id),
+            $thrOnly,
+            $scheduledDelaySeconds,
+        )->onQueue('emails');
+
+        if ($scheduledDelaySeconds > 0) {
+            $pendingDispatch->delay(Carbon::now()->addSeconds($scheduledDelaySeconds));
+        }
     }
 
     private function cleanAndFormatCurrency($value)

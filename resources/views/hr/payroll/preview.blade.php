@@ -177,7 +177,7 @@
         <div class="confirm-modal-backdrop"></div>
         <div class="confirm-modal-content" role="dialog" aria-modal="true" aria-labelledby="publish-confirm-title">
             <h3 id="publish-confirm-title" style="margin: 0 0 8px; font-size: 16px; color: #111827;">Konfirmasi Publish</h3>
-            <p style="margin: 0 0 16px; font-size: 13px; color: #4b5563;">Yakin ingin mempublikasikan dan mengirim email ke semua karyawan terkait?</p>
+            <p style="margin: 0 0 16px; font-size: 13px; color: #4b5563;">Yakin ingin mempublikasikan dan menjadwalkan email ke semua karyawan terkait? Estimasi pengiriman selesai sekitar 45 menit.</p>
             <div style="display: flex; justify-content: flex-end; gap: 8px;">
                 <button type="button" id="btn-cancel-publish" class="btn-action" style="padding: 8px 14px;">Batal</button>
                 <button type="button" id="btn-confirm-publish" class="btn-action btn-action-primary" style="padding: 8px 14px;">Ya, Publish</button>
@@ -212,6 +212,10 @@
         <div class="loading-card">
             <div class="loading-spinner"></div>
             <p id="loading-message" style="margin: 10px 0 0; font-size: 13px; color: #374151;">Sedang memproses...</p>
+            <p id="loading-submessage" style="margin: 8px 0 0; font-size: 12px; color: #6b7280; line-height: 1.5;">Email akan diproses bertahap melalui queue dan estimasi selesai semua sekitar 45 menit untuk pengiriman massal. Overlay ini boleh ditutup, tetapi sebaiknya jangan tutup tab atau pindah halaman sebelum submit selesai.</p>
+            <div style="margin-top: 14px; display: flex; justify-content: center;">
+                <button type="button" id="btn-close-loading" class="btn-action" style="padding: 8px 14px;">Tutup Info</button>
+            </div>
         </div>
     </div>
 
@@ -479,6 +483,7 @@
             const btnWarningOk = document.getElementById('btn-warning-ok');
             const loadingOverlay = document.getElementById('submit-loading-overlay');
             const loadingMessage = document.getElementById('loading-message');
+            const btnCloseLoading = document.getElementById('btn-close-loading');
             const table = document.querySelector('.custom-table');
             const tbody = table.querySelector('tbody');
             const monthSelect = document.getElementById('month');
@@ -678,7 +683,7 @@
                 isSubmitting = true;
 
                 if (action === 'publish') {
-                    showLoading('Sedang publish & kirim email, mohon tunggu...');
+                    showLoading('Data sedang dipublish ke queue email...');
                 } else {
                     showLoading('Sedang menyimpan draft, mohon tunggu...');
                 }
@@ -711,6 +716,16 @@
             function showLoading(message) {
                 loadingMessage.textContent = message;
                 loadingOverlay.style.display = 'flex';
+            }
+
+            function closeLoading() {
+                loadingOverlay.style.display = 'none';
+            }
+
+            if (btnCloseLoading) {
+                btnCloseLoading.addEventListener('click', function() {
+                    closeLoading();
+                });
             }
 
             function disableActions() {

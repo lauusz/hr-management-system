@@ -97,9 +97,9 @@
             <tr>
                 <td style="width: 15%;">
                     <!-- Logo Dinamis untuk Email -->
-                    @if($payslip->getLogoUrl($ptName ?? null))
+                    @if($payslip->getLogoPath($ptName ?? null) && file_exists($payslip->getLogoPath($ptName ?? null)))
                     @php
-                    $logoPath = str_replace(url('/'), public_path(), $payslip->getLogoUrl($ptName ?? null));
+                    $logoPath = $payslip->getLogoPath($ptName ?? null);
                     @endphp
                     <img src="{{ $message->embed($logoPath) }}" height="65" style="height: 65px; width: auto; max-width: 150px;" alt="Logo">
                     @else
@@ -365,9 +365,9 @@
                     <table style="width:100%;">
                         <tr>
                             <td align="center">
-                                @if($payslip->getStampUrl($ptName ?? null))
+                                @if($payslip->getStampPath($ptName ?? null) && file_exists($payslip->getStampPath($ptName ?? null)))
                                 @php
-                                $stampPath = str_replace(url('/'), public_path(), $payslip->getStampUrl($ptName ?? null));
+                                $stampPath = $payslip->getStampPath($ptName ?? null);
                                 @endphp
                                 <img src="{{ $message->embed($stampPath) }}" style="max-width: 130px; max-height: 70px; width: auto; height: auto;" alt="Stamp">
                                 @else
