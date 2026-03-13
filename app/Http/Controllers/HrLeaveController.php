@@ -369,6 +369,11 @@ class HrLeaveController extends Controller
             return false;
         }
 
+        // Pengajuan milik HR Staff hanya boleh diproses oleh HRD (Master).
+        if ($this->isHrStaff($leave->user)) {
+            return $this->isHrdMaster($actor);
+        }
+
         if ($leave->status === LeaveRequest::PENDING_HR || $leave->status === 'CANCEL_REQ') {
             return true;
         }
