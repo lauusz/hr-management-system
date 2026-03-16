@@ -37,6 +37,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('leave-requests', LeaveRequestController::class)
         ->only(['index', 'create', 'store', 'show', 'update', 'destroy']);
+    Route::post('/leave-requests/{leave_request}/upload-photo', [LeaveRequestController::class, 'uploadPhoto'])
+        ->name('leave-requests.upload-photo');
     
     // [BARU] Endpoint untuk cek duplikat pengajuan
     Route::post('/leave-requests/check-duplicate', [LeaveRequestController::class, 'checkDuplicate'])->name('leave-requests.checkDuplicate');

@@ -239,6 +239,13 @@
                     $url = $item->photo
                         ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
                         : null;
+
+                    $authUser = auth()->user();
+                    $authRole = $authUser->role instanceof \App\Enums\UserRole ? $authUser->role->value : $authUser->role;
+                    $isHrdUploader = in_array(strtoupper((string) $authRole), ['HRD', 'HR STAFF', 'MANAGER'], true);
+                    $isOwnerUploader = $authUser->id === $item->user_id;
+                    $isPendingStatus = in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true);
+                    $canUploadFollowupPhoto = $isHrdUploader || ($isOwnerUploader && $isPendingStatus);
                 @endphp
 
                 <div class="info-row">
@@ -254,6 +261,33 @@
                             </div>
                         @else
                             <span class="text-muted" style="font-style:italic;">Tidak ada lampiran foto.</span>
+                        @endif
+
+                        <div class="followup-note">
+                            Jika foto belum tersedia saat pengajuan dibuat, foto bisa di upload selanjutnya.
+                        </div>
+
+                        @if($canUploadFollowupPhoto)
+                            <form method="POST" action="{{ route('leave-requests.upload-photo', $item) }}" enctype="multipart/form-data" class="upload-followup-form">
+                                @csrf
+                                <input
+                                    type="file"
+                                    name="photo"
+                                    id="followupPhotoInput"
+                                    class="form-control-file"
+                                    accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx"
+                                    required>
+                                <button type="submit" id="followupUploadBtn" class="btn-modern btn-upload-photo is-hidden" aria-hidden="true">
+                                    Upload Foto
+                                </button>
+                            </form>
+                            <div id="followupPhotoPreviewContainer" class="followup-preview-container" style="display:none;">
+                                <p class="followup-preview-label">Preview Foto:</p>
+                                <img id="followupPhotoPreview" src="#" alt="Preview foto baru">
+                            </div>
+                            <small class="helper-upload-text">
+                                Format: JPG, PNG, HEIC, PDF, DOCX, XLSX. Maksimal 8 MB.
+                            </small>
                         @endif
                     </div>
                 </div>
@@ -355,6 +389,10 @@
             const viewer = document.getElementById('simple-viewer');
             const viewerImg = document.getElementById('simple-viewer-img');
             const closeBtn = document.getElementById('btn-close-simple');
+            const followupPhotoInput = document.getElementById('followupPhotoInput');
+            const followupUploadBtn = document.getElementById('followupUploadBtn');
+            const followupPreviewContainer = document.getElementById('followupPhotoPreviewContainer');
+            const followupPreviewImg = document.getElementById('followupPhotoPreview');
 
             // Fungsi Buka Viewer
             document.querySelectorAll('.js-view-photo').forEach(el => {
@@ -390,6 +428,30 @@
                     closeViewer();
                 }
             });
+
+            if (followupPhotoInput && followupUploadBtn) {
+                const toggleUploadButton = () => {
+                    const hasFile = followupPhotoInput.files && followupPhotoInput.files.length > 0;
+                    followupUploadBtn.classList.toggle('is-hidden', !hasFile);
+                    followupUploadBtn.setAttribute('aria-hidden', hasFile ? 'false' : 'true');
+
+                    const file = hasFile ? followupPhotoInput.files[0] : null;
+                    if (file && file.type && file.type.startsWith('image/')) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            if (followupPreviewImg) followupPreviewImg.src = e.target.result;
+                            if (followupPreviewContainer) followupPreviewContainer.style.display = 'block';
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        if (followupPreviewContainer) followupPreviewContainer.style.display = 'none';
+                        if (followupPreviewImg) followupPreviewImg.src = '';
+                    }
+                };
+
+                followupPhotoInput.addEventListener('change', toggleUploadButton);
+                toggleUploadButton();
+            }
         });
     </script>
 
@@ -490,6 +552,73 @@
         .photo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; flex-direction:column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
         .photo-preview:hover .overlay { opacity: 1; }
         .photo-preview .overlay span { color: #fff; font-size: 12px; font-weight: 600; background: rgba(0,0,0,0.6); padding: 6px 14px; border-radius: 20px; backdrop-filter: blur(4px); }
+
+        .followup-note {
+            margin-top: 10px;
+            font-size: 12.5px;
+            color: #1e40af;
+            background: #eff6ff;
+            border: 1px solid #dbeafe;
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+
+        .upload-followup-form {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-upload-photo {
+            min-width: 0;
+            padding: 8px 14px;
+            border-radius: 10px;
+            background: #1e4a8d;
+            color: #fff;
+            border: 1px solid #1e4a8d;
+            font-size: 13px;
+        }
+
+        .btn-upload-photo:hover {
+            background: #163a75;
+            border-color: #163a75;
+        }
+
+        .btn-upload-photo.is-hidden {
+            display: none;
+        }
+
+        .followup-preview-container {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            background: #f9fafb;
+            max-width: 320px;
+        }
+
+        .followup-preview-label {
+            margin: 0 0 6px 0;
+            font-size: 12px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        #followupPhotoPreview {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 6px;
+        }
+
+        .helper-upload-text {
+            display: block;
+            margin-top: 6px;
+            font-size: 12px;
+            color: #6b7280;
+        }
 
         /* --- MAP --- */
         .map-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; border: 1px solid #e5e7eb; margin-top: 6px; }

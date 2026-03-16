@@ -265,7 +265,6 @@
                 </div>
                 <small class="helper-text">
                     Format: Gambar (JPG, PNG, HEIC) atau Dokumen (PDF, DOCX). Maks 8 MB.
-                    Khusus izin telat, gambar akan dikompres otomatis.
                 </small>
                 @error('photo') <div class="error-msg">{{ $message }}</div> @enderror
 
@@ -559,8 +558,8 @@
                 const isTelat = (val === IZIN_TELAT);
                 if (isTelat) {
                     requestLocationIfNeeded();
-                    if(photoInput) photoInput.required = true;
-                    if(photoReqIndicator) photoReqIndicator.style.display = 'inline';
+                    if(photoInput) photoInput.required = false;
+                    if(photoReqIndicator) photoReqIndicator.style.display = 'none';
                 } else {
                     clearLocationValues();
                     if(photoInput) photoInput.required = false;

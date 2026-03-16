@@ -312,6 +312,37 @@ class LeaveRequestController extends Controller
         return view('leave_requests.show', ['item' => $leave_request->load('user', 'approver')]);
     }
 
+    public function uploadPhoto(Request $request, LeaveRequest $leave_request)
+    {
+        $user = Auth::user();
+        $isOwner = $user->id === $leave_request->user_id;
+        $roleStr = $this->getRoleString($user);
+        $isHRD = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER'], true);
+
+        if (!$isOwner && !$isHRD) {
+            abort(403, 'Anda tidak berhak mengunggah bukti untuk pengajuan ini.');
+        }
+
+        if ($isOwner && !$isHRD) {
+            if (!in_array($leave_request->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
+                return back()->withErrors('Pengajuan sudah diproses, upload bukti susulan tidak dapat dilakukan.');
+            }
+        }
+
+        $validated = $request->validate([
+            'photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+        ]);
+
+        if ($leave_request->photo) {
+            Storage::disk('public')->delete('leave_photos/' . $leave_request->photo);
+        }
+
+        $fullPath = $this->imageCompressor->compressAndStore($validated['photo'], 'photo', 'leave_photos', 'leave_');
+        $leave_request->update(['photo' => basename($fullPath)]);
+
+        return back()->with('success', 'Bukti pendukung berhasil diunggah.');
+    }
+
     public function update(Request $request, LeaveRequest $leaveRequest)
     {
         $user = Auth::user();
