@@ -96,10 +96,10 @@
                 <thead>
                     <tr>
                         <th style="width: 50px;">#</th>
-                        <th>Karyawan</th>
+                        <th style="width: 260px;">Karyawan</th>
                         <th>Tgl Pengajuan</th>
                         <th>Periode Izin</th>
-                        <th>Jenis</th>
+                        <th style="width: 170px;">Jenis</th>
                         <th>Status</th>
                         <th class="text-right" style="width: 100px;">Aksi</th>
                     </tr>
@@ -126,7 +126,7 @@
                             </td>
 
                             <td>
-                                <span class="fw-bold">{{ $row->user->name }}</span>
+                                <span class="fw-bold employee-name" title="{{ $row->user->name }}">{{ $row->user->name }}</span>
                             </td>
 
                             <td class="text-muted" style="font-size: 11px;">
@@ -293,7 +293,7 @@
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
         }
-        .custom-table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        .custom-table { width: 100%; border-collapse: collapse; min-width: 900px; table-layout: fixed; }
 
         .custom-table th {
             background: #f9fafb;
@@ -334,6 +334,18 @@
             font-size: 12px;
             font-weight: 500;
             border: 1px solid #e5e7eb;
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+
+        .employee-name {
+            display: block;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .badge-status {
