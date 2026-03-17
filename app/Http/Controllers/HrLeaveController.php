@@ -116,7 +116,35 @@ class HrLeaveController extends Controller
             }
         }
 
-        // --- 4. Filter PT ---
+        // --- 4. Filter Periode Izin (start_date - end_date) ---
+        $periodRange = trim((string) $request->query('period_range'));
+        if ($periodRange !== '') {
+            try {
+                $parts = preg_split('/\s+(to|sampai)\s+/i', $periodRange);
+                if (count($parts) === 1) {
+                    $from = Carbon::parse(trim($parts[0]))->toDateString();
+                    $to = $from;
+                } else {
+                    $fromDate = Carbon::parse(trim($parts[0]))->startOfDay();
+                    $toDate = Carbon::parse(trim($parts[1]))->endOfDay();
+                    if ($fromDate->gt($toDate)) {
+                        $temp = $fromDate;
+                        $fromDate = $toDate;
+                        $toDate = $temp;
+                    }
+                    $from = $fromDate->toDateString();
+                    $to = $toDate->toDateString();
+                }
+
+                // Ambil pengajuan yang periodenya overlap dengan rentang filter.
+                $query->whereDate('start_date', '<=', $to)
+                    ->whereRaw('DATE(COALESCE(end_date, start_date)) >= ?', [$from]);
+            } catch (\Exception $e) {
+                // Ignore invalid date format
+            }
+        }
+
+        // --- 5. Filter PT ---
         $ptId = $request->query('pt_id');
         if ($ptId) {
             $query->whereHas('user.profile', function (Builder $q) use ($ptId) {
@@ -124,7 +152,7 @@ class HrLeaveController extends Controller
             });
         }
 
-        // --- 5. Search ---
+        // --- 6. Search ---
         $q = $request->query('q');
         if ($q) {
             $query->whereHas('user', function ($sub) use ($q) {
@@ -136,6 +164,7 @@ class HrLeaveController extends Controller
             'status'          => $status,
             'type'            => $typeFilter,
             'submitted_range' => $submittedRange,
+            'period_range'    => $periodRange,
             'pt_id'           => $ptId,
             'q'               => $q,
         ]);
@@ -149,6 +178,7 @@ class HrLeaveController extends Controller
             'typeFilter'     => $typeFilter,
             'typeOptions'    => LeaveType::cases(),
             'submittedRange' => $submittedRange,
+            'periodRange'    => $periodRange,
             'pt_id'          => $ptId,
             'q'              => $q,
             'pts'            => $pts,

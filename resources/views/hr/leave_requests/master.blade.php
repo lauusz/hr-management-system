@@ -25,6 +25,17 @@
             </div>
 
             <div class="filter-group">
+                <label>Periode Izin</label>
+                <input type="text"
+                    id="period_range"
+                    name="period_range"
+                    value="{{ $periodRange ?? '' }}"
+                    placeholder="Rentang periode izin..."
+                    class="form-control"
+                    autocomplete="off">
+            </div>
+
+            <div class="filter-group">
                 <label>Jenis</label>
                 <select name="type" class="form-control">
                     <option value="">Semua Jenis</option>
@@ -72,7 +83,7 @@
             <div class="filter-actions">
                 <button type="submit" class="btn-primary">Filter</button>
                 
-                @if(($q ?? null) || ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null))
+                @if(($q ?? null) || ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null) || ($periodRange ?? null))
                 <a href="{{ route('hr.leave.master') }}" class="btn-reset">Reset</a>
                 @endif
             </div>
@@ -462,6 +473,13 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             flatpickr("#submitted_range", {
+                mode: "range",
+                dateFormat: "Y-m-d",
+                allowInput: true,
+                locale: { rangeSeparator: " sampai " }
+            });
+
+            flatpickr("#period_range", {
                 mode: "range",
                 dateFormat: "Y-m-d",
                 allowInput: true,
