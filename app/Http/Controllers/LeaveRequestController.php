@@ -9,8 +9,8 @@ use App\Models\EmployeeShift;
 use App\Models\ShiftDay;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
+use App\Services\LeaveBalanceService;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -20,7 +20,10 @@ use Illuminate\Validation\Rule;
 class LeaveRequestController extends Controller
 {
     // Inject ImageCompressor
-    public function __construct(protected ImageCompressor $imageCompressor) {}
+    public function __construct(
+        protected ImageCompressor $imageCompressor,
+        protected LeaveBalanceService $leaveBalanceService,
+    ) {}
 
     public function index(Request $request)
     {
@@ -177,25 +180,11 @@ class LeaveRequestController extends Controller
                 return back()->withInput()->withErrors(['error' => 'Maaf, masa kerja Anda belum 1 tahun. Belum berhak mengajukan Cuti Tahunan.']);
             }
 
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate   = Carbon::parse($validated['end_date']);
-
-            // --- LOGIC HITUNG HARI KERJA (BERDASARKAN ROLE) ---
-            $period = CarbonPeriod::create($startDate, $endDate);
-            $daysRequested = 0;
-
-            $roleStr = $this->getRoleString($user);
-            $fiveDayWorkWeekRoles = ['HRD', 'HR STAFF', 'MANAGER'];
-            $isFiveDayWorkWeek = in_array($roleStr, $fiveDayWorkWeekRoles);
-
-            foreach ($period as $date) {
-                if ($isFiveDayWorkWeek) {
-                    if ($date->isSaturday() || $date->isSunday()) continue;
-                } else {
-                    if ($date->isSunday()) continue;
-                }
-                $daysRequested++;
-            }
+            $daysRequested = $this->leaveBalanceService->calculateEffectiveDaysForUser(
+                $user,
+                $validated['start_date'],
+                $validated['end_date'],
+            );
 
             if ($user->leave_balance < $daysRequested) {
                 return back()->withInput()->withErrors(['error' => "Sisa cuti tidak mencukupi. (Sisa: {$user->leave_balance} hari, Pengajuan Efektif: {$daysRequested} hari)."]);
@@ -417,28 +406,7 @@ class LeaveRequestController extends Controller
 
         // REFUND SALDO LOGIC (ROLE BASED)
         if ($leaveRequest->status === LeaveRequest::STATUS_APPROVED && $leaveTypeValue === $targetValue) {
-            $start = Carbon::parse($leaveRequest->start_date);
-            $end   = Carbon::parse($leaveRequest->end_date);
-            $period = CarbonPeriod::create($start, $end);
-
-            $leaveUser = $leaveRequest->user;
-            $userRoleStr = $this->getRoleString($leaveUser);
-            $fiveDayWorkWeekRoles = ['HRD', 'HR STAFF', 'MANAGER'];
-            $isFiveDay = in_array($userRoleStr, $fiveDayWorkWeekRoles);
-
-            $daysToRefund = 0;
-            foreach ($period as $date) {
-                if ($isFiveDay) {
-                    if ($date->isSaturday() || $date->isSunday()) continue;
-                } else {
-                    if ($date->isSunday()) continue;
-                }
-                $daysToRefund++;
-            }
-
-            if ($daysToRefund > 0) {
-                $leaveUser->increment('leave_balance', $daysToRefund);
-            }
+            $this->leaveBalanceService->refundLeaveBalanceForLeave($leaveRequest);
         }
 
         $leaveRequest->update(['status' => 'BATAL']);

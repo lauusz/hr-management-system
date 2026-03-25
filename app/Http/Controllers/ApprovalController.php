@@ -6,6 +6,7 @@ use App\Models\LeaveRequest;
 use App\Enums\UserRole;
 use App\Enums\LeaveType;
 use App\Services\Image\ImageCompressor;
+use App\Services\LeaveBalanceService;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
@@ -13,12 +14,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 
 class ApprovalController extends Controller
 {
     // Inject ImageCompressor untuk fitur upload foto saat revisi
-    public function __construct(protected ImageCompressor $imageCompressor)
+    public function __construct(
+        protected ImageCompressor $imageCompressor,
+        protected LeaveBalanceService $leaveBalanceService,
+    )
     {
     }
 
@@ -307,34 +310,10 @@ class ApprovalController extends Controller
         if ($isHRD) {
             // [CASE KHUSUS HRD] 
             // HRD Manager -> Manager Approve -> LANGSUNG APPROVED (Skip Pending HR)
-            // Sistem Otomatis Potong Cuti (Asumsi 5 Hari Kerja untuk HRD/Manager)
+            // Sistem Otomatis Potong Cuti memakai flow yang sama dengan approval HR biasa.
 
             DB::transaction(function () use ($leave, $me, $request) {
-                $daysToDeduct = 0;
-                
-                // Hanya potong jika tipe CUTI
-                if ($leave->type === LeaveType::CUTI->value) {
-                    $start = Carbon::parse($leave->start_date);
-                    $end   = Carbon::parse($leave->end_date);
-                    $period = CarbonPeriod::create($start, $end);
-
-                    foreach ($period as $date) {
-                        // 5 Hari Kerja: Skip Sabtu & Minggu
-                        if (!$date->isSaturday() && !$date->isSunday()) {
-                            $daysToDeduct++;
-                        }
-                    }
-
-                    // Cek Saldo
-                    if ($leave->user->leave_balance < $daysToDeduct) {
-                         throw new \Exception("Gagal Approve: Saldo cuti HRD tidak cukup. Punya: {$leave->user->leave_balance}, Butuh: {$daysToDeduct}.");
-                    }
-
-                    // Potong Saldo
-                    if ($daysToDeduct > 0) {
-                        $leave->user->decrement('leave_balance', $daysToDeduct);
-                    }
-                }
+                $this->leaveBalanceService->deductLeaveBalanceForLeave($leave);
 
                 $leave->update([
                     'status'      => LeaveRequest::STATUS_APPROVED, // Langsung FINAL

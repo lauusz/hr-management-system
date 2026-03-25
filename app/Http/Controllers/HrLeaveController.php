@@ -6,15 +6,19 @@ use App\Enums\LeaveType;
 use App\Models\LeaveRequest;
 use App\Models\Pt;
 use App\Models\User;
+use App\Services\LeaveBalanceService;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod; // <--- [WAJIB] Untuk looping tanggal
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class HrLeaveController extends Controller
 {
+    public function __construct(protected LeaveBalanceService $leaveBalanceService)
+    {
+    }
+
     /**
      * Menampilkan daftar pengajuan yang statusnya:
      * 1. PENDING_HR (Tugas Utama HR)
@@ -244,48 +248,7 @@ class HrLeaveController extends Controller
 
                 // Hanya potong jika checkbox dicentang DAN status sebelumnya belum approved
                 if ($shouldDeduct && $leave->status !== LeaveRequest::STATUS_APPROVED) {
-                    $user = $leave->user;
-                    
-                    // 1. Tentukan Range Tanggal
-                    $start = Carbon::parse($leave->start_date);
-                    $end   = Carbon::parse($leave->end_date);
-                    $period = CarbonPeriod::create($start, $end);
-
-                    // 2. DETEKSI ROLE (5 Hari Kerja vs 6 Hari Kerja)
-                    // Ambil Role User sebagai string uppercase
-                    $roleStr = strtoupper((string) ($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role));
-                    
-                    // Daftar Role yang libur Sabtu & Minggu (5 Hari Kerja)
-                    $fiveDayWorkWeekRoles = ['HRD', 'HR STAFF', 'MANAGER'];
-                    $isFiveDayWorkWeek = in_array($roleStr, $fiveDayWorkWeekRoles);
-
-                    // 3. HITUNG HARI EFEKTIF
-                    $daysToDeduct = 0;
-                    foreach ($period as $date) {
-                        if ($isFiveDayWorkWeek) {
-                            // Manager/HR: Skip Sabtu & Minggu
-                            if ($date->isSaturday() || $date->isSunday()) {
-                                continue; 
-                            }
-                        } else {
-                            // Staff/Spv: Skip Minggu Saja
-                            if ($date->isSunday()) {
-                                continue;
-                            }
-                        }
-                        
-                        $daysToDeduct++;
-                    }
-
-                    // 4. CEK SALDO CUKUP ATAU TIDAK
-                    if ($user->leave_balance < $daysToDeduct) {
-                         throw new \Exception("Gagal Approve: Saldo cuti tidak cukup. User punya: {$user->leave_balance}, Butuh (Efektif): {$daysToDeduct} hari.");
-                    }
-
-                    // 5. EKSEKUSI POTONG SALDO
-                    if ($daysToDeduct > 0) {
-                        $user->decrement('leave_balance', $daysToDeduct);
-                    }
+                    $this->leaveBalanceService->deductLeaveBalanceForLeave($leave);
                 }
 
                 // Update status pengajuan jadi APPROVED
@@ -337,33 +300,7 @@ class HrLeaveController extends Controller
                 $targetValue = LeaveType::CUTI->value;
                 
                 if ($leave->status === LeaveRequest::STATUS_APPROVED && $leaveTypeValue === $targetValue) {
-                    $user = $leave->user;
-                    
-                    // 1. Tentukan Range Tanggal
-                    $start = Carbon::parse($leave->start_date);
-                    $end   = Carbon::parse($leave->end_date);
-                    $period = CarbonPeriod::create($start, $end);
-
-                    // 2. DETEKSI ROLE (5 Hari Kerja vs 6 Hari Kerja)
-                    $roleStr = strtoupper((string) ($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role));
-                    $fiveDayWorkWeekRoles = ['HRD', 'HR STAFF', 'MANAGER'];
-                    $isFiveDayWorkWeek = in_array($roleStr, $fiveDayWorkWeekRoles);
-
-                    // 3. HITUNG HARI EFEKTIF UNTUK REFUND
-                    $daysToRefund = 0;
-                    foreach ($period as $date) {
-                        if ($isFiveDayWorkWeek) {
-                            if ($date->isSaturday() || $date->isSunday()) continue;
-                        } else {
-                            if ($date->isSunday()) continue;
-                        }
-                        $daysToRefund++;
-                    }
-
-                    // 4. KEMBALIKAN SALDO
-                    if ($daysToRefund > 0) {
-                        $user->increment('leave_balance', $daysToRefund);
-                    }
+                    $this->leaveBalanceService->refundLeaveBalanceForLeave($leave);
                 }
 
                 // Update status menjadi REJECTED

@@ -46,7 +46,7 @@ class AuthController extends Controller
         }
 
         return back()
-            ->withErrors(['username' => 'Kredensial tidak cocok atau akun nonaktif.'])
+            ->withErrors(['username' => 'Email atau Password tidak sesuai.'])
             ->onlyInput('username');
     }
 
