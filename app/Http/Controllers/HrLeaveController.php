@@ -6,16 +6,21 @@ use App\Enums\LeaveType;
 use App\Models\LeaveRequest;
 use App\Models\Pt;
 use App\Models\User;
+use App\Services\Image\ImageCompressor;
 use App\Services\LeaveBalanceService;
 use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class HrLeaveController extends Controller
 {
-    public function __construct(protected LeaveBalanceService $leaveBalanceService)
+    public function __construct(
+        protected LeaveBalanceService $leaveBalanceService,
+        protected ImageCompressor $imageCompressor,
+    )
     {
     }
 
@@ -187,6 +192,133 @@ class HrLeaveController extends Controller
             'q'              => $q,
             'pts'            => $pts,
         ]);
+    }
+
+    public function createManual()
+    {
+        $this->authorizeAccess();
+
+        $employees = User::query()
+            ->with(['position', 'division'])
+            ->active()
+            ->orderBy('name')
+            ->get();
+
+        $specialLeaveList = [
+            ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 4],
+            ['id' => 'ISTRI_MELAHIRKAN', 'label' => 'Istri Melahirkan', 'days' => 2],
+            ['id' => 'ISTRI_KEGUGURAN', 'label' => 'Istri Keguguran', 'days' => 2],
+            ['id' => 'KHITANAN_ANAK', 'label' => 'Khitanan Anak', 'days' => 2],
+            ['id' => 'PEMBAPTISAN_ANAK', 'label' => 'Pembaptisan Anak', 'days' => 2],
+            ['id' => 'NIKAH_ANAK', 'label' => 'Pernikahan Anak', 'days' => 2],
+            ['id' => 'DEATH_EXTENDED', 'label' => 'Kematian (Adik/Kakak/Ipar)', 'days' => 2],
+            ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Istri/Anak)', 'days' => 2],
+            ['id' => 'DEATH_HOUSE', 'label' => 'Kematian Anggota Rumah', 'days' => 1],
+            ['id' => 'HAJI', 'label' => 'Ibadah Haji (1x)', 'days' => 40],
+            ['id' => 'UMROH', 'label' => 'Ibadah Umroh (1x)', 'days' => 14],
+        ];
+
+        $statusOptions = [
+            LeaveRequest::PENDING_SUPERVISOR => 'Menunggu Supervisor',
+            LeaveRequest::PENDING_HR => 'Menunggu HRD',
+            LeaveRequest::STATUS_APPROVED => 'Disetujui',
+            LeaveRequest::STATUS_REJECTED => 'Ditolak',
+            'BATAL' => 'Dibatalkan',
+        ];
+
+        return view('hr.leave_requests.create_manual', [
+            'employees' => $employees,
+            'typeOptions' => LeaveType::cases(),
+            'specialLeaveList' => $specialLeaveList,
+            'statusOptions' => $statusOptions,
+        ]);
+    }
+
+    public function storeManual(Request $request)
+    {
+        $this->authorizeAccess();
+
+        $statusOptions = [
+            LeaveRequest::PENDING_SUPERVISOR,
+            LeaveRequest::PENDING_HR,
+            LeaveRequest::STATUS_APPROVED,
+            LeaveRequest::STATUS_REJECTED,
+            'BATAL',
+        ];
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+            'type' => ['required', Rule::in(LeaveType::values())],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'submitted_at' => ['nullable', 'date'],
+            'status' => ['nullable', Rule::in($statusOptions)],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time' => ['nullable', 'date_format:H:i'],
+            'reason' => ['nullable', 'string'],
+            'notes_hrd' => ['nullable', 'string'],
+            'substitute_pic' => ['nullable', 'string', 'max:255'],
+            'substitute_phone' => ['nullable', 'string', 'max:50'],
+            'special_leave_detail' => ['nullable', 'string', 'max:50'],
+            'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+        ]);
+
+        $employee = User::query()->findOrFail($validated['user_id']);
+        $status = $validated['status'] ?? $this->defaultManualStatusForUser($employee);
+        $submittedAt = !empty($validated['submitted_at'])
+            ? Carbon::parse($validated['submitted_at'])->startOfDay()
+            : now();
+
+        $type = $validated['type'];
+        $isTimeBased = in_array($type, [
+            LeaveType::IZIN_TELAT->value,
+            LeaveType::IZIN_TENGAH_KERJA->value,
+            LeaveType::IZIN_PULANG_AWAL->value,
+            LeaveType::IZIN->value,
+        ], true);
+
+        $photoBasename = null;
+        if ($request->hasFile('photo')) {
+            $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
+            $photoBasename = basename($fullPath);
+        }
+
+        $approvedBy = null;
+        $approvedAt = null;
+        if (in_array($status, [LeaveRequest::STATUS_APPROVED, LeaveRequest::STATUS_REJECTED, 'BATAL'], true)) {
+            $approvedBy = Auth::id();
+            $approvedAt = $submittedAt->copy();
+        }
+
+        DB::transaction(function () use ($validated, $employee, $status, $submittedAt, $type, $isTimeBased, $photoBasename, $approvedBy, $approvedAt) {
+            $leave = new LeaveRequest([
+                'user_id' => $employee->id,
+                'type' => $type,
+                'special_leave_category' => $type === LeaveType::CUTI_KHUSUS->value
+                    ? ($validated['special_leave_detail'] ?? null)
+                    : null,
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'start_time' => $isTimeBased ? ($validated['start_time'] ?? null) : null,
+                'end_time' => $type === LeaveType::IZIN_TENGAH_KERJA->value ? ($validated['end_time'] ?? null) : null,
+                'reason' => $validated['reason'] ?? null,
+                'photo' => $photoBasename,
+                'status' => $status,
+                'notes' => null,
+                'notes_hrd' => $validated['notes_hrd'] ?? ('Input manual oleh ' . Auth::user()->name),
+                'substitute_pic' => $validated['substitute_pic'] ?? null,
+                'substitute_phone' => $validated['substitute_phone'] ?? null,
+                'approved_by' => $approvedBy,
+                'approved_at' => $approvedAt,
+                'supervisor_ack_at' => $status !== LeaveRequest::PENDING_SUPERVISOR ? $submittedAt->copy() : null,
+            ]);
+
+            $leave->created_at = $submittedAt->copy();
+            $leave->updated_at = $submittedAt->copy();
+            $leave->save();
+        });
+
+        return redirect()->route('hr.leave.master')->with('success', 'Data izin/cuti manual berhasil disimpan.');
     }
 
     public function show(LeaveRequest $leave)
@@ -376,6 +508,21 @@ class HrLeaveController extends Controller
         }
 
         return strtoupper(str_replace('_', ' ', trim((string) $role)));
+    }
+
+    private function defaultManualStatusForUser(User $user): string
+    {
+        $role = $this->normalizeRole($user->role);
+
+        if ($role === 'EMPLOYEE' && !empty($user->direct_supervisor_id)) {
+            return LeaveRequest::PENDING_SUPERVISOR;
+        }
+
+        if (in_array($role, ['SUPERVISOR', 'HRD'], true) && !empty($user->manager_id)) {
+            return LeaveRequest::PENDING_SUPERVISOR;
+        }
+
+        return LeaveRequest::PENDING_HR;
     }
 
     /**

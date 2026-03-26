@@ -8,8 +8,13 @@
 
     <div class="card mb-4">
         <div class="card-header-simple">
-            <h4 class="card-title-sm">Filter Data</h4>
-            <p class="card-subtitle-sm">Cari riwayat pengajuan izin dan cuti karyawan.</p>
+            <div>
+                <h4 class="card-title-sm">Filter Data</h4>
+                <p class="card-subtitle-sm">Cari riwayat pengajuan izin dan cuti karyawan.</p>
+            </div>
+            <a href="{{ route('hr.leave.manual.create') }}" class="btn-primary btn-create">
+                Tambah Data
+            </a>
         </div>
         
         <form method="GET" action="{{ route('hr.leave.master') }}" class="filter-container">
@@ -222,10 +227,24 @@
         .card-header-simple {
             padding: 16px 20px 0;
             margin-bottom: 8px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
         }
         
         .card-title-sm { margin: 0; font-size: 15px; font-weight: 700; color: #1f2937; }
         .card-subtitle-sm { margin: 2px 0 0; font-size: 13px; color: #6b7280; }
+
+        .btn-create {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 14px;
+            min-width: 120px;
+            text-decoration: none;
+            white-space: nowrap;
+        }
 
         /* --- FILTER SECTION --- */
         .filter-container {
@@ -258,6 +277,16 @@
             transition: border-color 0.2s;
         }
         .form-control:focus { border-color: #1e4a8d; }
+
+        @media (max-width: 768px) {
+            .card-header-simple {
+                flex-direction: column;
+            }
+
+            .btn-create {
+                width: 100%;
+            }
+        }
 
         .filter-actions { display: flex; gap: 8px; padding-bottom: 2px; }
 
