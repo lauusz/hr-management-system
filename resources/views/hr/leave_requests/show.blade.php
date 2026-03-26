@@ -66,7 +66,7 @@
                     $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
                     $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
                     
-                    $statusLabel = $isOwnerHRD ? '✅ Disetujui' : 'Disetujui HRD';
+                    $statusLabel = $isOwnerHRD ? 'Disetujui' : 'Disetujui HRD';
                 } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
                     $badgeClass = 'badge-red';
                     $statusLabel = 'Ditolak';
@@ -75,7 +75,7 @@
                     $statusLabel = '⏳ Menunggu Persetujuan Atasan';
                 } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
                     $badgeClass = 'badge-teal';
-                    $statusLabel = '✅ Disetujui Atasan (Verifikasi HRD)';
+                    $statusLabel = 'Disetujui Atasan (Verifikasi HRD)';
                 } elseif ($status === 'CANCEL_REQ') { 
                     $badgeClass = 'badge-red';
                     $statusLabel = '⚠️ Request Pembatalan (SPV)';
@@ -357,7 +357,7 @@
                                     $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
                                 @endphp
                                 <span style="color:#166534; font-weight:600;">
-                                    {{ $isOwnerHRD ? '✅ Disetujui' : 'Status: Disetujui HRD' }}
+                                    {{ $isOwnerHRD ? 'Disetujui' : 'Status: Disetujui HRD' }}
                                 </span>
                             @else
                                 Status: <strong>{{ $statusLabel }}</strong>

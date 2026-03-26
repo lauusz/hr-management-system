@@ -14,9 +14,9 @@
         }
 
         // [BARU] LOGIKA ROLE UNTUK JAVASCRIPT
-        // Cek apakah user ini golongan "5 Hari Kerja" (Libur Sabtu-Minggu)
+        // Manager 5 hari kerja, selain itu 6 hari kerja.
         $roleStr = strtoupper($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role);
-        $fiveDayRoles = ['HRD', 'HR STAFF', 'MANAGER']; 
+        $fiveDayRoles = ['MANAGER']; 
         $isFiveDayWorkWeek = in_array($roleStr, $fiveDayRoles);
 
         $oldStart = old('start_date');
@@ -409,6 +409,7 @@
     <script>
         (function() {
             const typeRadios = document.querySelectorAll('input[name="type"]');
+            const IS_FIVE_DAY_WORKWEEK = @json($isFiveDayWorkWeek);
             
             const IZIN_TELAT = @json(\App\Enums\LeaveType::IZIN_TELAT->value);
             const IZIN_TENGAH_KERJA = @json(\App\Enums\LeaveType::IZIN_TENGAH_KERJA->value);
@@ -455,6 +456,57 @@
             function selectedType() {
                 const r = document.querySelector('input[name="type"]:checked');
                 return r ? r.value : null;
+            }
+
+            function parseYmdAsDate(value) {
+                if (!value) return null;
+                const parts = value.split('-').map(Number);
+                if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+
+                const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                date.setHours(0, 0, 0, 0);
+                return date;
+            }
+
+            function calculateWorkingDays(startStr, endStr) {
+                const startDate = parseYmdAsDate(startStr);
+                const endDate = parseYmdAsDate(endStr);
+
+                if (!startDate || !endDate || startDate > endDate) {
+                    return 0;
+                }
+
+                let days = 0;
+                const cursor = new Date(startDate);
+
+                while (cursor <= endDate) {
+                    const day = cursor.getDay();
+                    const isSunday = day === 0;
+                    const isSaturday = day === 6;
+
+                    if (!isSunday && !(isSaturday && IS_FIVE_DAY_WORKWEEK)) {
+                        days++;
+                    }
+
+                    cursor.setDate(cursor.getDate() + 1);
+                }
+
+                return days;
+            }
+
+            function updateSpecialLeaveBadge() {
+                if (!specialLeaveSelect || !specialLeaveBadge || !specialLeaveText) return;
+
+                const selectedOption = specialLeaveSelect.options[specialLeaveSelect.selectedIndex];
+                const days = selectedOption ? selectedOption.getAttribute('data-days') : null;
+
+                if (days) {
+                    specialLeaveBadge.style.display = 'inline-flex';
+                    specialLeaveText.textContent = 'Maksimal ' + days + ' Hari';
+                } else {
+                    specialLeaveBadge.style.display = 'none';
+                    specialLeaveText.textContent = 'Maksimal 2 Hari';
+                }
             }
 
             function clearLocationValues() {
@@ -512,17 +564,17 @@
                 const startStr = document.getElementById('start_date').value;
                 const endStr = document.getElementById('end_date').value;
 
-                if (!startStr || !endStr) return;
+                if (!startStr || !endStr) {
+                    specialLimitWarning.style.display = 'none';
+                    specialLimitWarning.textContent = '';
+                    return;
+                }
 
-                const startDate = new Date(startStr);
-                const endDate = new Date(endStr);
-                
-                const diffTime = Math.abs(endDate - startDate);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
+                const diffDays = calculateWorkingDays(startStr, endStr);
 
                 if (maxDays > 0 && diffDays > maxDays) {
                     specialLimitWarning.style.display = 'block';
-                    specialLimitWarning.innerHTML = `Durasi pengajuan <b>${diffDays} hari</b> melebihi batas maksimal <b>${maxDays} hari</b> untuk kategori ini. <br>Sistem akan mencatat kelebihan hari ini sebagai catatan.`;
+                    specialLimitWarning.innerHTML = `Pengajuan terhitung <b>${diffDays} hari kerja</b>, melebihi batas maksimal <b>${maxDays} hari</b> untuk kategori ini.`;
                 } else {
                     specialLimitWarning.style.display = 'none';
                     specialLimitWarning.textContent = '';
@@ -543,6 +595,7 @@
                 if (val === CUTI_KHUSUS) {
                     specialLeaveContainer.style.display = 'block';
                     if(specialLeaveSelect) specialLeaveSelect.required = true;
+                    updateSpecialLeaveBadge();
                     checkSpecialLeaveLimit();
                 } else {
                     specialLeaveContainer.style.display = 'none';
@@ -637,14 +690,7 @@
 
             if(specialLeaveSelect) {
                 specialLeaveSelect.addEventListener('change', function() {
-                    const selectedOption = this.options[this.selectedIndex];
-                    const days = selectedOption.getAttribute('data-days');
-                    if (days) {
-                        specialLeaveBadge.style.display = 'inline-flex';
-                        specialLeaveText.textContent = 'Maksimal ' + days + ' Hari';
-                    } else {
-                        specialLeaveBadge.style.display = 'none';
-                    }
+                    updateSpecialLeaveBadge();
                     checkSpecialLeaveLimit();
                 });
             }
@@ -656,6 +702,7 @@
                 r.addEventListener('change', toggleSection);
             });
             
+            updateSpecialLeaveBadge();
             toggleSection();
         })();
     </script>

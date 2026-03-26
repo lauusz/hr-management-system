@@ -11,14 +11,19 @@ use RuntimeException;
 
 class LeaveBalanceService
 {
-    private const FIVE_DAY_WORK_WEEK_ROLES = ['HRD', 'MANAGER'];
+    private const FIVE_DAY_WORK_WEEK_ROLES = ['MANAGER'];
+
+    public function isFiveDayWorkWeekForUser(User $user): bool
+    {
+        return in_array($this->getRoleString($user), self::FIVE_DAY_WORK_WEEK_ROLES, true);
+    }
 
     public function calculateEffectiveDaysForUser(User $user, Carbon|string $startDate, Carbon|string $endDate): int
     {
         $start = $startDate instanceof Carbon ? $startDate->copy() : Carbon::parse($startDate);
         $end = $endDate instanceof Carbon ? $endDate->copy() : Carbon::parse($endDate);
         $period = CarbonPeriod::create($start, $end);
-        $isFiveDayWorkWeek = in_array($this->getRoleString($user), self::FIVE_DAY_WORK_WEEK_ROLES, true);
+        $isFiveDayWorkWeek = $this->isFiveDayWorkWeekForUser($user);
 
         $days = 0;
 

@@ -192,16 +192,7 @@ class LeaveRequestController extends Controller
         }
 
         // Logic Notes
-        $notesParts = [];
-        if ($type === LeaveType::CUTI_KHUSUS->value) {
-            $category = $validated['special_leave_detail'];
-            $limits = ['NIKAH_KARYAWAN' => 4, 'ISTRI_MELAHIRKAN' => 2, 'ISTRI_KEGUGURAN' => 2, 'KHITANAN_ANAK' => 2, 'PEMBAPTISAN_ANAK' => 2, 'NIKAH_ANAK' => 2, 'DEATH_EXTENDED' => 2, 'DEATH_CORE' => 2, 'DEATH_HOUSE' => 1, 'HAJI' => 40, 'UMROH' => 14];
-            $maxDays = $limits[$category] ?? 0;
-            $startDate = Carbon::parse($validated['start_date']);
-            $endDate = Carbon::parse($validated['end_date']);
-            $diffDays = $startDate->diffInDays($endDate) + 1;
-            if ($maxDays > 0 && $diffDays > $maxDays) $notesParts[] = "Durasi pengajuan {$diffDays} hari melebihi batas maksimal {$maxDays} hari.";
-        }
+        $notesParts = $this->buildLeaveNotes($user, $type, $validated);
 
         $isOffSpv = $type === LeaveType::OFF_SPV->value;
         if ($isOffSpv) {
@@ -225,13 +216,6 @@ class LeaveRequestController extends Controller
             $validated['end_date'] = $validated['start_date'];
             $validated['start_time'] = null;
             $validated['end_time'] = null;
-        }
-
-        $start = Carbon::parse($validated['start_date'])->startOfDay();
-        $today = now()->startOfDay();
-        $daysDiff = $today->diffInDays($start, false);
-        if ($type === LeaveType::CUTI->value) {
-            if ($daysDiff < 7 && $daysDiff >= 0) $notesParts[] = "Pengajuan H-{$daysDiff} (kurang dari H-7). Termasuk Potong Uang Makan.";
         }
 
         $notes = !empty($notesParts) ? implode("\n", $notesParts) : null;
@@ -384,6 +368,13 @@ class LeaveRequestController extends Controller
             $validated['photo'] = basename($fullPath);
         }
 
+        $validated['notes'] = $this->buildLeaveNotesAsText($leaveRequest->user ?? $user, $validated['type'], [
+            ...$validated,
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
+            'special_leave_detail' => $validated['special_leave_category'] ?? null,
+        ]);
+
         $leaveRequest->update($validated);
         return back()->with('success', 'Data pengajuan berhasil diperbarui sepenuhnya.');
     }
@@ -445,6 +436,57 @@ class LeaveRequestController extends Controller
             ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
             ->whereBetween('start_date', [$start, $end])
             ->count();
+    }
+
+    private function buildLeaveNotes($user, string $type, array $validated): array
+    {
+        $notesParts = [];
+
+        if ($type === LeaveType::CUTI_KHUSUS->value) {
+            $category = $validated['special_leave_detail'] ?? null;
+            $limits = [
+                'NIKAH_KARYAWAN' => 4,
+                'ISTRI_MELAHIRKAN' => 2,
+                'ISTRI_KEGUGURAN' => 2,
+                'KHITANAN_ANAK' => 2,
+                'PEMBAPTISAN_ANAK' => 2,
+                'NIKAH_ANAK' => 2,
+                'DEATH_EXTENDED' => 2,
+                'DEATH_CORE' => 2,
+                'DEATH_HOUSE' => 1,
+                'HAJI' => 40,
+                'UMROH' => 14,
+            ];
+
+            $maxDays = $limits[$category] ?? 0;
+            $effectiveDays = $this->leaveBalanceService->calculateEffectiveDaysForUser(
+                $user,
+                $validated['start_date'],
+                $validated['end_date'],
+            );
+
+            if ($maxDays > 0 && $effectiveDays > $maxDays) {
+                $notesParts[] = "Durasi pengajuan {$effectiveDays} hari kerja melebihi batas maksimal {$maxDays} hari.";
+            }
+        }
+
+        $start = Carbon::parse($validated['start_date'])->startOfDay();
+        $today = now()->startOfDay();
+        $daysDiff = $today->diffInDays($start, false);
+        if ($type === LeaveType::CUTI->value) {
+            if ($daysDiff < 7 && $daysDiff >= 0) {
+                $notesParts[] = "Pengajuan H-{$daysDiff} (kurang dari H-7). Termasuk Potong Uang Makan.";
+            }
+        }
+
+        return $notesParts;
+    }
+
+    private function buildLeaveNotesAsText($user, string $type, array $validated): ?string
+    {
+        $notesParts = $this->buildLeaveNotes($user, $type, $validated);
+
+        return !empty($notesParts) ? implode("\n", $notesParts) : null;
     }
 
     /**

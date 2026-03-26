@@ -42,7 +42,7 @@
                         $statusLabel = '⏳ Menunggu Approval HR';
                     } elseif ($overtimeRequest->status == \App\Models\OvertimeRequest::STATUS_APPROVED_HRD) {
                         $statusBadge = 'badge-green';
-                        $statusLabel = '✅ Disetujui Final';
+                        $statusLabel = 'Disetujui Final';
                     } elseif ($overtimeRequest->status == \App\Models\OvertimeRequest::STATUS_REJECTED) {
                         $statusBadge = 'badge-red';
                         $statusLabel = '❌ Ditolak';
