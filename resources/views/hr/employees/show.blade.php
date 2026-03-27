@@ -1,4 +1,4 @@
-<x-app title="Detail Karyawan - {{ $employee->name }}">
+<x-app title="Detail Karyawan">
 
     <div class="main-container">
 

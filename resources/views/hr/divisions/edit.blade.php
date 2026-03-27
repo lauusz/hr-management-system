@@ -16,7 +16,6 @@
         <div class="card">
             <div class="card-header">
                 <div>
-                    <h2 class="form-title">Edit Divisi</h2>
                     <p class="form-subtitle">Perbarui nama divisi dan supervisor yang bertanggung jawab.</p>
                 </div>
                 <a href="{{ route('hr.organization') }}" class="btn-back">

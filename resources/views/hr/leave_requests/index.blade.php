@@ -79,7 +79,9 @@
                         <tr>
                             <td>
                                 <div class="user-info">
-                                    <span class="fw-bold" style="font-size: 13px;">{{ $lv->user->name }}</span>
+                                    <a href="{{ route('hr.leave.show', $lv) }}" class="fw-bold employee-link" style="font-size: 13px;">
+                                        {{ $lv->user->name }}
+                                    </a>
                                     <span class="text-muted" style="font-size: 11px;">{{ $lv->user->division->name ?? '-' }}</span>
                                 </div>
                             </td>
@@ -237,6 +239,14 @@
 
         /* --- USER INFO --- */
         .user-info { display: flex; flex-direction: column; gap: 2px; text-align: left; align-items: flex-start; justify-content: flex-start; }
+        .employee-link {
+            color: #111827;
+            text-decoration: none;
+        }
+        .employee-link:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
 
         /* --- APPROVER INFO --- */
         .approver-info {

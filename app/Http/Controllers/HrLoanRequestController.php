@@ -17,6 +17,14 @@ class HrLoanRequestController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('q')) {
+            $query->where('snapshot_name', 'like', '%' . $request->q . '%');
+        }
+
+        if ($request->filled('submitted_at')) {
+            $query->whereDate('submitted_at', $request->submitted_at);
+        }
+
         $loans = $query->get();
 
         return view('hr.loan_requests.index', compact('loans'));

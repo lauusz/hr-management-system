@@ -29,14 +29,22 @@
                 <input type="text" 
                        name="q" 
                        value="{{ request('q') }}" 
-                       placeholder="Nama atau NIK..." 
+                       placeholder="Cari nama karyawan..." 
+                       class="form-control">
+            </div>
+
+            <div class="filter-group">
+                <label>Tgl Pengajuan</label>
+                <input type="date"
+                       name="submitted_at"
+                       value="{{ request('submitted_at') }}"
                        class="form-control">
             </div>
 
             <div class="filter-actions">
                 <button type="submit" class="btn-primary">Filter</button>
                 
-                @if(request('status') || request('q'))
+                @if(request('status') || request('q') || request('submitted_at'))
                 <a href="{{ route('hr.loan_requests.index') }}" class="btn-reset">Reset</a>
                 @endif
             </div>

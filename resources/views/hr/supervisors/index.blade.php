@@ -3,7 +3,6 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h3 class="card-title">Daftar Supervisor</h3>
                 <p class="text-muted" style="margin: 4px 0 0; font-size: 13px;">
                     Orang-orang ini memiliki akses menu Approval.
                 </p>

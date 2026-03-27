@@ -131,7 +131,9 @@
                             </td>
 
                             <td>
-                                <span class="fw-bold employee-name" title="{{ $row->user->name }}">{{ $row->user->name }}</span>
+                                <a href="{{ route('hr.leave.show', $row) }}" class="fw-bold employee-name employee-link" title="{{ $row->user->name }}">
+                                    {{ $row->user->name }}
+                                </a>
                             </td>
 
                             <td class="text-muted" style="font-size: 11px;">
@@ -375,6 +377,14 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        .employee-link {
+            color: #111827;
+            text-decoration: none;
+        }
+        .employee-link:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
         }
 
         .badge-status {

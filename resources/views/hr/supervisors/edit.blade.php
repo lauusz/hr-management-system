@@ -1,4 +1,4 @@
-<x-app title="Edit Level Pejabat">
+<x-app title="Edit Jabatan">
     <div class="card" style="max-width: 600px; margin: 0 auto;">
         <div class="card-header" style="padding:20px; border-bottom:1px solid #f3f4f6;">
             <h3 style="margin:0;">Edit Jabatan: {{ $user->name }}</h3>

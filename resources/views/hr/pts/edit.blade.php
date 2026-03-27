@@ -16,7 +16,6 @@
         <div class="card">
             <div class="card-header">
                 <div>
-                    <h2 class="form-title">Edit Perusahaan (PT)</h2>
                     <p class="form-subtitle">Perbarui informasi nama perusahaan yang terdaftar.</p>
                 </div>
                 <a href="{{ route('hr.pts.index') }}" class="btn-back">
