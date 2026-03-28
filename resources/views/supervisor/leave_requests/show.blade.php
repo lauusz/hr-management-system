@@ -19,6 +19,11 @@
             $typeValue = $typeValue->value;
         }
         $typeValue = (string) $typeValue;
+
+        $backUrl = url()->previous();
+        if ($backUrl === url()->current()) {
+            $backUrl = route('approval.index');
+        }
     @endphp
 
     <div class="card">
@@ -246,7 +251,7 @@
 
         <div class="action-footer">
             <div class="left-action">
-                <a href="{{ route('approval.index') }}" class="btn-modern btn-back">
+                <a href="{{ $backUrl }}" class="btn-modern btn-back">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     Kembali
                 </a>
@@ -259,7 +264,7 @@
                     @if($isDirectSuper)
                         <a href="{{ route('approval.edit', $item->id) }}" class="btn-modern btn-warning-outline">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                            Revisi
+                            Edit
                         </a>
 
                         @if($item->status !== 'CANCEL_REQ')

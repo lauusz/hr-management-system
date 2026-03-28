@@ -1,4 +1,4 @@
-<x-app title="Revisi Pengajuan Bawahan">
+<x-app title="Edit Pengajuan Bawahan">
 
     {{-- Info Alert --}}
     <div style="background:#fffbeb; border:1px solid #fcd34d; color:#92400e; padding:12px 16px; border-radius:8px; margin-bottom:20px; font-size:14px;">
@@ -17,7 +17,7 @@
     <div class="card">
         <div class="card-header">
             <div>
-                <h3 class="form-title">Form Revisi Data</h3>
+                <h3 class="form-title">Form Edit Data</h3>
                 <p class="form-subtitle">Sesuaikan data pengajuan di bawah ini.</p>
             </div>
             <a href="{{ route('approval.show', $leave->id) }}" class="btn-back">
@@ -208,7 +208,7 @@
             <div class="form-actions">
                 <button class="btn-primary" type="submit">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:8px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    Simpan Revisi & Teruskan ke HRD
+                    Simpan Edit & Teruskan ke HRD
                 </button>
             </div>
         </form>
