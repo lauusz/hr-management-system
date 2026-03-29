@@ -435,9 +435,25 @@ class PayslipController extends Controller
 
             // Ambil data yang sudah bersih dari properti mappedData
             $payslips = $import->mappedData;
+            $unmatchedEmployees = $import->unmatchedRows;
 
             if (empty($payslips)) {
-                return back()->with('error', 'Tidak ada data valid yang ditemukan dalam file. Pastikan NIK di baris ke-9 sesuai dengan database.');
+                $errorMessage = 'Tidak ada data valid yang ditemukan dalam file. Pastikan nama atau NIK karyawan sesuai database.';
+
+                if (!empty($unmatchedEmployees)) {
+                    $names = collect($unmatchedEmployees)
+                        ->pluck('name')
+                        ->filter()
+                        ->unique()
+                        ->take(5)
+                        ->implode(', ');
+
+                    if ($names !== '') {
+                        $errorMessage .= ' Nama yang tidak ditemukan: ' . $names . '.';
+                    }
+                }
+
+                return back()->with('error', $errorMessage);
             }
 
             $month = $request->input('month');
@@ -446,7 +462,7 @@ class PayslipController extends Controller
             $pt = Pt::find($ptId);
             $pts = Pt::orderBy('name')->get();
 
-            return view('hr.payroll.preview', compact('payslips', 'month', 'year', 'pt', 'pts'));
+            return view('hr.payroll.preview', compact('payslips', 'month', 'year', 'pt', 'pts', 'unmatchedEmployees'));
         } catch (Throwable $e) {
             Log::error('Payroll preview import failed', [
                 'user_id' => Auth::id(),

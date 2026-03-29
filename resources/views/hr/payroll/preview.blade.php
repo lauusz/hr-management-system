@@ -1,4 +1,8 @@
 <x-app title="Preview Import Slip Gaji">
+    @php
+    $unmatchedEmployees = $unmatchedEmployees ?? [];
+    @endphp
+
     <div class="card">
         <div class="card-header-simple" style="display: flex; justify-content: space-between; align-items: flex-start;">
             <div style="display: flex; gap: 16px; align-items: center;">
@@ -14,6 +18,27 @@
 
 
         </div>
+
+        @if(!empty($unmatchedEmployees))
+        <div style="margin: 0 16px 12px; padding: 12px; border: 1px solid #f59e0b; background: #fffbeb; border-radius: 8px;">
+            <div style="font-size: 13px; font-weight: 700; color: #92400e; margin-bottom: 6px;">
+                Data Excel yang tidak ditemukan di sistem
+            </div>
+            <ul style="margin: 0; padding-left: 18px; color: #78350f; font-size: 12px; line-height: 1.5;">
+                @foreach($unmatchedEmployees as $missingEmployee)
+                <li>
+                    {{ $missingEmployee['name'] ?: '-' }}
+                    @if(!empty($missingEmployee['nik']))
+                    (NIK: {{ $missingEmployee['nik'] }})
+                    @endif
+                    @if(!empty($missingEmployee['row']))
+                    - baris {{ $missingEmployee['row'] }}
+                    @endif
+                </li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
 
         <form id="payroll-import-form" action="{{ route('hr.payroll.import.store') }}" method="POST">
             @csrf

@@ -2,7 +2,6 @@
 
 namespace App\Imports;
 
-use App\Models\EmployeeProfile;
 use App\Models\User;
 use Maatwebsite\Excel\Concerns\ToArray;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
@@ -10,8 +9,8 @@ use Maatwebsite\Excel\Concerns\WithStartRow;
 
 class PayslipPreviewImport implements ToArray, WithStartRow, WithMultipleSheets
 {
-    // 1. BUAT KANTONG PENAMPUNGAN DI SINI
     public $mappedData = [];
+    public $unmatchedRows = [];
 
     public function startRow(): int
     {
@@ -28,50 +27,71 @@ class PayslipPreviewImport implements ToArray, WithStartRow, WithMultipleSheets
 
     public function array(array $array)
     {
-        foreach ($array as $row) {
-            $name = trim($row[2] ?? ''); // Index 2 is Name (Column C)
-            $nik = trim($row[3] ?? ''); // Index 3 is NIK (Column D)
+        $activeUsers = User::query()
+            ->active()
+            ->with('profile:id,user_id,nik')
+            ->get(['id', 'name', 'email']);
+
+        $userByName = [];
+        $userByNik = [];
+
+        foreach ($activeUsers as $activeUser) {
+            $normalizedUserName = $this->normalizeLookupValue($activeUser->name);
+            if ($normalizedUserName !== '' && !isset($userByName[$normalizedUserName])) {
+                $userByName[$normalizedUserName] = $activeUser;
+            }
+
+            $normalizedUserNik = $this->normalizeLookupValue((string) ($activeUser->profile?->nik ?? ''));
+            if ($normalizedUserNik !== '' && !isset($userByNik[$normalizedUserNik])) {
+                $userByNik[$normalizedUserNik] = $activeUser;
+            }
+        }
+
+        $tempUserIds = [];
+        $tempUnmatched = [];
+
+        foreach ($array as $index => $row) {
+            $name = trim((string) ($row[2] ?? '')); // Index 2 is Name (Column C)
+            $nik = trim((string) ($row[3] ?? '')); // Index 3 is NIK (Column D)
 
             // Skip if both Name and NIK are empty
             if (empty($name) && empty($nik)) {
                 continue;
             }
 
-            // Find User using strict logic: Try to match both if both exist.
             $user = null;
+            $normalizedName = $this->normalizeLookupValue($name);
+            $normalizedNik = $this->normalizeLookupValue($nik);
 
-            if (!empty($name) && !empty($nik)) {
-                // Try to find the user matching both exactly
-                $user = User::query()
-                    ->active()
-                    ->where('name', $name)
-                    ->whereHas('profile', function ($q) use ($nik) {
-                        $q->where('nik', $nik);
-                    })
-                    ->first();
+            // Rule: if name found, stop here and never check NIK.
+            if ($normalizedName !== '' && isset($userByName[$normalizedName])) {
+                $user = $userByName[$normalizedName];
             }
 
-            // Fallback 1: Match by NIK only (if name mismatch or empty)
-            if (!$user && !empty($nik)) {
-                $profile = EmployeeProfile::where('nik', $nik)
-                    ->whereHas('user', function ($q) {
-                        $q->active();
-                    })
-                    ->first();
-                if ($profile) {
-                    $user = $profile->user;
-                }
+            // Only fallback to NIK when name is not found.
+            if (!$user && $normalizedNik !== '') {
+                $user = $userByNik[$normalizedNik] ?? null;
             }
 
-            // Fallback 2: Match by Name only (if NIK mismatch or empty)
-            if (!$user && !empty($name)) {
-                $user = User::query()->active()->where('name', $name)->first();
-            }
-
-            // Skip if user not found at all
             if (!$user) {
+                $unmatchedKey = $normalizedName !== '' ? ('name:' . $normalizedName) : ('nik:' . $normalizedNik);
+
+                if (!isset($tempUnmatched[$unmatchedKey])) {
+                    $tempUnmatched[$unmatchedKey] = [
+                        'row' => $this->startRow() + $index,
+                        'name' => $name,
+                        'nik' => $nik,
+                    ];
+                }
+
                 continue;
             }
+
+            // Prevent duplicate rows in preview for the same employee.
+            if (isset($tempUserIds[$user->id])) {
+                continue;
+            }
+            $tempUserIds[$user->id] = true;
 
             // Map Excel columns to Payslip attributes
             $formattedData = [
@@ -137,9 +157,22 @@ class PayslipPreviewImport implements ToArray, WithStartRow, WithMultipleSheets
             $formattedData['total_potongan'] = $totalPotongan;
             $formattedData['gaji_bersih'] = $totalPendapatan - $totalPotongan;
 
-            // 2. MASUKKAN KE DALAM KANTONG (Bukan di-return)
             $this->mappedData[] = $formattedData;
         }
+
+        $this->unmatchedRows = array_values($tempUnmatched);
+    }
+
+    private function normalizeLookupValue(?string $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        $normalized = strtolower(trim($value));
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+
+        return $normalized ?? '';
     }
 
     private function cleanCurrency($value)
