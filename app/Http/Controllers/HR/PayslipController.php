@@ -423,7 +423,7 @@ class PayslipController extends Controller
             'file' => 'required|mimes:xlsx,xls,csv,xlsm',
             'month' => 'required|integer|min:1|max:12',
             'year' => 'required|integer|min:2020',
-            'pt_id' => 'required|exists:pts,id',
+            'pt_id' => 'nullable|exists:pts,id',
         ]);
 
         try {
@@ -780,7 +780,7 @@ class PayslipController extends Controller
         $pendingDispatch = SendPayslipEmailJob::dispatch(
             $payslip->id,
             $payslip->user->name ?? '-',
-            $payslip->user->email,
+            trim($payslip->user->email ?? ''),
             $this->resolvePtNameByPayslipUserId($payslip->user_id),
             $thrOnly,
             $scheduledDelaySeconds,

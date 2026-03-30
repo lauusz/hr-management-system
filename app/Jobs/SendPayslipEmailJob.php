@@ -43,7 +43,7 @@ class SendPayslipEmailJob implements ShouldQueue
             $mail = new PayslipPublishedMail($payslip, $this->ptName);
             $mail->thrOnly = $this->thrOnly;
 
-            Mail::to($this->email)->send($mail);
+            Mail::to(trim($this->email))->send($mail);
 
             $this->appendLog('SUCCESS');
         } catch (Throwable $throwable) {

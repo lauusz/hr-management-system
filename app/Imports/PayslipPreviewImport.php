@@ -97,7 +97,7 @@ class PayslipPreviewImport implements ToArray, WithStartRow, WithMultipleSheets
             $formattedData = [
                 'user_id' => $user->id,
                 'user_name' => $user->name,
-                'email' => $user->email,
+                'email' => trim($user->email ?? ''),
                 'nik' => $user->profile?->nik ?? $row[3] ?? '-', // Get NIK from profile or Excel
 
                 // Income (Kolom H - V / Index 7 - 21)
