@@ -468,8 +468,23 @@ class HrLeaveController extends Controller
             return false;
         }
 
-        // Pengajuan milik HR Staff hanya boleh diproses oleh HRD (Master).
+        // Pengajuan milik HR Staff
         if ($this->isHrStaff($leave->user)) {
+            // CUTI dan CUTI_KHUSUS tetap harus diapprove oleh HRD Master
+            $typeValue = $leave->type instanceof LeaveType ? $leave->type->value : $leave->type;
+            $isCutiOrSpecial = in_array($typeValue, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value], true);
+
+            if ($isCutiOrSpecial) {
+                // CUTI/CUTI KHUSUS: hanya HRD Master yang bisa approve
+                return $this->isHrdMaster($actor);
+            }
+
+            // Non-CUTI (IZIN, SAKIT, dll): HR STAFF lain bisa approve
+            if ($this->isHrStaff($actor)) {
+                return true;
+            }
+
+            // HRD Master juga tetap bisa approve
             return $this->isHrdMaster($actor);
         }
 

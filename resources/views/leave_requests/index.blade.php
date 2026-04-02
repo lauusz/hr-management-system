@@ -104,7 +104,9 @@
                             } elseif ($st === \App\Models\LeaveRequest::PENDING_HR) {
                                 // Sudah di-ACC Atasan, OTW HRD
                                 $badgeClass = 'badge-teal';
-                                $statusLabel = '✅ Atasan Mengetahui';
+                                $roleVal = $row->user->role instanceof \App\Enums\UserRole ? $row->user->role->value : $row->user->role;
+                                $isHRStaff = in_array(strtoupper((string)$roleVal), ['HR STAFF']);
+                                $statusLabel = $isHRStaff ? '⏳ Menunggu Persetujuan' : '✅ Atasan Mengetahui';
                             }
 
                             // 2. Logic Label Jenis
@@ -140,7 +142,13 @@
                                 </span>
                                 {{-- Tambahan Info Text untuk status PENDING_HR --}}
                                 @if($st === \App\Models\LeaveRequest::PENDING_HR)
-                                    <div style="font-size:10px; color:#0d9488; margin-top:2px;">(Menunggu Verifikasi HRD)</div>
+                                    <div style="font-size:10px; color:#0d9488; margin-top:2px;">
+                                        @if($isHRStaff)
+                                            (Menunggu Persetujuan HR Staff)
+                                        @else
+                                            (Menunggu Verifikasi HRD)
+                                        @endif
+                                    </div>
                                 @endif
                             </td>
 
