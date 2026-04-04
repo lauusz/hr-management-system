@@ -90,22 +90,15 @@
     }
 
     .brand-logo {
-      width: 80px;
-      height: 80px;
-      background: rgba(255,255,255,0.15);
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       margin: 0 auto 24px;
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255,255,255,0.2);
     }
 
     .brand-logo img {
-      width: 60px;
-      height: 60px;
+      width: 100%;
+      height: auto;
       object-fit: contain;
+      display: block;
+      margin: 0 auto;
     }
 
     .brand-name {
@@ -327,7 +320,7 @@
   <div class="brand-panel">
     <div class="brand-content">
       <div class="brand-logo">
-        <img src="{{ asset('images/logo-triguna-clean.png') }}" alt="Triguna Logo" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\'font-size:28px; font-weight:800; color:#fff;\'>TG</span>';">
+        <img src="{{ asset('images/triguna-logo.png') }}" alt="Triguna Logo" onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\'font-size:28px; font-weight:800; color:#fff;\'>TG</span>';">
       </div>
       <div class="brand-name">HRD Triguna<br>Samudratrans</div>
       <div class="brand-divider"></div>
