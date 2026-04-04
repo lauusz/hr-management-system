@@ -269,11 +269,8 @@
         </form>
     </div>
 
-    <x-modal id="modal-publish-warning" title="Tidak Bisa Publish" type="form">
+    <x-modal id="modal-publish-warning" title="Perhatian" variant="warning" type="form">
         <div style="display:flex; align-items:flex-start; gap:12px;">
-            <div style="flex-shrink:0; width:40px; height:40px; border-radius:50%; background:#fef2f2; display:flex; align-items:center; justify-content:center;">
-                <svg width="20" height="20" fill="none" stroke="#dc2626" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
-            </div>
             <p style="margin:0; color:#374151; line-height:1.6;">Pilih minimal <strong>satu data karyawan</strong> yang akan dipublish terlebih dahulu dengan mencentang checkbox pada tabel.</p>
         </div>
         <div style="margin-top:16px; display:flex; justify-content:flex-end;">
@@ -281,38 +278,38 @@
         </div>
     </x-modal>
 
-    <x-modal id="modal-publish-loading" title="Memproses Publish & Kirim Email" type="form">
+    <x-modal id="modal-publish-loading" title="Memproses..." type="form">
         <div style="text-align:center; padding: 20px 0;">
             <div class="payroll-loading-spinner" style="width:40px; height:40px; border-width:3px; margin:0 auto 16px;"></div>
             <p style="margin:0; color:#374151; font-weight:600;">Data sedang dipublish ke queue email...</p>
-            <p style="margin:8px 0 0; color:#6b7280; font-size:0.85rem;">Email akan terkirim bertahap dan estimasi selesai semua sekitar <strong>45 menit</strong> untuk pengiriman massal.<br>Modal ini boleh ditutup, tetapi sebaiknya jangan tutup tab atau pindah halaman sebelum submit selesai.</p>
+            <p style="margin:8px 0 0; color:#6b7280; font-size:0.85rem;">Email akan terkirim bertahap. Modal ini boleh ditutup, tetapi sebaiknya jangan tutup tab atau pindah halaman sebelum proses selesai.</p>
             <div style="margin-top:16px; display:flex; justify-content:center;">
-                <button type="button" data-modal-close="true" class="modal-btn-light">Tutup Info</button>
+                <button type="button" data-modal-close="true" class="modal-btn-light">Tutup</button>
             </div>
         </div>
     </x-modal>
 
-    <x-modal id="modal-publish-confirm" title="Konfirmasi Publish & Kirim Email" type="form">
-        <p style="margin:0; color:#374151;">Anda akan mempublish dan menjadwalkan email ke <strong id="publish-confirm-count">0</strong> karyawan yang dipilih. Estimasi pengiriman selesai sekitar <strong>45 menit</strong>. Lanjutkan?</p>
+    <x-modal id="modal-publish-confirm" title="Konfirmasi Publish" variant="info" type="form">
+        <p style="margin:0; color:#374151;">Anda akan mempublish dan menjadwalkan email ke <strong id="publish-confirm-count">0</strong> karyawan yang dipilih. Lanjutkan?</p>
         <div style="margin-top: 16px; display:flex; justify-content:flex-end; gap:10px;">
             <button type="button" data-modal-close="true" class="modal-btn-light">Batal</button>
-            <button type="button" id="confirm-publish-submit" class="modal-btn-primary">Ya, Publish & Kirim</button>
+            <button type="button" id="confirm-publish-submit" class="modal-btn-primary">Ya, Publish</button>
         </div>
     </x-modal>
 
-    <x-modal id="modal-clear-payslip-confirm" title="Konfirmasi Hapus Data Gaji" type="form">
+    <x-modal id="modal-clear-payslip-confirm" title="Hapus Data Gaji?" variant="danger" type="form">
         <p id="clear-payslip-confirm-text" style="margin:0; color:#374151;"></p>
         <div style="margin-top: 16px; display:flex; justify-content:flex-end; gap:10px;">
             <button type="button" data-modal-close="true" class="modal-btn-light">Batal</button>
-            <button type="button" id="confirm-clear-payslip-submit" class="modal-btn-danger">Ya, Hapus Data</button>
+            <button type="button" id="confirm-clear-payslip-submit" class="modal-btn-danger">Ya, Hapus</button>
         </div>
     </x-modal>
 
-    <x-modal id="modal-clear-selected-confirm" title="Konfirmasi Hapus Data Terpilih" type="form">
+    <x-modal id="modal-clear-selected-confirm" title="Hapus Data Terpilih?" variant="danger" type="form">
         <p id="clear-selected-confirm-text" style="margin:0; color:#374151;"></p>
         <div style="margin-top: 16px; display:flex; justify-content:flex-end; gap:10px;">
             <button type="button" data-modal-close="true" class="modal-btn-light">Batal</button>
-            <button type="button" id="confirm-clear-selected-submit" class="modal-btn-danger">Ya, Hapus Data Terpilih</button>
+            <button type="button" id="confirm-clear-selected-submit" class="modal-btn-danger">Ya, Hapus</button>
         </div>
     </x-modal>
 

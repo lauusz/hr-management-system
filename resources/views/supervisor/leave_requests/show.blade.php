@@ -1,18 +1,5 @@
 <x-app title="Detail Approval">
 
-    @if(session('success'))
-    <div class="alert-success">
-        {{ session('success') }}
-    </div>
-    @endif
-
-    @if($errors->any())
-    <div class="alert-error">
-        {{ $errors->first() }}
-    </div>
-    @endif
-
-    {{-- [GLOBAL NORMALIZATION] Pastikan Type selalu string agar pengecekan IF valid --}}
     @php
         $typeValue = $item->type;
         if ($typeValue instanceof \App\Enums\LeaveType) {
@@ -24,330 +11,315 @@
         if ($backUrl === url()->current()) {
             $backUrl = route('approval.index');
         }
+
+        $showActionButtons = isset($canApprove) && $canApprove;
+        $isDirectSuper = isset($isApprover) && $isApprover;
+
+        $statusBg = 'var(--bg-body)';
+        $statusColor = 'var(--text-muted)';
+        $statusLabel = $item->status;
+
+        if ($item->status === \App\Models\LeaveRequest::STATUS_APPROVED) {
+            $statusBg = 'var(--success-bg)';
+            $statusColor = 'var(--success-text)';
+            $statusLabel = 'Disetujui Final (HR)';
+        } elseif ($item->status === \App\Models\LeaveRequest::STATUS_REJECTED) {
+            $statusBg = 'var(--danger-bg)';
+            $statusColor = 'var(--danger-text)';
+            $statusLabel = 'Ditolak';
+        } elseif ($item->status === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
+            $statusBg = 'var(--warning-bg)';
+            $statusColor = 'var(--warning-text)';
+            $statusLabel = $showActionButtons ? 'Menunggu Approval' : 'Menunggu Atasan';
+        } elseif ($item->status === \App\Models\LeaveRequest::PENDING_HR) {
+            $statusBg = 'var(--teal-bg)';
+            $statusColor = 'var(--teal-text)';
+            $statusLabel = 'Atasan Mengetahui';
+        } elseif ($item->status === 'CANCEL_REQ') {
+            $statusBg = 'var(--danger-bg)';
+            $statusColor = 'var(--danger-text)';
+            $statusLabel = 'Menunggu Batal (HRD)';
+        }
+
+        $typeBadgeBg = 'var(--bg-body)';
+        $typeBadgeColor = 'var(--text-main)';
+        if (in_array($typeValue, [\App\Enums\LeaveType::CUTI->value, \App\Enums\LeaveType::CUTI_KHUSUS->value])) {
+            $typeBadgeBg = 'var(--blue-light)';
+            $typeBadgeColor = 'var(--blue-text)';
+        } elseif ($typeValue === \App\Enums\LeaveType::SAKIT->value) {
+            $typeBadgeBg = '#fce7f3';
+            $typeBadgeColor = '#be185d';
+        } elseif (in_array($typeValue, [\App\Enums\LeaveType::IZIN_TELAT->value, \App\Enums\LeaveType::IZIN_PULANG_AWAL->value])) {
+            $typeBadgeBg = 'var(--warning-bg)';
+            $typeBadgeColor = 'var(--warning-text)';
+        } elseif ($typeValue === \App\Enums\LeaveType::DINAS_LUAR->value) {
+            $typeBadgeBg = 'var(--purple-light)';
+            $typeBadgeColor = 'var(--purple-text)';
+        } elseif ($typeValue === \App\Enums\LeaveType::OFF_SPV->value) {
+            $typeBadgeBg = '#f3e8ff';
+            $typeBadgeColor = '#6b21a8';
+        }
     @endphp
 
-    <div class="card">
-        <div class="profile-header">
-            <div class="profile-main">
-                <div class="profile-avatar">
-                    {{ substr($item->user->name, 0, 1) }}
-                </div>
-                <div class="profile-info">
-                    <h2 class="profile-name">{{ $item->user->name }}</h2>
-                    <div class="profile-meta">
+    {{-- Flash Messages --}}
+    @if(session('success'))
+    <div class="flash flash-success">
+        <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+            <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+        <span>{{ session('success') }}</span>
+    </div>
+    @endif
+
+    @if($errors->any())
+    <div class="flash flash-error">
+        <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>{{ $errors->first() }}</span>
+    </div>
+    @endif
+
+    <div class="detail-container">
+
+        {{-- Header Card --}}
+        <div class="header-card">
+            <a href="{{ $backUrl }}" class="back-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                Kembali
+            </a>
+
+            <div class="header-main">
+                <div class="header-avatar">{{ substr($item->user->name, 0, 1) }}</div>
+                <div class="header-info">
+                    <h1 class="header-name">{{ $item->user->name }}</h1>
+                    <div class="header-meta">
                         <span class="chip-role">{{ $item->user->role }}</span>
-                        <span class="dot">•</span>
-                        <span>{{ $item->created_at->format('d M Y H:i') }}</span>
+                        <span class="meta-dot">•</span>
+                        <span>{{ $item->user->position->name ?? '-' }}</span>
+                        <span class="meta-dot">•</span>
+                        <span>{{ $item->user->division->name ?? '-' }}</span>
                     </div>
+                </div>
+            </div>
+
+            <div class="header-footer">
+                <span class="badge-status" style="background: {{ $statusBg }}; color: {{ $statusColor }};">
+                    {{ $statusLabel }}
+                </span>
+                <span class="submit-time">Diajukan {{ $item->created_at->format('d M Y, H:i') }}</span>
+            </div>
+        </div>
+
+        {{-- Info Card: Jenis & Periode --}}
+        <div class="info-card">
+            <div class="info-row">
+                <span class="info-label">Jenis Pengajuan</span>
+                <span class="badge" style="background: {{ $typeBadgeBg }}; color: {{ $typeBadgeColor }};">
+                    {{ $item->type_label ?? $item->type }}
+                </span>
+            </div>
+
+            @if($typeValue === 'CUTI_KHUSUS' && $item->special_leave_category)
+                @php
+                    $catMap = [
+                        'NIKAH_KARYAWAN'   => 'Menikah (4 Hari)',
+                        'ISTRI_MELAHIRKAN' => 'Istri Melahirkan (2 Hari)',
+                        'ISTRI_KEGUGURAN'  => 'Istri Keguguran (2 Hari)',
+                        'KHITANAN_ANAK'    => 'Khitanan Anak (2 Hari)',
+                        'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak (2 Hari)',
+                        'NIKAH_ANAK'       => 'Pernikahan Anak (2 Hari)',
+                        'DEATH_EXTENDED'   => 'Kematian Adik/Kakak/Ipar (2 Hari)',
+                        'DEATH_CORE'       => 'Kematian Inti (2 Hari)',
+                        'DEATH_HOUSE'      => 'Kematian Anggota Rumah (1 Hari)',
+                        'HAJI'             => 'Ibadah Haji (40 Hari)',
+                        'UMROH'            => 'Ibadah Umroh (14 Hari)',
+                    ];
+                    $catLabel = $catMap[$item->special_leave_category] ?? $item->special_leave_category;
+                @endphp
+                <div class="info-row">
+                    <span class="info-label">Detail Cuti Khusus</span>
+                    <span class="cuti-khusus-badge">{{ $catLabel }}</span>
+                </div>
+            @endif
+
+            <div class="info-row">
+                <span class="info-label">Periode Izin</span>
+                <div class="date-display">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    {{ $item->start_date->format('d M Y') }}
+                    @if($item->end_date && $item->end_date->ne($item->start_date))
+                        — {{ $item->end_date->format('d M Y') }}
+                    @endif
                 </div>
             </div>
 
             @php
-                // [LOGIC STATUS BADGE]
-                $status = $item->status;
-                $badgeClass = 'badge-gray';
-                $statusLabel = $item->status; 
-
-                // Variabel dari Controller
-                $showActionButtons = isset($canApprove) && $canApprove; // Untuk tombol Approve/Reject
-                $isDirectSuper = isset($isApprover) && $isApprover; // Untuk tombol Edit/Delete (Flexible)
-
-                if ($status === \App\Models\LeaveRequest::STATUS_APPROVED) {
-                    $badgeClass = 'badge-green';
-                    $statusLabel = 'Disetujui Final (HR)';
-                } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
-                    $badgeClass = 'badge-red';
-                    $statusLabel = 'Ditolak';
-                } elseif ($status === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
-                    $badgeClass = 'badge-yellow';
-                    $statusLabel = $showActionButtons ? '⏳ Menunggu Approval' : '⏳ Menunggu Atasan';
-                } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
-                    $badgeClass = 'badge-teal';
-                    $statusLabel = '✅ Atasan Mengetahui';
-                } elseif ($status === 'CANCEL_REQ') { 
-                    $badgeClass = 'badge-red';
-                    $statusLabel = '⏳ Menunggu Batal (HRD)';
-                }
+                $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
+                $endTimeLabel   = $item->end_time ? $item->end_time->format('H:i') : null;
             @endphp
-            
-            <div class="status-wrapper">
-                <span class="badge-status {{ $badgeClass }}">
-                    {{ $statusLabel }}
+
+            @if($startTimeLabel)
+            <div class="info-row">
+                <span class="info-label">
+                    @if($endTimeLabel)
+                        Jam Izin
+                    @elseif($typeValue === 'IZIN_TELAT')
+                        Estimasi Jam Tiba
+                    @elseif($typeValue === 'IZIN_PULANG_AWAL')
+                        Jam Pulang Awal
+                    @else
+                        Jam Mulai
+                    @endif
                 </span>
+                <span class="time-display">{{ $startTimeLabel }}{{ $endTimeLabel ? ' — ' . $endTimeLabel : '' }}</span>
             </div>
+            @endif
         </div>
 
-        <div class="divider-full"></div>
-
-        <div class="detail-container">
-            
-            <div class="detail-section">
-                <h4 class="section-title">Informasi Pengajuan</h4>
-
-                <div class="info-row">
-                    <div class="info-label">Jenis Pengajuan</div>
-                    <div class="info-value">
-                        <span class="badge-basic">{{ $item->type_label ?? $item->type }}</span>
-
-                        {{-- [DETAIL KATEGORI CUTI KHUSUS] --}}
-                        @if($typeValue === 'CUTI_KHUSUS' && $item->special_leave_category)
-                            @php
-                                $catMap = [
-                                    'NIKAH_KARYAWAN'   => 'Menikah (4 Hari)',
-                                    'ISTRI_MELAHIRKAN' => 'Istri Melahirkan (2 Hari)',
-                                    'ISTRI_KEGUGURAN'  => 'Istri Keguguran (2 Hari)',
-                                    'KHITANAN_ANAK'    => 'Khitanan Anak (2 Hari)',
-                                    'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak (2 Hari)',
-                                    'NIKAH_ANAK'       => 'Pernikahan Anak (2 Hari)',
-                                    'DEATH_EXTENDED'   => 'Kematian Adik/Kakak/Ipar (2 Hari)',
-                                    'DEATH_CORE'       => 'Kematian Inti (2 Hari)',
-                                    'DEATH_HOUSE'      => 'Kematian Anggota Rumah (1 Hari)',
-                                    'HAJI'             => 'Ibadah Haji (40 Hari)',
-                                    'UMROH'            => 'Ibadah Umroh (14 Hari)',
-                                ];
-                                $catLabel = $catMap[$item->special_leave_category] ?? $item->special_leave_category;
-                            @endphp
-                            <div style="margin-top:6px;">
-                                <span style="font-size:12px; font-weight:600; color:#1e4a8d; background:#eff6ff; padding:4px 10px; border-radius:6px; border:1px solid #dbeafe; display: inline-block;">
-                                    Detail: {{ $catLabel }}
-                                </span>
-                            </div>
-                        @endif
-                    </div>
-                </div>
-
-                <div class="info-row">
-                    <div class="info-label">Periode</div>
-                    <div class="info-value">
-                        {{ $item->start_date->format('d M Y') }}
-                        @if($item->end_date && $item->end_date->ne($item->start_date))
-                            – {{ $item->end_date->format('d M Y') }}
-                        @endif
-                    </div>
-                </div>
-
-                {{-- [LOGIC LABEL JAM DINAMIS] --}}
-                @php
-                     $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
-                     $endTimeLabel   = $item->end_time ? $item->end_time->format('H:i') : null;
-                @endphp
-
-                @if($startTimeLabel)
-                    <div class="info-row">
-                        <div class="info-label">
-                            @if($endTimeLabel)
-                                Jam Izin
-                            @elseif($typeValue === 'IZIN_TELAT')
-                                Estimasi Jam Tiba
-                            @elseif($typeValue === 'IZIN_PULANG_AWAL')
-                                Jam Pulang Awal
-                            @else
-                                Jam Mulai
-                            @endif
-                        </div>
-                        <div class="info-value">
-                            {{ $startTimeLabel }}
-                            @if($endTimeLabel)
-                                – {{ $endTimeLabel }}
-                            @endif
-                        </div>
-                    </div>
-                @endif
-
-                @if($item->approved_by)
-                <div class="info-row">
-                    <div class="info-label">Diputus/Direvisi Oleh</div>
-                    <div class="info-value">
-                        {{ $item->approver?->name }}
-                        @if($item->approved_at)
-                            <div class="text-muted" style="font-size:12px; margin-top:2px;">
-                                {{ $item->approved_at->format('d M Y H:i') }}
-                            </div>
-                        @endif
-                    </div>
-                </div>
-                @endif
-
-                {{-- [INFO PIC PENGGANTI] --}}
-                @if($item->substitute_pic)
-                <div class="info-row">
-                    <div class="info-label">PIC Pengganti</div>
-                    <div class="info-value">
-                        {{ $item->substitute_pic }}
-                        @if($item->substitute_phone)
-                            <div style="font-size:12px; color:#6b7280; margin-top:2px;">
-                                {{ $item->substitute_phone }}
-                            </div>
-                        @endif
-                    </div>
-                </div>
-                @endif
-
-                {{-- [SYSTEM NOTES] --}}
-                @if($item->notes)
-                <div class="system-note-box">
-                    <div class="note-label">Catatan Sistem / Revisi:</div>
-                    <div class="note-content">{!! nl2br(e($item->notes)) !!}</div>
-                </div>
-                @endif
+        {{-- Info Card: Alasan --}}
+        <div class="info-card">
+            <div class="info-row info-row-full">
+                <span class="info-label">Alasan / Keterangan</span>
+                <div class="reason-box">{{ $item->reason }}</div>
             </div>
 
-            <div class="detail-section">
-                <h4 class="section-title">Keterangan & Bukti</h4>
-
-                <div class="info-row">
-                    <div class="info-label">Alasan</div>
-                    <div class="info-value box-reason">
-                        {{ $item->reason }}
-                    </div>
+            @if($item->substitute_pic)
+            <div class="info-row info-row-full">
+                <span class="info-label">PIC Pengganti</span>
+                <div class="pic-box">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>{{ $item->substitute_pic }}</span>
+                    @if($item->substitute_phone)
+                        <span class="pic-phone">{{ $item->substitute_phone }}</span>
+                    @endif
                 </div>
-
-                @php
-                    $url = $item->photo
-                        ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
-                        : null;
-                @endphp
-
-                <div class="info-row">
-                    <div class="info-label">Lampiran Foto</div>
-                    <div class="info-value">
-                        @if($url)
-                            <div class="photo-preview js-view-photo" data-url="{{ $url }}">
-                                <img src="{{ $url }}" alt="Bukti Izin">
-                                <div class="overlay">
-                                    <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24" style="margin-bottom:4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                    <span>Lihat Full Screen</span>
-                                </div>
-                            </div>
-                        @else
-                            <span class="text-muted" style="font-style:italic;">Tidak ada lampiran foto.</span>
-                        @endif
-                    </div>
-                </div>
-
-                @if($item->latitude && $item->longitude)
-                <div class="info-row" style="margin-top:20px;">
-                    <div class="info-label">
-                        Lokasi Pengajuan
-                        <span style="font-weight:400; color:#6b7280; font-size:11px;">(±{{ (int)$item->accuracy_m }}m)</span>
-                    </div>
-                    <div class="map-container">
-                        <iframe
-                            src="https://www.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed"
-                            loading="lazy"
-                            allowfullscreen>
-                        </iframe>
-                    </div>
-                    <div style="margin-top:6px;">
-                        <a href="https://www.google.com/maps/search/?api=1&query={{ $item->latitude }},{{ $item->longitude }}" 
-                           target="_blank" class="link-map">
-                           Buka di Google Maps ↗
-                        </a>
-                    </div>
-                </div>
-                @endif
             </div>
+            @endif
         </div>
 
-        <div class="action-footer">
-            <div class="left-action">
-                <a href="{{ $backUrl }}" class="btn-modern btn-back">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                    Kembali
+        {{-- Info Card: Foto & Lokasi --}}
+        @php
+            $url = $item->photo
+                ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
+                : null;
+        @endphp
+
+        @if($url || ($item->latitude && $item->longitude))
+        <div class="info-card">
+            @if($url)
+            <div class="info-row info-row-full">
+                <span class="info-label">Bukti Pendukung</span>
+                <div class="photo-preview js-view-photo" data-url="{{ $url }}">
+                    <img src="{{ $url }}" alt="Bukti Izin">
+                    <div class="photo-overlay">
+                        <svg width="20" height="20" fill="none" stroke="#fff" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <span>Lihat Foto</span>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            @if($item->latitude && $item->longitude)
+            <div class="info-row info-row-full">
+                <span class="info-label">Lokasi Pengajuan <span class="accuracy-label">(±{{ (int)$item->accuracy_m }}m)</span></span>
+                <div class="map-container">
+                    <iframe src="https://www.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed" loading="lazy" allowfullscreen></iframe>
+                </div>
+                <a href="https://www.google.com/maps/search/?api=1&query={{ $item->latitude }},{{ $item->longitude }}" target="_blank" class="link-map">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    Buka di Google Maps
                 </a>
             </div>
+            @endif
+        </div>
+        @endif
 
-            <div class="right-action">
-                {{-- [MOBILE WRAPPER UNTUK TOMBOL AKSI] --}}
-                <div class="action-group">
-                    {{-- 1. GROUP EDIT/DELETE --}}
-                    @if($isDirectSuper)
-                        <a href="{{ route('approval.edit', $item->id) }}" class="btn-modern btn-warning-outline">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                            Edit
-                        </a>
-
-                        @if($item->status !== 'CANCEL_REQ')
-                            <button type="button" data-modal-target="modal-delete" class="btn-modern btn-danger-outline">
-                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                Batal
-                            </button>
+        {{-- Info Card: Status & Approval --}}
+        @if($item->approved_by || $item->notes)
+        <div class="info-card">
+            @if($item->approved_by)
+            <div class="info-row info-row-full">
+                <span class="info-label">Diputuskan Oleh</span>
+                <div class="approver-box">
+                    <div class="approver-avatar">{{ substr($item->approver?->name ?? '—', 0, 1) }}</div>
+                    <div class="approver-info">
+                        <span class="approver-name">{{ $item->approver?->name ?? '-' }}</span>
+                        @if($item->approved_at)
+                            <span class="approver-time">{{ $item->approved_at->format('d M Y, H:i') }}</span>
                         @endif
-                    @endif
-
-                    {{-- 2. GROUP APPROVE/REJECT --}}
-                    @if($showActionButtons)
-                        <button type="button" data-modal-target="modal-reject" class="btn-modern btn-reject">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            Tolak
-                        </button>
-
-                        <button type="button" data-modal-target="modal-approve" class="btn-modern btn-approve">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            Setujui
-                        </button>
-                    @endif
+                    </div>
                 </div>
-
-                @if(!$isDirectSuper && !$showActionButtons)
-                    <div class="processed-info">Status: <strong>{{ $statusLabel }}</strong></div>
-                @endif
             </div>
+            @endif
+
+            @if($item->notes)
+            <div class="info-row info-row-full">
+                <span class="info-label">Catatan Sistem / Revisi</span>
+                <div class="notes-box">{!! nl2br(e($item->notes)) !!}</div>
+            </div>
+            @endif
+        </div>
+        @endif
+
+        {{-- Bottom Spacer for Fixed Actions --}}
+        <div class="bottom-spacer"></div>
+
+    </div>
+
+    {{-- Fixed Action Bar --}}
+    <div class="action-bar">
+        <div class="action-main">
+            @if($isDirectSuper)
+                <a href="{{ route('approval.edit', $item->id) }}" class="action-btn action-btn-edit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit
+                </a>
+
+                @if($item->status !== 'CANCEL_REQ')
+                    <button type="button" data-modal-target="modal-delete" class="action-btn action-btn-batal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        Batal
+                    </button>
+                @endif
+            @endif
+
+            @if($showActionButtons)
+                <button type="button" data-modal-target="modal-reject" class="action-btn action-btn-tolak">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                    Tolak
+                </button>
+                <button type="button" data-modal-target="modal-approve" class="action-btn action-btn-setuju">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+                    Setujui
+                </button>
+            @endif
         </div>
     </div>
 
-    {{-- [SIMPLE FULL SCREEN VIEWER] --}}
+    {{-- Photo Viewer Overlay --}}
     <div id="simple-viewer" class="simple-viewer-overlay" style="display: none;">
         <button type="button" id="btn-close-simple" class="btn-close-simple">
-            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
         <img id="simple-viewer-img" src="" alt="Full Preview">
     </div>
 
-    {{-- MODAL DELETE --}}
-    <x-modal
-        id="modal-delete"
-        title="Ajukan Pembatalan?"
-        type="confirm"
-        variant="danger"
-        confirmLabel="Ya, Ajukan Pembatalan"
-        cancelLabel="Batal"
-        :confirmFormAction="route('approval.destroy', $item->id)"
-        confirmFormMethod="DELETE">
-        <p style="margin:0; color:#374151;">
-            Anda akan mengajukan permintaan pembatalan untuk pengajuan ini ke HRD.
-        </p>
+    {{-- Modals --}}
+    <x-modal id="modal-delete" title="Ajukan Pembatalan?" type="confirm" variant="danger" confirmLabel="Ya, Ajukan" cancelLabel="Batal" :confirmFormAction="route('approval.destroy', $item->id)" confirmFormMethod="DELETE">
+        <p style="margin:0; color:#374151;">Anda akan mengajukan permintaan pembatalan untuk pengajuan ini ke HRD.</p>
     </x-modal>
 
-    {{-- MODAL REJECT --}}
     @if($showActionButtons)
-    <x-modal
-        id="modal-reject"
-        title="Tolak Pengajuan?"
-        type="confirm"
-        variant="danger"
-        confirmLabel="Tolak Pengajuan"
-        cancelLabel="Batal"
-        :confirmFormAction="route('approval.reject', $item->id)"
-        confirmFormMethod="POST">
-        <p style="margin:0; color:#374151;">
-            Yakin menolak pengajuan <strong>{{ $item->user->name }}</strong>?
-        </p>
+    <x-modal id="modal-reject" title="Tolak Pengajuan Ini?" type="confirm" variant="danger" confirmLabel="Ya, Tolak" cancelLabel="Batal" :confirmFormAction="route('approval.reject', $item->id)" confirmFormMethod="POST">
+        <p style="margin:0; color:#374151;">Yakin menolak pengajuan <strong>{{ $item->user->name }}</strong>?</p>
     </x-modal>
 
-    {{-- MODAL APPROVE --}}
-    <x-modal
-        id="modal-approve"
-        title="Setujui Pengajuan?"
-        type="confirm"
-        variant="primary"
-        confirmLabel="Ya, Setujui"
-        cancelLabel="Batal"
-        :confirmFormAction="route('approval.approve', $item->id)"
-        confirmFormMethod="POST">
-        <p style="margin:0; color:#374151;">
-            Setujui pengajuan izin ini?
-        </p>
+    <x-modal id="modal-approve" title="Terima Pengajuan Ini?" type="confirm" variant="success" confirmLabel="Ya, Terima" cancelLabel="Batal" :confirmFormAction="route('approval.approve', $item->id)" confirmFormMethod="POST">
+        <p style="margin:0; color:#374151;">Setujui pengajuan izin ini?</p>
     </x-modal>
     @endif
 
@@ -360,10 +332,10 @@
             document.querySelectorAll('.js-view-photo').forEach(el => {
                 el.addEventListener('click', () => {
                     const url = el.getAttribute('data-url');
-                    if(url && viewer && viewerImg) {
+                    if (url && viewer && viewerImg) {
                         viewerImg.src = url;
                         viewer.style.display = 'flex';
-                        document.body.style.overflow = 'hidden'; 
+                        document.body.style.overflow = 'hidden';
                     }
                 });
             });
@@ -371,172 +343,511 @@
             function closeViewer() {
                 if (viewer) viewer.style.display = 'none';
                 if (viewerImg) viewerImg.src = '';
-                document.body.style.overflow = ''; 
+                document.body.style.overflow = '';
             }
 
             if (closeBtn) closeBtn.addEventListener('click', closeViewer);
-            if (viewer) {
-                viewer.addEventListener('click', (e) => {
-                    if (e.target === viewer) closeViewer();
-                });
-            }
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && viewer.style.display === 'flex') closeViewer();
-            });
+            if (viewer) viewer.addEventListener('click', (e) => { if (e.target === viewer) closeViewer(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer.style.display === 'flex') closeViewer(); });
         });
     </script>
 
     <style>
-        /* Shared Styles */
-        .simple-viewer-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; }
-        .btn-close-simple { position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; z-index: 100000; }
-        .btn-close-simple:hover { background: rgba(255, 255, 255, 0.3); }
-        #simple-viewer-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-
-        /* --- UTILITY & ALERTS --- */
-        .alert-success { background: #ecfdf5; color: #065f46; padding: 12px 16px; border-radius: 8px; border: 1px solid #a7f3d0; margin-bottom: 16px; font-size: 14px; }
-        .alert-error { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px; font-size: 14px; }
-        .text-muted { color: #6b7280; }
-
-        /* --- CARD --- */
-        .card { 
-            background: #fff; 
-            border-radius: 12px; 
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); 
-            border: 1px solid #f3f4f6; 
-            overflow: hidden; 
+        /* === BASE VARIABLES === */
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #64748b;
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success-bg: #f0fdf4;
+            --success-text: #15803d;
+            --success-border: #bbf7d0;
+            --danger-bg: #fef2f2;
+            --danger-text: #b91c1c;
+            --danger-border: #fecaca;
+            --warning-bg: #fffbeb;
+            --warning-text: #c2410c;
+            --warning-border: #fed7aa;
+            --blue-light: #eff6ff;
+            --blue-text: #1d4ed8;
+            --purple-light: #faf5ff;
+            --purple-text: #7e22ce;
+            --teal-bg: #ccfbf1;
+            --teal-text: #0f766e;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
         }
 
-        /* --- PROFILE HEADER --- */
-        .profile-header { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; background: #fff; }
-        .profile-main { display: flex; gap: 16px; align-items: center; }
-        .profile-avatar { 
-            width: 56px; height: 56px; 
-            background: #eef2ff; color: #1e4a8d; 
-            border-radius: 12px; 
-            display: flex; align-items: center; justify-content: center; 
-            font-size: 22px; font-weight: 700; 
-        }
-        .profile-info { display: flex; flex-direction: column; gap: 4px; }
-        .profile-name { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
-        
-        .profile-meta { font-size: 13px; color: #6b7280; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-        .dot { color: #d1d5db; display: inline-block; transform: scale(1.2); }
-        .chip-role { 
-            background: #f3f4f6; color: #4b5563; 
-            padding: 2px 8px; border-radius: 6px; 
-            font-size: 11px; text-transform: uppercase; 
-            letter-spacing: 0.04em; font-weight: 600; 
-        }
-        
-        .divider-full { height: 1px; background: #f3f4f6; width: 100%; }
-        
-        /* --- DETAILS LAYOUT --- */
-        .detail-container { 
-            padding: 32px; 
-            display: grid; 
-            grid-template-columns: 1fr 1.5fr; 
-            gap: 48px; 
+        /* === RESET & BASE === */
+        .detail-container {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 16px 16px 100px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-main);
         }
 
-        .section-title { 
-            font-size: 14px; font-weight: 700; color: #111827; 
-            text-transform: uppercase; letter-spacing: 0.05em; 
-            margin: 0 0 20px 0; padding-bottom: 8px; 
-            border-bottom: 2px solid #f3f4f6; display: inline-block; 
+        /* === FLASH MESSAGES === */
+        .flash {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
         }
-        
-        .info-row { margin-bottom: 20px; }
-        .info-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
-        .info-value { font-size: 15px; color: #1f2937; font-weight: 500; line-height: 1.6; }
-        
-        .box-reason { 
-            background: #fdfdfd; 
-            padding: 16px; 
-            border-radius: 12px; 
-            border: 1px solid #f3f4f6; 
-            color: #374151; font-size: 14.5px; 
+        .flash-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+        .flash-error { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
+        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+        /* === HEADER CARD === */
+        .header-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-body);
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            transition: background 0.2s;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .back-btn:hover { background: var(--border); color: var(--primary); }
+        .back-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .header-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .header-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius-md);
+            background: var(--blue-light);
+            color: var(--blue-text);
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .header-info { flex: 1; min-width: 0; }
+
+        .header-name {
+            margin: 0 0 4px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .chip-role {
+            background: var(--bg-body);
+            color: var(--text-muted);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .meta-dot { color: var(--border); }
+
+        .header-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+
+        .badge-status {
+            display: inline-flex;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+
+        .submit-time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* === INFO CARD === */
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+        }
+        .info-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .info-row:first-child { padding-top: 0; }
+
+        .info-row-full {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .info-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            flex-shrink: 0;
+        }
+
+        .accuracy-label {
+            font-weight: 400;
+            color: var(--text-muted);
+        }
+
+        /* === BADGES === */
+        .badge {
+            display: inline-flex;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.02em;
+        }
+
+        .cuti-khusus-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: var(--blue-light);
+            color: var(--blue-text);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid #dbeafe;
+        }
+
+        /* === DATE & TIME === */
+        .date-display {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+        .date-display svg { width: 16px; height: 16px; color: var(--text-muted); }
+
+        .time-display {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* === REASON BOX === */
+        .reason-box {
+            background: var(--bg-body);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            font-size: 0.875rem;
+            color: var(--text-main);
             line-height: 1.6;
+            width: 100%;
+            box-sizing: border-box;
         }
 
-        /* --- SYSTEM NOTES --- */
-        .system-note-box { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 10px; padding: 16px; margin-top: 10px; }
-        .note-label { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 6px; text-transform: uppercase; display: flex; align-items: center; }
-        .note-content { font-size: 14px; color: #b45309; line-height: 1.5; }
+        /* === PIC BOX === */
+        .pic-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+        .pic-box svg { width: 16px; height: 16px; color: var(--text-muted); }
+        .pic-phone { font-size: 0.75rem; color: var(--text-muted); }
 
-        /* --- BADGES (Unified with Index) --- */
-        .badge-basic { background: #f3f4f6; color: #374151; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; border: 1px solid #e5e7eb; display: inline-block; }
-        
-        .badge-status { display: inline-block; padding: 6px 14px; border-radius: 30px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-        
-        .badge-green { background: #dcfce7; color: #166534; }
-        .badge-red { background: #fee2e2; color: #991b1b; }
-        .badge-yellow { background: #fefce8; color: #a16207; }
-        .badge-blue { background: #eff6ff; color: #1d4ed8; }
-        .badge-gray { background: #f3f4f6; color: #374151; }
-        .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
+        /* === APPROVER BOX === */
+        .approver-box {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+        }
+        .approver-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            background: var(--teal-bg);
+            color: var(--teal-text);
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .approver-info { display: flex; flex-direction: column; gap: 2px; }
+        .approver-name { font-size: 0.875rem; font-weight: 600; color: var(--text-main); }
+        .approver-time { font-size: 0.75rem; color: var(--text-muted); }
 
-        /* --- PHOTO PREVIEW --- */
-        .photo-preview { position: relative; width: 100%; max-width: 320px; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.2s; }
-        .photo-preview:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .photo-preview img { width: 100%; height: auto; display: block; }
-        .photo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; flex-direction:column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
-        .photo-preview:hover .overlay { opacity: 1; }
-        .photo-preview .overlay span { color: #fff; font-size: 12px; font-weight: 600; background: rgba(0,0,0,0.6); padding: 6px 14px; border-radius: 20px; backdrop-filter: blur(4px); }
+        /* === NOTES BOX === */
+        .notes-box {
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            font-size: 0.8125rem;
+            color: var(--warning-text);
+            line-height: 1.5;
+            width: 100%;
+            box-sizing: border-box;
+        }
 
-        /* --- MAP --- */
-        .map-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; border: 1px solid #e5e7eb; margin-top: 6px; }
+        /* === PHOTO === */
+        .photo-preview {
+            position: relative;
+            width: 100%;
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            cursor: pointer;
+        }
+        .photo-preview img { width: 100%; height: auto; display: block; max-height: 300px; object-fit: cover; }
+        .photo-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .photo-preview:hover .photo-overlay { opacity: 1; }
+        .photo-overlay span { color: #fff; font-size: 0.75rem; font-weight: 600; }
+
+        /* === MAP === */
+        .map-container {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            width: 100%;
+            box-sizing: border-box;
+        }
         .map-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
-        .link-map { font-size: 13px; color: #1e4a8d; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
-        .link-map:hover { text-decoration: underline; }
 
-        /* --- FOOTER ACTION --- */
-        .action-footer { background: #f9fafb; padding: 20px 32px; border-top: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
-        .right-action { display: flex; gap: 12px; align-items: center; }
-        .action-group { display: flex; gap: 12px; align-items: center; }
+        .link-map {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--primary);
+            text-decoration: none;
+            margin-top: 8px;
+        }
+        .link-map:hover { color: var(--primary-dark); }
+        .link-map svg { width: 14px; height: 14px; }
 
-        /* --- BUTTONS --- */
-        .btn-modern { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 22px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; text-decoration: none; line-height: 1.25; min-width: 140px; }
-        
-        .btn-back { background: #fff; border-color: #d1d5db; color: #374151; }
-        .btn-back:hover { background: #f3f4f6; border-color: #9ca3af; color: #111827; }
-
-        .btn-approve { background: #1e4a8d; color: #fff; border: 1px solid #1e4a8d; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .btn-approve:hover { background: #163a75; border-color: #163a75; transform: translateY(-1px); }
-
-        .btn-reject { background: #fff; border-color: #fee2e2; color: #dc2626; }
-        .btn-reject:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
-
-        .btn-warning-outline { background: #fff; border-color: #fcd34d; color: #b45309; }
-        .btn-warning-outline:hover { background: #fffbeb; }
-
-        .btn-danger-outline { background: #fff; border-color: #fee2e2; color: #dc2626; }
-        .btn-danger-outline:hover { background: #fef2f2; border-color: #fca5a5; }
-
-        .form-control { width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; transition: border-color 0.2s; }
-        .form-control:focus { outline: none; border-color: #1e4a8d; box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.1); }
-
-        .processed-info { font-size: 13.5px; color: #6b7280; background: #fff; padding: 8px 16px; border-radius: 8px; border: 1px solid #e5e7eb; font-weight: 500; }
-
-        /* --- RESPONSIVE --- */
-        @media(max-width: 1024px) {
-            .detail-container { grid-template-columns: 1fr; gap: 32px; padding: 24px; }
-            .section-title { width: 100%; border-bottom-width: 1px; }
+        /* === FIXED ACTION BAR === */
+        .action-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 50;
+            box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
         }
 
-        @media(max-width: 640px) {
-            .profile-header { flex-direction: column; gap: 16px; align-items: stretch; padding: 20px; }
-            .status-wrapper { align-self: flex-start; }
-            
-            .action-footer { flex-direction: column; gap: 16px; align-items: stretch; padding: 16px 20px; }
-            .left-action, .right-action { width: 100%; justify-content: stretch; }
-            .right-action { flex-direction: column; gap: 10px; }
-            .action-group { width: 100%; display: flex; flex-direction: column; gap: 10px; }
-            
-            .btn-modern { width: 100%; justify-content: center; min-width: 0; }
-            .btn-modern svg { margin-right: 4px; }
-            
-            .info-value { font-size: 14px; }
+        .action-btn-back {
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            background: var(--bg-body);
+            color: var(--text-muted);
+            flex-shrink: 0;
+            transition: background 0.2s;
+            text-decoration: none;
+        }
+        .action-btn-back:hover { background: var(--border); color: var(--primary); }
+        .action-btn-back svg { width: 18px; height: 18px; }
+
+        .action-main {
+            flex: 1;
+            display: flex;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .action-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        .action-btn-edit {
+            background: var(--bg-body);
+            color: var(--warning-text);
+            border: 1px solid var(--warning-border);
+        }
+        .action-btn-edit:hover { background: var(--warning-bg); }
+
+        .action-btn-batal {
+            background: var(--bg-body);
+            color: var(--danger-text);
+            border: 1px solid var(--danger-border);
+        }
+        .action-btn-batal:hover { background: var(--danger-bg); }
+
+        .action-btn-tolak {
+            background: var(--bg-card);
+            color: var(--danger-text);
+            border: 1px solid var(--danger-border);
+            flex: 1;
+        }
+        .action-btn-tolak:hover { background: var(--danger-bg); }
+
+        .action-btn-setuju {
+            background: var(--primary);
+            color: #fff;
+            flex: 1;
+        }
+        .action-btn-setuju:hover { background: var(--primary-dark); }
+
+        .bottom-spacer { height: 80px; }
+
+        /* === PHOTO VIEWER === */
+        .simple-viewer-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.92);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-close-simple {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            z-index: 100000;
+        }
+        .btn-close-simple:hover { background: rgba(255,255,255,0.25); }
+        #simple-viewer-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; }
+
+        /* === MODAL OVERRIDE === */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-backdrop.show { display: flex; }
+
+        /* === MOBILE RESPONSIVE === */
+        @media (max-width: 640px) {
+            .detail-container { padding: 12px 12px 90px; }
+
+            .header-card, .info-card { padding: 14px; }
+
+            .action-btn-setuju, .action-btn-tolak { flex: 1; padding: 12px 10px; }
+        }
+
+        @media (min-width: 768px) {
+            .action-bar {
+                max-width: 680px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-radius: var(--radius-md) var(--radius-md) 0 0;
+            }
         }
     </style>
 

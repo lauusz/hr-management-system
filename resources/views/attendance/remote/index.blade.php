@@ -364,11 +364,8 @@
     </div>
 
     {{-- MODAL SUKSES --}}
-    <x-modal id="success-modal" title="Berhasil!" type="info" cancelLabel="Tutup">
+    <x-modal id="success-modal" title="Berhasil!" variant="success" type="info" cancelLabel="Tutup">
         <div style="text-align: center;">
-            <div style="background:#ecfdf5; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
-                <svg width="32" height="32" fill="none" stroke="#059669" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-            </div>
             <p style="font-size: 1.1rem; font-weight: 600; color: #1f2937;">Pengajuan Berhasil!</p>
             <p style="font-size: 0.9rem; color: #6b7280; margin-top: 4px;">Data Anda telah dikirim untuk diproses.</p>
         </div>

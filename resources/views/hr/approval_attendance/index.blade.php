@@ -152,12 +152,13 @@
         </div>
     </div>
 
-    {{-- MODAL APPROVE (FIXED: Added confirmFormAction="#") --}}
-    <x-modal 
-        id="approveModal" 
-        title="Konfirmasi Persetujuan" 
-        type="confirm" 
-        confirmLabel="Ya, Terima" 
+    {{-- MODAL APPROVE --}}
+    <x-modal
+        id="approveModal"
+        title="Terima Pengajuan Ini?"
+        type="confirm"
+        variant="success"
+        confirmLabel="Ya, Terima"
         cancelLabel="Batal"
         confirmFormAction="#"
         confirmFormMethod="POST">
@@ -175,7 +176,7 @@
     <div id="rejectModal" class="modal-backdrop">
         <div class="modal-content-custom">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                <h3 style="margin:0; font-size:1.2rem; color:#1e293b; font-weight:700;">Tolak Absensi</h3>
+                <h3 style="margin:0; font-size:1.2rem; color:#1e293b; font-weight:700;">Tolak Pengajuan Ini?</h3>
                 <button onclick="closeRejectModal()" style="background:none; border:none; color:#94a3b8; cursor:pointer;">
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>

@@ -28,6 +28,7 @@ class LeaveRequestPolicy
     }
 
     public function delete(User $user, LeaveRequest $lr): bool {
-        return $user->id === $lr->user_id && $lr->status === 'PENDING';
+        return $user->id === $lr->user_id
+            && in_array($lr->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true);
     }
 }

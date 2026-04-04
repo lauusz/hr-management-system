@@ -1,43 +1,281 @@
 <x-app title="Tambah Supervisor">
-    <div class="card" style="max-width: 600px; margin: 0 auto;">
-        <div class="card-header" style="padding:20px; border-bottom:1px solid #f3f4f6;">
-            <h3 style="margin:0;">Tambah Supervisor / Manager</h3>
+
+    <div class="spv-create-container">
+
+        {{-- Flash / Error Messages --}}
+        @if ($errors->any())
+        <div class="flash flash-error">
+            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>{{ $errors->first() }}</span>
         </div>
-        
-        {{-- [FIX] Route pakai 'supervisors' --}}
-        <form action="{{ route('hr.supervisors.store') }}" method="POST" style="padding:20px;">
-            @csrf
-            
-            <div style="margin-bottom:20px;">
-                <label style="display:block; margin-bottom:8px; font-weight:600;">Pilih Karyawan</label>
-                <select name="user_id" class="form-control" required style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px;">
-                    <option value="">-- Pilih Nama --</option>
-                    @foreach($candidates as $c)
-                        <option value="{{ $c->id }}">
-                            {{ $c->name }} ({{ $c->division->name ?? 'No Div' }})
+        @endif
+
+        {{-- Back Link --}}
+        <a href="{{ route('hr.supervisors.index') }}" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Kembali
+        </a>
+
+        {{-- Page Header --}}
+        <div class="page-header">
+            <div class="page-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <div>
+                <h1 class="page-title">Tambah Supervisor / Manager</h1>
+                <p class="page-subtitle">Angkat karyawan menjadi Supervisor atau Manager.</p>
+            </div>
+        </div>
+
+        {{-- Form Card --}}
+        <div class="form-card">
+            <form method="POST" action="{{ route('hr.supervisors.store') }}" class="form-layout">
+                @csrf
+
+                <div class="form-group">
+                    <label for="user_id">Pilih Karyawan <span class="req">*</span></label>
+                    <select id="user_id" name="user_id" class="form-input" required>
+                        <option value="">-- Pilih Karyawan --</option>
+                        @foreach($candidates as $c)
+                        <option value="{{ $c->id }}" @selected(old('user_id') == $c->id)>
+                            {{ $c->name }} — {{ $c->position->name ?? 'Tanpa Jabatan' }} ({{ $c->division->name ?? 'Tanpa Divisi' }})
                         </option>
-                    @endforeach
-                </select>
-                <small style="color:#6b7280;">Hanya menampilkan karyawan biasa (Employee).</small>
-            </div>
+                        @endforeach
+                    </select>
+                    <small class="form-hint">Hanya menampilkan karyawan biasa (Employee).</small>
+                </div>
 
-            <div style="margin-bottom:20px;">
-                <label style="display:block; margin-bottom:8px; font-weight:600;">Level Jabatan Baru</label>
-                <select name="role" class="form-control" required style="width:100%; padding:10px; border:1px solid #d1d5db; border-radius:8px;">
-                    <option value="SUPERVISOR">SUPERVISOR</option>
-                    <option value="MANAGER">MANAGER</option>
-                </select>
-            </div>
+                <div class="form-group">
+                    <label for="role">Level Jabatan Baru <span class="req">*</span></label>
+                    <select id="role" name="role" class="form-input" required>
+                        <option value="SUPERVISOR" @selected(old('role') == 'SUPERVISOR')>SUPERVISOR</option>
+                        <option value="MANAGER" @selected(old('role') == 'MANAGER')>MANAGER</option>
+                    </select>
+                </div>
 
-            <div style="text-align:right; margin-top:30px;">
-                {{-- [FIX] Route pakai 'supervisors' --}}
-                <a href="{{ route('hr.supervisors.index') }}" style="color:#6b7280; text-decoration:none; margin-right:15px;">Batal</a>
-                <button type="submit" class="btn-primary">Simpan</button>
-            </div>
-        </form>
+                <div class="form-actions">
+                    <a href="{{ route('hr.supervisors.index') }}" class="btn btn-secondary">
+                        Batal
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+
     </div>
-    
+
     <style>
-        .btn-primary { background: #1e4a8d; color: white; padding: 10px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        /* === BASE VARIABLES === */
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #64748b;
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --danger-bg: #fef2f2;
+            --danger-text: #b91c1c;
+            --danger-border: #fecaca;
+            --warning-bg: #fffbeb;
+            --warning-text: #c2410c;
+            --warning-border: #fed7aa;
+            --green-light: #f0fdf4;
+            --green-text: #15803d;
+            --green-border: #bbf7d0;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+        }
+
+        /* === RESET & BASE === */
+        .spv-create-container {
+            max-width: 560px;
+            margin: 0 auto;
+            padding: 20px 16px 60px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-main);
+        }
+
+        /* === FLASH MESSAGES === */
+        .flash {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .flash-error { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
+        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+        /* === BACK LINK === */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-bottom: 16px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--primary); }
+        .back-link svg { width: 16px; height: 16px; }
+
+        /* === PAGE HEADER === */
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .page-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--primary);
+            color: #fff;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .page-icon svg { width: 24px; height: 24px; }
+        .page-title {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .page-subtitle {
+            margin: 4px 0 0;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* === FORM CARD === */
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        /* === FORM LAYOUT === */
+        .form-layout {
+            padding: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 6px;
+        }
+
+        .req { color: var(--danger-text); }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            color: var(--text-main);
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .form-hint {
+            display: block;
+            margin-top: 6px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* === BUTTONS === */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+        .btn svg { width: 16px; height: 16px; }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover { background: var(--primary-dark); }
+
+        .btn-secondary {
+            background: var(--bg-body);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: var(--border); }
+
+        .form-actions {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* === MOBILE RESPONSIVE === */
+        @media (max-width: 640px) {
+            .page-header {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+            .page-icon {
+                margin: 0 auto;
+            }
+            .form-layout {
+                padding: 20px;
+            }
+            .form-actions {
+                flex-direction: column-reverse;
+            }
+            .btn {
+                width: 100%;
+            }
+        }
     </style>
 </x-app>

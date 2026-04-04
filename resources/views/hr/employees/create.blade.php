@@ -36,7 +36,12 @@
                 @csrf
 
                 {{-- SECTION 1: DATA KARYAWAN (URUT EXCEL) --}}
-                <div class="form-section-title">Data Karyawan</div>
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    </div>
+                    <h3 class="form-section-title">Data Karyawan</h3>
+                </div>
                 <div class="form-grid">
                     <div class="form-group full-width">
                         <label for="name">Nama Lengkap <span class="req">*</span></label>
@@ -104,18 +109,38 @@
 
                     <div class="form-group">
                         <label for="agama">Agama</label>
-                        <input id="agama" type="text" name="agama" class="form-control" value="{{ old('agama') }}">
+                        <select id="agama" name="agama" class="form-control">
+                            <option value="">Pilih Agama</option>
+                            <option value="Islam" @selected(old('agama')==='Islam')>Islam</option>
+                            <option value="Kristen" @selected(old('agama')==='Kristen')>Kristen</option>
+                            <option value="Katolik" @selected(old('agama')==='Katolik')>Katolik</option>
+                            <option value="Hindu" @selected(old('agama')==='Hindu')>Hindu</option>
+                            <option value="Buddha" @selected(old('agama')==='Buddha')>Buddha</option>
+                            <option value="Konghucu" @selected(old('agama')==='Konghucu')>Konghucu</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
                         <label for="path_kartu_keluarga">Upload Kartu Keluarga</label>
-                        <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept=".jpg,.jpeg,.png" class="form-control-file">
-                        <small class="helper-text">Format: JPG/PNG, Maks 2MB.</small>
+                        <div class="file-upload-wrapper">
+                            <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept=".jpg,.jpeg,.png" class="file-upload-input">
+                            <label for="path_kartu_keluarga" class="file-upload-label">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                Pilih File
+                            </label>
+                            <small class="helper-text">Format: JPG/PNG, Maks 2MB</small>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="path_ktp">Upload KTP</label>
-                        <input id="path_ktp" type="file" name="path_ktp" accept=".jpg,.jpeg,.png" class="form-control-file">
-                        <small class="helper-text">Format: JPG/PNG, Maks 2MB.</small>
+                        <div class="file-upload-wrapper">
+                            <input id="path_ktp" type="file" name="path_ktp" accept=".jpg,.jpeg,.png" class="file-upload-input">
+                            <label for="path_ktp" class="file-upload-label">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                Pilih File
+                            </label>
+                            <small class="helper-text">Format: JPG/PNG, Maks 2MB</small>
+                        </div>
                     </div>
 
                     <div class="form-group">
@@ -154,7 +179,12 @@
                 <div class="section-divider"></div>
 
                 {{-- SECTION 2: DOMISILI --}}
-                <div class="form-section-title">Alamat Domisili</div>
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <h3 class="form-section-title">Alamat Domisili</h3>
+                </div>
                 <div class="form-grid">
                     <div class="form-group full-width">
                         <label for="alamat1">Alamat Utama</label>
@@ -190,7 +220,12 @@
                 <div class="section-divider"></div>
 
                 {{-- SECTION 3: PAJAK & BPJS --}}
-                <div class="form-section-title">Pajak & BPJS</div>
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z"/></svg>
+                    </div>
+                    <h3 class="form-section-title">Pajak & BPJS</h3>
+                </div>
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="ptkp">Status PTKP</label>
@@ -212,25 +247,31 @@
                     </div>
                     <div class="form-group">
                         <label for="kelas_bpjs">Kelas BPJS</label>
-                        <input id="kelas_bpjs" type="text" name="kelas_bpjs" class="form-control" value="{{ old('kelas_bpjs') }}" placeholder="Contoh: Kelas 1">
+                        <select id="kelas_bpjs" name="kelas_bpjs" class="form-control">
+                            <option value="">Pilih Kelas</option>
+                            <option value="Kelas 1" @selected(old('kelas_bpjs')==='Kelas 1')>Kelas 1</option>
+                            <option value="Kelas 2" @selected(old('kelas_bpjs')==='Kelas 2')>Kelas 2</option>
+                            <option value="Kelas 3" @selected(old('kelas_bpjs')==='Kelas 3')>Kelas 3</option>
+                        </select>
                     </div>
                 </div>
 
                 <div class="section-divider"></div>
 
                 {{-- SECTION 4: MASA KERJA --}}
-                <div class="form-section-title">Masa Kerja</div>
-                <div class="form-grid">
-                    <div class="form-group full-width">
-                        <label for="masa_kerja">Masa Kerja (Opsional)</label>
-                        <input id="masa_kerja" type="text" name="masa_kerja" class="form-control" value="{{ old('masa_kerja') }}" placeholder="Contoh: 2 Tahun 5 Bulan">
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </div>
+                    <h3 class="form-section-title">Masa Kerja</h3>
+                </div>
+                <div class="form-grid">
                     <div class="form-group">
                         <label for="tgl_bergabung">Tanggal Bergabung</label>
                         <input id="tgl_bergabung" type="date" name="tgl_bergabung" class="form-control" value="{{ old('tgl_bergabung') }}">
                     </div>
                     <div class="form-group">
-                        <label for="tgl_akhir_percobaan">Tanggal Akhir Percobaan (Probation)</label>
+                        <label for="tgl_akhir_percobaan">Tanggal Akhir Percobaan</label>
                         <input id="tgl_akhir_percobaan" type="date" name="tgl_akhir_percobaan" class="form-control" value="{{ old('tgl_akhir_percobaan') }}">
                     </div>
                 </div>
@@ -238,11 +279,16 @@
                 <div class="section-divider"></div>
 
                 {{-- SECTION 5: AKUN & AKSES (DI LUAR EXCEL) --}}
-                <div class="form-section-title">Data Akun & Akses</div>
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                    <h3 class="form-section-title">Data Akun & Akses</h3>
+                </div>
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="username">Username</label>
-                        <input id="username" type="text" name="username" class="form-control" value="{{ old('username') }}" placeholder="Opsional">
+                        <input id="username" type="text" name="username" class="form-control" value="{{ old('username') }}" placeholder="Opsional - kosongkan untuk auto">
                     </div>
 
                     <div class="form-group">
@@ -257,7 +303,7 @@
 
                     {{-- 1. MANAGER (APPROVER) --}}
                     <div class="form-group">
-                        <label for="manager_id" style="color:#1e4a8d; font-weight:600;">Manager (Approver / Penyetuju)</label>
+                        <label for="manager_id">Manager (Approver)</label>
                         <select id="manager_id" name="manager_id" class="form-control">
                             <option value="">-- Tidak Ada / Langsung HRD --</option>
                             @if(isset($managers))
@@ -301,13 +347,16 @@
                             <line x1="12" y1="16" x2="12" y2="12"></line>
                             <line x1="12" y1="8" x2="12.01" y2="8"></line>
                         </svg>
-                        Password default untuk karyawan baru adalah <b>123456</b>.
+                        Password default untuk karyawan baru adalah <strong>123456</strong>.
                     </div>
                 </div>
 
                 <div class="form-actions">
                     <button type="button" class="btn-secondary" onclick="window.location='{{ route('hr.employees.index') }}'">Batal</button>
-                    <button type="submit" class="btn-primary">Simpan Data Karyawan</button>
+                    <button type="submit" class="btn-primary">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        Simpan Data Karyawan
+                    </button>
                 </div>
 
             </form>
@@ -526,6 +575,68 @@
 
         .btn-secondary:hover {
             background: #f3f4f6;
+        }
+
+        /* Section Header */
+        .form-section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .form-section-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: #1e4a8d;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .form-section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0;
+        }
+
+        /* File Upload */
+        .file-upload-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .file-upload-input {
+            display: none;
+        }
+
+        .file-upload-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: #f9fafb;
+            border: 1px dashed #d1d5db;
+            border-radius: 8px;
+            color: #374151;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: fit-content;
+        }
+
+        .file-upload-label:hover {
+            background: #f3f4f6;
+            border-color: #1e4a8d;
+            color: #1e4a8d;
         }
 
         /* MOBILE RESPONSIVE TWEAKS */

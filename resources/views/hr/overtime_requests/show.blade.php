@@ -171,61 +171,61 @@
     </div>
 
 {{-- MODAL REJECT --}}
-<x-modal id="modal-reject" title="Tolak Pengajuan Lembur" type="form">
+<x-modal id="modal-reject" title="Tolak Pengajuan Ini?" variant="danger" type="form">
     <form action="{{ route('hr.overtime-requests.reject', $overtimeRequest->id) }}" method="POST">
         @csrf
-        
-        <p style="margin:0; color:#374151; margin-bottom:12px;">
-            Anda akan menolak pengajuan ini. Silakan berikan alasannya.
+
+        <p style="margin:0 0 12px 0; color:#374151;">
+            Berikan alasan penolakan agar karyawan dapat memahami keputusannya.
         </p>
 
         <div class="form-group">
             <label style="display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:4px;">
                 Alasan Penolakan <span style="color:red">*</span>
             </label>
-            <textarea 
-                name="rejection_note" 
-                rows="3" 
-                class="form-control" 
-                placeholder="Contoh: Tidak ada budget lembur / Pekerjaan bisa ditunda." 
-                required 
+            <textarea
+                name="rejection_note"
+                rows="3"
+                class="form-control"
+                placeholder="Contoh: Tidak ada budget lembur / Pekerjaan bisa ditunda."
+                required
                 style="width:100%; border:1px solid #d1d5db; border-radius:6px; padding:10px; font-size:14px; font-family:inherit;"></textarea>
         </div>
 
         <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
             <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>
-            <button type="submit" class="btn-reject" style="background:#dc2626; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">Tolak Pengajuan</button>
+            <button type="submit" class="btn-reject" style="background:#dc2626; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">Ya, Tolak</button>
         </div>
     </form>
 </x-modal>
 
 {{-- MODAL APPROVE --}}
-<x-modal id="modal-approve" title="Setujui Pengajuan Lembur" type="form">
+<x-modal id="modal-approve" title="Terima Pengajuan Ini?" variant="success" type="form">
     <form action="{{ route('hr.overtime-requests.approve', $overtimeRequest->id) }}" method="POST" style="width:100%;">
         @csrf
-        
-        <p style="margin:0; color:#374151; margin-bottom:12px;">
-            Konfirmasi persetujuan final untuk pengajuan ini.
+
+        <p style="margin:0 0 12px 0; color:#374151;">
+            Pengajuan akan disetujui dan diproses sesuai kebijakan yang berlaku.
         </p>
 
-        <p class="text-sm text-gray-500 mb-6">
-            Apakah Anda yakin ingin menyetujui pengajuan lembur ini? Status akan berubah menjadi <strong>Disetujui Final</strong>.
+        <p style="margin:0; color:#6b7280; font-size:0.9rem;">
+            Status akan berubah menjadi <strong>Disetujui Final</strong>.
         </p>
 
         <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
             <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>
-            <button type="submit" class="btn-approve" style="border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Ya, Setujui</button>
+            <button type="submit" class="btn-approve" style="border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Ya, Terima</button>
         </div>
     </form>
 </x-modal>
 
 {{-- MODAL EDIT --}}
 {{-- MODAL EDIT FULL (GOD MODE) --}}
-<x-modal id="modal-edit-hr" title="Edit Data Lembur (Full Access)" type="form">
+<x-modal id="modal-edit-hr" title="Edit Data Lembur" type="form">
     <form action="{{ route('overtime-requests.update', $overtimeRequest->id) }}" method="POST">
         @csrf
         @method('PUT')
-        
+
         <div style="max-height: 70vh; overflow-y: auto; padding-right: 5px;">
             <div class="form-group">
                 <label class="lbl-edit">Tanggal Lembur</label>
@@ -251,26 +251,26 @@
 
             <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eee; padding-top:15px;">
                 <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>
-                <button type="submit" class="btn-approve" style="border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Simpan Perubahan</button>
+                <button type="submit" class="btn-approve" style="border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Simpan</button>
             </div>
     </form>
 </x-modal>
 
 {{-- MODAL DELETE/CANCEL --}}
-<x-modal id="modal-delete" title="Batalkan Pengajuan?" type="form">
+<x-modal id="modal-delete" title="Batalkan Pengajuan?" variant="danger" type="form">
     <form action="{{ route('overtime-requests.destroy', $overtimeRequest->id) }}" method="POST">
         @csrf
         @method('DELETE')
 
-        <p class="text-gray-700 mb-2">
-            Anda akan membatalkan/menghapus pengajuan lembur ini secara permanen.
+        <p style="margin:0 0 8px 0; color:#374151;">
+            Pengajuan lembur ini akan dibatalkan dan tidak dapat diproses lebih lanjut.
         </p>
-        <p class="text-red-600 text-sm mb-6">
-            Tindakan ini tidak dapat dibatalkan.
+        <p style="margin:0; color:#6b7280; font-size:0.85rem;">
+            Data tetap tersimpan sebagai riwayat.
         </p>
 
         <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
-            <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Tidak</button>
+            <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>
             <button type="submit" class="btn-danger-outline" style="background:#dc2626; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer;">Ya, Batalkan</button>
         </div>
     </form>

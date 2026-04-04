@@ -1,4 +1,4 @@
-<x-app title="Pengajuan Menunggu HRD">
+<x-app title="Pengajuan Izin & Cuti">
 
     @if(session('success'))
     <div class="alert-success">
@@ -6,154 +6,215 @@
     </div>
     @endif
 
-    <div class="card">
-        <div class="card-header-simple">
-            <h4 class="card-title-sm">Menunggu Approval</h4>
-            <p class="card-subtitle-sm">Daftar pengajuan yang membutuhkan persetujuan Anda.</p>
+    {{-- SUMMARY STATS --}}
+    <div class="stats-grid">
+        <div class="stat-card stat-pending">
+            <div class="stat-icon">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ $leaves->total() }}</div>
+                <div class="stat-label">Total</div>
+            </div>
         </div>
 
-        <div class="table-wrapper">
-            <table class="custom-table">
-                <thead>
-                    <tr>
-                        <th style="min-width: 140px;">Karyawan</th>
-                        <th>Jenis</th>
-                        <th style="max-width: 120px;">Status</th> 
-                        <th>Periode Izin</th>
-                        <th>Tgl Pengajuan</th>
-                        <th style="min-width: 120px;">Alasan</th>
-                        <th class="text-right" style="width: 60px;">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($leaves as $lv)
-                        @php
-                            // --- 1. LOGIC WARNA BADGE JENIS CUTI ---
-                            $type = $lv->type;
-                            $badgeClass = 'badge-gray';
-                            
-                            if (in_array($type, [
-                                \App\Enums\LeaveType::CUTI->value, 
-                                \App\Enums\LeaveType::CUTI_KHUSUS->value
-                            ])) {
-                                $badgeClass = 'badge-blue'; 
-                            } 
-                            elseif ($type === \App\Enums\LeaveType::SAKIT->value) {
-                                $badgeClass = 'badge-yellow'; 
-                            } 
-                            elseif (in_array($type, [
-                                \App\Enums\LeaveType::IZIN_TELAT->value, 
-                                \App\Enums\LeaveType::IZIN_PULANG_AWAL->value,
-                                \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value,
-                                \App\Enums\LeaveType::IZIN->value
-                            ])) {
-                                $badgeClass = 'badge-orange';
-                            }
-                            elseif ($type === \App\Enums\LeaveType::DINAS_LUAR->value) {
-                                $badgeClass = 'badge-purple';
-                            }
+        <div class="stat-card stat-hr">
+            <div class="stat-icon">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ $leaves->where('status', \App\Models\LeaveRequest::PENDING_HR)->count() }}</div>
+                <div class="stat-label">Menunggu HRD</div>
+            </div>
+        </div>
 
-                            // --- 2. LOGIC TRACKING STATUS (UPDATED) ---
-                            $statusBadge = 'badge-gray';
-                            $statusLabel = $lv->status;
+        <div class="stat-card stat-supervisor">
+            <div class="stat-icon">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ $leaves->where('status', \App\Models\LeaveRequest::PENDING_SUPERVISOR)->count() }}</div>
+                <div class="stat-label">Menunggu Atasan</div>
+            </div>
+        </div>
+    </div>
 
-                            if ($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
-                                $statusBadge = 'badge-yellow';
-                                $statusLabel = '⏳ Menunggu Persetujuan Atasan';
-                            } 
-                            elseif ($lv->status == \App\Models\LeaveRequest::PENDING_HR) {
-                                // Status utama di inbox HRD (Sudah lolos atasan)
-                                $statusBadge = 'badge-teal'; 
-                                $statusLabel = '✅ Atasan Mengetahui'; 
-                            } 
-                            elseif ($lv->status == \App\Models\LeaveRequest::STATUS_APPROVED) {
-                                $statusBadge = 'badge-green';
-                                $statusLabel = 'Disetujui';
-                            } 
-                            elseif ($lv->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
-                                $statusBadge = 'badge-red';
-                                $statusLabel = 'Ditolak';
-                            }
-                        @endphp
+    {{-- FILTER TABS --}}
+    <div class="filter-tabs">
+        <button class="tab-btn active" data-filter="all">
+            Semua
+            <span class="tab-count">{{ $leaves->total() }}</span>
+        </button>
+        <button class="tab-btn" data-filter="PENDING_HR">
+            Menunggu HRD
+            <span class="tab-count">{{ $leaves->where('status', \App\Models\LeaveRequest::PENDING_HR)->count() }}</span>
+        </button>
+        <button class="tab-btn" data-filter="PENDING_SUPERVISOR">
+            Menunggu Atasan
+            <span class="tab-count">{{ $leaves->where('status', \App\Models\LeaveRequest::PENDING_SUPERVISOR)->count() }}</span>
+        </button>
+    </div>
 
-                        <tr>
-                            <td>
-                                <div class="user-info">
-                                    <a href="{{ route('hr.leave.show', $lv) }}" class="fw-bold employee-link" style="font-size: 13px;">
-                                        {{ $lv->user->name }}
-                                    </a>
-                                    <span class="text-muted" style="font-size: 11px;">{{ $lv->user->division->name ?? '-' }}</span>
-                                </div>
-                            </td>
+    {{-- MAIN LIST --}}
+    <div class="card">
+        <div class="list-container">
+            @forelse($leaves as $lv)
+                @php
+                    $type = $lv->type;
+                    $badgeClass = 'badge-gray';
+                    $typeIcon = '';
 
-                            <td>
-                                <span class="badge-type {{ $badgeClass }}">
-                                    {{ $lv->type_label ?? $lv->type }}
-                                </span>
-                            </td>
+                    if (in_array($type, [\App\Enums\LeaveType::CUTI->value, \App\Enums\LeaveType::CUTI_KHUSUS->value])) {
+                        $badgeClass = 'badge-blue';
+                        $typeIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>';
+                    } elseif ($type === \App\Enums\LeaveType::SAKIT->value) {
+                        $badgeClass = 'badge-yellow';
+                        $typeIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
+                    } elseif (in_array($type, [\App\Enums\LeaveType::IZIN_TELAT->value, \App\Enums\LeaveType::IZIN_PULANG_AWAL->value, \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value, \App\Enums\LeaveType::IZIN->value])) {
+                        $badgeClass = 'badge-orange';
+                        $typeIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+                    } elseif ($type === \App\Enums\LeaveType::DINAS_LUAR->value) {
+                        $badgeClass = 'badge-purple';
+                        $typeIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"/></svg>';
+                    }
 
-                            {{-- Kolom Tracking Status --}}
-                            <td>
-                                <div style="display: flex; flex-direction: column; gap: 4px;">
-                                    <span class="badge-type {{ $statusBadge }}">
-                                        {{ $statusLabel }}
-                                    </span>
-                                    
-                                    {{-- [MODIFIKASI] Menampilkan Nama Atasan (SPV atau Manager) --}}
-                                    @if($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
-                                        <div class="approver-info">
-                                            Menunggu: 
-                                            <strong>
-                                                {{ $lv->user->directSupervisor->name ?? $lv->user->manager->name ?? '-' }}
-                                            </strong>
-                                        </div>
-                                    @endif
+                    // Status
+                    $statusBadge = 'badge-gray';
+                    $statusLabel = $lv->status;
+                    $statusIcon = '';
 
-                                    @if($lv->status == \App\Models\LeaveRequest::PENDING_HR)
-                                        <div class="info-verifikasi">(Menunggu Verifikasi HRD)</div>
-                                    @endif
-                                </div>
-                            </td>
+                    if ($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
+                        $statusBadge = 'badge-yellow';
+                        $statusLabel = 'Menunggu Atasan';
+                        $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+                    } elseif ($lv->status == \App\Models\LeaveRequest::PENDING_HR) {
+                        $roleVal = $lv->user->role instanceof \App\Enums\UserRole ? $lv->user->role->value : $lv->user->role;
+                        $isHRStaff = in_array(strtoupper((string)$roleVal), ['HR STAFF']);
+                        if ($isHRStaff) {
+                            $statusBadge = 'badge-yellow';
+                            $statusLabel = 'Menunggu Persetujuan';
+                        } else {
+                            $statusBadge = 'badge-teal';
+                            $statusLabel = 'Atasan Mengetahui';
+                        }
+                        $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>';
+                    } elseif ($lv->status == \App\Models\LeaveRequest::STATUS_APPROVED) {
+                        $statusBadge = 'badge-green';
+                        $statusLabel = 'Disetujui';
+                        $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+                    } elseif ($lv->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
+                        $statusBadge = 'badge-red';
+                        $statusLabel = 'Ditolak';
+                        $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+                    }
 
-                            <td>
-                                <div class="text-date" style="line-height: 1.2;">
-                                    <div>{{ $lv->start_date->format('d M Y') }}</div>
-                                    @if($lv->end_date && $lv->end_date->ne($lv->start_date))
-                                        <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">
-                                            s/d {{ $lv->end_date->format('d M Y') }}
-                                        </div>
-                                    @endif
-                                </div>
-                            </td>
+                    // Relative time
+                    $created = $lv->created_at;
+                    $diffMinutes = (int) $created->diffInMinutes();
+                    $diffHours = (int) $created->diffInHours();
+                    $diffDays = (int) $created->diffInDays();
 
-                            <td>
-                                <span class="text-muted" style="font-size: 11px;">
-                                    {{ $lv->created_at->format('d/m/Y') }}<br>
-                                    {{ $lv->created_at->format('H:i') }}
-                                </span>
-                            </td>
+                    if ($diffMinutes < 1) {
+                        $timeAgo = 'Baru saja';
+                    } elseif ($diffMinutes < 60) {
+                        $timeAgo = $diffMinutes . ' menit lalu';
+                    } elseif ($diffHours < 24) {
+                        $timeAgo = $diffHours . ' jam lalu';
+                    } elseif ($diffDays == 1) {
+                        $timeAgo = 'Kemarin';
+                    } elseif ($diffDays < 7) {
+                        $timeAgo = $diffDays . ' hari lalu';
+                    } else {
+                        $timeAgo = $created->format('d M');
+                    }
 
-                            <td>
-                                <div class="text-truncate" title="{{ $lv->reason }}">
-                                    {{ Str::limit($lv->reason, 40) }}
-                                </div>
-                            </td>
+                    // Duration
+                    $start = $lv->start_date;
+                    $end = $lv->end_date ?? $start;
+                    $days = $start->diffInDays($end) + 1;
+                    $durationLabel = $days == 1 ? '1 hari' : $days . ' hari';
+                @endphp
 
-                            <td class="text-right">
-                                <a href="{{ route('hr.leave.show', $lv) }}" class="btn-action">
+                <div class="list-item" data-status="{{ $lv->status }}">
+                    {{-- LEFT: Employee Info --}}
+                    <div class="item-main">
+                        <div class="item-avatar">
+                            {{ substr($lv->user->name, 0, 1) }}
+                        </div>
+                        <div class="item-info">
+                            <a href="{{ route('hr.leave.show', $lv) }}" class="item-name">
+                                {{ $lv->user->name }}
+                            </a>
+                            <div class="item-meta">
+                                <span class="item-division">{{ $lv->user->division->name ?? '-' }}</span>
+                                <span class="item-dot"></span>
+                                <span class="item-date">{{ $timeAgo }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- CENTER: Request Details --}}
+                    <div class="item-details">
+                        <div class="detail-row">
+                            <span class="badge-type {{ $badgeClass }}">
+                                {!! $typeIcon !!}
+                                {{ $lv->type_label ?? $lv->type }}
+                            </span>
+                            <span class="detail-duration">
+                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                {{ $durationLabel }}
+                            </span>
+                        </div>
+                        <div class="detail-period">
+                            {{ $lv->start_date->format('d M') }}
+                            @if($end->ne($start))
+                                - {{ $end->format('d M Y') }}
+                            @else
+                                {{ $lv->start_date->format('Y') }}
+                            @endif
+                        </div>
+                        @if($lv->reason)
+                        <div class="detail-reason">{{ Str::limit($lv->reason, 60) }}</div>
+                        @endif
+                    </div>
+
+                    {{-- RIGHT: Status & Actions --}}
+                    <div class="item-actions">
+                        <span class="badge-type {{ $statusBadge }}">
+                            {!! $statusIcon !!}
+                            {{ $statusLabel }}
+                        </span>
+
+                        @if($lv->status == \App\Models\LeaveRequest::PENDING_HR)
+                            <div class="action-buttons">
+                                <a href="{{ route('hr.leave.show', $lv) }}" class="btn-approve-sm">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    Proses
+                                </a>
+                            </div>
+                        @elseif($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
+                            <div class="action-buttons">
+                                <a href="{{ route('hr.leave.show', $lv) }}" class="btn-detail-sm">
+                                    Lihat
+                                </a>
+                            </div>
+                        @else
+                            <div class="action-buttons">
+                                <a href="{{ route('hr.leave.show', $lv) }}" class="btn-detail-sm">
                                     Detail
                                 </a>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="empty-state">
-                                Tidak ada pengajuan yang menunggu HRD saat ini.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @empty
+                <div class="empty-state">
+                    <div class="empty-icon">
+                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <p>Tidak ada pengajuan yang membutuhkan perhatian Anda saat ini.</p>
+                </div>
+            @endforelse
         </div>
     </div>
 
@@ -162,266 +223,500 @@
     </div>
 
     <style>
-        /* --- UTILITY --- */
-        .fw-bold { font-weight: 600; color: #111827; }
-        .text-muted { color: #6b7280; font-size: 11px; }
-        .text-right { text-align: right; }
-        .text-date { font-weight: 500; color: #1f2937; font-size: 12px; }
-        
-        .text-truncate {
-            max-width: 250px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-size: 12px;
-            color: #4b5563;
+        :root {
+            --navy: #1e4a8d;
+            --navy-dark: #163a75;
+            --bg-page: #f8fafc;
+            --white: #ffffff;
+            --border: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
         }
+
+        * { box-sizing: border-box; }
 
         /* --- ALERT --- */
         .alert-success {
             background: #ecfdf5;
             color: #065f46;
             padding: 12px 16px;
-            border-radius: 8px;
+            border-radius: 10px;
             border: 1px solid #a7f3d0;
             margin-bottom: 16px;
             font-size: 14px;
         }
 
-        /* --- CARD --- */
-        .card {
-            background: #fff;
+        /* --- STATS GRID --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--white);
             border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-            border: 1px solid #f3f4f6;
-            overflow: hidden;
-            padding: 0;
+            border: 1px solid var(--border);
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        .card-header-simple {
-            padding: 16px 20px;
-            border-bottom: 1px solid #f3f4f6;
-            background: #fff;
+        .stat-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
-        
-        .card-title-sm { margin: 0; font-size: 16px; font-weight: 700; color: #1f2937; }
-        .card-subtitle-sm { margin: 4px 0 0; font-size: 13px; color: #6b7280; }
 
-        /* --- TABLE --- */
-        .table-wrapper { 
-            width: 100%; 
+        .stat-pending .stat-icon { background: #fefce8; color: #a16207; }
+        .stat-hr .stat-icon { background: #eff6ff; color: #1e4a8d; }
+        .stat-supervisor .stat-icon { background: #f3e8ff; color: #7e22ce; }
+        .stat-approved .stat-icon { background: #dcfce7; color: #166534; }
+
+        .stat-content { flex: 1; min-width: 0; }
+
+        .stat-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-top: 2px;
+        }
+
+        /* --- FILTER TABS --- */
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
             overflow-x: auto;
+            padding-bottom: 4px;
             -webkit-overflow-scrolling: touch;
         }
-        .custom-table { width: 100%; border-collapse: collapse; }
 
-        .custom-table th {
-            background: #f9fafb;
-            padding: 10px 12px;
-            text-align: left;
-            font-size: 10px;
+        .filter-tabs::-webkit-scrollbar { height: 4px; }
+        .filter-tabs::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            border-color: var(--navy);
+            color: var(--navy);
+        }
+
+        .tab-btn.active {
+            background: var(--navy);
+            border-color: var(--navy);
+            color: var(--white);
+        }
+
+        .tab-btn.active .tab-count {
+            background: rgba(255,255,255,0.2);
+            color: var(--white);
+        }
+
+        .tab-count {
+            background: #f3f4f6;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        /* --- CARD --- */
+        .card {
+            background: var(--white);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .list-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- LIST ITEM --- */
+        .list-item {
+            display: grid;
+            grid-template-columns: 200px 1fr auto;
+            gap: 16px;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            transition: background 0.15s;
+        }
+
+        .list-item:last-child { border-bottom: none; }
+        .list-item:hover { background: #fafbfc; }
+
+        .list-item[data-status="PENDING_SUPERVISOR"] {
+            border-left: 3px solid #f59e0b;
+        }
+
+        .list-item[data-status="PENDING_HR"] {
+            border-left: 3px solid var(--navy);
+        }
+
+        .list-item[data-status="APPROVED"] {
+            border-left: 3px solid #059669;
+        }
+
+        .list-item[data-status="REJECTED"] {
+            border-left: 3px solid #dc2626;
+            opacity: 0.7;
+        }
+
+        /* --- AVATAR & NAME --- */
+        .item-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .item-avatar {
+            width: 40px;
+            height: 40px;
+            background: var(--navy);
+            color: var(--white);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
             font-weight: 700;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #e5e7eb;
+            flex-shrink: 0;
         }
 
-        .custom-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #f3f4f6;
-            font-size: 12px;
-            color: #1f2937;
-            vertical-align: middle;
-        }
-        .custom-table tr:last-child td { border-bottom: none; }
-        .custom-table tr:hover td { background: #fdfdfd; }
+        .item-info { min-width: 0; }
 
-        /* --- USER INFO --- */
-        .user-info { display: flex; flex-direction: column; gap: 2px; text-align: left; align-items: flex-start; justify-content: flex-start; }
-        .employee-link {
-            color: #111827;
+        .item-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
             text-decoration: none;
-        }
-        .employee-link:hover {
-            color: #1d4ed8;
-            text-decoration: underline;
-        }
-
-        /* --- APPROVER INFO --- */
-        .approver-info {
-            font-size: 10px; 
-            color: #6b7280; 
-            margin-top: 4px; 
-            line-height: 1.2;
+            display: block;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 150px;
         }
-        .info-verifikasi {
-            font-size: 10px; 
-            color: #0d9488; 
+
+        .item-name:hover { color: var(--navy); }
+
+        .item-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
             margin-top: 2px;
+        }
+
+        .item-division {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .item-dot {
+            width: 3px;
+            height: 3px;
+            background: var(--text-muted);
+            border-radius: 50%;
+        }
+
+        .item-date {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* --- DETAILS --- */
+        .item-details { min-width: 0; }
+
+        .detail-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .detail-duration {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .detail-period {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .detail-reason {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-style: italic;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 300px;
         }
 
         /* --- BADGES --- */
         .badge-type {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            border-radius: 6px;
             font-size: 10px;
-            font-weight: 700;
+            font-weight: 600;
             white-space: nowrap;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
+            letter-spacing: 0.02em;
         }
-        
-        /* Warna Badge Jenis Cuti */
-        .badge-blue { background: #eff6ff; color: #1d4ed8; }   
-        .badge-yellow { background: #fefce8; color: #a16207; } 
-        .badge-orange { background: #fff7ed; color: #c2410c; } 
-        .badge-purple { background: #f3e8ff; color: #7e22ce; } 
-        .badge-gray { background: #f3f4f6; color: #374151; }   
-        
-        /* Warna Badge Status Baru */
+
+        .badge-blue { background: #eff6ff; color: #1d4ed8; }
+        .badge-yellow { background: #fefce8; color: #a16207; }
+        .badge-orange { background: #fff7ed; color: #c2410c; }
+        .badge-purple { background: #f3e8ff; color: #7e22ce; }
+        .badge-gray { background: #f3f4f6; color: #374151; }
         .badge-green { background: #dcfce7; color: #166534; }
         .badge-red { background: #fee2e2; color: #991b1b; }
-        
-        /* Badge Teal untuk 'Atasan Mengetahui' */
-        .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
+        .badge-teal { background: #ccfbf1; color: #0f766e; }
 
         /* --- ACTION BUTTONS --- */
-        .btn-action {
-            padding: 4px 12px;
-            border: 1px solid #d1d5db;
-            background: #fff;
-            color: #374151;
-            border-radius: 20px;
-            font-size: 11px;
+        .item-actions {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-approve-sm {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 12px;
+            background: var(--navy);
+            color: var(--white);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .btn-approve-sm:hover { background: var(--navy-dark); }
+
+        .btn-detail-sm {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            background: #f3f4f6;
+            color: var(--text-secondary);
+            border-radius: 6px;
+            font-size: 12px;
             font-weight: 500;
             text-decoration: none;
-            display: inline-block;
             transition: all 0.2s;
         }
-        .btn-action:hover { background: #f3f4f6; border-color: #9ca3af; }
 
-        .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
+        .btn-detail-sm:hover { background: #e5e7eb; color: var(--text-primary); }
 
-        /* --- RESPONSIVE CARD VIEW --- */
-        @media screen and (max-width: 768px) {
-            .table-wrapper {
-                background: transparent;
+        /* --- EMPTY STATE --- */
+        .empty-state {
+            padding: 60px 20px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            background: #f3f4f6;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            color: #9ca3af;
+        }
+
+        .empty-state p { font-size: 14px; margin: 0; }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
-            
-            .custom-table, 
-            .custom-table tbody, 
-            .custom-table tr, 
-            .custom-table td {
-                display: block;
-                width: 100%;
+
+            .list-item {
+                grid-template-columns: 160px 1fr auto;
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
             }
 
-            .custom-table thead { display: none; }
+            .stat-card { padding: 12px; }
+            .stat-value { font-size: 18px; }
+            .stat-label { font-size: 10px; }
 
-            .custom-table tr {
-                background: #fff;
-                border-radius: 12px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            .filter-tabs {
+                gap: 6px;
                 margin-bottom: 12px;
-                border: 1px solid #f3f4f6;
+            }
+
+            .tab-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+
+            .card { border-radius: 12px; }
+
+            .list-container { gap: 0; }
+
+            .list-item {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
                 padding: 16px;
+                border-left: none;
+                border-bottom: 1px solid var(--border);
                 position: relative;
             }
 
-            .custom-table td {
-                padding: 4px 0;
-                border: none;
-                text-align: left;
+            .list-item[data-status="PENDING_SUPERVISOR"]::before,
+            .list-item[data-status="PENDING_HR"]::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
             }
 
-            /* Rewrite Layout for Card */
-            
-            /* 1. Header Card: Nama & Status (Top Row) */
-            .custom-table td:nth-child(1) { /* Karyawan */
-                margin-bottom: 8px;
-                padding-right: 60px; /* Space for action button if needed, or status */
-            }
-            .custom-table td:nth-child(1) .user-info .fw-bold { font-size: 15px; }
-            
-            /* 2. Status Badge (Absolute Positioned or Flex) */
-            .custom-table td:nth-child(3) { /* Status */
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-                margin-bottom: 12px;
-            }
+            .list-item[data-status="PENDING_SUPERVISOR"]::before { background: #f59e0b; }
+            .list-item[data-status="PENDING_HR"]::before { background: var(--navy); }
 
-            /* 3. Type & Dates (Grid Layout) */
-            .custom-table td:nth-child(2), /* Jenis */
-            .custom-table td:nth-child(4), /* Periode */
-            .custom-table td:nth-child(5) { /* Tgl Pengajuan */
-                display: inline-block;
-                width: auto;
-                margin-right: 12px;
-                font-size: 12.5px;
-                color: #4b5563;
-                background: #f9fafb;
-                padding: 4px 8px;
-                border-radius: 6px;
-                margin-bottom: 6px;
-            }
-            
-            /* Add Labels for context */
-            .custom-table td:nth-child(4)::before { content: '📅 '; }
-            .custom-table td:nth-child(5)::before { content: 'Submitted: '; opacity: 0.7; }
-
-            /* 4. Reason */
-            .custom-table td:nth-child(6) {
-                margin-top: 8px;
-                font-style: italic;
-                color: #6b7280;
-                font-size: 13px;
-                padding: 8px 12px;
-                background: #fefce8;
-                border-radius: 8px;
-                border: 1px dashed #fcd34d;
-            }
-            .text-truncate { max-width: none; white-space: normal; }
-
-            /* 5. Action Button */
-            .custom-table td:last-child {
-                margin-top: 12px;
-                text-align: right;
-                border-top: 1px solid #f3f4f6;
-                padding-top: 12px;
-            }
-            .btn-action {
+            .item-main {
                 width: 100%;
-                text-align: center;
-                background: var(--navy);
-                color: #fff;
-                border: none;
             }
-            .btn-action:hover { background: #1e40af; }
-            
-            /* Hide empty state row correctly */
-            .custom-table tr:has(.empty-state) {
-                text-align: center;
-                padding: 40px 20px;
+
+            .item-actions {
+                width: 100%;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding-top: 12px;
+                border-top: 1px solid #f3f4f6;
             }
-        }    </style>
+
+            .detail-reason { max-width: none; }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .stat-card {
+                padding: 10px;
+                gap: 10px;
+            }
+
+            .stat-icon {
+                width: 36px;
+                height: 36px;
+            }
+
+            .stat-value { font-size: 16px; }
+
+            .list-item { padding: 12px; }
+        }
+    </style>
 
     <script>
-        window.addEventListener("pageshow", function (event) {
-            var shouldRefresh = sessionStorage.getItem('hrLeaveForceRefreshOnBack') === '1';
-            var historyTraversal = event.persisted ||
-                (typeof window.performance != "undefined" && window.performance.navigation.type === 2);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Filter tabs functionality
+            const tabBtns = document.querySelectorAll('.tab-btn');
+            const listItems = document.querySelectorAll('.list-item');
 
-            if (shouldRefresh && historyTraversal) {
-                sessionStorage.removeItem('hrLeaveForceRefreshOnBack');
-                window.location.reload();
-            }
+            tabBtns.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const filter = this.dataset.filter;
+
+                    // Update active tab
+                    tabBtns.forEach(function(b) { b.classList.remove('active'); });
+                    this.classList.add('active');
+
+                    // Filter items
+                    listItems.forEach(function(item) {
+                        if (filter === 'all') {
+                            item.style.display = '';
+                        } else {
+                            if (item.dataset.status === filter) {
+                                item.style.display = '';
+                            } else {
+                                item.style.display = 'none';
+                            }
+                        }
+                    });
+                });
+            });
+
+            // pageshow handler for back navigation
+            window.addEventListener('pageshow', function(event) {
+                var shouldRefresh = sessionStorage.getItem('hrLeaveForceRefreshOnBack') === '1';
+                var historyTraversal = event.persisted ||
+                    (typeof window.performance != 'undefined' && window.performance.navigation.type === 2);
+
+                if (shouldRefresh && historyTraversal) {
+                    sessionStorage.removeItem('hrLeaveForceRefreshOnBack');
+                    window.location.reload();
+                }
+            });
         });
     </script>
 

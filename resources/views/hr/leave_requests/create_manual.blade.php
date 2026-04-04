@@ -1,349 +1,255 @@
 <x-app title="Tambah Data Izin / Cuti">
-    @php
-        $oldStart = old('start_date');
-        $oldEnd = old('end_date');
-        $oldRange = '';
 
-        if ($oldStart && $oldEnd) {
-            $oldRange = $oldStart . ' sampai ' . $oldEnd;
-        } elseif ($oldStart) {
-            $oldRange = $oldStart;
-        }
-    @endphp
+    <div class="leave-create-container">
 
-    @if ($errors->any())
-        <div class="alert-error" style="margin-bottom: 16px;">
-            {{ $errors->first() }}
+        @php
+            $oldStart = old('start_date');
+            $oldEnd = old('end_date');
+            $oldRange = '';
+            if ($oldStart && $oldEnd) {
+                $oldRange = $oldStart . ' sampai ' . $oldEnd;
+            } elseif ($oldStart) {
+                $oldRange = $oldStart;
+            }
+        @endphp
+
+        {{-- Flash / Error Messages --}}
+        @if ($errors->any())
+        <div class="flash flash-error">
+            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>{{ $errors->first() }}</span>
         </div>
-    @endif
+        @endif
 
-    @if(session('success'))
-        <div class="alert-success" style="margin-bottom: 16px;">
-            {{ session('success') }}
+        @if(session('success'))
+        <div class="flash flash-success">
+            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span>{{ session('success') }}</span>
         </div>
-    @endif
+        @endif
 
-    <div class="alert-warning" style="margin-bottom: 16px;">
-        Form ini digunakan untuk input manual dan sinkronisasi data lama dari form kertas ke sistem.
-    </div>
+        {{-- Info Banner --}}
+        <div class="info-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Form ini digunakan untuk input manual dan sinkronisasi data lama dari form kertas ke sistem.</span>
+        </div>
 
-    <div class="card">
-        <div class="card-header">
+        {{-- Back Link --}}
+        <a href="{{ route('hr.leave.master') }}" class="back-link">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Kembali ke Master Izin/Cuti
+        </a>
+
+        {{-- Page Header --}}
+        <div class="page-header">
+            <div class="page-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </div>
             <div>
-                <h3 class="form-title">Input Manual Izin / Cuti</h3>
-                <p class="form-subtitle">HR dapat menyiapkan data pengajuan lama dari form manual menggunakan tampilan yang serupa dengan form pengajuan karyawan.</p>
+                <h1 class="page-title">Input Manual Izin / Cuti</h1>
+                <p class="page-subtitle">HR dapat mempersiapkan data pengajuan lama dari form manual.</p>
             </div>
-            <a href="{{ route('hr.leave.master') }}" class="btn-back">Kembali</a>
         </div>
 
-        <div class="divider"></div>
+        {{-- Form Card --}}
+        <div class="form-card">
+            <form id="hr-manual-leave-form" method="POST" action="{{ route('hr.leave.manual.store') }}" enctype="multipart/form-data">
 
-        <form id="hr-manual-leave-form" class="form-content" method="POST" action="{{ route('hr.leave.manual.store') }}" enctype="multipart/form-data">
-            @csrf
-            <div class="form-group">
-                <label for="manual_user_search">Karyawan</label>
-                <div class="employee-picker">
-                    <input
-                        type="text"
-                        id="manual_user_search"
-                        class="form-control"
-                        placeholder="Ketik nama karyawan..."
-                        autocomplete="off"
-                        value="{{ old('user_id') ? optional($employees->firstWhere('id', (int) old('user_id')))->name : '' }}">
-                    <div id="manual_user_suggestions" class="employee-suggestions" style="display:none;"></div>
-                </div>
-                <select id="manual_user_id" name="user_id" class="form-control employee-select-hidden" tabindex="-1" aria-hidden="true">
-                    <option value="">Pilih karyawan</option>
-                    @foreach($employees as $employee)
-                        @php
-                            $roleValue = $employee->role instanceof \App\Enums\UserRole ? $employee->role->value : $employee->role;
-                            $employeeLabel = trim($employee->name
-                                . ($employee->position ? ' - ' . $employee->position->name : '')
-                                . ($employee->division ? ' (' . $employee->division->name . ')' : ''));
-                        @endphp
-                        <option
-                            value="{{ $employee->id }}"
-                            data-role="{{ strtoupper((string) $roleValue) }}"
-                            data-balance="{{ (int) ($employee->leave_balance ?? 0) }}"
-                            data-label="{{ $employeeLabel }}"
-                            @selected(old('user_id') == $employee->id)
-                        >
-                            {{ $employeeLabel }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+                @csrf
 
-            <div class="two-col-grid">
-                <div class="form-group">
-                    <label for="manual_submitted_at">Tanggal Pengajuan</label>
-                    <input type="date" id="manual_submitted_at" name="submitted_at" class="form-control" value="{{ old('submitted_at') }}">
-                </div>
-                <div class="form-group">
-                    <label for="manual_status">Status</label>
-                    <select id="manual_status" name="status" class="form-control">
-                        <option value="">Pilih status</option>
-                        @foreach($statusOptions as $value => $label)
-                            <option value="{{ $value }}" @selected(old('status') === $value)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
+                {{-- Section: Karyawan --}}
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <span>Data Karyawan</span>
+                    </div>
 
-            <div class="form-group">
-                <label class="section-label">Jenis Pengajuan</label>
-                <div class="radio-group-container">
-                    @foreach($typeOptions as $case)
-                        <label class="radio-card">
+                    <div class="form-group">
+                        <label for="manual_user_search">Pilih Karyawan <span class="req">*</span></label>
+                        <div class="employee-picker">
                             <input
-                                type="radio"
-                                name="type"
-                                value="{{ $case->value }}"
-                                @checked(old('type') === $case->value)
-                            >
-                            <span class="radio-label">{{ $case->label() }}</span>
-                        </label>
-                    @endforeach
-                </div>
-
-                <div id="manual-balance-info" class="alert-info-blue" style="display:none; margin-top:12px;">
-                    <div>
-                        <strong id="manual-balance-text">Saldo cuti karyawan: 0 hari.</strong>
-                        <div style="font-size:12px; margin-top:2px;">Informasi ini hanya sebagai referensi saat input manual.</div>
+                                type="text"
+                                id="manual_user_search"
+                                class="form-input"
+                                placeholder="Ketik nama karyawan..."
+                                autocomplete="off"
+                                value="{{ old('user_id') ? optional($employees->firstWhere('id', (int) old('user_id')))->name : '' }}">
+                            <div id="manual_user_suggestions" class="employee-suggestions" style="display:none;"></div>
+                        </div>
+                        <select id="manual_user_id" name="user_id" class="form-input employee-select-hidden" tabindex="-1" aria-hidden="true">
+                            <option value="">Pilih karyawan</option>
+                            @foreach($employees as $employee)
+                                @php
+                                    $roleValue = $employee->role instanceof \App\Enums\UserRole ? $employee->role->value : $employee->role;
+                                    $employeeLabel = trim($employee->name
+                                        . ($employee->position ? ' - ' . $employee->position->name : '')
+                                        . ($employee->division ? ' (' . $employee->division->name . ')' : ''));
+                                @endphp
+                                <option
+                                    value="{{ $employee->id }}"
+                                    data-role="{{ strtoupper((string) $roleValue) }}"
+                                    data-balance="{{ (int) ($employee->leave_balance ?? 0) }}"
+                                    data-label="{{ $employeeLabel }}"
+                                    @selected(old('user_id') == $employee->id)
+                                >{{ $employeeLabel }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
-                <div id="manual-special-leave-container" class="special-leave-box" style="display:none;">
-                    <label for="manual_special_leave_detail" class="special-leave-label">Pilih Kategori Cuti Khusus</label>
-                    <select name="special_leave_detail" id="manual_special_leave_detail" class="form-control">
-                        <option value="">-- Pilih Alasan --</option>
-                        @foreach($specialLeaveList as $sl)
-                            <option value="{{ $sl['id'] }}" data-days="{{ $sl['days'] }}" @selected(old('special_leave_detail') == $sl['id'])>
-                                {{ $sl['label'] }}
-                            </option>
-                        @endforeach
-                    </select>
-                    <div id="manual-special-leave-badge" class="info-badge" style="display:none;">
-                        <span id="manual-special-leave-text">Maksimal 2 Hari</span>
+                {{-- Section: Detail Pengajuan --}}
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        <span>Detail Pengajuan</span>
+                    </div>
+
+                    <div class="two-col-grid">
+                        <div class="form-group">
+                            <label for="manual_submitted_at">Tanggal Pengajuan</label>
+                            <input type="date" id="manual_submitted_at" name="submitted_at" class="form-input" value="{{ old('submitted_at') }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="manual_status">Status</label>
+                            <select id="manual_status" name="status" class="form-input">
+                                <option value="">Pilih status</option>
+                                @foreach($statusOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('status') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="section-label">Jenis Pengajuan <span class="req">*</span></label>
+                        <div class="radio-group-grid">
+                            @foreach($typeOptions as $case)
+                                <label class="radio-card">
+                                    <input type="radio" name="type" value="{{ $case->value }}" @checked(old('type') === $case->value)>
+                                    <span class="radio-label">{{ $case->label() }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <div id="manual-balance-info" class="info-alert info-alert-blue" style="display:none; margin-top:12px;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            <div>
+                                <strong id="manual-balance-text">Saldo cuti karyawan: 0 hari.</strong>
+                                <div class="info-alert-hint">Informasi ini hanya sebagai referensi saat input manual.</div>
+                            </div>
+                        </div>
+
+                        <div id="manual-special-leave-container" class="special-leave-box" style="display:none;">
+                            <label for="manual_special_leave_detail" class="special-leave-label">Pilih Kategori Cuti Khusus</label>
+                            <select name="special_leave_detail" id="manual_special_leave_detail" class="form-input">
+                                <option value="">-- Pilih Alasan --</option>
+                                @foreach($specialLeaveList as $sl)
+                                    <option value="{{ $sl['id'] }}" data-days="{{ $sl['days'] }}" @selected(old('special_leave_detail') == $sl['id'])>{{ $sl['label'] }}</option>
+                                @endforeach
+                            </select>
+                            <div id="manual-special-leave-badge" class="info-badge" style="display:none;">
+                                <span id="manual-special-leave-text">Maksimal 2 Hari</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="manual_date_range">Periode Izin <span class="req">*</span></label>
+                        <input type="text" id="manual_date_range" name="date_range" class="form-input" value="{{ $oldRange }}" placeholder="Pilih tanggal mulai sampai selesai" autocomplete="off">
+                        <input type="hidden" name="start_date" id="manual_start_date" value="{{ $oldStart }}">
+                        <input type="hidden" name="end_date" id="manual_end_date" value="{{ $oldEnd }}">
+                        <div id="manual-duration-display" class="info-alert info-alert-blue" style="display:none; margin-top:8px;"></div>
+                        <div id="manual-special-limit-warning" class="info-alert info-alert-warning" style="display:none;"></div>
+                    </div>
+
+                    <div class="form-group" id="manual-worktime-field" style="display:none;">
+                        <label id="manual-worktime-label">Jam Izin</label>
+                        <div class="time-range-wrapper">
+                            <div class="time-input-box">
+                                <input type="time" name="start_time" id="manual_start_time_input" class="form-input" value="{{ old('start_time') }}">
+                            </div>
+                            <span id="manual-worktime-separator" class="separator">s/d</span>
+                            <div id="manual_end_time_wrapper" class="time-input-box">
+                                <input type="time" name="end_time" id="manual_end_time_input" class="form-input" value="{{ old('end_time') }}">
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="form-group">
-                <label for="manual_date_range">Periode Izin</label>
-                <input
-                    type="text"
-                    id="manual_date_range"
-                    name="date_range"
-                    class="form-control"
-                    value="{{ $oldRange }}"
-                    placeholder="Pilih tanggal mulai sampai selesai"
-                    autocomplete="off">
-                <input type="hidden" name="start_date" id="manual_start_date" value="{{ $oldStart }}">
-                <input type="hidden" name="end_date" id="manual_end_date" value="{{ $oldEnd }}">
-
-                <div id="manual-duration-display" class="alert-info-blue" style="display:none; margin-top:8px;"></div>
-                <div id="manual-special-limit-warning" class="alert-warning" style="display:none;"></div>
-            </div>
-
-            <div class="form-group" id="manual-worktime-field" style="display:none;">
-                <label id="manual-worktime-label">Jam Izin</label>
-                <div class="time-range-wrapper">
-                    <div class="time-input-box">
-                        <input type="time" name="start_time" id="manual_start_time_input" class="form-control" value="{{ old('start_time') }}">
+                {{-- Section: Pendelegasian --}}
+                <div id="manual-substitute-pic-section" class="form-section delegate-section" style="display:none;">
+                    <div class="form-section-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <span>Informasi Pendelegasian Tugas</span>
                     </div>
-                    <span id="manual-worktime-separator" class="separator">s/d</span>
-                    <div id="manual_end_time_wrapper" class="time-input-box">
-                        <input type="time" name="end_time" id="manual_end_time_input" class="form-control" value="{{ old('end_time') }}">
+                    <p class="delegate-desc">Opsional untuk kebutuhan dokumentasi sinkronisasi data lama.</p>
+                    <div class="two-col-grid">
+                        <div class="form-group">
+                            <label for="manual_substitute_pic">Nama PIC Pengganti</label>
+                            <input type="text" name="substitute_pic" id="manual_substitute_pic" class="form-input" placeholder="Nama rekan pengganti" value="{{ old('substitute_pic') }}">
+                        </div>
+                        <div class="form-group">
+                            <label for="manual_substitute_phone">Nomor HP PIC</label>
+                            <input type="text" name="substitute_phone" id="manual_substitute_phone" class="form-input" placeholder="Contoh: 0812..." value="{{ old('substitute_phone') }}">
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div id="manual-substitute-pic-section" class="delegate-box" style="display:none;">
-                <p class="delegate-title">Informasi Pendelegasian Tugas</p>
-                <div class="two-col-grid">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label for="manual_substitute_pic">Nama PIC Pengganti</label>
-                        <input type="text" name="substitute_pic" id="manual_substitute_pic" class="form-control" placeholder="Nama rekan pengganti" value="{{ old('substitute_pic') }}">
+                {{-- Section: Dokumen & Catatan --}}
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        <span>Dokumen & Catatan</span>
                     </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label for="manual_substitute_phone">Nomor HP PIC</label>
-                        <input type="text" name="substitute_phone" id="manual_substitute_phone" class="form-control" placeholder="Contoh: 0812..." value="{{ old('substitute_phone') }}">
+
+                    <div class="form-group">
+                        <label for="manual_photo_input">Bukti Pendukung</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" name="photo" id="manual_photo_input" class="form-input-file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx">
+                        </div>
+                        <small class="form-hint">Format: Gambar atau dokumen pendukung jika tersedia.</small>
+                        <div id="manual-photo-preview-container" class="preview-container">
+                            <p class="preview-label">Preview Foto:</p>
+                            <img id="manual-photo-preview" src="#" alt="Preview foto">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="manual_reason">Alasan / Keterangan</label>
+                        <textarea name="reason" id="manual_reason" rows="3" class="form-input" placeholder="Isi keterangan pengajuan manual atau catatan sinkronisasi...">{{ old('reason') }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="manual_notes_hrd">Catatan HRD</label>
+                        <textarea name="notes_hrd" id="manual_notes_hrd" rows="2" class="form-input" placeholder="Catatan internal HRD untuk data manual ini...">{{ old('notes_hrd') }}</textarea>
                     </div>
                 </div>
-                <small class="helper-text" style="display:block; margin-top:8px;">Opsional untuk kebutuhan dokumentasi sinkronisasi data lama.</small>
-            </div>
 
-            <div class="form-group">
-                <label for="manual_photo_input">Bukti Pendukung</label>
-                <div class="file-input-wrapper">
-                    <input
-                        type="file"
-                        name="photo"
-                        id="manual_photo_input"
-                        class="form-control-file"
-                        accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx">
+                <div class="form-actions">
+                    <a href="{{ route('hr.leave.master') }}" class="btn btn-secondary">
+                        Batal
+                    </a>
+                    <button type="submit" class="btn btn-primary" id="manual-submit-btn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Simpan Data Manual
+                    </button>
                 </div>
-                <small class="helper-text">Format: Gambar atau dokumen pendukung jika tersedia.</small>
-                <div id="manual-photo-preview-container" class="preview-container">
-                    <p class="preview-label">Preview Foto:</p>
-                    <img id="manual-photo-preview" src="#" alt="Preview foto">
-                </div>
-            </div>
 
-            <div class="form-group">
-                <label for="manual_reason">Alasan / Keterangan</label>
-                <textarea
-                    name="reason"
-                    id="manual_reason"
-                    rows="4"
-                    class="form-control"
-                    placeholder="Isi keterangan pengajuan manual atau catatan sinkronisasi..."
-                >{{ old('reason') }}</textarea>
-            </div>
+            </form>
+        </div>
 
-            <div class="form-group">
-                <label for="manual_notes_hrd">Catatan HRD</label>
-                <textarea
-                    name="notes_hrd"
-                    id="manual_notes_hrd"
-                    rows="3"
-                    class="form-control"
-                    placeholder="Catatan internal HRD untuk data manual ini..."
-                >{{ old('notes_hrd') }}</textarea>
-            </div>
-
-            <div class="form-actions">
-                <button class="btn-primary" type="submit" id="manual-submit-btn">
-                    Simpan Data Manual
-                </button>
-            </div>
-        </form>
     </div>
-
-    <style>
-        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #f3f4f6; overflow: hidden; max-width: 900px; margin: 0 auto; }
-        .card-header { padding: 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-        .form-title { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
-        .form-subtitle { margin: 4px 0 0; font-size: 13.5px; color: #6b7280; }
-        .divider { height: 1px; background: #f3f4f6; width: 100%; }
-        .form-content { padding: 24px; }
-        .form-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px; }
-        .form-group label { font-size: 13.5px; font-weight: 600; color: #374151; }
-        .section-label { display: block; margin-bottom: 8px; font-size: 14px; color: #111827; }
-        .form-control {
-            padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px;
-            font-size: 14px; width: 100%; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-            background: #fff; color: #111827; font-family: inherit;
-        }
-        .form-control:focus { border-color: #1e4a8d; box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.1); }
-        textarea.form-control { resize: vertical; min-height: 100px; line-height: 1.5; }
-        .btn-back {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 8px 14px; border-radius: 8px; border: 1px solid #d1d5db;
-            background: #fff; color: #374151; font-size: 13px; font-weight: 500;
-            text-decoration: none; transition: all 0.2s; white-space: nowrap;
-        }
-        .btn-primary {
-            padding: 12px 24px; background: #1e4a8d; color: #fff; border: none; border-radius: 8px;
-            font-size: 14px; font-weight: 600; width: auto; min-width: 220px;
-        }
-        .radio-group-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
-        .radio-card {
-            display: flex; align-items: center; gap: 10px;
-            padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
-            cursor: pointer; transition: all 0.2s; background: #fff;
-        }
-        .radio-card:hover { border-color: #1e4a8d; background: #f0f4ff; }
-        .radio-card input[type="radio"] { accent-color: #1e4a8d; width: 16px; height: 16px; margin: 0; }
-        .radio-label { font-size: 13.5px; color: #374151; font-weight: 500; line-height: 1.3; }
-        .alert-warning {
-            background: #fefce8; border: 1px solid #fde047; color: #854d0e;
-            padding: 10px 14px; border-radius: 8px; margin-top: 8px; font-size: 13.5px; line-height: 1.4;
-        }
-        .alert-error {
-            background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
-            padding: 12px 16px; border-radius: 8px; font-size: 14px;
-        }
-        .alert-success {
-            background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46;
-            padding: 12px 16px; border-radius: 8px; font-size: 14px;
-        }
-        .alert-info-blue {
-            background: #eff6ff; border: 1px solid #dbeafe; color: #1e40af;
-            padding: 12px 16px; border-radius: 8px; font-size: 14px;
-        }
-        .special-leave-box {
-            margin-top: 12px; padding: 12px; background: #eff6ff; border: 1px solid #dbeafe; border-radius: 8px;
-        }
-        .special-leave-label { font-size: 13px; color: #1e4a8d; display:block; margin-bottom:6px; }
-        .employee-picker { position: relative; }
-        .employee-select-hidden {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-            pointer-events: none;
-        }
-        .employee-suggestions {
-            position: absolute;
-            top: calc(100% + 6px);
-            left: 0;
-            right: 0;
-            z-index: 30;
-            background: #fff;
-            border: 1px solid #d1d5db;
-            border-radius: 10px;
-            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
-            max-height: 280px;
-            overflow-y: auto;
-        }
-        .employee-suggestion-item {
-            padding: 10px 12px;
-            font-size: 13.5px;
-            color: #111827;
-            cursor: pointer;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        .employee-suggestion-item:last-child { border-bottom: none; }
-        .employee-suggestion-item:hover,
-        .employee-suggestion-item.active {
-            background: #eff6ff;
-            color: #1d4ed8;
-        }
-        .employee-suggestion-empty {
-            padding: 10px 12px;
-            font-size: 13px;
-            color: #6b7280;
-        }
-        .info-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            margin-top: 8px; background: #dbeafe; color: #1e40af;
-            padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;
-        }
-        .time-range-wrapper { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .time-input-box { flex: 1; min-width: 120px; }
-        .separator { color: #6b7280; font-size: 13px; font-weight: 500; }
-        .delegate-box { padding: 16px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; margin-bottom: 20px; }
-        .delegate-title { margin-top:0; margin-bottom:12px; font-size:14px; font-weight:600; color:#1e4a8d; }
-        .two-col-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .file-input-wrapper { border: 1px dashed #cbd5e1; padding: 12px; border-radius: 8px; background: #f8fafc; }
-        .form-control-file { width: 100%; font-size: 13px; }
-        .helper-text { font-size: 12px; color: #6b7280; margin-top: 4px; line-height: 1.4; }
-        .preview-container { display: none; margin-top: 12px; padding: 10px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb; }
-        .preview-label { font-size: 12px; font-weight: 600; color: #4b5563; margin: 0 0 6px 0; }
-        .preview-container img { max-width: 100%; max-height: 300px; border-radius: 6px; display: block; }
-        .form-actions { margin-top: 32px; padding-top: 20px; border-top: 1px solid #f3f4f6; display: flex; justify-content: flex-end; }
-
-        @media (max-width: 768px) {
-            .card-header { flex-direction: column; }
-            .two-col-grid { grid-template-columns: 1fr; }
-            .radio-group-container { grid-template-columns: 1fr; }
-            .btn-back, .btn-primary { width: 100%; }
-        }
-    </style>
 
     @push('scripts')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const employeeSelect = document.getElementById('manual_user_id');
@@ -419,7 +325,6 @@
 
             function renderEmployeeSuggestions(keyword) {
                 if (!employeeSuggestions) return;
-
                 const normalizedKeyword = (keyword || '').trim().toLowerCase();
                 const matches = employeeOptions().filter(function (option) {
                     const label = (option.getAttribute('data-label') || option.textContent || '').toLowerCase();
@@ -467,30 +372,24 @@
                 const startDate = parseYmdAsDate(startStr);
                 const endDate = parseYmdAsDate(endStr);
                 if (!startDate || !endDate || startDate > endDate) return 0;
-
                 let days = 0;
                 const cursor = new Date(startDate);
-
                 while (cursor <= endDate) {
                     const day = cursor.getDay();
                     const isSunday = day === 0;
                     const isSaturday = day === 6;
-
                     if (!isSunday && !(isSaturday && isFiveDayWorkWeek())) {
                         days++;
                     }
-
                     cursor.setDate(cursor.getDate() + 1);
                 }
-
                 return days;
             }
 
             function updateBalanceInfo() {
                 if (!balanceInfo || !balanceText) return;
-
                 if (selectedType() === CUTI && employeeSelect && employeeSelect.value) {
-                    balanceInfo.style.display = 'block';
+                    balanceInfo.style.display = 'flex';
                     balanceText.textContent = 'Saldo cuti karyawan: ' + selectedEmployeeBalance() + ' hari.';
                 } else {
                     balanceInfo.style.display = 'none';
@@ -501,7 +400,6 @@
                 if (!specialLeaveSelect || !specialLeaveBadge || !specialLeaveText) return;
                 const option = specialLeaveSelect.options[specialLeaveSelect.selectedIndex];
                 const days = option ? option.getAttribute('data-days') : null;
-
                 if (days) {
                     specialLeaveBadge.style.display = 'inline-flex';
                     specialLeaveText.textContent = 'Maksimal ' + days + ' Hari';
@@ -515,36 +413,32 @@
                 if (!durationDisplay) return;
                 const startVal = startDateInput ? startDateInput.value : '';
                 const endVal = endDateInput ? endDateInput.value : '';
-
                 if (!startVal || !endVal) {
                     durationDisplay.style.display = 'none';
                     durationDisplay.innerHTML = '';
                     return;
                 }
-
                 const days = calculateWorkingDays(startVal, endVal);
-                durationDisplay.style.display = 'block';
-                durationDisplay.innerHTML = '<strong>Estimasi Durasi: ' + days + ' Hari Kerja</strong>';
+                durationDisplay.style.display = 'flex';
+                durationDisplay.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><strong>Estimasi Durasi: ' + days + ' Hari Kerja</strong>';
             }
 
             function checkSpecialLeaveLimit() {
                 if (!specialLimitWarning) return;
                 if (selectedType() !== CUTI_KHUSUS || !specialLeaveSelect || !specialLeaveSelect.value) {
                     specialLimitWarning.style.display = 'none';
-                    specialLimitWarning.textContent = '';
+                    specialLimitWarning.innerHTML = '';
                     return;
                 }
-
                 const option = specialLeaveSelect.options[specialLeaveSelect.selectedIndex];
                 const maxDays = parseInt(option ? option.getAttribute('data-days') || '0' : '0', 10);
                 const diffDays = calculateWorkingDays(startDateInput.value, endDateInput.value);
-
                 if (maxDays > 0 && diffDays > maxDays) {
-                    specialLimitWarning.style.display = 'block';
-                    specialLimitWarning.innerHTML = 'Pengajuan terhitung <b>' + diffDays + ' hari kerja</b>, melebihi batas maksimal <b>' + maxDays + ' hari</b> untuk kategori ini.';
+                    specialLimitWarning.style.display = 'flex';
+                    specialLimitWarning.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Pengajuan terhitung <b>' + diffDays + ' hari kerja</b>, melebihi batas maksimal <b>' + maxDays + ' hari</b> untuk kategori ini.';
                 } else {
                     specialLimitWarning.style.display = 'none';
-                    specialLimitWarning.textContent = '';
+                    specialLimitWarning.innerHTML = '';
                 }
             }
 
@@ -691,7 +585,7 @@
             if (form && submitBtn) {
                 form.addEventListener('submit', function () {
                     submitBtn.disabled = true;
-                    submitBtn.textContent = 'Menyimpan...';
+                    submitBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Menyimpan...';
                 });
             }
 
@@ -710,7 +604,6 @@
                             startDateInput.value = parts[0] || '';
                             endDateInput.value = parts[1] || parts[0] || '';
                         }
-
                         startDateInput.dispatchEvent(new Event('change'));
                         endDateInput.dispatchEvent(new Event('change'));
                     }
@@ -722,7 +615,460 @@
             toggleSections();
         });
     </script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     @endpush
+
+    <style>
+        /* === BASE VARIABLES === */
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #64748b;
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success-bg: #f0fdf4;
+            --success-text: #15803d;
+            --success-border: #bbf7d0;
+            --danger-bg: #fef2f2;
+            --danger-text: #b91c1c;
+            --danger-border: #fecaca;
+            --warning-bg: #fffbeb;
+            --warning-text: #c2410c;
+            --warning-border: #fed7aa;
+            --blue-light: #eff6ff;
+            --blue-text: #1d4ed8;
+            --green-light: #f0fdf4;
+            --green-text: #15803d;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+        }
+
+        /* === RESET & BASE === */
+        .leave-create-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px 16px 60px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-main);
+        }
+
+        /* === FLASH MESSAGES === */
+        .flash {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .flash-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+        .flash-error { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
+        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+        /* === INFO BANNER === */
+        .info-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: var(--blue-light);
+            border: 1px solid #dbeafe;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            font-size: 0.875rem;
+            color: var(--blue-text);
+        }
+        .info-banner svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+        /* === BACK LINK === */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-bottom: 16px;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--primary); }
+        .back-link svg { width: 16px; height: 16px; }
+
+        /* === PAGE HEADER === */
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .page-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--primary);
+            color: #fff;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .page-icon svg { width: 24px; height: 24px; }
+        .page-title {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .page-subtitle {
+            margin: 4px 0 0;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* === FORM CARD === */
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        /* === FORM SECTION === */
+        .form-section {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        .form-section:last-of-type {
+            border-bottom: none;
+        }
+        .form-section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 16px;
+        }
+        .form-section-header svg { width: 18px; height: 18px; color: var(--primary); }
+
+        /* === FORM GROUP === */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 6px;
+        }
+        .section-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .req { color: var(--danger-text); }
+        .form-hint {
+            display: block;
+            margin-top: 4px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* === FORM INPUT === */
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            color: var(--text-main);
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        textarea.form-input {
+            resize: vertical;
+            min-height: 80px;
+            line-height: 1.5;
+        }
+
+        /* === TWO COL GRID === */
+        .two-col-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* === RADIO GROUP === */
+        .radio-group-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px;
+        }
+        .radio-card {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #fff;
+        }
+        .radio-card:hover {
+            border-color: var(--primary);
+            background: var(--blue-light);
+        }
+        .radio-card:has(input:checked) {
+            border-color: var(--primary);
+            background: var(--blue-light);
+        }
+        .radio-card input[type="radio"] {
+            accent-color: var(--primary);
+            width: 16px;
+            height: 16px;
+            margin: 0;
+        }
+        .radio-label {
+            font-size: 0.85rem;
+            color: var(--text-main);
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        /* === INFO ALERT === */
+        .info-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+        }
+        .info-alert svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+        .info-alert-blue {
+            background: var(--blue-light);
+            border: 1px solid #dbeafe;
+            color: var(--blue-text);
+        }
+        .info-alert-warning {
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            color: var(--warning-text);
+        }
+        .info-alert-hint {
+            font-size: 0.75rem;
+            margin-top: 2px;
+            opacity: 0.8;
+        }
+
+        /* === SPECIAL LEAVE BOX === */
+        .special-leave-box {
+            margin-top: 12px;
+            padding: 14px;
+            background: var(--blue-light);
+            border: 1px solid #dbeafe;
+            border-radius: var(--radius-sm);
+        }
+        .special-leave-label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--blue-text);
+            margin-bottom: 8px;
+        }
+        .info-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+            background: #dbeafe;
+            color: var(--blue-text);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .info-badge svg { width: 12px; height: 12px; }
+
+        /* === DELEGATE SECTION === */
+        .delegate-section {
+            background: #fafbff;
+        }
+        .delegate-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin: -8px 0 16px;
+        }
+
+        /* === TIME RANGE === */
+        .time-range-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .time-input-box { flex: 1; min-width: 100px; }
+        .separator { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
+
+        /* === EMPLOYEE PICKER === */
+        .employee-picker { position: relative; }
+        .employee-select-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .employee-suggestions {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 30;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .employee-suggestion-item {
+            padding: 10px 12px;
+            font-size: 0.875rem;
+            color: var(--text-main);
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.15s;
+        }
+        .employee-suggestion-item:last-child { border-bottom: none; }
+        .employee-suggestion-item:hover,
+        .employee-suggestion-item.active {
+            background: var(--blue-light);
+            color: var(--blue-text);
+        }
+        .employee-suggestion-empty {
+            padding: 10px 12px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* === FILE INPUT === */
+        .file-input-wrapper {
+            border: 1px dashed #cbd5e1;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-body);
+        }
+        .form-input-file { width: 100%; font-size: 0.8rem; background: transparent; border: none; padding: 0; }
+        .form-input-file:focus { outline: none; }
+
+        /* === PREVIEW === */
+        .preview-container {
+            display: none;
+            margin-top: 12px;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--bg-body);
+        }
+        .preview-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin: 0 0 6px 0;
+        }
+        .preview-container img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: var(--radius-sm);
+            display: block;
+        }
+
+        /* === BUTTONS === */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+        .btn svg { width: 16px; height: 16px; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: var(--bg-body); color: var(--text-muted); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--border); }
+
+        /* === FORM ACTIONS === */
+        .form-actions {
+            margin-top: 24px;
+            padding: 20px 24px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-body);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* === SPIN ANIMATION === */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spin { animation: spin 1s linear infinite; }
+
+        /* === MOBILE RESPONSIVE === */
+        @media (max-width: 640px) {
+            .page-header {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+            .page-icon { margin: 0 auto; }
+
+            .form-section { padding: 20px 16px; }
+
+            .two-col-grid { grid-template-columns: 1fr; }
+            .radio-group-grid { grid-template-columns: 1fr; }
+
+            .form-actions {
+                flex-direction: column-reverse;
+                padding: 16px;
+            }
+            .btn { width: 100%; }
+
+            .time-range-wrapper { flex-direction: column; align-items: stretch; }
+            .separator { display: none; }
+        }
+    </style>
+
 </x-app>

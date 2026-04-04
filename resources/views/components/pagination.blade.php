@@ -1,4 +1,4 @@
-@props(['items'])
+@props(['items', 'preserveQuery' => false])
 
 <div class="pagination-container" style="margin-top:12px;">
     <style>
@@ -60,5 +60,9 @@
         }
     </style>
 
-    {{ $items->links() }}
+    @if($preserveQuery)
+        {{ $items->appends(request()->query())->links() }}
+    @else
+        {{ $items->links() }}
+    @endif
 </div>

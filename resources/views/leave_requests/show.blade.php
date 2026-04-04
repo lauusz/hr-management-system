@@ -12,128 +12,173 @@
     </div>
     @endif
 
-    {{-- [GLOBAL NORMALIZATION] Pastikan Type selalu string agar pengecekan IF valid --}}
     @php
         $typeValue = $item->type;
         if ($typeValue instanceof \App\Enums\LeaveType) {
             $typeValue = $typeValue->value;
         }
         $typeValue = (string) $typeValue;
+
+        // Status logic
+        $status = $item->status;
+        $badgeClass = 'badge-gray';
+        $statusLabel = $item->status_label ?? $status;
+        $statusIcon = '';
+
+        if ($status === \App\Models\LeaveRequest::STATUS_APPROVED) {
+            $badgeClass = 'badge-green';
+            $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
+            $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
+            $statusLabel = $isOwnerHRD ? 'Disetujui' : 'Disetujui HRD';
+            $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+        } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
+            $badgeClass = 'badge-red';
+            $statusLabel = 'Ditolak';
+            $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
+        } elseif ($status === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
+            $badgeClass = 'badge-yellow';
+            $statusLabel = 'Menunggu Persetujuan Atasan';
+            $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+        } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
+            $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
+            $isHRStaff = in_array(strtoupper((string)$roleVal), ['HR STAFF']);
+            if ($isHRStaff) {
+                $badgeClass = 'badge-yellow';
+                $statusLabel = 'Menunggu Persetujuan';
+            } else {
+                $badgeClass = 'badge-teal';
+                $statusLabel = 'Atasan Mengetahui';
+            }
+            $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+        } elseif ($status === 'CANCEL_REQ') {
+            $badgeClass = 'badge-red';
+            $statusLabel = 'Mengajukan Pembatalan';
+            $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>';
+        } elseif ($status === 'BATAL') {
+            $badgeClass = 'badge-gray';
+            $statusLabel = 'Dibatalkan';
+            $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>';
+        }
+
+        // Type badge color
+        $typeBadgeClass = 'type-blue';
+        if (in_array($typeValue, [\App\Enums\LeaveType::CUTI->value, \App\Enums\LeaveType::CUTI_KHUSUS->value])) {
+            $typeBadgeClass = 'type-blue';
+        } elseif ($typeValue === \App\Enums\LeaveType::SAKIT->value) {
+            $typeBadgeClass = 'type-yellow';
+        } elseif (in_array($typeValue, [\App\Enums\LeaveType::IZIN_TELAT->value, \App\Enums\LeaveType::IZIN_PULANG_AWAL->value, \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value, \App\Enums\LeaveType::IZIN->value])) {
+            $typeBadgeClass = 'type-orange';
+        } elseif ($typeValue === \App\Enums\LeaveType::DINAS_LUAR->value) {
+            $typeBadgeClass = 'type-purple';
+        }
     @endphp
 
-    <div class="card">
-        <div class="profile-header">
-            <div class="profile-main">
-                <div class="profile-avatar">
-                    {{ substr($item->user->name, 0, 1) }}
+    {{-- HEADER SECTION --}}
+    <div class="detail-header">
+        <a href="{{ route('leave-requests.index') }}" class="back-link">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+            Kembali
+        </a>
+    </div>
+
+    {{-- MAIN CONTENT --}}
+    <div class="detail-layout">
+
+        {{-- LEFT COLUMN: Info Utama --}}
+        <div class="detail-main">
+
+            {{-- Employee Card --}}
+            <div class="card-section employee-card">
+                <div class="employee-header">
+                    <div class="avatar-circle">
+                        {{ substr($item->user->name, 0, 1) }}
+                    </div>
+                    <div class="employee-info">
+                        <h1 class="employee-name">{{ $item->user->name }}</h1>
+                        <div class="employee-meta">
+                            <span class="role-tag">{{ $item->user->role }}</span>
+                            <span class="meta-dot">•</span>
+                            <span class="division-name">{{ $item->user->division->name ?? '-' }}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="profile-info">
-                    <h2 class="profile-name">{{ $item->user->name }}</h2>
-                    <div class="profile-meta">
-                        <span class="chip-role">{{ $item->user->role }}</span>
-                        <span class="dot">•</span>
-                        <span>Diajukan: {{ $item->created_at->format('d M Y H:i') }}</span>
+
+                {{-- Status Banner --}}
+                <div class="status-banner {{ $badgeClass }}">
+                    <div class="status-icon">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {!! $statusIcon !!}
+                        </svg>
+                    </div>
+                    <div class="status-text">
+                        <span class="status-label">{{ $statusLabel }}</span>
+                        @if($status === \App\Models\LeaveRequest::PENDING_SUPERVISOR)
+                            <span class="status-sub">Menunggu: {{ $item->user->directSupervisor->name ?? $item->user->manager->name ?? '-' }}</span>
+                        @elseif($status === \App\Models\LeaveRequest::PENDING_HR)
+                            <span class="status-sub">Menunggu: HRD</span>
+                        @endif
                     </div>
                 </div>
             </div>
 
-            @php
-                // [LOGIC STATUS]
-                $status = $item->status;
-                $badgeClass = 'badge-gray';
-                $statusLabel = $item->status_label ?? $status; 
-                
-                if ($status === \App\Models\LeaveRequest::STATUS_APPROVED) {
-                    $badgeClass = 'badge-green';
-                    // Cek Role Owner untuk Label Khusus
-                    $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
-                    $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
-                    
-                    $statusLabel = $isOwnerHRD ? 'Disetujui' : 'Disetujui HRD';
-                } elseif ($status === \App\Models\LeaveRequest::STATUS_REJECTED) {
-                    $badgeClass = 'badge-red';
-                    $statusLabel = 'Ditolak';
-                } elseif ($status === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
-                    $badgeClass = 'badge-yellow';
-                    $statusLabel = '⏳ Menunggu Persetujuan Atasan';
-                } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
-                    $badgeClass = 'badge-teal';
-                    $statusLabel = '✅ Atasan Mengetahui (Menunggu HRD)';
-                } elseif ($status === 'CANCEL_REQ') { 
-                    // [BARU] Status Request Batal
-                    $badgeClass = 'badge-red';
-                    $statusLabel = '⚠️ Mengajukan Pembatalan';
-                } elseif ($status === 'BATAL') { 
-                    // [BARU] Status Batal
-                    $badgeClass = 'badge-gray';
-                    $statusLabel = '🚫 Dibatalkan';
-                }
-            @endphp
-            <div class="status-wrapper">
-                <span class="badge-status {{ $badgeClass }}">
-                    {{ $statusLabel }}
-                </span>
-            </div>
-        </div>
+            {{-- Leave Type Card --}}
+            <div class="card-section">
+                <h3 class="section-heading">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Detail Pengajuan
+                </h3>
 
-        <div class="divider-full"></div>
-
-        <div class="detail-container">
-            
-            <div class="detail-section">
-                <h4 class="section-title">Informasi Pengajuan</h4>
-
-                <div class="info-row">
-                    <div class="info-label">Jenis Pengajuan</div>
-                    <div class="info-value">
-                        <span class="badge-basic">{{ $item->type_label ?? $item->type }}</span>
-                        
-                        {{-- [DETAIL KATEGORI CUTI KHUSUS] --}}
-                        @if($typeValue === 'CUTI_KHUSUS' && $item->special_leave_category)
-                            @php
-                                $catMap = [
-                                    'NIKAH_KARYAWAN'   => 'Menikah (4 Hari)',
-                                    'ISTRI_MELAHIRKAN' => 'Istri Melahirkan (2 Hari)',
-                                    'ISTRI_KEGUGURAN'  => 'Istri Keguguran (2 Hari)',
-                                    'KHITANAN_ANAK'    => 'Khitanan Anak (2 Hari)',
-                                    'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak (2 Hari)',
-                                    'NIKAH_ANAK'       => 'Pernikahan Anak (2 Hari)',
-                                    'DEATH_EXTENDED'   => 'Kematian Adik/Kakak/Ipar (2 Hari)',
-                                    'DEATH_CORE'       => 'Kematian Inti (2 Hari)',
-                                    'DEATH_HOUSE'      => 'Kematian Anggota Rumah (1 Hari)',
-                                    'HAJI'             => 'Ibadah Haji (40 Hari)',
-                                    'UMROH'            => 'Ibadah Umroh (14 Hari)',
-                                ];
-                                $catLabel = $catMap[$item->special_leave_category] ?? $item->special_leave_category;
-                            @endphp
-                            <div style="margin-top:6px;">
-                                <span style="font-size:12px; font-weight:600; color:#1e4a8d; background:#eff6ff; padding:4px 10px; border-radius:6px; border:1px solid #dbeafe; display: inline-block;">
-                                    Detail: {{ $catLabel }}
-                                </span>
-                            </div>
-                        @endif
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Jenis</span>
+                        <span class="info-value">
+                            <span class="type-badge {{ $typeBadgeClass }}">{{ $item->type_label ?? $item->type }}</span>
+                        </span>
                     </div>
-                </div>
 
-                <div class="info-row">
-                    <div class="info-label">Periode</div>
-                    <div class="info-value">
-                        {{ $item->start_date->format('d M Y') }}
-                        @if($item->end_date && $item->end_date->ne($item->start_date))
-                            – {{ $item->end_date->format('d M Y') }}
-                        @endif
+                    @if($typeValue === 'CUTI_KHUSUS' && $item->special_leave_category)
+                        @php
+                            $catMap = [
+                                'NIKAH_KARYAWAN'   => 'Menikah (4 Hari)',
+                                'ISTRI_MELAHIRKAN' => 'Istri Melahirkan (2 Hari)',
+                                'ISTRI_KEGUGURAN'  => 'Istri Keguguran (2 Hari)',
+                                'KHITANAN_ANAK'    => 'Khitanan Anak (2 Hari)',
+                                'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak (2 Hari)',
+                                'NIKAH_ANAK'       => 'Pernikahan Anak (2 Hari)',
+                                'DEATH_EXTENDED'   => 'Kematian Adik/Kakak/Ipar (2 Hari)',
+                                'DEATH_CORE'       => 'Kematian Inti (2 Hari)',
+                                'DEATH_HOUSE'      => 'Kematian Anggota Rumah (1 Hari)',
+                                'HAJI'             => 'Ibadah Haji (40 Hari)',
+                                'UMROH'            => 'Ibadah Umroh (14 Hari)',
+                            ];
+                            $catLabel = $catMap[$item->special_leave_category] ?? $item->special_leave_category;
+                        @endphp
+                        <div class="info-item full-width">
+                            <span class="info-label">Kategori</span>
+                            <span class="info-value">{{ $catLabel }}</span>
+                        </div>
+                    @endif
+
+                    <div class="info-item">
+                        <span class="info-label">Tanggal Mulai</span>
+                        <span class="info-value">{{ $item->start_date->format('d M Y') }}</span>
                     </div>
-                </div>
 
-                {{-- [LOGIC LABEL JAM] --}}
-                @php
-                     $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
-                     $endTimeLabel   = $item->end_time ? $item->end_time->format('H:i') : null;
-                @endphp
+                    @if($item->end_date && $item->end_date->ne($item->start_date))
+                    <div class="info-item">
+                        <span class="info-label">Tanggal Selesai</span>
+                        <span class="info-value">{{ $item->end_date->format('d M Y') }}</span>
+                    </div>
+                    @endif
 
-                @if($startTimeLabel)
-                    <div class="info-row">
-                        <div class="info-label">
+                    @php
+                        $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
+                        $endTimeLabel = $item->end_time ? $item->end_time->format('H:i') : null;
+                    @endphp
+
+                    @if($startTimeLabel)
+                    <div class="info-item">
+                        <span class="info-label">
                             @if($endTimeLabel)
                                 Jam Izin
                             @elseif($typeValue === 'IZIN_TELAT')
@@ -143,103 +188,114 @@
                             @else
                                 Jam Mulai
                             @endif
-                        </div>
-                        <div class="info-value">
+                        </span>
+                        <span class="info-value">
                             {{ $startTimeLabel }}
                             @if($endTimeLabel)
                                 – {{ $endTimeLabel }}
                             @endif
-                        </div>
+                        </span>
                     </div>
-                @endif
+                    @endif
 
-                @if($item->approved_by)
-                <div class="info-row">
-                    <div class="info-label">Diputus Oleh</div>
-                    <div class="info-value">
-                        {{ $item->approver?->name }}
-                        @if($item->approved_at)
-                            <div class="text-muted" style="font-size:12px; margin-top:2px;">
-                                {{ $item->approved_at->format('d M Y H:i') }}
-                            </div>
-                        @endif
+                    <div class="info-item">
+                        <span class="info-label">Diajukan</span>
+                        <span class="info-value">{{ $item->created_at->format('d M Y') }} pukul {{ $item->created_at->format('H:i') }}</span>
                     </div>
+
+                    @if($item->substitute_pic)
+                    <div class="info-item">
+                        <span class="info-label">PIC Pengganti</span>
+                        <span class="info-value">{{ $item->substitute_pic }}</span>
+                    </div>
+                    @endif
+
+                    @if($item->substitute_phone)
+                    <div class="info-item">
+                        <span class="info-label">No. Telepon PIC</span>
+                        <span class="info-value">{{ $item->substitute_phone }}</span>
+                    </div>
+                    @endif
+
+                    @if($item->approved_by)
+                    <div class="info-item">
+                        <span class="info-label">Diputus Oleh</span>
+                        <span class="info-value">
+                            {{ $item->approver?->name }}
+                            @if($item->approved_at)
+                                <span class="info-sub">{{ $item->approved_at->format('d M Y H:i') }}</span>
+                            @endif
+                        </span>
+                    </div>
+                    @endif
                 </div>
-                @endif
-
-                {{-- [INFO PIC PENGGANTI] --}}
-                @if($item->substitute_pic)
-                <div class="info-row">
-                    <div class="info-label">PIC Pengganti</div>
-                    <div class="info-value">
-                        {{ $item->substitute_pic }}
-                        @if($item->substitute_phone)
-                            <div style="font-size:12px; color:#6b7280; margin-top:2px;">
-                                {{ $item->substitute_phone }}
-                            </div>
-                        @endif
-                    </div>
-                </div>
-                @endif
-
-                {{-- [SYSTEM NOTES - CATATAN SISTEM] --}}
-                @if($item->notes)
-                <div class="system-note-box">
-                    <div class="note-label">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px; margin-bottom:-2px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Catatan Sistem:
-                    </div>
-                    <div class="note-content">{!! nl2br(e($item->notes)) !!}</div>
-                </div>
-                @endif
-
-                {{-- [CATATAN HRD - DINAMIS (BIRU/MERAH)] --}}
-                @if($item->notes_hrd)
-                    @php
-                        // Tentukan Warna & Label berdasarkan status
-                        if ($item->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
-                            // Status DITOLAK = Merah
-                            $boxBg = '#fef2f2'; $boxBorder = '#fecaca'; $titleColor = '#991b1b'; $textColor = '#7f1d1d';
-                            $titleLabel = 'Alasan Penolakan (HRD):';
-                            $iconPath = 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z'; // Icon Segitiga Warning
-                        } else {
-                            // Default (Approved / Lainnya) = Biru
-                            $boxBg = '#eff6ff'; $boxBorder = '#dbeafe'; $titleColor = '#1e40af'; $textColor = '#1e3a8a';
-                            $titleLabel = 'Catatan HRD:';
-                            $iconPath = 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'; // Icon Info Circle
-                        }
-                    @endphp
-
-                    <div class="system-note-box" style="background-color: {{ $boxBg }}; border-color: {{ $boxBorder }}; margin-top:12px;">
-                        <div class="note-label" style="color: {{ $titleColor }};">
-                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right:4px; margin-bottom:-2px;">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $iconPath }}"></path>
-                            </svg>
-                            {{ $titleLabel }}
-                        </div>
-                        <div class="note-content" style="color: {{ $textColor }}; font-weight:500;">
-                            {{ $item->notes_hrd }}
-                        </div>
-                    </div>
-                @endif
-
             </div>
 
-            <div class="detail-section">
-                <h4 class="section-title">Keterangan & Bukti</h4>
+            {{-- Notes Section --}}
+            @if($item->notes || $item->notes_hrd)
+            <div class="card-section">
+                <h3 class="section-heading">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+                    Catatan
+                </h3>
 
-                <div class="info-row">
-                    <div class="info-label">Alasan</div>
-                    <div class="info-value box-reason">
-                        {{ $item->reason }}
-                    </div>
+                @if($item->notes)
+                <div class="note-box note-system">
+                    <span class="note-label">Catatan Sistem</span>
+                    <p class="note-text">{{ $item->notes }}</p>
                 </div>
+                @endif
+
+                @if($item->notes_hrd)
+                    @php
+                        if ($item->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
+                            $noteBg = '#fef2f2';
+                            $noteBorder = '#fecaca';
+                            $noteLabelColor = '#991b1b';
+                            $noteTextColor = '#7f1d1d';
+                            $noteLabelText = 'Alasan Penolakan (HRD)';
+                        } else {
+                            $noteBg = '#eff6ff';
+                            $noteBorder = '#dbeafe';
+                            $noteLabelColor = '#1e40af';
+                            $noteTextColor = '#1e3a8a';
+                            $noteLabelText = 'Catatan HRD';
+                        }
+                    @endphp
+                    <div class="note-box" style="background: {{ $noteBg }}; border-color: {{ $noteBorder }};">
+                        <span class="note-label" style="color: {{ $noteLabelColor }};">{{ $noteLabelText }}</span>
+                        <p class="note-text" style="color: {{ $noteTextColor }};">{{ $item->notes_hrd }}</p>
+                    </div>
+                @endif
+            </div>
+            @endif
+        </div>
+
+        {{-- RIGHT COLUMN: Reason & Attachments --}}
+        <div class="detail-side">
+
+            {{-- Reason Card --}}
+            <div class="card-section">
+                <h3 class="section-heading">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Alasan Pengajuan
+                </h3>
+                <div class="reason-box">
+                    {{ $item->reason }}
+                </div>
+            </div>
+
+            {{-- Photo & Attachment Card --}}
+            <div class="card-section">
+                <h3 class="section-heading">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    Lampiran
+                </h3>
 
                 @php
                     $url = $item->photo
                         ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
                         : null;
-
                     $authUser = auth()->user();
                     $authRole = $authUser->role instanceof \App\Enums\UserRole ? $authUser->role->value : $authUser->role;
                     $isHrdUploader = in_array(strtoupper((string) $authRole), ['HRD', 'HR STAFF', 'MANAGER'], true);
@@ -248,119 +304,80 @@
                     $canUploadFollowupPhoto = $isHrdUploader || ($isOwnerUploader && $isPendingStatus);
                 @endphp
 
-                <div class="info-row">
-                    <div class="info-label">Lampiran Foto</div>
-                    <div class="info-value">
-                        @if($url)
-                            <div class="photo-preview js-view-photo" data-url="{{ $url }}">
-                                <img src="{{ $url }}" alt="Bukti Izin">
-                                <div class="overlay">
-                                    <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24" style="margin-bottom:4px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                    <span>Lihat Full Screen</span>
-                                </div>
-                            </div>
-                        @else
-                            <span class="text-muted" style="font-style:italic;">Tidak ada lampiran foto.</span>
-                        @endif
-
-                        <div class="followup-note">
-                            Jika foto belum tersedia saat pengajuan dibuat, foto bisa di upload selanjutnya.
+                @if($url)
+                    <div class="photo-card js-view-photo" data-url="{{ $url }}">
+                        <img src="{{ $url }}" alt="Bukti Izin">
+                        <div class="photo-overlay">
+                            <svg width="28" height="28" fill="none" stroke="#fff" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <span>Lihat Full Screen</span>
                         </div>
+                    </div>
+                @else
+                    <div class="no-photo">
+                        <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span>Tidak ada lampiran foto</span>
+                    </div>
+                @endif
 
-                        @if($canUploadFollowupPhoto)
-                            <form method="POST" action="{{ route('leave-requests.upload-photo', $item) }}" enctype="multipart/form-data" class="upload-followup-form">
-                                @csrf
-                                <input
-                                    type="file"
-                                    name="photo"
-                                    id="followupPhotoInput"
-                                    class="form-control-file"
-                                    accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx"
-                                    required>
-                                <button type="submit" id="followupUploadBtn" class="btn-modern btn-upload-photo is-hidden" aria-hidden="true">
-                                    Upload Foto
-                                </button>
-                            </form>
-                            <div id="followupPhotoPreviewContainer" class="followup-preview-container" style="display:none;">
-                                <p class="followup-preview-label">Preview Foto:</p>
-                                <img id="followupPhotoPreview" src="#" alt="Preview foto baru">
+                @if($canUploadFollowupPhoto)
+                    <div class="upload-section">
+                        <p class="upload-hint">Foto bisa diunggah jika belum tersedia saat pengajuan dibuat.</p>
+                        <form method="POST" action="{{ route('leave-requests.upload-photo', $item) }}" enctype="multipart/form-data" class="upload-form">
+                            @csrf
+                            <div class="file-input-wrapper">
+                                <input type="file" name="photo" id="followupPhotoInput" class="file-input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" required>
+                                <label for="followupPhotoInput" class="file-label">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                                    Pilih File
+                                </label>
                             </div>
-                            <small class="helper-upload-text">
-                                Format: JPG, PNG, HEIC, PDF, DOCX, XLSX. Maksimal 8 MB.
-                            </small>
-                        @endif
+                            <button type="submit" id="followupUploadBtn" class="btn-upload is-hidden">
+                                Upload
+                            </button>
+                        </form>
+                        <div id="followupPhotoPreviewContainer" class="preview-container" style="display:none;">
+                            <p class="preview-label">Preview:</p>
+                            <img id="followupPhotoPreview" src="#" alt="Preview">
+                        </div>
+                        <p class="format-hint">Format: JPG, PNG, HEIC, PDF, DOCX, XLSX. Maksimal 8 MB.</p>
                     </div>
-                </div>
-
-                @if($item->latitude && $item->longitude)
-                <div class="info-row" style="margin-top:20px;">
-                    <div class="info-label">
-                        Lokasi Pengajuan
-                        <span style="font-weight:400; color:#6b7280; font-size:11px;">(±{{ (int)$item->accuracy_m }}m)</span>
-                    </div>
-                    <div class="map-container">
-                        <iframe
-                            src="https://www.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed"
-                            loading="lazy"
-                            allowfullscreen>
-                        </iframe>
-                    </div>
-                    <div style="margin-top:6px;">
-                        <a href="https://www.google.com/maps/search/?api=1&query={{ $item->latitude }},{{ $item->longitude }}" 
-                           target="_blank" class="link-map">
-                           Buka di Google Maps ↗
-                        </a>
-                    </div>
-                </div>
                 @endif
             </div>
-        </div>
 
-        <div class="action-footer">
-            <div class="left-action">
-                <a href="{{ route('leave-requests.index') }}" class="btn-modern btn-back">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-                    Kembali
+            {{-- Location Card --}}
+            @if($item->latitude && $item->longitude)
+            <div class="card-section">
+                <h3 class="section-heading">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    Lokasi Pengajuan
+                </h3>
+                <div class="map-wrapper">
+                    <iframe src="https://www.google.com/maps?q={{ $item->latitude }},{{ $item->longitude }}&z=16&output=embed" loading="lazy" allowfullscreen></iframe>
+                </div>
+                <a href="https://www.google.com/maps/search/?api=1&query={{ $item->latitude }},{{ $item->longitude }}" target="_blank" class="map-link">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                    Buka di Google Maps
                 </a>
+                <span class="accuracy-badge">±{{ (int)$item->accuracy_m }}m</span>
             </div>
-
-            <div class="right-action">
-                {{-- Hanya bisa batal jika status masih pending --}}
-                @if(in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR]))
-                    @can('delete', $item)
-                        <button type="button" data-modal-target="modal-delete" class="btn-modern btn-danger-outline">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            Batalkan Pengajuan
-                        </button>
-                    @endcan
-                @endif
-
-                @if(!$item->is_pending && !auth()->user()->can('approve', $item))
-                    <div class="processed-info">
-                        @if($item->status == \App\Models\LeaveRequest::STATUS_APPROVED)
-                             @php
-                                $roleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
-                                $isOwnerHRD = in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER']);
-                             @endphp
-                             <span style="color:#166534; font-weight:600;">
-                                {{ $isOwnerHRD ? 'Disetujui' : 'Disetujui HRD' }}
-                             </span>
-                        @elseif($item->status == \App\Models\LeaveRequest::STATUS_REJECTED)
-                             <span style="color:#991b1b; font-weight:600;">❌ Ditolak</span>
-                        @elseif($item->status == 'BATAL')
-                             <span style="color:#6b7280; font-weight:600;">🚫 Dibatalkan</span>
-                        @else
-                             Status: <strong>{{ $statusLabel }}</strong>
-                        @endif
-                    </div>
-                @endif
-            </div>
+            @endif
         </div>
     </div>
 
-    {{-- [SIMPLE FULL SCREEN VIEWER] --}}
-    <div id="simple-viewer" class="simple-viewer-overlay" style="display: none;">
-        <button type="button" id="btn-close-simple" class="btn-close-simple">
+    @if(in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR]))
+        @can('delete', $item)
+    <div class="action-bar">
+        <button type="button" data-modal-target="modal-delete" class="btn-action btn-cancel">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            Batalkan Pengajuan
+        </button>
+    </div>
+        @endcan
+    @endif
+
+    {{-- FULL SCREEN VIEWER --}}
+    <div id="simple-viewer" class="viewer-overlay" style="display: none;">
+        <button type="button" id="btn-close-simple" class="viewer-close">
             <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
         <img id="simple-viewer-img" src="" alt="Full Preview">
@@ -369,17 +386,18 @@
     @can('delete', $item)
     <x-modal
         id="modal-delete"
-        title="Batalkan Pengajuan?"
+        title="Yakin Ingin Membatalkan?"
         type="confirm"
+        variant="danger"
         confirmLabel="Ya, Batalkan"
-        cancelLabel="Tidak"
+        cancelLabel="Batal"
         :confirmFormAction="route('leave-requests.destroy', $item)"
         confirmFormMethod="DELETE">
         <p style="margin:0; color:#374151;">
-            Apakah Anda yakin ingin membatalkan pengajuan izin ini?
+            Pengajuan ini akan dibatalkan dan tidak akan diproses lebih lanjut.
         </p>
         <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
-            Status akan berubah menjadi <strong>BATAL</strong> dan tidak akan diproses lebih lanjut.
+            Status akan berubah menjadi <strong>BATAL</strong>. Data tetap tersimpan sebagai riwayat.
         </p>
     </x-modal>
     @endcan
@@ -394,47 +412,31 @@
             const followupPreviewContainer = document.getElementById('followupPhotoPreviewContainer');
             const followupPreviewImg = document.getElementById('followupPhotoPreview');
 
-            // Fungsi Buka Viewer
             document.querySelectorAll('.js-view-photo').forEach(el => {
                 el.addEventListener('click', () => {
                     const url = el.getAttribute('data-url');
                     if(url && viewer && viewerImg) {
                         viewerImg.src = url;
                         viewer.style.display = 'flex';
-                        document.body.style.overflow = 'hidden'; 
+                        document.body.style.overflow = 'hidden';
                     }
                 });
             });
 
-            // Fungsi Tutup Viewer
             function closeViewer() {
                 if (viewer) viewer.style.display = 'none';
                 if (viewerImg) viewerImg.src = '';
-                document.body.style.overflow = ''; 
+                document.body.style.overflow = '';
             }
 
             if (closeBtn) closeBtn.addEventListener('click', closeViewer);
-
-            if (viewer) {
-                viewer.addEventListener('click', (e) => {
-                    if (e.target === viewer) {
-                        closeViewer();
-                    }
-                });
-            }
-
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && viewer.style.display === 'flex') {
-                    closeViewer();
-                }
-            });
+            if (viewer) viewer.addEventListener('click', (e) => { if (e.target === viewer) closeViewer(); });
+            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer.style.display === 'flex') closeViewer(); });
 
             if (followupPhotoInput && followupUploadBtn) {
                 const toggleUploadButton = () => {
                     const hasFile = followupPhotoInput.files && followupPhotoInput.files.length > 0;
                     followupUploadBtn.classList.toggle('is-hidden', !hasFile);
-                    followupUploadBtn.setAttribute('aria-hidden', hasFile ? 'false' : 'true');
-
                     const file = hasFile ? followupPhotoInput.files[0] : null;
                     if (file && file.type && file.type.startsWith('image/')) {
                         const reader = new FileReader();
@@ -448,7 +450,6 @@
                         if (followupPreviewImg) followupPreviewImg.src = '';
                     }
                 };
-
                 followupPhotoInput.addEventListener('change', toggleUploadButton);
                 toggleUploadButton();
             }
@@ -456,208 +457,614 @@
     </script>
 
     <style>
-        /* Shared Styles */
-        .simple-viewer-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; }
-        .btn-close-simple { position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; z-index: 100000; }
-        .btn-close-simple:hover { background: rgba(255, 255, 255, 0.3); }
-        #simple-viewer-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-
-        /* --- UTILITY & ALERTS --- */
-        .alert-success { background: #ecfdf5; color: #065f46; padding: 12px 16px; border-radius: 8px; border: 1px solid #a7f3d0; margin-bottom: 16px; font-size: 14px; }
-        .alert-error { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 16px; font-size: 14px; }
-        .text-muted { color: #6b7280; }
-
-        /* --- CARD --- */
-        .card { 
-            background: #fff; 
-            border-radius: 12px; 
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); 
-            border: 1px solid #f3f4f6; 
-            overflow: hidden; 
+        /* === BASE === */
+        :root {
+            --navy: #1e4a8d;
+            --navy-dark: #163a75;
+            --bg-page: #f8fafc;
+            --white: #ffffff;
+            --border: #e5e7eb;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
         }
 
-        /* --- PROFILE HEADER --- */
-        .profile-header { padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; flex-wrap: wrap; background: #fff; }
-        .profile-main { display: flex; gap: 16px; align-items: center; }
-        .profile-avatar { 
-            width: 56px; height: 56px; 
-            background: #eef2ff; color: #1e4a8d; 
-            border-radius: 12px; 
-            display: flex; align-items: center; justify-content: center; 
-            font-size: 22px; font-weight: 700; 
-        }
-        .profile-info { display: flex; flex-direction: column; gap: 4px; }
-        .profile-name { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
-        
-        .profile-meta { font-size: 13px; color: #6b7280; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
-        .dot { color: #d1d5db; display: inline-block; transform: scale(1.2); }
-        .chip-role { 
-            background: #f3f4f6; color: #4b5563; 
-            padding: 2px 8px; border-radius: 6px; 
-            font-size: 11px; text-transform: uppercase; 
-            letter-spacing: 0.04em; font-weight: 600; 
-        }
-        
-        .divider-full { height: 1px; background: #f3f4f6; width: 100%; }
-        
-        /* --- DETAILS LAYOUT --- */
-        .detail-container { 
-            padding: 32px; 
-            display: grid; 
-            grid-template-columns: 1fr 1.5fr; 
-            gap: 48px; 
+        * { box-sizing: border-box; }
+
+        .alert-success { background: #ecfdf5; color: #065f46; padding: 12px 16px; border-radius: 10px; border: 1px solid #a7f3d0; margin-bottom: 16px; font-size: 14px; }
+        .alert-error { background: #fef2f2; color: #991b1b; padding: 12px 16px; border-radius: 10px; border: 1px solid #fecaca; margin-bottom: 16px; font-size: 14px; }
+
+        /* === HEADER === */
+        .detail-header {
+            padding: 16px 24px;
+            background: var(--white);
+            border-bottom: 1px solid var(--border);
         }
 
-        .section-title { 
-            font-size: 14px; font-weight: 700; color: #111827; 
-            text-transform: uppercase; letter-spacing: 0.05em; 
-            margin: 0 0 20px 0; padding-bottom: 8px; 
-            border-bottom: 2px solid #f3f4f6; display: inline-block; 
-        }
-        
-        .info-row { margin-bottom: 20px; }
-        .info-label { font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; }
-        .info-value { font-size: 15px; color: #1f2937; font-weight: 500; line-height: 1.6; }
-        
-        .box-reason { 
-            background: #fdfdfd; 
-            padding: 16px; 
-            border-radius: 12px; 
-            border: 1px solid #f3f4f6; 
-            color: #374151; font-size: 14.5px; 
-            line-height: 1.6;
-        }
-
-        /* --- SYSTEM NOTES --- */
-        .system-note-box { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 10px; padding: 16px; margin-top: 10px; }
-        .note-label { font-size: 12px; font-weight: 700; color: #92400e; margin-bottom: 6px; text-transform: uppercase; display: flex; align-items: center; }
-        .note-content { font-size: 14px; color: #b45309; line-height: 1.5; }
-
-        /* --- BADGES (Unified with Index) --- */
-        .badge-basic { background: #f3f4f6; color: #374151; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; border: 1px solid #e5e7eb; display: inline-block; }
-        
-        .badge-status { display: inline-block; padding: 6px 14px; border-radius: 30px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-        
-        .badge-green { background: #dcfce7; color: #166534; }
-        .badge-red { background: #fee2e2; color: #991b1b; }
-        .badge-yellow { background: #fefce8; color: #a16207; }
-        .badge-blue { background: #eff6ff; color: #1d4ed8; }
-        .badge-gray { background: #f3f4f6; color: #374151; }
-        .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
-
-        /* --- PHOTO PREVIEW --- */
-        .photo-preview { position: relative; width: 100%; max-width: 320px; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.2s; }
-        .photo-preview:hover { transform: translateY(-2px); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .photo-preview img { width: 100%; height: auto; display: block; }
-        .photo-preview .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; flex-direction:column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
-        .photo-preview:hover .overlay { opacity: 1; }
-        .photo-preview .overlay span { color: #fff; font-size: 12px; font-weight: 600; background: rgba(0,0,0,0.6); padding: 6px 14px; border-radius: 20px; backdrop-filter: blur(4px); }
-
-        .followup-note {
-            margin-top: 10px;
-            font-size: 12.5px;
-            color: #1e40af;
-            background: #eff6ff;
-            border: 1px solid #dbeafe;
-            border-radius: 8px;
-            padding: 8px 10px;
-        }
-
-        .upload-followup-form {
-            margin-top: 10px;
-            display: flex;
-            flex-wrap: wrap;
+        .back-link {
+            display: inline-flex;
             align-items: center;
             gap: 8px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--navy); }
+        .back-link svg { transition: transform 0.2s; }
+        .back-link:hover svg { transform: translateX(-4px); }
+
+        /* === MAIN LAYOUT === */
+        .detail-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 24px;
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
-        .btn-upload-photo {
-            min-width: 0;
-            padding: 8px 14px;
-            border-radius: 10px;
-            background: #1e4a8d;
-            color: #fff;
-            border: 1px solid #1e4a8d;
+        .card-section {
+            background: var(--white);
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .section-heading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin: 0 0 20px 0;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section-heading svg { color: var(--navy); }
+
+        /* === EMPLOYEE CARD === */
+        .employee-card {
+            background: var(--white);
+            border: 1px solid var(--border);
+            padding: 28px;
+        }
+
+        .employee-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .avatar-circle {
+            width: 64px;
+            height: 64px;
+            background: var(--navy);
+            color: var(--white);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .employee-info { flex: 1; min-width: 0; }
+
+        .employee-name {
+            margin: 0 0 6px 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.2;
+        }
+
+        .employee-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .role-tag {
+            background: #eff6ff;
+            color: var(--navy);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border: 1px solid #dbeafe;
+        }
+
+        .meta-dot { color: var(--text-muted); }
+
+        .division-name {
+            color: var(--text-secondary);
             font-size: 13px;
         }
 
-        .btn-upload-photo:hover {
-            background: #163a75;
-            border-color: #163a75;
+        /* Status Banner */
+        .status-banner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            margin-top: 16px;
         }
 
-        .btn-upload-photo.is-hidden {
-            display: none;
+        .status-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
 
-        .followup-preview-container {
-            margin-top: 10px;
-            padding: 10px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            background: #f9fafb;
-            max-width: 320px;
+        .status-banner.badge-green { background: #dcfce7; border: 1px solid #bbf7d0; }
+        .status-banner.badge-green .status-icon { background: #166534; color: #fff; }
+        .status-banner.badge-green .status-text { color: #166534; }
+
+        .status-banner.badge-red { background: #fee2e2; border: 1px solid #fecaca; }
+        .status-banner.badge-red .status-icon { background: #991b1b; color: #fff; }
+        .status-banner.badge-red .status-text { color: #991b1b; }
+
+        .status-banner.badge-yellow { background: #fefce8; border: 1px solid #fef08a; }
+        .status-banner.badge-yellow .status-icon { background: #a16207; color: #fff; }
+        .status-banner.badge-yellow .status-text { color: #a16207; }
+
+        .status-banner.badge-teal { background: #ccfbf1; border: 1px solid #99f6e4; }
+        .status-banner.badge-teal .status-icon { background: #0f766e; color: #fff; }
+        .status-banner.badge-teal .status-text { color: #0f766e; }
+
+        .status-banner.badge-gray { background: #f3f4f6; border: 1px solid #e5e7eb; }
+        .status-banner.badge-gray .status-icon { background: #374151; color: #fff; }
+        .status-banner.badge-gray .status-text { color: #374151; }
+
+        .status-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
-        .followup-preview-label {
-            margin: 0 0 6px 0;
+        .status-label {
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .status-sub {
             font-size: 12px;
-            font-weight: 600;
-            color: #4b5563;
+            opacity: 0.8;
         }
 
-        #followupPhotoPreview {
+        /* === INFO GRID === */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .info-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .info-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .info-value {
+            font-size: 15px;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .info-sub {
+            display: block;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        /* Type Badge */
+        .type-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .type-blue { background: #eff6ff; color: #1e4a8d; }
+        .type-yellow { background: #fefce8; color: #a16207; }
+        .type-orange { background: #fff7ed; color: #c2410c; }
+        .type-purple { background: #f3e8ff; color: #7e22ce; }
+
+        /* Status Badge (for detail page type display) */
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-red { background: #fee2e2; color: #991b1b; }
+        .badge-yellow { background: #fefce8; color: #a16207; }
+        .badge-teal { background: #ccfbf1; color: #0f766e; border: 1px solid #99f6e4; }
+        .badge-gray { background: #f3f4f6; color: #374151; }
+
+        /* === NOTES === */
+        .note-box {
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid;
+            margin-bottom: 12px;
+        }
+
+        .note-system {
+            background: #fffbeb;
+            border-color: #fef3c7;
+        }
+
+        .note-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+            color: #92400e;
+        }
+
+        .note-text {
+            margin: 0;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #b45309;
+        }
+
+        /* === REASON BOX === */
+        .reason-box {
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            font-size: 15px;
+            line-height: 1.7;
+            color: #374151;
+        }
+
+        /* === PHOTO === */
+        .photo-card {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .photo-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+
+        .photo-card img {
             width: 100%;
             height: auto;
             display: block;
-            border-radius: 6px;
         }
 
-        .helper-upload-text {
-            display: block;
-            margin-top: 6px;
+        .photo-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .photo-card:hover .photo-overlay { opacity: 1; }
+
+        .photo-overlay span {
+            color: var(--white);
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(0,0,0,0.6);
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+
+        .no-photo {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 40px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border: 1px dashed var(--border);
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .no-photo span { font-size: 13px; }
+
+        /* === UPLOAD === */
+        .upload-section { margin-top: 20px; }
+
+        .upload-hint {
+            font-size: 13px;
+            color: var(--navy);
+            background: #eff6ff;
+            border: 1px solid #dbeafe;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin: 0 0 12px 0;
+        }
+
+        .upload-form {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .file-input-wrapper { position: relative; }
+
+        .file-input {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-label:hover {
+            border-color: var(--navy);
+            color: var(--navy);
+        }
+
+        .btn-upload {
+            padding: 10px 20px;
+            background: var(--navy);
+            color: var(--white);
+            border: none;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-upload:hover { background: var(--navy-dark); }
+        .btn-upload.is-hidden { display: none; }
+
+        .preview-container {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f9fafb;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+        }
+
+        .preview-label {
+            margin: 0 0 8px 0;
             font-size: 12px;
-            color: #6b7280;
+            font-weight: 600;
+            color: var(--text-secondary);
         }
 
-        /* --- MAP --- */
-        .map-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; border: 1px solid #e5e7eb; margin-top: 6px; }
-        .map-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
-        .link-map { font-size: 13px; color: #1e4a8d; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
-        .link-map:hover { text-decoration: underline; }
-
-        /* --- FOOTER ACTION --- */
-        .action-footer { background: #f9fafb; padding: 20px 32px; border-top: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
-        .right-action { display: flex; gap: 12px; align-items: center; }
-
-        /* --- BUTTONS --- */
-        .btn-modern { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 22px; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; text-decoration: none; line-height: 1.25; min-width: 140px; }
-        
-        .btn-back { background: #fff; border-color: #d1d5db; color: #374151; }
-        .btn-back:hover { background: #f3f4f6; border-color: #9ca3af; color: #111827; }
-
-        .btn-danger-outline { background: #fff; border-color: #fee2e2; color: #dc2626; }
-        .btn-danger-outline:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
-
-        .processed-info { font-size: 13.5px; color: #6b7280; background: #fff; padding: 8px 16px; border-radius: 8px; border: 1px solid #e5e7eb; font-weight: 500; }
-
-        /* --- RESPONSIVE --- */
-        @media(max-width: 1024px) {
-            .detail-container { grid-template-columns: 1fr; gap: 32px; padding: 24px; }
-            .section-title { width: 100%; border-bottom-width: 1px; }
+        .preview-container img {
+            width: 100%;
+            max-width: 280px;
+            border-radius: 8px;
         }
 
-        @media(max-width: 640px) {
-            .profile-header { flex-direction: column; gap: 16px; align-items: stretch; padding: 20px; }
-            .status-wrapper { align-self: flex-start; }
-            
-            .action-footer { flex-direction: column; gap: 16px; align-items: stretch; padding: 16px 20px; }
-            .left-action, .right-action { width: 100%; justify-content: stretch; }
-            .right-action { flex-direction: column; gap: 10px; }
-            .btn-modern { width: 100%; justify-content: center; min-width: 0; }
-            .btn-modern svg { margin-right: 4px; }
-            
-            .info-value { font-size: 14px; }
+        .format-hint {
+            margin: 8px 0 0 0;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* === MAP === */
+        .map-wrapper {
+            position: relative;
+            padding-bottom: 56.25%;
+            height: 0;
+            overflow: hidden;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 12px;
+        }
+
+        .map-wrapper iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 0;
+        }
+
+        .map-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--navy);
+            text-decoration: none;
+        }
+
+        .map-link:hover { text-decoration: underline; }
+
+        .accuracy-badge {
+            display: inline-block;
+            margin-left: 12px;
+            font-size: 11px;
+            color: var(--text-muted);
+            background: #f3f4f6;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        /* === ACTION BAR === */
+        .action-bar {
+            background: var(--white);
+            border-top: 1px solid var(--border);
+            padding: 16px 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .btn-cancel {
+            background: var(--white);
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+
+        .btn-cancel:hover {
+            background: #fef2f2;
+            border-color: #fca5a5;
+        }
+
+        /* === VIEWER === */
+        .viewer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .viewer-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: var(--white);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .viewer-close:hover { background: rgba(255,255,255,0.25); }
+
+        #simple-viewer-img {
+            max-width: 95vw;
+            max-height: 95vh;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 1024px) {
+            .detail-layout {
+                grid-template-columns: 1fr;
+                padding: 16px;
+                gap: 16px;
+            }
+
+            .detail-side { order: -1; }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .detail-header {
+                padding: 12px 16px;
+            }
+
+            .card-section {
+                padding: 16px;
+                margin-bottom: 12px;
+            }
+
+            .employee-card {
+                padding: 20px;
+            }
+
+            .avatar-circle {
+                width: 52px;
+                height: 52px;
+                font-size: 22px;
+                border-radius: 12px;
+            }
+
+            .employee-name {
+                font-size: 18px;
+            }
+
+            .status-banner {
+                padding: 14px 16px;
+            }
+
+            .map-link, .accuracy-badge {
+                display: block;
+                margin-left: 0;
+                margin-top: 8px;
+            }
         }
     </style>
 

@@ -1,339 +1,494 @@
 <x-app title="Divisi & Jabatan">
 
-  <div class="tabs-container">
-    <button class="tab-btn active" data-target="#tab-divisi">
-      Divisi
-    </button>
-    <button class="tab-btn" data-target="#tab-jabatan">
-      Jabatan
-    </button>
-  </div>
+    <div class="org-container">
 
-  <div id="tab-divisi" class="tab-content active">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Daftar Divisi</h3>
-        <a href="{{ route('hr.divisions.create') }}" class="btn-add">
-          + Tambah Divisi
-        </a>
-      </div>
+        {{-- Flash Messages --}}
+        @if(session('success'))
+        <div class="flash flash-success">
+            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span>{{ session('success') }}</span>
+        </div>
+        @endif
 
-      <div class="table-wrapper">
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>Nama Divisi</th>
-              <th>Supervisor</th>
-              <th class="text-center" style="width: 140px;">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            @forelse($divisions as $division)
-            <tr>
-              <td class="fw-bold">{{ $division->name }}</td>
-              <td>
-                @if($division->supervisor)
-                  <div class="user-info">
-                    <span>{{ $division->supervisor->name }}</span>
-                  </div>
+        {{-- Tab Navigation --}}
+        <div class="org-tabs">
+            <button class="org-tab-btn active" data-tab="divisi">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Divisi
+            </button>
+            <button class="org-tab-btn" data-tab="jabatan">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                Jabatan
+            </button>
+        </div>
+
+        {{-- Tab: Divisi --}}
+        <div id="tab-divisi" class="org-tab-content active">
+            <div class="org-card">
+                <div class="org-card-header">
+                    <div class="org-card-title">
+                        <span class="org-card-count">{{ $divisions->count() }}</span>
+                        <span>Divisi</span>
+                    </div>
+                    <a href="{{ route('hr.divisions.create') }}" class="org-btn org-btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Tambah Divisi
+                    </a>
+                </div>
+
+                @if($divisions->isEmpty())
+                <div class="org-empty">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <p>Belum ada data divisi.</p>
+                </div>
                 @else
-                  <span class="text-muted">-</span>
+                <div class="org-table-wrap">
+                    <table class="org-table">
+                        <thead>
+                            <tr>
+                                <th>Nama Divisi</th>
+                                <th>Supervisor</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($divisions as $division)
+                            <tr>
+                                <td>
+                                    <div class="org-name-cell">
+                                        <div class="org-avatar-sm">{{ substr($division->name, 0, 1) }}</div>
+                                        <span class="org-name">{{ $division->name }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if($division->supervisor)
+                                    <span class="org-badge org-badge-blue">{{ $division->supervisor->name }}</span>
+                                    @else
+                                    <span class="org-text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td class="org-actions-cell">
+                                    <a href="{{ route('hr.divisions.edit', $division->id) }}" class="org-icon-btn" title="Edit">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </a>
+                                    <button type="button" class="org-icon-btn org-icon-btn-danger" title="Hapus" data-modal-open="modal-delete-division-{{ $division->id }}">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
                 @endif
-              </td>
-              <td>
-                <div class="action-buttons">
-                  <a href="{{ route('hr.divisions.edit', $division->id) }}" class="btn-action edit">
-                    Edit
-                  </a>
-                  
-                  <form method="POST" action="{{ route('hr.divisions.destroy', $division->id) }}" onsubmit="return confirm('Hapus divisi ini?')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn-action delete">
-                      Hapus
-                    </button>
-                  </form>
+            </div>
+        </div>
+
+        {{-- Tab: Jabatan --}}
+        <div id="tab-jabatan" class="org-tab-content">
+            <div class="org-card">
+                <div class="org-card-header">
+                    <div class="org-card-title">
+                        <span class="org-card-count">{{ $positions->count() }}</span>
+                        <span>Jabatan</span>
+                    </div>
+                    <a href="{{ route('hr.positions.create') }}" class="org-btn org-btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Tambah Jabatan
+                    </a>
                 </div>
-              </td>
-            </tr>
-            @empty
-            <tr>
-              <td colspan="3" class="empty-state">
-                Belum ada data divisi.
-              </td>
-            </tr>
-            @endforelse
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
 
-  <div id="tab-jabatan" class="tab-content" style="display: none;">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Daftar Jabatan</h3>
-        <a href="{{ route('hr.positions.create') }}" class="btn-add">
-          + Tambah Jabatan
-        </a>
-      </div>
-
-      <div class="table-wrapper">
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>Nama Jabatan</th>
-              <th>Divisi</th>
-              <th class="text-center" style="width: 140px;">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            @forelse($positions as $position)
-            <tr>
-              <td class="fw-bold">{{ $position->name }}</td>
-              <td>
-                <span class="badge-divisi">{{ $position->division?->name ?? '-' }}</span>
-              </td>
-              <td>
-                <div class="action-buttons">
-                  <a href="{{ route('hr.positions.edit', $position->id) }}" class="btn-action edit">
-                    Edit
-                  </a>
-
-                  <form method="POST" action="{{ route('hr.positions.destroy', $position->id) }}" onsubmit="return confirm('Hapus jabatan ini?')">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn-action delete">
-                      Hapus
-                    </button>
-                  </form>
+                @if($positions->isEmpty())
+                <div class="org-empty">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                    <p>Belum ada data jabatan.</p>
                 </div>
-              </td>
-            </tr>
-            @empty
-            <tr>
-              <td colspan="3" class="empty-state">
-                Belum ada data jabatan.
-              </td>
-            </tr>
-            @endforelse
-          </tbody>
-        </table>
-      </div>
+                @else
+                <div class="org-table-wrap">
+                    <table class="org-table">
+                        <thead>
+                            <tr>
+                                <th>Nama Jabatan</th>
+                                <th>Divisi</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($positions as $position)
+                            <tr>
+                                <td>
+                                    <div class="org-name-cell">
+                                        <div class="org-avatar-sm org-avatar-purple">{{ substr($position->name, 0, 1) }}</div>
+                                        <span class="org-name">{{ $position->name }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if($position->division)
+                                    <span class="org-badge org-badge-green">{{ $position->division->name }}</span>
+                                    @else
+                                    <span class="org-text-muted">Tanpa Divisi</span>
+                                    @endif
+                                </td>
+                                <td class="org-actions-cell">
+                                    <a href="{{ route('hr.positions.edit', $position->id) }}" class="org-icon-btn" title="Edit">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </a>
+                                    <button type="button" class="org-icon-btn org-icon-btn-danger" title="Hapus" data-modal-open="modal-delete-position-{{ $position->id }}">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    </button>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endif
+            </div>
+        </div>
+
     </div>
-  </div>
 
-  <style>
-    /* --- TABS --- */
-    .tabs-container {
-      display: flex;
-      gap: 24px;
-      border-bottom: 1px solid #e5e7eb;
-      margin-bottom: 20px;
-    }
+    {{-- Delete Modals for Divisions --}}
+    @foreach($divisions as $division)
+    <x-modal
+        :id="'modal-delete-division-' . $division->id"
+        title="Hapus Divisi"
+        variant="danger"
+        type="confirm"
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        :confirmFormAction="route('hr.divisions.destroy', $division->id)"
+        confirmFormMethod="DELETE"
+    >
+        <p>Apakah Anda yakin ingin menghapus divisi <strong>{{ $division->name }}</strong>?</p>
+        <p style="color:#6b7280; font-size:0.85rem; margin-top:8px;">Tindakan ini tidak dapat dibatalkan.</p>
+    </x-modal>
+    @endforeach
 
-    .tab-btn {
-      padding: 12px 4px;
-      background: none;
-      border: none;
-      font-size: 15px;
-      cursor: pointer;
-      color: #6b7280;
-      font-weight: 500;
-      border-bottom: 3px solid transparent;
-      transition: all 0.2s;
-    }
+    {{-- Delete Modals for Positions --}}
+    @foreach($positions as $position)
+    <x-modal
+        :id="'modal-delete-position-' . $position->id"
+        title="Hapus Jabatan"
+        variant="danger"
+        type="confirm"
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        :confirmFormAction="route('hr.positions.destroy', $position->id)"
+        confirmFormMethod="DELETE"
+    >
+        <p>Apakah Anda yakin ingin menghapus jabatan <strong>{{ $position->name }}</strong>?</p>
+        <p style="color:#6b7280; font-size:0.85rem; margin-top:8px;">Tindakan ini tidak dapat dibatalkan.</p>
+    </x-modal>
+    @endforeach
 
-    .tab-btn:hover {
-      color: #1e4a8d;
-    }
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.org-tab-btn');
+            const contents = document.querySelectorAll('.org-tab-content');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    contents.forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+                });
+            });
 
-    .tab-btn.active {
-      color: #1e4a8d;
-      font-weight: 700;
-      border-bottom-color: #1e4a8d;
-    }
+            // Modal open handlers
+            const openButtons = document.querySelectorAll('[data-modal-open]');
+            openButtons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var id = btn.getAttribute('data-modal-open');
+                    if (!id) return;
+                    var modal = document.getElementById(id);
+                    if (modal) modal.style.display = 'flex';
+                });
+            });
 
-    /* --- CARD & HEADER --- */
-    .card {
-      background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-      border: 1px solid #f3f4f6;
-      overflow: hidden; /* Supaya sudut tabel ikut rounded */
-    }
+            // Modal close handlers
+            const closeButtons = document.querySelectorAll('[data-modal-close="true"]');
+            closeButtons.forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var modal = btn.closest('.modal-backdrop');
+                    if (modal) modal.style.display = 'none';
+                });
+            });
 
-    .card-header {
-      padding: 16px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #f3f4f6;
-      background: #fff;
-    }
-
-    .card-title {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 700;
-      color: #1f2937;
-    }
-
-    .btn-add {
-      padding: 8px 16px;
-      border-radius: 8px;
-      background: #1e4a8d;
-      color: #fff;
-      font-size: 13px;
-      font-weight: 600;
-      text-decoration: none;
-      transition: background 0.2s;
-    }
-
-    .btn-add:hover {
-      background: #163a75;
-    }
-
-    /* --- TABLE STYLING --- */
-    .table-wrapper {
-      width: 100%;
-      overflow-x: auto; /* Agar bisa discroll di HP */
-    }
-
-    .custom-table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 600px; /* Min width agar tabel tidak gepeng di HP */
-    }
-
-    .custom-table th,
-    .custom-table td {
-      padding: 14px 20px;
-      text-align: left;
-      border-bottom: 1px solid #f3f4f6;
-      font-size: 14px;
-    }
-
-    .custom-table th {
-      background: #f9fafb;
-      font-weight: 600;
-      color: #4b5563;
-      text-transform: uppercase;
-      font-size: 12px;
-      letter-spacing: 0.05em;
-    }
-
-    .custom-table tr:last-child td {
-      border-bottom: none;
-    }
-    
-    .custom-table tr:hover td {
-      background: #fdfdfd;
-    }
-
-    .fw-bold {
-      font-weight: 600;
-      color: #1f2937;
-    }
-
-    .text-muted {
-      color: #9ca3af;
-      font-style: italic;
-    }
-    
-    .text-center {
-        text-align: center !important;
-    }
-
-    .badge-divisi {
-        background: #eef2ff;
-        color: #1e4a8d;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    /* --- ACTION BUTTONS --- */
-    .action-buttons {
-      display: flex;
-      justify-content: flex-end; /* Tombol rata kanan */
-      gap: 8px;
-    }
-
-    .btn-action {
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      text-decoration: none;
-      cursor: pointer;
-      display: inline-block;
-      border: 1px solid transparent;
-      transition: all 0.2s;
-    }
-
-    .btn-action.edit {
-      background: #fff;
-      border-color: #d1d5db;
-      color: #374151;
-    }
-
-    .btn-action.edit:hover {
-      background: #f3f4f6;
-      border-color: #9ca3af;
-    }
-
-    .btn-action.delete {
-      background: #fee2e2;
-      border-color: #fecaca;
-      color: #b91c1c;
-    }
-
-    .btn-action.delete:hover {
-      background: #fecaca;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 40px !important;
-      color: #9ca3af;
-    }
-  </style>
-
-  @push('scripts')
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const tabs = document.querySelectorAll('.tab-btn');
-      const contents = document.querySelectorAll('.tab-content');
-
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          // Reset Active State
-          tabs.forEach(t => t.classList.remove('active'));
-          contents.forEach(c => c.style.display = 'none');
-
-          // Set New Active State
-          tab.classList.add('active');
-          const targetId = tab.getAttribute('data-target');
-          const targetContent = document.querySelector(targetId);
-          
-          if(targetContent) {
-              targetContent.style.display = 'block';
-              // Add slight fade in effect
-              targetContent.style.opacity = 0;
-              setTimeout(() => targetContent.style.opacity = 1, 50);
-          }
+            // Close modal on backdrop click
+            const modals = document.querySelectorAll('.modal-backdrop');
+            modals.forEach(function(modal) {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) modal.style.display = 'none';
+                });
+            });
         });
-      });
-      
-      // Init fade effect style
-      contents.forEach(c => {
-          c.style.transition = 'opacity 0.2s ease';
-          if(c.style.display === 'none') c.style.opacity = 0;
-      });
-    });
-  </script>
-  @endpush
+    </script>
 
+    <style>
+        /* === BASE VARIABLES === */
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #64748b;
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success-bg: #f0fdf4;
+            --success-text: #15803d;
+            --success-border: #bbf7d0;
+            --danger-bg: #fef2f2;
+            --danger-text: #b91c1c;
+            --danger-border: #fecaca;
+            --blue-light: #eff6ff;
+            --blue-text: #1d4ed8;
+            --purple-light: #faf5ff;
+            --purple-text: #7e22ce;
+            --green-light: #f0fdf4;
+            --green-text: #15803d;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+        }
+
+        /* === RESET & BASE === */
+        .org-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 16px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-main);
+        }
+
+        /* === FLASH MESSAGES === */
+        .flash {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .flash-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+        /* === TABS === */
+        .org-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 4px;
+        }
+        .org-tab-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .org-tab-btn svg { width: 18px; height: 18px; }
+        .org-tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+        }
+        .org-tab-content { display: none; }
+        .org-tab-content.active { display: block; }
+
+        /* === CARD === */
+        .org-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+        .org-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: #fafafa;
+        }
+        .org-card-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .org-card-count {
+            background: var(--primary);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+
+        /* === BUTTONS === */
+        .org-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+        }
+        .org-btn svg { width: 16px; height: 16px; }
+        .org-btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .org-btn-primary:hover { background: var(--primary-dark); }
+
+        /* === TABLE === */
+        .org-table-wrap { overflow-x: auto; }
+        .org-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 500px;
+        }
+        .org-table th {
+            text-align: left;
+            padding: 12px 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: var(--bg-body);
+            border-bottom: 1px solid var(--border);
+        }
+        .org-table td {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+        .org-table tr:last-child td { border-bottom: none; }
+        .org-table tr:hover td { background: #fafafa; }
+
+        /* === NAME CELL === */
+        .org-name-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .org-avatar-sm {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            background: var(--blue-light);
+            color: var(--blue-text);
+            font-size: 0.85rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .org-avatar-purple {
+            background: var(--purple-light);
+            color: var(--purple-text);
+        }
+        .org-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* === BADGES === */
+        .org-badge {
+            display: inline-flex;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 20px;
+        }
+        .org-badge-blue { background: var(--blue-light); color: var(--blue-text); }
+        .org-badge-green { background: var(--green-light); color: var(--green-text); }
+
+        /* === COUNT === */
+        .org-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            background: var(--bg-body);
+            color: var(--text-main);
+            font-size: 0.85rem;
+            font-weight: 700;
+            border-radius: var(--radius-sm);
+        }
+
+        /* === TEXT UTILITIES === */
+        .org-text-muted { color: var(--text-muted); font-size: 0.9rem; }
+
+        /* === ACTIONS === */
+        .org-actions-cell { text-align: right; white-space: nowrap; }
+        .org-icon-btn {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: 0.2s;
+            vertical-align: middle;
+        }
+        .org-icon-btn:hover { background: var(--bg-body); color: var(--primary); }
+        .org-icon-btn-danger:hover { background: var(--danger-bg); color: var(--danger-text); }
+        .org-icon-btn svg { width: 16px; height: 16px; }
+
+        /* === EMPTY STATE === */
+        .org-empty {
+            padding: 60px 24px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        .org-empty svg { width: 56px; height: 56px; margin-bottom: 16px; opacity: 0.3; }
+        .org-empty p { font-size: 0.95rem; margin: 0; }
+
+        /* === MOBILE RESPONSIVE === */
+        @media (max-width: 640px) {
+            .org-card-header {
+                flex-direction: column;
+                gap: 12px;
+                align-items: flex-start;
+            }
+            .org-btn-primary { width: 100%; justify-content: center; }
+            .org-tab-btn { padding: 10px 12px; font-size: 0.85rem; }
+            .org-tab-btn svg { width: 16px; height: 16px; }
+            .org-table th, .org-table td { padding: 12px 14px; }
+        }
+    </style>
 </x-app>

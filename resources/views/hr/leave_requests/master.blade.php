@@ -1,523 +1,244 @@
 <x-app title="Master Izin / Cuti">
 
-    @if(session('success'))
-    <div class="alert-success">
-        {{ session('success') }}
-    </div>
-    @endif
+    <div class="leave-master-container">
 
-    <div class="card mb-4">
-        <div class="card-header-simple">
-            <div>
-                <h4 class="card-title-sm">Filter Data</h4>
-                <p class="card-subtitle-sm">Cari riwayat pengajuan izin dan cuti karyawan.</p>
+        {{-- Flash Messages --}}
+        @if(session('success'))
+        <div class="flash flash-success">
+            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span>{{ session('success') }}</span>
+        </div>
+        @endif
+
+        {{-- Page Header --}}
+        <div class="page-header">
+            <div class="page-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             </div>
-            <a href="{{ route('hr.leave.manual.create') }}" class="btn-primary btn-create">
+            <div class="page-header-text">
+                <h1 class="page-title">Master Izin & Cuti</h1>
+                <p class="page-subtitle">Riwayat lengkap pengajuan izin dan cuti seluruh karyawan.</p>
+            </div>
+            <a href="{{ route('hr.leave.manual.create') }}" class="btn btn-primary ml-auto">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Tambah Data
             </a>
         </div>
-        
-        <form method="GET" action="{{ route('hr.leave.master') }}" class="filter-container">
-            <div class="filter-group">
-                <label>Tanggal Pengajuan</label>
-                <input type="text"
-                    id="submitted_range"
-                    name="submitted_range"
-                    value="{{ $submittedRange ?? '' }}"
-                    placeholder="Rentang tanggal..."
-                    class="form-control"
-                    autocomplete="off">
+
+        {{-- Filter Card --}}
+        <div class="filter-card">
+            <div class="filter-header">
+                <div class="filter-title-row">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="filter-icon"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                    <span>Filter Data</span>
+                </div>
             </div>
 
-            <div class="filter-group">
-                <label>Periode Izin</label>
-                <input type="text"
-                    id="period_range"
-                    name="period_range"
-                    value="{{ $periodRange ?? '' }}"
-                    placeholder="Rentang periode izin..."
-                    class="form-control"
-                    autocomplete="off">
-            </div>
+            <form method="GET" action="{{ route('hr.leave.master') }}" class="filter-form">
+                <div class="filter-grid">
+                    <div class="filter-group">
+                        <label for="submitted_range">Tanggal Pengajuan</label>
+                        <input type="text"
+                            id="submitted_range"
+                            name="submitted_range"
+                            value="{{ $submittedRange ?? '' }}"
+                            placeholder="Pilih rentang tanggal..."
+                            class="form-input"
+                            autocomplete="off">
+                    </div>
 
-            <div class="filter-group">
-                <label>Jenis</label>
-                <select name="type" class="form-control">
-                    <option value="">Semua Jenis</option>
-                    @foreach($typeOptions as $case)
+                    <div class="filter-group">
+                        <label for="period_range">Periode Izin</label>
+                        <input type="text"
+                            id="period_range"
+                            name="period_range"
+                            value="{{ $periodRange ?? '' }}"
+                            placeholder="Pilih rentang periode..."
+                            class="form-input"
+                            autocomplete="off">
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="type">Jenis</label>
+                        <select name="type" id="type" class="form-input">
+                            <option value="">Semua Jenis</option>
+                            @foreach($typeOptions as $case)
+                                @php
+                                    $val = $case->value;
+                                    $lbl = ($val === \App\Enums\LeaveType::CUTI_KHUSUS->value) ? 'Cuti Khusus' : $case->label();
+                                @endphp
+                                <option value="{{ $val }}" @selected($typeFilter === $val)>{{ $lbl }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    @php
+                        $statusLabels = [
+                            \App\Models\LeaveRequest::PENDING_SUPERVISOR => 'Menunggu Supervisor',
+                            \App\Models\LeaveRequest::PENDING_HR => 'Menunggu HRD',
+                            \App\Models\LeaveRequest::STATUS_APPROVED => 'Disetujui',
+                            \App\Models\LeaveRequest::STATUS_REJECTED => 'Ditolak',
+                            'BATAL' => 'Dibatalkan',
+                            'CANCEL_REQ' => 'Pengajuan Batal',
+                        ];
+                    @endphp
+                    <div class="filter-group">
+                        <label for="status">Status</label>
+                        <select name="status" id="status" class="form-input">
+                            <option value="">Semua Status</option>
+                            @foreach($statusOptions as $opt)
+                                <option value="{{ $opt }}" @selected($status === $opt)>
+                                    {{ $statusLabels[$opt] ?? $opt }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="filter-group filter-group-search">
+                        <label for="q">Cari Karyawan</label>
+                        <input type="text"
+                               name="q"
+                               id="q"
+                               value="{{ $q ?? '' }}"
+                               placeholder="Ketik nama karyawan..."
+                               class="form-input">
+                    </div>
+                </div>
+
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        Filter
+                    </button>
+
+                    @if(($q ?? null) || ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null) || ($periodRange ?? null) || ($pt_id ?? null))
+                    <a href="{{ route('hr.leave.master') }}" class="btn btn-secondary">
+                        Reset
+                    </a>
+                    @endif
+                </div>
+            </form>
+        </div>
+
+        {{-- Table Card --}}
+        <div class="table-card">
+            @if($items->isEmpty())
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <p>Belum ada data pengajuan izin/cuti.</p>
+            </div>
+            @else
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Karyawan</th>
+                            <th>Tgl Pengajuan</th>
+                            <th>Periode Izin</th>
+                            <th>Jenis</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($items as $i => $row)
                         @php
-                            $val = $case->value;
-                            $lbl = ($val === \App\Enums\LeaveType::CUTI_KHUSUS->value) ? 'Cuti Khusus' : $case->label();
-                        @endphp
-                        <option value="{{ $val }}" @selected($typeFilter === $val)>
-                            {{ $lbl }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            @php
-                $statusLabels = [
-                    \App\Models\LeaveRequest::PENDING_SUPERVISOR => 'Menunggu Supervisor',
-                    \App\Models\LeaveRequest::PENDING_HR         => 'Menunggu HRD',
-                    \App\Models\LeaveRequest::STATUS_APPROVED    => 'Disetujui',
-                    \App\Models\LeaveRequest::STATUS_REJECTED    => 'Ditolak',
-                ];
-            @endphp
-            <div class="filter-group">
-                <label>Status</label>
-                <select name="status" class="form-control">
-                    <option value="">Semua Status</option>
-                    @foreach($statusOptions as $opt)
-                        <option value="{{ $opt }}" @selected($status === $opt)>
-                            {{ $statusLabels[$opt] ?? $opt }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-
-            <div class="filter-group flex-grow">
-                <label>Karyawan</label>
-                <input type="text"
-                       name="q"
-                       value="{{ $q ?? '' }}"
-                       placeholder="Cari nama karyawan..."
-                       class="form-control">
-            </div>
-
-            <div class="filter-actions">
-                <button type="submit" class="btn-primary">Filter</button>
-                
-                @if(($q ?? null) || ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null) || ($periodRange ?? null))
-                <a href="{{ route('hr.leave.master') }}" class="btn-reset">Reset</a>
-                @endif
-            </div>
-        </form>
-    </div>
-
-    <div class="card">
-        <div class="table-wrapper">
-            <table class="custom-table">
-                <thead>
-                    <tr>
-                        <th style="width: 50px;">#</th>
-                        <th style="width: 260px;">Karyawan</th>
-                        <th>Tgl Pengajuan</th>
-                        <th>Periode Izin</th>
-                        <th style="width: 170px;">Jenis</th>
-                        <th>Status</th>
-                        <th class="text-right" style="width: 100px;">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($items as $i => $row)
-                        @php
-                            // Logic Badge Status
                             $st = $row->status;
-                            $badgeClass = 'badge-gray'; // Default
-                            
+                            $badgeClass = 'badge-gray';
+                            $badgeBg = '';
+                            $badgeColor = '';
+
                             if ($st === \App\Models\LeaveRequest::STATUS_APPROVED) {
                                 $badgeClass = 'badge-green';
+                                $badgeBg = 'var(--success-bg)';
+                                $badgeColor = 'var(--success-text)';
                             } elseif ($st === \App\Models\LeaveRequest::STATUS_REJECTED) {
                                 $badgeClass = 'badge-red';
+                                $badgeBg = 'var(--danger-bg)';
+                                $badgeColor = 'var(--danger-text)';
                             } elseif (in_array($st, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR])) {
                                 $badgeClass = 'badge-yellow';
+                                $badgeBg = 'var(--warning-bg)';
+                                $badgeColor = 'var(--warning-text)';
+                            } elseif ($st === 'BATAL') {
+                                $badgeClass = 'badge-gray';
+                                $badgeBg = 'var(--bg-body)';
+                                $badgeColor = 'var(--text-muted)';
                             }
                         @endphp
 
                         <tr>
-                            <td class="text-muted" style="text-align: center;">
+                            <td class="text-muted text-center">
                                 {{ $items->firstItem() + $i }}
                             </td>
 
                             <td>
-                                <a href="{{ route('hr.leave.show', $row) }}" class="fw-bold employee-name employee-link" title="{{ $row->user->name }}">
-                                    {{ $row->user->name }}
-                                </a>
+                                <div class="employee-cell">
+                                    <div class="employee-avatar">{{ substr($row->user->name, 0, 1) }}</div>
+                                    <div class="employee-info">
+                                        <a href="{{ route('hr.leave.show', $row) }}" class="employee-name">{{ $row->user->name }}</a>
+                                        <div class="employee-detail">{{ $row->user->position->name ?? '-' }} - {{ $row->user->division->name ?? '-' }}</div>
+                                    </div>
+                                </div>
                             </td>
 
-                            <td class="text-muted" style="font-size: 11px;">
-                                {{ $row->created_at?->format('d/m/Y') ?? '-' }}<br>
-                                {{ $row->created_at?->format('H:i') ?? '' }}
+                            <td class="text-muted text-sm">
+                                {{ $row->created_at?->format('d M Y') ?? '-' }}<br>
+                                <span class="text-xs">{{ $row->created_at?->format('H:i') ?? '' }}</span>
                             </td>
 
                             <td>
-                                <div class="text-date" style="line-height: 1.2;">
-                                    <div>{{ $row->start_date->format('d M Y') }}</div>
+                                <div class="date-cell">
+                                    <span class="date-main">{{ $row->start_date->format('d M Y') }}</span>
                                     @if($row->end_date && $row->end_date->ne($row->start_date))
-                                        <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">
-                                            s/d {{ $row->end_date->format('d M Y') }}
-                                        </div>
+                                        <span class="date-range">s/d {{ $row->end_date->format('d M Y') }}</span>
                                     @endif
                                 </div>
                             </td>
 
                             <td>
-                                <span class="badge-basic">
+                                <span class="badge badge-basic">
                                     {{ \Illuminate\Support\Str::contains($row->type_label, 'Cuti Khusus') ? 'Cuti Khusus' : $row->type_label }}
                                 </span>
                             </td>
 
                             <td>
-                                <span class="badge-status {{ $badgeClass }}">
+                                <span class="badge-status" style="background: {{ $badgeBg }}; color: {{ $badgeColor }};">
                                     {{ $row->status_label }}
                                 </span>
 
-                                {{-- [MODIFIKASI] Menampilkan Nama Atasan jika status PENDING_SUPERVISOR --}}
                                 @if($row->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR)
-                                    <div class="approver-info">
-                                        Menunggu: 
-                                        <strong>
-                                            {{-- Cek Direct SPV dulu, kalau null cek Manager, kalau null strip --}}
-                                            {{ $row->user->directSupervisor->name ?? $row->user->manager->name ?? '-' }}
-                                        </strong>
+                                    <div class="approver-hint">
+                                        Menunggu: <strong>{{ $row->user->directSupervisor->name ?? $row->user->manager->name ?? '-' }}</strong>
                                     </div>
                                 @endif
                             </td>
 
-                            <td class="text-right">
-                                <a href="{{ route('hr.leave.show', $row) }}" class="btn-action">
-                                    Detail
+                            <td class="actions-cell">
+                                <a href="{{ route('hr.leave.show', $row) }}" class="action-btn" title="Lihat Detail">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                                 </a>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="7" class="empty-state">
-                                Belum ada data pengajuan izin/cuti.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            @endif
         </div>
+
+        {{-- Pagination --}}
+        @if($items->hasPages())
+        <div class="pagination-wrap">
+            <x-pagination :items="$items" />
+        </div>
+        @endif
+
     </div>
-
-    <div style="margin-top: 20px;">
-        <x-pagination :items="$items" />
-    </div>
-
-    <style>
-        /* --- UTILITY --- */
-        .mb-4 { margin-bottom: 16px; }
-        .fw-bold { font-weight: 600; color: #111827; }
-        .text-muted { color: #6b7280; font-size: 13px; }
-        .text-right { text-align: right; }
-        .text-date { font-weight: 500; color: #1f2937; }
-
-        /* --- ALERT --- */
-        .alert-success {
-            background: #ecfdf5;
-            color: #065f46;
-            padding: 12px 16px;
-            border-radius: 8px;
-            border: 1px solid #a7f3d0;
-            margin-bottom: 16px;
-            font-size: 14px;
-        }
-
-        /* --- CARD --- */
-        .card {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
-            border: 1px solid #f3f4f6;
-            overflow: hidden;
-            padding: 0;
-        }
-
-        .card-header-simple {
-            padding: 16px 20px 0;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 12px;
-        }
-        
-        .card-title-sm { margin: 0; font-size: 15px; font-weight: 700; color: #1f2937; }
-        .card-subtitle-sm { margin: 2px 0 0; font-size: 13px; color: #6b7280; }
-
-        .btn-create {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 14px;
-            min-width: 120px;
-            text-decoration: none;
-            white-space: nowrap;
-        }
-
-        /* --- FILTER SECTION --- */
-        .filter-container {
-            padding: 16px 20px 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            align-items: flex-end;
-        }
-
-        .filter-group { flex: 1; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
-        .filter-group.flex-grow { flex: 1.5; min-width: 200px; }
-
-        .filter-group label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #6b7280;
-            text-transform: uppercase;
-        }
-
-        .form-control {
-            padding: 8px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            font-size: 13.5px;
-            color: #374151;
-            background: #fff;
-            width: 100%;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .form-control:focus { border-color: #1e4a8d; }
-
-        @media (max-width: 768px) {
-            .card-header-simple {
-                flex-direction: column;
-            }
-
-            .btn-create {
-                width: 100%;
-            }
-        }
-
-        .filter-actions { display: flex; gap: 8px; padding-bottom: 2px; }
-
-        .btn-primary {
-            padding: 9px 18px;
-            background: #1e4a8d;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13.5px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .btn-primary:hover { background: #163a75; }
-
-        .btn-reset {
-            padding: 9px 16px;
-            background: #fff;
-            color: #374151;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 13.5px;
-            font-weight: 500;
-            display: inline-block;
-        }
-        .btn-reset:hover { background: #f9fafb; }
-
-        /* --- TABLE --- */
-        .table-wrapper { 
-            width: 100%; 
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        .custom-table { width: 100%; border-collapse: collapse; min-width: 900px; table-layout: fixed; }
-
-        .custom-table th {
-            background: #f9fafb;
-            padding: 12px 16px;
-            text-align: left;
-            font-size: 11px;
-            font-weight: 700;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            border-bottom: 1px solid #e5e7eb;
-        }
-
-        .custom-table td {
-            padding: 12px 16px;
-            border-bottom: 1px solid #f3f4f6;
-            font-size: 13.5px;
-            color: #1f2937;
-            vertical-align: top; /* [MODIFIKASI] Diubah ke top agar teks 'Menunggu...' rapi */
-        }
-        .custom-table tr:last-child td { border-bottom: none; }
-        .custom-table tr:hover td { background: #fdfdfd; }
-
-        /* --- APPROVER INFO (NEW) --- */
-        .approver-info {
-            font-size: 11px; 
-            color: #6b7280; 
-            margin-top: 6px; 
-            line-height: 1.3;
-        }
-
-        /* --- BADGES --- */
-        .badge-basic {
-            background: #f3f4f6;
-            color: #374151;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            border: 1px solid #e5e7eb;
-            display: inline-flex;
-            align-items: center;
-            white-space: nowrap;
-            line-height: 1.2;
-        }
-
-        .employee-name {
-            display: block;
-            max-width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .employee-link {
-            color: #111827;
-            text-decoration: none;
-        }
-        .employee-link:hover {
-            color: #1d4ed8;
-            text-decoration: underline;
-        }
-
-        .badge-status {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-        
-        .badge-green { background: #dcfce7; color: #166534; }   /* Approved */
-        .badge-red { background: #fee2e2; color: #991b1b; }     /* Rejected */
-        .badge-yellow { background: #fef9c3; color: #854d0e; }  /* Pending */
-        .badge-gray { background: #e5e7eb; color: #374151; }    /* Default */
-
-        /* --- ACTION BUTTONS --- */
-        .btn-action {
-            padding: 6px 14px;
-            border: 1px solid #d1d5db;
-            background: #fff;
-            color: #374151;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 500;
-            text-decoration: none;
-            display: inline-block;
-            transition: all 0.2s;
-        }
-        .btn-action:hover { background: #f3f4f6; border-color: #9ca3af; }
-
-        .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
-
-        @media(max-width: 1024px) {
-            .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
-            .filter-group, .form-control { width: 100%; min-width: 0; }
-            .filter-actions { margin-top: 4px; }
-            .btn-primary, .btn-reset { flex: 1; text-align: center; }
-
-            /* --- RESPONSIVE CARD VIEW --- */
-            .table-wrapper { background: transparent; }
-            
-            .custom-table, 
-            .custom-table tbody, 
-            .custom-table tr, 
-            .custom-table td {
-                display: block;
-                width: 100%;
-                min-width: 0;
-            }
-
-            .custom-table thead { display: none; }
-
-            .custom-table tr {
-                background: #fff;
-                border-radius: 12px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-                margin-bottom: 12px;
-                border: 1px solid #f3f4f6;
-                padding: 16px;
-                position: relative;
-            }
-
-            .custom-table td {
-                padding: 4px 0;
-                border: none;
-                text-align: left;
-            }
-
-            /* HIDE Columns */
-            .custom-table td:nth-child(1) { display: none; } /* Hide Index # */
-
-            /* 2. Header: Karyawan */
-            .custom-table td:nth-child(2) {
-                margin-bottom: 8px;
-                padding-bottom: 8px;
-                border-bottom: 1px solid #f3f4f6;
-            }
-            .custom-table td:nth-child(2) .fw-bold { font-size: 15px; }
-
-            /* 5. Jenis (Badge) & 6. Status */
-            .custom-table td:nth-child(5),
-            .custom-table td:nth-child(6) {
-                display: inline-block;
-                width: auto;
-                margin-right: 8px;
-                margin-bottom: 8px;
-            }
-
-            /* 4. Periode Izin */
-            .custom-table td:nth-child(4) {
-                display: block;
-                background: #f9fafb;
-                padding: 6px 10px;
-                border-radius: 6px;
-                color: #4b5563;
-                font-size: 13px;
-                margin-bottom: 4px;
-            }
-            .custom-table td:nth-child(4)::before { content: '📅 '; }
-
-            /* 3. Tgl Pengajuan */
-            .custom-table td:nth-child(3) {
-                font-size: 12px;
-                color: #9ca3af;
-                margin-bottom: 8px;
-            }
-            .custom-table td:nth-child(3)::before { content: 'Diajukan: '; }
-
-            /* 7. Action Button */
-            .custom-table td:last-child {
-                border-top: 1px solid #f3f4f6;
-                margin-top: 12px;
-                padding-top: 12px;
-                text-align: center;
-            }
-            .btn-action {
-                display: block;
-                width: 100%;
-                text-align: center;
-                background: #1e4a8d;
-                color: #fff;
-                border: none;
-                padding: 8px;
-            }
-            
-            /* Support for empty state */
-            .custom-table tr:has(.empty-state) {
-                text-align: center;
-                padding: 40px 20px;
-            }
-        }
-    </style>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -549,5 +270,364 @@
             }
         });
     </script>
+
+    <style>
+        /* === BASE VARIABLES === */
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #64748b;
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success-bg: #f0fdf4;
+            --success-text: #15803d;
+            --success-border: #bbf7d0;
+            --danger-bg: #fef2f2;
+            --danger-text: #b91c1c;
+            --danger-border: #fecaca;
+            --warning-bg: #fffbeb;
+            --warning-text: #c2410c;
+            --warning-border: #fed7aa;
+            --blue-light: #eff6ff;
+            --blue-text: #1d4ed8;
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+        }
+
+        /* === RESET & BASE === */
+        .leave-master-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            color: var(--text-main);
+        }
+
+        /* === FLASH MESSAGES === */
+        .flash {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 18px;
+            border-radius: var(--radius-md);
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .flash-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+        /* === PAGE HEADER === */
+        .page-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .page-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--primary);
+            color: #fff;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .page-icon svg { width: 24px; height: 24px; }
+        .page-header-text { flex: 1; min-width: 200px; }
+        .page-title {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+        .page-subtitle {
+            margin: 4px 0 0;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        .ml-auto { margin-left: auto; }
+
+        /* === BUTTONS === */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+        .btn svg { width: 16px; height: 16px; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-secondary { background: var(--bg-body); color: var(--text-muted); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--border); }
+
+        /* === FILTER CARD === */
+        .filter-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .filter-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-body);
+        }
+        .filter-title-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .filter-icon { width: 14px; height: 14px; }
+        .filter-form {
+            padding: 16px 20px;
+        }
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .filter-group-search {
+            grid-column: 1 / -1;
+        }
+        .filter-group label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            padding-top: 4px;
+        }
+
+        /* === FORM INPUTS === */
+        .form-input {
+            padding: 9px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            color: var(--text-main);
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-family: inherit;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        /* === TABLE CARD === */
+        .table-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+
+        /* === TABLE === */
+        .table-wrap { overflow-x: auto; }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 900px;
+        }
+        .data-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            background: var(--bg-body);
+            border-bottom: 1px solid var(--border);
+        }
+        .data-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr:hover td { background: #fafafa; }
+
+        /* === EMPLOYEE CELL === */
+        .employee-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .employee-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            background: var(--blue-light);
+            color: var(--blue-text);
+            font-size: 0.8rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .employee-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+            text-decoration: none;
+        }
+        .employee-name:hover { color: var(--primary); }
+        .employee-detail {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* === DATE CELL === */
+        .date-cell { line-height: 1.4; }
+        .date-main { font-size: 0.875rem; font-weight: 500; color: var(--text-main); }
+        .date-range {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* === BADGES === */
+        .badge {
+            display: inline-flex;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.02em;
+        }
+        .badge-basic {
+            background: var(--bg-body);
+            color: var(--text-main);
+            border: 1px solid var(--border);
+        }
+        .badge-status {
+            display: inline-flex;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+        }
+        .badge-green { background: var(--success-bg); color: var(--success-text); }
+        .badge-red { background: var(--danger-bg); color: var(--danger-text); }
+        .badge-yellow { background: var(--warning-bg); color: var(--warning-text); }
+        .badge-gray { background: var(--bg-body); color: var(--text-muted); }
+
+        /* === APPROVER HINT === */
+        .approver-hint {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            line-height: 1.3;
+        }
+
+        /* === ACTIONS === */
+        .actions-cell { text-align: right; white-space: nowrap; }
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-sm);
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .action-btn:hover { background: var(--bg-body); color: var(--primary); }
+        .action-btn svg { width: 16px; height: 16px; }
+
+        /* === EMPTY STATE === */
+        .empty-state {
+            padding: 60px 24px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        .empty-state svg { width: 56px; height: 56px; margin-bottom: 16px; opacity: 0.3; }
+        .empty-state p { font-size: 0.95rem; margin: 0; }
+
+        /* === HELPERS === */
+        .text-muted { color: var(--text-muted); }
+        .text-sm { font-size: 0.8125rem; }
+        .text-xs { font-size: 0.75rem; }
+        .text-center { text-align: center; }
+
+        /* === PAGINATION === */
+        .pagination-wrap {
+            margin-top: 16px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* === MOBILE RESPONSIVE === */
+        @media (max-width: 640px) {
+            .page-header {
+                flex-direction: column;
+                gap: 12px;
+                text-align: center;
+            }
+            .page-icon { margin: 0 auto; }
+            .ml-auto { margin: 0 auto; }
+            .btn-primary { width: 100%; }
+
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+            .filter-group-search {
+                grid-column: 1;
+            }
+            .filter-actions {
+                flex-direction: column;
+            }
+            .filter-actions .btn {
+                width: 100%;
+            }
+
+            .data-table th, .data-table td {
+                padding: 10px 12px;
+            }
+        }
+    </style>
 
 </x-app>

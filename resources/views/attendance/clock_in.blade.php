@@ -248,7 +248,7 @@
         </div>
     </div>
 
-    <x-modal id="attendance-success" title="Berhasil!" type="info" cancelLabel="Tutup">
+    <x-modal id="attendance-success" title="Berhasil!" variant="success" type="info" cancelLabel="Tutup">
         <div style="text-align: center;">
             <p style="font-size: 1.1rem; font-weight: 600;">Presensi Masuk Tercatat</p>
         </div>
