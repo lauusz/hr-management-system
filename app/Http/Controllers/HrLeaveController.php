@@ -338,6 +338,88 @@ class HrLeaveController extends Controller
     }
 
     /**
+     * Update leave request by HRD / HR Staff.
+     * HR can edit any status (including APPROVED). If status is APPROVED and type is CUTI,
+     * the old balance is refunded and re-deducted with the new data.
+     */
+    public function update(Request $request, LeaveRequest $leave)
+    {
+        $this->authorizeAccess();
+
+        $validated = $request->validate([
+            'type'       => ['required', Rule::in(LeaveType::values())],
+            'start_date' => ['required', 'date'],
+            'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time'   => ['nullable', 'date_format:H:i'],
+            'reason'     => ['nullable', 'string', 'max:5000'],
+            'notes_hrd'  => ['nullable', 'string', 'max:1000'],
+            'substitute_pic'   => ['nullable', 'string', 'max:255'],
+            'substitute_phone' => ['nullable', 'string', 'max:50'],
+            'special_leave_detail' => ['nullable', 'string'],
+            'photo'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+        ]);
+
+        $type = $validated['type'];
+
+        // Handle Cuti Khusus category
+        $specialLeaveCategory = null;
+        if ($type === LeaveType::CUTI_KHUSUS->value) {
+            $specialLeaveCategory = $validated['special_leave_detail'] ?? null;
+        }
+
+        // Determine if time-based
+        $isTimeBased = in_array($type, [
+            LeaveType::IZIN_TELAT->value,
+            LeaveType::IZIN_TENGAH_KERJA->value,
+            LeaveType::IZIN_PULANG_AWAL->value,
+            LeaveType::IZIN->value,
+        ], true);
+
+        // Build notes
+        $currentNotes = $leave->notes;
+        $systemNote = "[System] Diedit oleh HR (" . auth()->user()->name . ") pada " . now()->format('d M Y H:i');
+        $newNotes = $currentNotes ? $currentNotes . "\n" . $systemNote : $systemNote;
+
+        $updateData = [
+            'type'       => $type,
+            'start_date' => $validated['start_date'],
+            'end_date'   => $validated['end_date'],
+            'start_time' => $isTimeBased ? ($validated['start_time'] ?? null) : null,
+            'end_time'   => ($type === LeaveType::IZIN_TENGAH_KERJA->value) ? ($validated['end_time'] ?? null) : null,
+            'reason'     => $validated['reason'] ?? $leave->reason,
+            'notes'      => $newNotes,
+            'notes_hrd'  => $validated['notes_hrd'] ?? $leave->notes_hrd,
+            'substitute_pic'   => $validated['substitute_pic'] ?? $leave->substitute_pic,
+            'substitute_phone' => $validated['substitute_phone'] ?? $leave->substitute_phone,
+            'special_leave_category' => $specialLeaveCategory,
+        ];
+
+        // Handle photo upload
+        if ($request->hasFile('photo')) {
+            if ($leave->photo) {
+                Storage::disk('public')->delete('leave_photos/' . $leave->photo);
+            }
+            $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
+            $updateData['photo'] = basename($fullPath);
+        }
+
+        // If currently APPROVED and type is CUTI, re-process balance (refund old + deduct new)
+        $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : $leave->type;
+        if ($leave->status === LeaveRequest::STATUS_APPROVED && $leaveTypeValue === LeaveType::CUTI->value) {
+            $this->leaveBalanceService->refundLeaveBalanceForLeave($leave);
+            $leave->fill($updateData);
+            $this->leaveBalanceService->deductLeaveBalanceForLeave($leave);
+            $updateData['approved_by'] = auth()->id();
+            $updateData['approved_at'] = now();
+        }
+
+        $leave->update($updateData);
+
+        return redirect()->route('hr.leave.show', $leave->id)->with('success', 'Data pengajuan berhasil diperbarui.');
+    }
+
+    /**
      * [UPDATE] APPROVE DENGAN LOGIKA HARI KERJA (5 HARI vs 6 HARI)
      */
     public function approve(Request $request, LeaveRequest $leave)
@@ -351,7 +433,7 @@ class HrLeaveController extends Controller
         ]);
 
         // Pastikan status valid
-        $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR, 'CANCEL_REQ'];
+        $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk disetujui.');
 
         abort_unless($this->canHrActOnLeave(auth()->user(), $leave), 403, 'Anda tidak memiliki izin untuk menyetujui pengajuan ini.');
@@ -362,20 +444,8 @@ class HrLeaveController extends Controller
 
         try {
             DB::transaction(function () use ($request, $leave) {
-                
-                // A. JIKA STATUS PERMINTAAN PEMBATALAN
-                if ($leave->status === 'CANCEL_REQ') {
-                    $leave->update([
-                        'status'      => 'BATAL', // Set ke status BATAL (bukan APPROVED)
-                        'approved_by' => auth()->id(),
-                        'approved_at' => now(),
-                        'notes_hrd'   => $request->notes_hrd
-                    ]);
-                    // Return agar tidak lanjut ke logika potong saldo
-                    return; 
-                }
 
-                // B. LOGIKA APPROVE CUTI BIASA
+                // LOGIKA APPROVE
                 $shouldDeduct = $request->input('deduct_leave') == '1';
 
                 // Hanya potong jika checkbox dicentang DAN status sebelumnya belum approved
@@ -479,8 +549,9 @@ class HrLeaveController extends Controller
                 return $this->isHrdMaster($actor);
             }
 
-            // Non-CUTI (IZIN, SAKIT, dll): HR STAFF lain bisa approve
-            if ($this->isHrStaff($actor)) {
+            // Non-CUTI (IZIN, SAKIT, dll): HR STAFF lain bisa approve,
+            // tapi TIDAK bisa approve request miliknya sendiri (double-check self)
+            if ($this->isHrStaff($actor) && $actor->id !== $leave->user_id) {
                 return true;
             }
 
@@ -488,8 +559,9 @@ class HrLeaveController extends Controller
             return $this->isHrdMaster($actor);
         }
 
-        if ($leave->status === LeaveRequest::PENDING_HR || $leave->status === 'CANCEL_REQ') {
-            return true;
+        // PENDING_HR: HR bisa approve, tapi JANGAN approve request sendiri
+        if ($leave->status === LeaveRequest::PENDING_HR) {
+            return $actor->id !== $leave->user_id;
         }
 
         if ($leave->status !== LeaveRequest::PENDING_SUPERVISOR) {

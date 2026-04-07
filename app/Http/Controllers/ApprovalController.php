@@ -45,10 +45,15 @@ class ApprovalController extends Controller
         $query->where('status', LeaveRequest::PENDING_SUPERVISOR);
 
         // 3. Logic Berdasarkan Profile ID (Supervisor / Manager)
+        // Supervisor: lihat jika applicant punya direct_supervisor_id = me
+        // Manager: lihat jika applicant HANYA punya manager_id = me (tanpa direct_supervisor_id)
         $query->whereHas('user', function (Builder $q) use ($me) {
             $q->where(function ($subQ) use ($me) {
                 $subQ->where('direct_supervisor_id', $me->id)
-                     ->orWhere('manager_id', $me->id);
+                     ->orWhere(function ($q2) use ($me) {
+                         $q2->where('manager_id', $me->id)
+                            ->whereNull('direct_supervisor_id');
+                     });
             });
         });
 
@@ -260,7 +265,7 @@ class ApprovalController extends Controller
 
     /**
      * [AJUKAN PEMBATALAN]
-     * Mengubah status menjadi CANCEL_REQ agar HRD yang menghapus.
+     * Mengubah status langsung menjadi BATAL. Tidak perlu persetujuan HRD.
      */
     public function destroy(LeaveRequest $leave)
     {
@@ -273,18 +278,17 @@ class ApprovalController extends Controller
 
         // 2. Update Notes (Audit Trail)
         $currentNotes = $leave->notes;
-        $systemNote = "[System] Supervisor (" . $me->name . ") mengajukan permohonan pembatalan pada " . now()->format('d M Y H:i');
+        $systemNote = "[System] Dibatalkan oleh Supervisor/Atasan (" . $me->name . ") pada " . now()->format('d M Y H:i');
         $newNotes = $currentNotes ? $currentNotes . "\n" . $systemNote : $systemNote;
 
-        // 3. Update Status jadi 'CANCEL_REQ'
-        // Kita pakai string 'CANCEL_REQ' sebagai penanda request batal
+        // 3. Langsung set ke BATAL (tanpa perlu approval HRD)
         $leave->update([
-            'status' => 'CANCEL_REQ', 
+            'status' => 'BATAL',
             'notes'  => $newNotes
         ]);
 
         return redirect()->route('approval.index')
-            ->with('success', 'Permohonan pembatalan telah dikirim ke HRD.');
+            ->with('success', 'Pengajuan telah dibatalkan.');
     }
 
     /**
@@ -393,17 +397,20 @@ class ApprovalController extends Controller
 
     /**
      * PRIVATE HELPER: Logika Penentuan Hak Approve (STRICT)
+     *
+     * Aturan:
+     * - Jika applicant punya direct_supervisor_id → HANYA direct supervisor yang bisa approve
+     * - Jika applicant HANYA punya manager_id (tanpa direct_supervisor_id) → manager bisa approve
      */
     private function checkIsAuthorizedApprover($applicant, $me)
     {
-        // Logic Simple Berdasarkan ID di Profile User
-        // 1. Jika saya adalah Direct Supervisor-nya
-        if ($applicant->direct_supervisor_id === $me->id) {
+        // 1. Jika saya adalah Direct Supervisor-nya → SELALU bisa approve
+        if ((int) $applicant->direct_supervisor_id === (int) $me->id) {
             return true;
         }
 
-        // 2. Jika saya adalah Manager-nya (dan dia tidak punya direct spv atau eskalasi)
-        if ($applicant->manager_id === $me->id) {
+        // 2. Jika saya adalah Manager-nya → HANYA bisa approve JIKA applicant TIDAK punya direct_supervisor_id
+        if ((int) $applicant->manager_id === (int) $me->id && empty($applicant->direct_supervisor_id)) {
             return true;
         }
 

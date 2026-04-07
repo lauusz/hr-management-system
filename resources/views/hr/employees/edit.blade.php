@@ -366,9 +366,9 @@
                         </select>
                     </div>
 
-                    {{-- FIELD MANAGER (APPROVER) --}}
+                    {{-- FIELD MANAGER  --}}
                     <div class="form-group">
-                        <label for="manager_id" style="color:#1e4a8d; font-weight:600;">Manager (Approver / Penyetuju)</label>
+                        <label for="manager_id" style="color:#1e4a8d; font-weight:600;">Manager</label>
                         <select id="manager_id" name="manager_id" class="form-control">
                             <option value="">-- Tidak Ada / Langsung HRD --</option>
                             @if(isset($managers))
@@ -381,9 +381,9 @@
                         </select>
                     </div>
 
-                    {{-- FIELD SUPERVISOR (OBSERVER) --}}
+                    {{-- FIELD SUPERVISOR --}}
                     <div class="form-group">
-                        <label for="direct_supervisor_id">Supervisor (Observer)</label>
+                        <label for="direct_supervisor_id">Supervisor</label>
                         <select id="direct_supervisor_id" name="direct_supervisor_id" class="form-control">
                             <option value="">-- Tidak Ada --</option>
                             @foreach($supervisors as $spv)

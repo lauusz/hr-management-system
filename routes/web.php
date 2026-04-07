@@ -72,6 +72,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/hr/leave-requests', [HrLeaveController::class, 'index'])->name('hr.leave.index');
         Route::get('/hr/leave-requests/{leave}', [HrLeaveController::class, 'show'])->name('hr.leave.show');
+        Route::put('/hr/leave-requests/{leave}', [HrLeaveController::class, 'update'])->name('hr.leave.update');
         Route::post('/hr/leave-requests/{leave}/approve', [HrLeaveController::class, 'approve'])->name('hr.leave.approve');
         Route::post('/hr/leave-requests/{leave}/reject', [HrLeaveController::class, 'reject'])->name('hr.leave.reject');
 

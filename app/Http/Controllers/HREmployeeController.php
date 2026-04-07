@@ -514,24 +514,6 @@ class HREmployeeController extends Controller
                 EmployeeProfile::create($profileData);
             }
 
-            // -------------------------------------------------------------
-            // 3. LOGIKA AUTO-CALCULATE (JIKA TANGGAL BERGABUNG BERUBAH)
-            // -------------------------------------------------------------
-            if (isset($validated['tgl_bergabung'])) {
-                $joinDate = Carbon::parse($validated['tgl_bergabung']);
-                $today    = Carbon::now();
-                $yearsWorked = $joinDate->diffInYears($today);
-
-                // Jika karyawan sudah > 1 tahun, BERHAK dapat 12 hari.
-                if ($yearsWorked >= 1) {
-                    // TAPI... Jika HRD barusan mengubah saldo secara manual (misal jadi 15), 
-                    // JANGAN DITIMPA jadi 12 lagi. Hormati input manual HRD.
-                    if (!$isManualEdit) {
-                        $employee->update(['leave_balance' => 12]);
-                    }
-                }
-            }
-
             return redirect()->route('hr.employees.index')
                 ->with('success', 'Data karyawan berhasil diperbarui.');
         });

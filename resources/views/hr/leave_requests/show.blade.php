@@ -41,9 +41,6 @@
         } elseif ($status === \App\Models\LeaveRequest::PENDING_HR) {
             $badgeClass = 'badge-teal';
             $statusLabel = 'Verifikasi HRD';
-        } elseif ($status === 'CANCEL_REQ') {
-            $badgeClass = 'badge-red';
-            $statusLabel = 'Request Batal';
         } elseif ($status === 'BATAL') {
             $badgeClass = 'badge-gray';
             $statusLabel = 'Dibatalkan';
@@ -309,22 +306,14 @@
     {{-- ACTION BAR --}}
     <div class="action-bar">
         <div class="action-main">
-            @if($item->status === 'CANCEL_REQ')
-                <div class="status-notice">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    Supervisor Mengajukan Pembatalan
-                </div>
-                <button type="button" data-modal-target="modal-delete" class="action-btn action-btn-setuju">
-                    Setujui Pembatalan
-                </button>
-
-            @elseif($item->status === 'BATAL')
+            @if($item->status === 'BATAL')
                 <div class="status-notice status-notice-gray">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                     Pengajuan Sudah Dibatalkan
                 </div>
 
-            @elseif($canApprove && in_array($item->status, [\App\Models\LeaveRequest::PENDING_HR, \App\Models\LeaveRequest::PENDING_SUPERVISOR], true))
+            @elseif(!in_array($item->status, [\App\Models\LeaveRequest::STATUS_REJECTED, 'BATAL'], true))
+                {{-- Edit & Batalkan: tampil untuk semua status (selain REJECTED/BATAL) --}}
                 <button type="button" data-modal-target="modal-edit-hr" class="action-btn action-btn-edit">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                     Edit
@@ -333,14 +322,17 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     Batalkan
                 </button>
-                <button type="button" data-modal-target="modal-reject" class="action-btn action-btn-tolak">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
-                    Tolak
-                </button>
-                <button type="button" data-modal-target="modal-approve" class="action-btn action-btn-setuju">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
-                    Terima
-                </button>
+                {{-- Tolak & Terima: hanya untuk PENDING + user punya hak approve --}}
+                @if($canApprove && in_array($item->status, [\App\Models\LeaveRequest::PENDING_HR, \App\Models\LeaveRequest::PENDING_SUPERVISOR], true))
+                    <button type="button" data-modal-target="modal-reject" class="action-btn action-btn-tolak">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        Tolak
+                    </button>
+                    <button type="button" data-modal-target="modal-approve" class="action-btn action-btn-setuju">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+                        Terima
+                    </button>
+                @endif
 
             @else
                 <div class="status-notice status-notice-gray">
@@ -360,7 +352,7 @@
 
     {{-- MODALS --}}
     <x-modal id="modal-edit-hr" title="Edit Data Pengajuan" type="form">
-        <form action="{{ route('leave-requests.update', $item->id) }}" method="POST" id="form-edit-hr" enctype="multipart/form-data">
+        <form action="{{ route('hr.leave.update', $item->id) }}" method="POST" id="form-edit-hr" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 
@@ -433,6 +425,11 @@
                     <textarea name="reason" rows="3" class="form-control">{{ $item->reason }}</textarea>
                 </div>
 
+                <div class="form-group" style="margin-bottom:12px;">
+                    <label class="lbl-edit">Catatan HRD</label>
+                    <textarea name="notes_hrd" rows="2" class="form-control" placeholder="Contoh: Potong uang makan.">{{ $item->notes_hrd }}</textarea>
+                </div>
+
                 <div class="form-group" style="background:#f9fafb; padding:10px; border-radius:6px; border:1px dashed #d1d5db;">
                     <label class="lbl-edit">Upload Foto (Opsional)</label>
                     <input type="file" name="photo" class="form-control" accept="image/*,.pdf" style="font-size:12px;">
@@ -477,21 +474,12 @@
             @csrf
             @method('DELETE')
 
-            @if($item->status === 'CANCEL_REQ')
-                <p style="margin:0; color:#374151; font-weight:600;">
-                    Konfirmasi Pembatalan (Request Supervisor).
-                </p>
-                <p style="margin:8px 0 0 0; font-size:0.9em; color:#6b7280;">
-                    Status pengajuan akan diubah menjadi <strong>BATAL</strong>.
-                </p>
-            @else
-                <p style="margin:0; color:#374151;">
-                    Pengajuan ini akan dibatalkan dan tidak akan diproses lebih lanjut.
-                </p>
-                <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
-                    Data tetap tersimpan sebagai riwayat.
-                </p>
-            @endif
+            <p style="margin:0; color:#374151;">
+                Pengajuan ini akan dibatalkan dan tidak akan diproses lebih lanjut.
+            </p>
+            <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
+                Data tetap tersimpan sebagai riwayat.
+            </p>
 
             <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
                 <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>

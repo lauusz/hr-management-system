@@ -318,7 +318,7 @@
 
                     {{-- 2. DIRECT SUPERVISOR (OBSERVER) --}}
                     <div class="form-group">
-                        <label for="direct_supervisor_id">Supervisor (Observer)</label>
+                        <label for="direct_supervisor_id">Supervisor</label>
                         <select id="direct_supervisor_id" name="direct_supervisor_id" class="form-control">
                             <option value="">-- Tidak Ada --</option>
                             @foreach($supervisors as $spv)
