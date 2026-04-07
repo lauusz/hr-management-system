@@ -38,6 +38,10 @@
                         <span class="emp-status-badge {{ $employee->status === 'ACTIVE' ? 'badge-on' : 'badge-off' }}">
                             {{ $employee->status === 'ACTIVE' ? 'Aktif' : 'Non-Aktif' }}
                         </span>
+                        <span class="emp-leave-badge">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            Sisa Cuti: <strong>{{ $employee->leave_balance ?? 0 }} hari</strong>
+                        </span>
                     </div>
                     <p class="emp-role">{{ $employee->position?->name ?? ($profile?->jabatan ?? 'Tanpa Jabatan') }}</p>
                     <div class="emp-meta-row">
@@ -563,6 +567,20 @@
         }
         .badge-on { background: var(--success-bg); color: var(--success-text); }
         .badge-off { background: var(--danger-bg); color: var(--danger-text); }
+        .emp-leave-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+            margin-left: 8px;
+        }
+        .emp-leave-badge strong { font-weight: 700; }
         .emp-role {
             font-size: 0.9rem;
             color: var(--text-muted);
