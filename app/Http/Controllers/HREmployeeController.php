@@ -7,6 +7,7 @@ use App\Models\Division;
 use App\Models\Position;
 use App\Models\EmployeeProfile;
 use App\Models\Pt;
+use App\Models\Shift;
 use App\Models\EmployeeDocument;
 use App\Enums\UserRole;
 use Illuminate\Http\Request;
@@ -26,8 +27,10 @@ class HREmployeeController extends Controller
         $positionFilter = $request->get('position_id');
         $categoryFilter = $request->get('kategori');
         $nearExpiry = $request->boolean('near_expiry');
+        $noLeaveBalance = $request->boolean('no_leave_balance');
+        $noShift = $request->boolean('no_shift');
 
-        $query = User::with(['division', 'position', 'profile.pt']);
+        $query = User::with(['division', 'position', 'profile.pt', 'employeeShift.shift']);
 
         if ($search) {
             $query->where(function ($q2) use ($search) {
@@ -55,14 +58,33 @@ class HREmployeeController extends Controller
         }
 
         if ($nearExpiry) {
-            $query->whereHas('profile', function ($q) {
-                $q->whereNotNull('tgl_akhir_percobaan');
-            });
+            $query->where('status', 'ACTIVE')
+                ->whereHas('profile', function ($q) {
+                    $q->whereNotNull('tgl_akhir_percobaan')
+                        ->whereDate('tgl_akhir_percobaan', '>=', now()->toDateString());
+                });
 
             $query->orderBy(
                 EmployeeProfile::select('tgl_akhir_percobaan')
                     ->whereColumn('employee_profiles.user_id', 'users.id')
             );
+        } elseif ($noLeaveBalance) {
+            // Belum dapat cuti: leave_balance = 0 dan tidak pernah punya approved CUTI
+            $query->where('status', 'ACTIVE')
+                ->where('leave_balance', 0)
+                ->whereHas('profile', function ($q) {
+                    $q->whereNotNull('tgl_bergabung')
+                        ->whereDate('tgl_bergabung', '<=', now()->subYear());
+                })
+                ->whereDoesntHave('leaveRequests', function ($q) {
+                    $q->where('type', 'CUTI')
+                        ->where('status', 'APPROVED');
+                });
+        } elseif ($noShift) {
+            // Belum ada shift: tidak ada record di employee_shifts
+            $query->whereDoesntHave('employeeShift', function ($q) {
+                // hanya yang tidak punya record sama sekali
+            });
         } else {
             $query->orderBy('name');
         }
@@ -125,6 +147,9 @@ class HREmployeeController extends Controller
             'categoryOptions' => $categoryOptions,
             'totalEmployees' => $totalEmployees,
             'nearExpiry' => $nearExpiry,
+            'noLeaveBalance' => $noLeaveBalance,
+            'noShift' => $noShift,
+            'shifts' => Shift::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 

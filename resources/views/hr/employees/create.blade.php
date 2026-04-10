@@ -104,7 +104,7 @@
 
                     <div class="form-group">
                         <label for="kewarganegaraan">Kewarganegaraan</label>
-                        <input id="kewarganegaraan" type="text" name="kewarganegaraan" class="form-control" value="{{ old('kewarganegaraan') }}" placeholder="Misal: WNI">
+                        <input id="kewarganegaraan" type="text" name="kewarganegaraan" class="form-control" value="{{ old('kewarganegaraan', 'Indonesia') }}" placeholder="Misal: WNI" readonly>
                     </div>
 
                     <div class="form-group">

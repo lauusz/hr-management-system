@@ -28,13 +28,26 @@
             </div>
         </div>
 
+        @php
+            $pendingSupervisorLeaves = $leaves->where('status', \App\Models\LeaveRequest::PENDING_SUPERVISOR);
+            $bySupervisor = $pendingSupervisorLeaves->groupBy(fn($lv) => ($lv->user->directSupervisor?->name ?? $lv->user->manager?->name) ?? 'Tanpa Atasan')->sortByDesc(fn($group) => $group->count());
+        @endphp
         <div class="stat-card stat-supervisor">
             <div class="stat-icon">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             </div>
             <div class="stat-content">
-                <div class="stat-value">{{ $leaves->where('status', \App\Models\LeaveRequest::PENDING_SUPERVISOR)->count() }}</div>
+                <div class="stat-value">{{ $pendingSupervisorLeaves->count() }}</div>
                 <div class="stat-label">Menunggu Atasan</div>
+                @foreach($bySupervisor->take(3) as $supName => $group)
+                <div class="stat-supervisor-row">
+                    <span class="stat-supervisor-name">{{ $supName }}</span>
+                    <span class="stat-supervisor-count">{{ $group->count() }}</span>
+                </div>
+                @endforeach
+                @if($bySupervisor->count() > 3)
+                <div class="stat-supervisor-more">+{{ $bySupervisor->count() - 3 }} atasan lainnya</div>
+                @endif
             </div>
         </div>
     </div>
@@ -86,6 +99,7 @@
                     if ($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
                         $statusBadge = 'badge-yellow';
                         $statusLabel = 'Menunggu Atasan';
+                        $supervisorName = $lv->user->directSupervisor?->name ?? $lv->user->manager?->name ?? 'Tidak ada';
                         $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
                     } elseif ($lv->status == \App\Models\LeaveRequest::PENDING_HR) {
                         $roleVal = $lv->user->role instanceof \App\Enums\UserRole ? $lv->user->role->value : $lv->user->role;
@@ -198,6 +212,10 @@
                                     Lihat
                                 </a>
                             </div>
+                            <span class="badge-supervisor">
+                                <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                {{ $supervisorName }}
+                            </span>
                         @else
                             <div class="action-buttons">
                                 <a href="{{ route('hr.leave.show', $lv) }}" class="btn-detail-sm">
@@ -295,6 +313,39 @@
             text-transform: uppercase;
             letter-spacing: 0.03em;
             margin-top: 2px;
+        }
+
+        .stat-supervisor-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 4px;
+            padding: 2px 0;
+        }
+
+        .stat-supervisor-name {
+            font-size: 10px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+
+        .stat-supervisor-count {
+            font-size: 10px;
+            font-weight: 600;
+            color: #7e22ce;
+            background: #f3e8ff;
+            padding: 1px 6px;
+            border-radius: 8px;
+        }
+
+        .stat-supervisor-more {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            font-style: italic;
         }
 
         /* --- FILTER TABS --- */
@@ -514,6 +565,18 @@
         .badge-green { background: #dcfce7; color: #166534; }
         .badge-red { background: #fee2e2; color: #991b1b; }
         .badge-teal { background: #ccfbf1; color: #0f766e; }
+
+        .badge-supervisor {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            color: #7e22ce;
+            background: #f3e8ff;
+            padding: 3px 8px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
 
         /* --- ACTION BUTTONS --- */
         .item-actions {

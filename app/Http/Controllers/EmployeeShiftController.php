@@ -54,4 +54,52 @@ class EmployeeShiftController extends Controller
             ->route('hr.employees.shift.edit', $user->id)
             ->with('success', 'Shift dan lokasi karyawan berhasil diperbarui.');
     }
+
+    public function updateInline(Request $request, User $user)
+    {
+        $shiftId = $request->get('shift_id');
+        $existing = EmployeeShift::where('user_id', $user->id)->first();
+
+        if (empty($shiftId)) {
+            if ($existing) {
+                $existing->delete();
+            }
+            return response()->json([
+                'success' => true,
+                'shift_name' => null,
+                'message' => 'Shift berhasil dihapus'
+            ]);
+        }
+
+        $data = [
+            'shift_id' => $shiftId,
+            'date'     => now()->toDateString(),
+        ];
+
+        // Always set location_id (from existing or default)
+        if ($existing && $existing->location_id) {
+            $data['location_id'] = $existing->location_id;
+        } else {
+            $defaultLocation = AttendanceLocation::where('is_active', true)->first();
+            if ($defaultLocation) {
+                $data['location_id'] = $defaultLocation->id;
+            }
+        }
+
+        if ($existing) {
+            $existing->fill($data);
+            $existing->save();
+        } else {
+            $data['user_id'] = $user->id;
+            EmployeeShift::create($data);
+        }
+
+        $shift = Shift::find($shiftId);
+
+        return response()->json([
+            'success' => true,
+            'shift_name' => $shift?->name,
+            'message' => $shift ? "Shift {$shift->name} berhasil diterapkan" : 'Shift berhasil dihapus'
+        ]);
+    }
 }

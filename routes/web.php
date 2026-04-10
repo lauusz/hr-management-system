@@ -101,6 +101,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/hr/employees/{user}/shift', [EmployeeShiftController::class, 'edit'])->name('hr.employees.shift.edit');
         Route::put('/hr/employees/{user}/shift', [EmployeeShiftController::class, 'update'])->name('hr.employees.shift.update');
+        Route::patch('/hr/employees/{user}/shift-inline', [EmployeeShiftController::class, 'updateInline'])->name('hr.employees.shift.inline');
         Route::post('/hr/employees/{user}/documents', [EmployeeDocumentController::class, 'store'])->name('hr.employees.documents.store');
         Route::delete('/hr/employee-documents/{employeeDocument}', [EmployeeDocumentController::class, 'destroy'])->name('hr.employee_documents.destroy');
 
@@ -163,6 +164,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/hr/divisions/{division}', [DivisionController::class, 'destroy'])->name('hr.divisions.destroy');
 
         Route::get('/hr/pts', [PtController::class, 'index'])->name('hr.pts.index');
+
+        // Debug
+        Route::get('/hr/phpinfo', fn() => phpinfo())->name('hr.phpinfo');
         Route::get('/hr/pts/create', [PtController::class, 'create'])->name('hr.pts.create');
         Route::post('/hr/pts', [PtController::class, 'store'])->name('hr.pts.store');
         Route::get('/hr/pts/{pt}/edit', [PtController::class, 'edit'])->name('hr.pts.edit');

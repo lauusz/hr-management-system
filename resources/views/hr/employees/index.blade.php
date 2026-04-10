@@ -30,7 +30,7 @@
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     Cari
                 </button>
-                @if(($search ?? null) || ($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false))
+                @if(($search ?? null) || ($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false) || ($noLeaveBalance ?? false) || ($noShift ?? false))
                 <a href="{{ route('hr.employees.index') }}" class="btn-reset">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     Reset
@@ -63,6 +63,18 @@
                     <input type="checkbox" name="near_expiry" value="1" onchange="this.form.submit()" @checked($nearExpiry ?? false)>
                     <span class="checkbox-custom"></span>
                     Kontrak Mau Habis
+                </label>
+
+                <label class="filter-checkbox">
+                    <input type="checkbox" name="no_leave_balance" value="1" onchange="this.form.submit()" @checked($noLeaveBalance ?? false)>
+                    <span class="checkbox-custom"></span>
+                    Belum Dapat Cuti
+                </label>
+
+                <label class="filter-checkbox">
+                    <input type="checkbox" name="no_shift" value="1" onchange="this.form.submit()" @checked($noShift ?? false)>
+                    <span class="checkbox-custom"></span>
+                    Belum Ada Shift
                 </label>
             </div>
         </form>
@@ -170,9 +182,23 @@
                                 <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                                 {{ $joinDateFormatted }}
                             </div>
+                            @if($nearExpiry && $emp->probation_end_label)
+                            <div class="info-chip info-chip-expiry">
+                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Berakhir: {{ $emp->probation_end_label }}
+                            </div>
+                            @endif
                             <div class="info-chip info-chip-leave">
                                 <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                                 Cuti: <strong>{{ $emp->leave_balance ?? 0 }}</strong>
+                            </div>
+                            <div class="shift-selector">
+                                <select class="shift-dropdown @if($emp->employeeShift?->shift_id) has-shift @endif" data-user-id="{{ $emp->id }}" onchange="updateShift(this)">
+                                    <option value="">- Shift -</option>
+                                    @foreach($shifts as $shift)
+                                    <option value="{{ $shift->id }}" @selected($emp->employeeShift?->shift_id == $shift->id)>{{ $shift->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -606,6 +632,41 @@
             font-weight: 700;
         }
 
+        .info-chip-expiry {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        /* --- SHIFT SELECTOR --- */
+        .shift-selector {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .shift-dropdown {
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            background: #fff;
+            cursor: pointer;
+            min-width: 90px;
+        }
+
+        .shift-dropdown:focus {
+            outline: none;
+            border-color: var(--navy);
+        }
+
+        .shift-dropdown.has-shift {
+            background: #eff6ff;
+            color: #1e40af;
+            border-color: #bfdbfe;
+            font-weight: 600;
+        }
+
         /* --- DETAIL BUTTON --- */
         .btn-detail {
             width: 36px;
@@ -741,6 +802,15 @@
             .right-bottom {
                 flex-wrap: wrap;
             }
+
+            .shift-selector {
+                width: 100%;
+                margin-top: 8px;
+            }
+
+            .shift-dropdown {
+                width: 100%;
+            }
         }
 
         @media (max-width: 480px) {
@@ -753,5 +823,40 @@
             .info-chip { font-size: 10px; }
         }
     </style>
+
+    <script>
+    function updateShift(select) {
+        const userId = select.dataset.userId;
+        const shiftId = select.value;
+
+        select.disabled = true;
+
+        fetch(`/hr/employees/${userId}/shift-inline`, {
+            method: 'PATCH',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || document.querySelector('input[name=_token]')?.value,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ shift_id: shiftId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (shiftId) {
+                    select.classList.add('has-shift');
+                } else {
+                    select.classList.remove('has-shift');
+                }
+            }
+        })
+        .catch(err => {
+            alert('Gagal menyimpan shift');
+            location.reload();
+        })
+        .finally(() => {
+            select.disabled = false;
+        });
+    }
+    </script>
 
 </x-app>
