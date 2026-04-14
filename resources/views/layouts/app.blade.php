@@ -9,6 +9,15 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
+  {{-- PWA Meta Tags --}}
+  <meta name="theme-color" content="#1e4a8d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="HRD System">
+
+  <link rel="manifest" href="/hrd/manifest.json">
+  <link rel="apple-touch-icon" href="/hrd/images/icons/icon-192x192.png">
+
   <title>{{ $title ?? 'HRD System' }}</title>
 
   <link rel="icon" href="{{ asset('images/logo-triguna-clean.png') }}" type="image/png">
@@ -981,6 +990,21 @@
 
   @stack('scripts')
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  {{-- Service Worker Registration for PWA --}}
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/hrd/sw.js')
+          .then(function(registration) {
+            console.log('SW registered:', registration.scope);
+          })
+          .catch(function(error) {
+            console.log('SW registration failed:', error);
+          });
+      });
+    }
+  </script>
 
 </body>
 

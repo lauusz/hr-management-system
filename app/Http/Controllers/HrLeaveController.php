@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\LeaveType;
+use App\Exports\LeaveMasterExport;
 use App\Models\LeaveRequest;
 use App\Models\Pt;
 use App\Models\User;
@@ -13,7 +14,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class HrLeaveController extends Controller
 {
@@ -38,14 +41,14 @@ class HrLeaveController extends Controller
 
         $leaves = LeaveRequest::withoutGlobalScopes()
             ->with([
-                'user.division', 
-                'user.position', 
-                'user.profile.pt' 
+                'user.division',
+                'user.position',
+                'user.profile.pt'
             ])
             ->where(function ($query) use ($userId) {
                 // 1. Ambil yang statusnya PENDING_HR (Tugas Global HR Manager)
                 $query->where('status', LeaveRequest::PENDING_HR)
-                
+
                 // 2. ATAU Ambil yang statusnya PENDING_SUPERVISOR...
                 ->orWhere(function ($subQuery) use ($userId) {
                     $subQuery->where('status', LeaveRequest::PENDING_SUPERVISOR)
@@ -77,20 +80,20 @@ class HrLeaveController extends Controller
         // Base Query
         $query = LeaveRequest::withoutGlobalScopes()
             ->with([
-                'user.division', 
+                'user.division',
                 'user.position',
-                'user.profile.pt', 
+                'user.profile.pt',
                 'approver'
             ])
             ->orderByDesc('created_at');
-        
+
         // --- 1. Filter Status ---
         $statusOptions = [
             LeaveRequest::PENDING_SUPERVISOR,
             LeaveRequest::PENDING_HR,
             LeaveRequest::STATUS_APPROVED,
             LeaveRequest::STATUS_REJECTED,
-            'BATAL', 
+            'BATAL',
             'CANCEL_REQ'
         ];
 
@@ -192,6 +195,50 @@ class HrLeaveController extends Controller
             'q'              => $q,
             'pts'            => $pts,
         ]);
+    }
+
+    /**
+     * Export master leave ke Excel
+     */
+    public function exportMaster(Request $request)
+    {
+        $this->authorizeAccess();
+
+        $filters = [
+            'status'          => $request->query('status'),
+            'type'            => $request->query('type'),
+            'submitted_range' => $request->query('submitted_range'),
+            'period_range'    => $request->query('period_range'),
+            'pt_id'           => $request->query('pt_id'),
+            'q'               => $request->query('q'),
+        ];
+
+        // Build filename with filter info
+        $parts = ['data_izin_cuti'];
+        if (!empty($filters['status'])) {
+            $parts[] = 'status_' . $filters['status'];
+        }
+        if (!empty($filters['type'])) {
+            $parts[] = 'type_' . $filters['type'];
+        }
+        if (!empty($filters['submitted_range'])) {
+            $parts[] = 'tgl_' . str_replace([' ', 'to', 'sampai'], '_', $filters['submitted_range']);
+        }
+        if (!empty($filters['period_range'])) {
+            $parts[] = 'period_' . str_replace([' ', 'to', 'sampai'], '_', $filters['period_range']);
+        }
+        if (!empty($filters['pt_id'])) {
+            $pt = Pt::find($filters['pt_id']);
+            $parts[] = 'pt_' . ($pt ? preg_replace('/[^a-zA-Z0-9]/', '_', $pt->name) : $filters['pt_id']);
+        }
+        if (!empty($filters['q'])) {
+            $parts[] = 'q_' . preg_replace('/[^a-zA-Z0-9]/', '_', $filters['q']);
+        }
+        $parts[] = now()->format('Ymd_His');
+
+        $filename = implode('_', $parts) . '.xlsx';
+
+        return Excel::download(new LeaveMasterExport($filters), $filename);
     }
 
     public function createManual()
@@ -500,7 +547,7 @@ class HrLeaveController extends Controller
                 // [REFUND LOGIC] Kembalikan saldo jika pengajuan ini sudah APPROVED sebelumnya dan tipe CUTI
                 $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : $leave->type;
                 $targetValue = LeaveType::CUTI->value;
-                
+
                 if ($leave->status === LeaveRequest::STATUS_APPROVED && $leaveTypeValue === $targetValue) {
                     $this->leaveBalanceService->refundLeaveBalanceForLeave($leave);
                 }
@@ -510,7 +557,7 @@ class HrLeaveController extends Controller
                     'status'      => LeaveRequest::STATUS_REJECTED,
                     'approved_by' => auth()->id(),
                     'approved_at' => now(),
-                    'notes_hrd'   => $request->notes_hrd, 
+                    'notes_hrd'   => $request->notes_hrd,
                 ]);
             });
 
@@ -524,7 +571,7 @@ class HrLeaveController extends Controller
     private function authorizeAccess()
     {
         $user = auth()->user();
-        
+
         if (!$user || !method_exists($user, 'isHR') || !$user->isHR()) {
             if (!in_array($user->role, ['HRD', 'HR STAFF', 'MANAGER HR'])) {
                  abort(403, 'Akses khusus HRD');

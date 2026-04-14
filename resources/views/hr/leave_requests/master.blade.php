@@ -26,6 +26,10 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Tambah Data
             </a>
+            <a href="{{ route('hr.leave.master.export', request()->query()) }}" class="btn btn-secondary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export Excel
+            </a>
         </div>
 
         {{-- Filter Card --}}
@@ -93,6 +97,16 @@
                                 <option value="{{ $opt }}" @selected($status === $opt)>
                                     {{ $statusLabels[$opt] ?? $opt }}
                                 </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label for="pt_id">PT</label>
+                        <select name="pt_id" id="pt_id" class="form-input">
+                            <option value="">Semua PT</option>
+                            @foreach($pts as $pt)
+                                <option value="{{ $pt->id }}" @selected($pt_id == $pt->id)>{{ $pt->name }}</option>
                             @endforeach
                         </select>
                     </div>

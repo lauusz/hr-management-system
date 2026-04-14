@@ -77,6 +77,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/hr/leave-requests/{leave}/reject', [HrLeaveController::class, 'reject'])->name('hr.leave.reject');
 
         Route::get('/hr/leave/master', [HrLeaveController::class, 'master'])->name('hr.leave.master');
+        Route::get('/hr/leave/master/export', [HrLeaveController::class, 'exportMaster'])->name('hr.leave.master.export');
         Route::get('/hr/leave/master/create', [HrLeaveController::class, 'createManual'])->name('hr.leave.manual.create');
         Route::post('/hr/leave/master/create', [HrLeaveController::class, 'storeManual'])->name('hr.leave.manual.store');
 

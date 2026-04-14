@@ -11,8 +11,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="HRD System">
 
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+  <link rel="manifest" href="/hrd/manifest.json">
+  <link rel="apple-touch-icon" href="/hrd/images/icons/icon-192x192.png">
 
   <title>HRD Triguna Samudratrans</title>
 
@@ -387,12 +387,11 @@
 
 </div>
 
-</body>
 {{-- Service Worker Registration for PWA --}}
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/sw.js')
+      navigator.serviceWorker.register('/hrd/sw.js')
         .then(function(registration) {
           console.log('SW registered:', registration.scope);
         })
@@ -402,4 +401,6 @@
     });
   }
 </script>
+
+</body>
 </html>
