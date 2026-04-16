@@ -68,8 +68,8 @@
                         <label for="kategori">Kategori Pegawai</label>
                         <select id="kategori" name="kategori" class="form-control">
                             <option value="">Pilih Kategori</option>
-                            <option value="TETAP" @selected(old('kategori', optional($profile)->kategori) === 'TETAP')>Karyawan Tetap</option>
-                            <option value="KONTRAK" @selected(old('kategori', optional($profile)->kategori) === 'KONTRAK')>Karyawan Kontrak</option>
+                            <option value="Karyawan Tetap" @selected(old('kategori', optional($profile)->kategori) === 'Karyawan Tetap')>Karyawan Tetap</option>
+                            <option value="Karyawan Kontrak" @selected(old('kategori', optional($profile)->kategori) === 'Karyawan Kontrak')>Karyawan Kontrak</option>
                         </select>
                     </div>
 

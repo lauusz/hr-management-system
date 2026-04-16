@@ -475,7 +475,7 @@ class LeaveRequestController extends Controller
         $daysDiff = $today->diffInDays($start, false);
         if ($type === LeaveType::CUTI->value) {
             if ($daysDiff < 7 && $daysDiff >= 0) {
-                $notesParts[] = "Pengajuan H-{$daysDiff} (kurang dari H-7). Termasuk Potong Uang Makan.";
+                $notesParts[] = "Pengajuan H-{$daysDiff} (kurang dari H-7). Dihitung Potong Uang Makan.";
             }
         }
 

@@ -259,7 +259,7 @@ class HrLeaveController extends Controller
             ['id' => 'PEMBAPTISAN_ANAK', 'label' => 'Pembaptisan Anak', 'days' => 2],
             ['id' => 'NIKAH_ANAK', 'label' => 'Pernikahan Anak', 'days' => 2],
             ['id' => 'DEATH_EXTENDED', 'label' => 'Kematian (Adik/Kakak/Ipar)', 'days' => 2],
-            ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Istri/Anak)', 'days' => 2],
+            ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Menantu/Istri/Suami/Anak)', 'days' => 2],
             ['id' => 'DEATH_HOUSE', 'label' => 'Kematian Anggota Rumah', 'days' => 1],
             ['id' => 'HAJI', 'label' => 'Ibadah Haji (1x)', 'days' => 40],
             ['id' => 'UMROH', 'label' => 'Ibadah Umroh (1x)', 'days' => 14],
@@ -378,9 +378,13 @@ class HrLeaveController extends Controller
         // [LOGIC TOMBOL APPROVE] Gunakan rule yang sama dengan endpoint approve/reject
         $canApprove = $this->canHrActOnLeave(auth()->user(), $leave);
 
+        // Check if current user is HR staff (for edit permissions)
+        $isHrStaff = auth()->user()->isHR();
+
         return view('hr.leave_requests.show', [
             'item' => $leave,
             'canApprove' => $canApprove,
+            'isHrStaff' => $isHrStaff,
         ]);
     }
 
@@ -393,7 +397,20 @@ class HrLeaveController extends Controller
     {
         $this->authorizeAccess();
 
-        $validated = $request->validate([
+        $user = auth()->user();
+        $userRole = $this->normalizeRole($user->role);
+        $isHrStaff = in_array($userRole, ['HRD', 'HR STAFF', 'HR MANAGER'], true);
+
+        // Status options
+        $statusOptions = [
+            LeaveRequest::PENDING_SUPERVISOR,
+            LeaveRequest::PENDING_HR,
+            LeaveRequest::STATUS_APPROVED,
+            LeaveRequest::STATUS_REJECTED,
+            'BATAL',
+        ];
+
+        $rules = [
             'type'       => ['required', Rule::in(LeaveType::values())],
             'start_date' => ['required', 'date'],
             'end_date'   => ['required', 'date', 'after_or_equal:start_date'],
@@ -405,7 +422,14 @@ class HrLeaveController extends Controller
             'substitute_phone' => ['nullable', 'string', 'max:50'],
             'special_leave_detail' => ['nullable', 'string'],
             'photo'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
-        ]);
+        ];
+
+        // HRD/HR_STAFF can also update status
+        if ($isHrStaff) {
+            $rules['status'] = ['nullable', Rule::in($statusOptions)];
+        }
+
+        $validated = $request->validate($rules);
 
         $type = $validated['type'];
 
@@ -451,14 +475,39 @@ class HrLeaveController extends Controller
             $updateData['photo'] = basename($fullPath);
         }
 
-        // If currently APPROVED and type is CUTI, re-process balance (refund old + deduct new)
+        // Handle status change by HRD/HR_STAFF
+        $newStatus = $validated['status'] ?? $leave->status;
+        $oldStatus = $leave->status;
         $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : $leave->type;
-        if ($leave->status === LeaveRequest::STATUS_APPROVED && $leaveTypeValue === LeaveType::CUTI->value) {
-            $this->leaveBalanceService->refundLeaveBalanceForLeave($leave);
-            $leave->fill($updateData);
-            $this->leaveBalanceService->deductLeaveBalanceForLeave($leave);
-            $updateData['approved_by'] = auth()->id();
-            $updateData['approved_at'] = now();
+        $isCutiType = $leaveTypeValue === LeaveType::CUTI->value;
+
+        // Only process balance if type is CUTI
+        if ($isCutiType && $isHrStaff) {
+            // Case 1: Was APPROVED, now changed to something else (REJECTED/BATAL/PENDING) -> REFUND
+            if ($oldStatus === LeaveRequest::STATUS_APPROVED && $newStatus !== LeaveRequest::STATUS_APPROVED) {
+                $this->leaveBalanceService->refundLeaveBalanceForLeave($leave);
+                $updateData['approved_by'] = null;
+                $updateData['approved_at'] = null;
+            }
+            // Case 2: Was NOT APPROVED, now changed to APPROVED -> DEDUCT
+            elseif ($oldStatus !== LeaveRequest::STATUS_APPROVED && $newStatus === LeaveRequest::STATUS_APPROVED) {
+                $this->leaveBalanceService->deductLeaveBalanceForLeave($leave);
+                $updateData['approved_by'] = auth()->id();
+                $updateData['approved_at'] = now();
+            }
+            // Case 3: Was APPROVED and still APPROVED (editing data) -> refund old, deduct new
+            elseif ($oldStatus === LeaveRequest::STATUS_APPROVED && $newStatus === LeaveRequest::STATUS_APPROVED) {
+                $this->leaveBalanceService->refundLeaveBalanceForLeave($leave);
+                $leave->fill($updateData);
+                $this->leaveBalanceService->deductLeaveBalanceForLeave($leave);
+                $updateData['approved_by'] = auth()->id();
+                $updateData['approved_at'] = now();
+            }
+        }
+
+        // Apply status change if provided by HRD/HR_STAFF
+        if ($isHrStaff && isset($validated['status'])) {
+            $updateData['status'] = $validated['status'];
         }
 
         $leave->update($updateData);

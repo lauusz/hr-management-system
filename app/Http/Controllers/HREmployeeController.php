@@ -133,7 +133,7 @@ class HREmployeeController extends Controller
 
         $ptOptions = Pt::orderBy('name')->get();
         $positionOptions = Position::orderBy('name')->get();
-        $categoryOptions = ['TETAP', 'KONTRAK'];
+        $categoryOptions = ['Karyawan Tetap', 'Karyawan Kontrak'];
 
         return view('hr.employees.index', [
             'items' => $items,

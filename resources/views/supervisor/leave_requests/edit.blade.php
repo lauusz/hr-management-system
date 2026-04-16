@@ -171,7 +171,7 @@
                                 ['id' => 'PEMBAPTISAN_ANAK', 'label' => 'Pembaptisan Anak', 'days' => 2],
                                 ['id' => 'NIKAH_ANAK', 'label' => 'Pernikahan Anak', 'days' => 2],
                                 ['id' => 'DEATH_EXTENDED', 'label' => 'Kematian (Adik/Kakak/Ipar)', 'days' => 2],
-                                ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Istri/Anak)', 'days' => 2],
+                                ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Menantu/Istri/Suami/Anak)', 'days' => 2],
                                 ['id' => 'DEATH_HOUSE', 'label' => 'Kematian Anggota Rumah', 'days' => 1],
                                 ['id' => 'HAJI', 'label' => 'Ibadah Haji (1x)', 'days' => 40],
                                 ['id' => 'UMROH', 'label' => 'Ibadah Umroh (1x)', 'days' => 14],

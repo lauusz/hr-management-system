@@ -306,23 +306,30 @@
     {{-- ACTION BAR --}}
     <div class="action-bar">
         <div class="action-main">
+            @php
+                $user = auth()->user();
+                $isHrStaff = $user->isHR();
+                $canHrEdit = $isHrStaff && $item->status !== 'BATAL';
+                $isRejectedOrBatal = in_array($item->status, [\App\Models\LeaveRequest::STATUS_REJECTED, 'BATAL'], true);
+            @endphp
+
             @if($item->status === 'BATAL')
                 <div class="status-notice status-notice-gray">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
                     Pengajuan Sudah Dibatalkan
                 </div>
-
-            @elseif(!in_array($item->status, [\App\Models\LeaveRequest::STATUS_REJECTED, 'BATAL'], true))
-                {{-- Edit & Batalkan: tampil untuk semua status (selain REJECTED/BATAL) --}}
+            @elseif($canHrEdit)
+                {{-- HRD/HR_STAFF: bisa edit semua status kecuali BATAL --}}
                 <button type="button" data-modal-target="modal-edit-hr" class="action-btn action-btn-edit">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                     Edit
                 </button>
-                <button type="button" data-modal-target="modal-delete" class="action-btn action-btn-batal">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    Batalkan
-                </button>
-                {{-- Tolak & Terima: hanya untuk PENDING + user punya hak approve --}}
+                @if(!$isRejectedOrBatal)
+                    <button type="button" data-modal-target="modal-delete" class="action-btn action-btn-batal">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        Batalkan
+                    </button>
+                @endif
                 @if($canApprove && in_array($item->status, [\App\Models\LeaveRequest::PENDING_HR, \App\Models\LeaveRequest::PENDING_SUPERVISOR], true))
                     <button type="button" data-modal-target="modal-reject" class="action-btn action-btn-tolak">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
@@ -333,7 +340,26 @@
                         Terima
                     </button>
                 @endif
-
+            @elseif(!$isRejectedOrBatal)
+                {{-- Non-HR: Edit & Batalkan hanya untuk status non-REJECTED/BATAL --}}
+                <button type="button" data-modal-target="modal-edit-hr" class="action-btn action-btn-edit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    Edit
+                </button>
+                <button type="button" data-modal-target="modal-delete" class="action-btn action-btn-batal">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Batalkan
+                </button>
+                @if($canApprove && in_array($item->status, [\App\Models\LeaveRequest::PENDING_HR, \App\Models\LeaveRequest::PENDING_SUPERVISOR], true))
+                    <button type="button" data-modal-target="modal-reject" class="action-btn action-btn-tolak">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>
+                        Tolak
+                    </button>
+                    <button type="button" data-modal-target="modal-approve" class="action-btn action-btn-setuju">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>
+                        Terima
+                    </button>
+                @endif
             @else
                 <div class="status-notice status-notice-gray">
                     {{ $statusLabel }}
@@ -351,101 +377,453 @@
     </div>
 
     {{-- MODALS --}}
-    <x-modal id="modal-edit-hr" title="Edit Data Pengajuan" type="form">
+    <x-modal id="modal-edit-hr" title="Edit Data Pengajuan" type="form" style="max-width: 720px;">
         <form action="{{ route('hr.leave.update', $item->id) }}" method="POST" id="form-edit-hr" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 
-            <div style="max-height: 60vh; overflow-y: auto; padding-right: 4px;">
-                <div class="form-group">
-                    <label class="lbl-edit">Jenis Pengajuan</label>
-                    <select name="type" id="edit_type" class="form-control">
-                        @foreach(\App\Enums\LeaveType::cases() as $type)
-                            <option value="{{ $type->value }}" @selected($typeValue == $type->value)>
-                                {{ $type->label() }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="form-group" id="edit_special_wrapper" style="display:none; background:#eff6ff; padding:10px; border-radius:6px; margin-bottom:12px;">
-                    <label class="lbl-edit" style="color:#1e40af;">Kategori Cuti Khusus</label>
-                    <select name="special_leave_detail" class="form-control">
-                        <option value="">-- Pilih Kategori --</option>
-                        @php
-                            $specialList = [
-                                'NIKAH_KARYAWAN' => 'Menikah', 'ISTRI_MELAHIRKAN' => 'Istri Melahirkan',
-                                'ISTRI_KEGUGURAN' => 'Istri Keguguran', 'KHITANAN_ANAK' => 'Khitanan Anak',
-                                'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak', 'NIKAH_ANAK' => 'Pernikahan Anak',
-                                'DEATH_CORE' => 'Kematian Inti', 'DEATH_EXTENDED' => 'Kematian Saudara/Ipar',
-                                'DEATH_HOUSE' => 'Kematian Orang Serumah', 'HAJI' => 'Ibadah Haji', 'UMROH' => 'Ibadah Umroh'
-                            ];
-                        @endphp
-                        @foreach($specialList as $code => $label)
-                            <option value="{{ $code }}" @selected($item->special_leave_category == $code)>{{ $label }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label class="lbl-edit">Tanggal Mulai</label>
-                        <input type="date" name="start_date" class="form-control" value="{{ $item->start_date->format('Y-m-d') }}" required>
+            <div class="edit-modal-content">
+                {{-- STATUS SECTION (HR STAFF ONLY) --}}
+                @if($isHrStaff)
+                <div class="edit-section edit-section-status">
+                    <div class="section-header">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Status Pengajuan</span>
                     </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label class="lbl-edit">Tanggal Selesai</label>
-                        <input type="date" name="end_date" class="form-control" value="{{ $item->end_date->format('Y-m-d') }}" required>
+                    @php
+                        $statusConfig = [
+                            \App\Models\LeaveRequest::PENDING_SUPERVISOR => ['label' => 'Menunggu Atasan', 'color' => '#f59e0b', 'bg' => '#fef3c7'],
+                            \App\Models\LeaveRequest::PENDING_HR => ['label' => 'Menunggu HRD', 'color' => '#0891b2', 'bg' => '#cffafe'],
+                            \App\Models\LeaveRequest::STATUS_APPROVED => ['label' => 'Disetujui', 'color' => '#16a34a', 'bg' => '#dcfce7'],
+                            \App\Models\LeaveRequest::STATUS_REJECTED => ['label' => 'Ditolak', 'color' => '#dc2626', 'bg' => '#fee2e2'],
+                            'BATAL' => ['label' => 'Dibatalkan', 'color' => '#6b7280', 'bg' => '#f3f4f6'],
+                        ];
+                        $currentStatusConfig = $statusConfig[$item->status] ?? ['label' => $item->status, 'color' => '#6b7280', 'bg' => '#f3f4f6'];
+                    @endphp
+                    <div class="status-selector">
+                        <select name="status" id="edit_status" class="status-select">
+                            @foreach($statusConfig as $statusVal => $config)
+                                <option value="{{ $statusVal }}" @selected($item->status === $statusVal) data-color="{{ $config['color'] }}" data-bg="{{ $config['bg'] }}">
+                                    {{ $config['label'] }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="status-indicator" id="status_indicator" style="background: {{ $currentStatusConfig['bg'] }}; color: {{ $currentStatusConfig['color'] }};">
+                            {{ $currentStatusConfig['label'] }}
+                        </div>
                     </div>
                 </div>
+                @endif
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label class="lbl-edit">Jam Mulai</label>
-                        <input type="time" name="start_time" class="form-control" value="{{ $item->start_time ? $item->start_time->format('H:i') : '' }}">
+                {{-- MAIN INFO SECTION --}}
+                <div class="edit-section">
+                    <div class="section-header">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span>Informasi Utama</span>
                     </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label class="lbl-edit">Jam Selesai</label>
-                        <input type="time" name="end_time" class="form-control" value="{{ $item->end_time ? $item->end_time->format('H:i') : '' }}">
+
+                    <div class="form-group">
+                        <label class="form-label">Jenis Pengajuan</label>
+                        <select name="type" id="edit_type" class="form-select">
+                            @foreach(\App\Enums\LeaveType::cases() as $type)
+                                <option value="{{ $type->value }}" @selected($typeValue == $type->value)>
+                                    {{ $type->label() }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="edit_special_wrapper" style="display: none;">
+                        <label class="form-label">Kategori Cuti Khusus</label>
+                        <select name="special_leave_detail" class="form-select">
+                            <option value="">-- Pilih Kategori --</option>
+                            @php
+                                $specialList = [
+                                    'NIKAH_KARYAWAN' => 'Menikah', 'ISTRI_MELAHIRKAN' => 'Istri Melahirkan',
+                                    'ISTRI_KEGUGURAN' => 'Istri Keguguran', 'KHITANAN_ANAK' => 'Khitanan Anak',
+                                    'PEMBAPTISAN_ANAK' => 'Pembaptisan Anak', 'NIKAH_ANAK' => 'Pernikahan Anak',
+                                    'DEATH_CORE' => 'Kematian Inti', 'DEATH_EXTENDED' => 'Kematian Saudara/Ipar',
+                                    'DEATH_HOUSE' => 'Kematian Orang Serumah', 'HAJI' => 'Ibadah Haji', 'UMROH' => 'Ibadah Umroh'
+                                ];
+                            @endphp
+                            @foreach($specialList as $code => $label)
+                                <option value="{{ $code }}" @selected($item->special_leave_category == $code)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Tanggal Mulai</label>
+                            <input type="date" name="start_date" class="form-input" value="{{ $item->start_date->format('Y-m-d') }}" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Tanggal Selesai</label>
+                            <input type="date" name="end_date" class="form-input" value="{{ $item->end_date->format('Y-m-d') }}" required>
+                        </div>
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label class="lbl-edit">PIC Pengganti</label>
-                        <input type="text" name="substitute_pic" class="form-control" value="{{ $item->substitute_pic }}">
+                {{-- TIME SECTION --}}
+                <div class="edit-section">
+                    <div class="section-header">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Detail Waktu</span>
                     </div>
-                    <div class="form-group" style="margin-bottom:0;">
-                        <label class="lbl-edit">No. HP PIC</label>
-                        <input type="text" name="substitute_phone" class="form-control" value="{{ $item->substitute_phone }}">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Jam Mulai <span class="optional">(opsional)</span></label>
+                            <input type="time" name="start_time" class="form-input" value="{{ $item->start_time ? $item->start_time->format('H:i') : '' }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Jam Selesai <span class="optional">(opsional)</span></label>
+                            <input type="time" name="end_time" class="form-input" value="{{ $item->end_time ? $item->end_time->format('H:i') : '' }}">
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-bottom:12px;">
-                    <label class="lbl-edit">Alasan</label>
-                    <textarea name="reason" rows="3" class="form-control">{{ $item->reason }}</textarea>
+                {{-- ASSIGNMENT SECTION --}}
+                <div class="edit-section">
+                    <div class="section-header">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <span>Penugasan Pengganti</span>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">PIC Pengganti</label>
+                            <input type="text" name="substitute_pic" class="form-input" placeholder="Nama pengganti" value="{{ $item->substitute_pic }}">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">No. HP PIC</label>
+                            <input type="text" name="substitute_phone" class="form-input" placeholder="08xxxxxxxxxx" value="{{ $item->substitute_phone }}">
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group" style="margin-bottom:12px;">
-                    <label class="lbl-edit">Catatan HRD</label>
-                    <textarea name="notes_hrd" rows="2" class="form-control" placeholder="Contoh: Potong uang makan.">{{ $item->notes_hrd }}</textarea>
+                {{-- NOTES SECTION --}}
+                <div class="edit-section edit-section-notes">
+                    <div class="section-header">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
+                        <span>Catatan</span>
+                    </div>
+
+                    <div class="notes-grid">
+                        <div class="form-group">
+                            <label class="form-label">Alasan Karyawan</label>
+                            <textarea name="reason" rows="3" class="form-textarea" placeholder="Jelaskan alasan pengajuan...">{{ $item->reason }}</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Catatan HRD <span class="optional">(internal)</span></label>
+                            <textarea name="notes_hrd" rows="3" class="form-textarea" placeholder="Catatan untuk karyawan...">{{ $item->notes_hrd }}</textarea>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="form-group" style="background:#f9fafb; padding:10px; border-radius:6px; border:1px dashed #d1d5db;">
-                    <label class="lbl-edit">Upload Foto (Opsional)</label>
-                    <input type="file" name="photo" class="form-control" accept="image/*,.pdf" style="font-size:12px;">
-                    <small style="font-size:11px; color:#6b7280; display:block; margin-top:4px;">Upload baru akan menggantikan foto lama.</small>
+                {{-- FILE UPLOAD SECTION --}}
+                <div class="edit-section edit-section-upload">
+                    <div class="section-header">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span>Lampiran</span>
+                    </div>
+                    <div class="upload-area">
+                        <input type="file" name="photo" id="edit_photo" class="upload-input" accept="image/*,.pdf">
+                        <label for="edit_photo" class="upload-label">
+                            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            <span>Klik untuk upload atau drag file ke sini</span>
+                            <small>JPG, PNG, PDF (max 8MB)</small>
+                        </label>
+                        @if($item->photo)
+                        <div class="current-file">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            File saat ini: {{ $item->photo }}
+                        </div>
+                        @endif
+                    </div>
                 </div>
             </div>
 
-            <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #eee; padding-top:15px;">
-                <button type="button" data-modal-close="true" class="btn-secondary" style="padding:8px 16px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer;">Batal</button>
-                <button type="submit" class="btn-approve" style="border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">Simpan</button>
+            <div class="edit-modal-footer">
+                <button type="button" data-modal-close="true" class="btn-cancel">Batal</button>
+                <button type="submit" class="btn-save">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    Simpan Perubahan
+                </button>
             </div>
         </form>
 
         <style>
-            .lbl-edit { display:block; font-size:12px; font-weight:600; color:#374151; margin-bottom:4px; }
-            .form-control { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13.5px; }
+            /* Modal Layout */
+            .edit-modal-content {
+                max-height: 70vh;
+                overflow-y: auto;
+                padding-right: 4px;
+            }
+
+            /* Section Styling */
+            .edit-section {
+                background: #fff;
+                border: 1px solid #e5e7eb;
+                border-radius: 12px;
+                padding: 16px;
+                margin-bottom: 12px;
+            }
+
+            .edit-section:last-child {
+                margin-bottom: 0;
+            }
+
+            .section-header {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 13px;
+                font-weight: 600;
+                color: #374151;
+                margin-bottom: 14px;
+                padding-bottom: 10px;
+                border-bottom: 1px solid #f3f4f6;
+            }
+
+            .section-header svg {
+                color: #6b7280;
+            }
+
+            /* Status Section Special Styling */
+            .edit-section-status {
+                background: linear-gradient(135deg, #fef3c7 0%, #fff 100%);
+                border-color: #fcd34d;
+            }
+
+            .edit-section-status .section-header {
+                color: #92400e;
+                border-bottom-color: #fde68a;
+            }
+
+            .edit-section-status .section-header svg {
+                color: #d97706;
+            }
+
+            .status-selector {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .status-select {
+                flex: 1;
+                padding: 10px 14px;
+                border: 2px solid #fcd34d;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 500;
+                background: #fff;
+                cursor: pointer;
+            }
+
+            .status-select:focus {
+                outline: none;
+                border-color: #f59e0b;
+                box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+            }
+
+            .status-indicator {
+                padding: 8px 14px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+                white-space: nowrap;
+            }
+
+            /* Form Elements */
+            .form-group {
+                margin-bottom: 14px;
+            }
+
+            .form-group:last-child {
+                margin-bottom: 0;
+            }
+
+            .form-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 14px;
+            }
+
+            .notes-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 14px;
+            }
+
+            .form-label {
+                display: block;
+                font-size: 12px;
+                font-weight: 600;
+                color: #374151;
+                margin-bottom: 6px;
+            }
+
+            .form-label .optional {
+                font-weight: 400;
+                color: #9ca3af;
+            }
+
+            .form-input,
+            .form-select,
+            .form-textarea {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 8px;
+                font-size: 14px;
+                color: #111827;
+                background: #fff;
+                transition: border-color 0.2s, box-shadow 0.2s;
+                font-family: inherit;
+                box-sizing: border-box;
+            }
+
+            .form-input:focus,
+            .form-select:focus,
+            .form-textarea:focus {
+                outline: none;
+                border-color: #2563eb;
+                box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+            }
+
+            .form-textarea {
+                resize: vertical;
+                min-height: 80px;
+            }
+
+            /* Upload Area */
+            .edit-section-upload {
+                background: #f9fafb;
+            }
+
+            .upload-area {
+                position: relative;
+            }
+
+            .upload-input {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                opacity: 0;
+                cursor: pointer;
+            }
+
+            .upload-label {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                padding: 24px;
+                border: 2px dashed #d1d5db;
+                border-radius: 10px;
+                background: #fff;
+                cursor: pointer;
+                transition: all 0.2s;
+                text-align: center;
+            }
+
+            .upload-label:hover {
+                border-color: #2563eb;
+                background: #eff6ff;
+            }
+
+            .upload-label svg {
+                color: #6b7280;
+            }
+
+            .upload-label span {
+                font-size: 14px;
+                font-weight: 500;
+                color: #374151;
+            }
+
+            .upload-label small {
+                font-size: 12px;
+                color: #9ca3af;
+            }
+
+            .current-file {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                margin-top: 10px;
+                padding: 8px 12px;
+                background: #ecfdf5;
+                border-radius: 6px;
+                font-size: 12px;
+                color: #065f46;
+            }
+
+            /* Modal Footer */
+            .edit-modal-footer {
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                margin-top: 20px;
+                padding-top: 16px;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            .btn-cancel {
+                padding: 10px 20px;
+                border: 1px solid #d1d5db;
+                background: #fff;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 500;
+                color: #374151;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .btn-cancel:hover {
+                background: #f3f4f6;
+                border-color: #9ca3af;
+            }
+
+            .btn-save {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 10px 20px;
+                border: none;
+                background: #2563eb;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #fff;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .btn-save:hover {
+                background: #1d4ed8;
+            }
+
+            /* Responsive */
+            @media (max-width: 640px) {
+                .form-row {
+                    grid-template-columns: 1fr;
+                }
+
+                .notes-grid {
+                    grid-template-columns: 1fr;
+                }
+
+                .status-selector {
+                    flex-direction: column;
+                    align-items: stretch;
+                }
+            }
         </style>
 
         <script>
@@ -454,16 +832,44 @@
                 const specialWrapper = document.getElementById('edit_special_wrapper');
 
                 function checkType() {
-                    if(typeSelect && typeSelect.value === 'CUTI_KHUSUS') {
+                    if (typeSelect && typeSelect.value === 'CUTI_KHUSUS') {
                         specialWrapper.style.display = 'block';
                     } else if (specialWrapper) {
                         specialWrapper.style.display = 'none';
                     }
                 }
 
-                if(typeSelect) {
+                if (typeSelect) {
                     typeSelect.addEventListener('change', checkType);
                     checkType();
+                }
+
+                // Status selector color update
+                const statusSelect = document.getElementById('edit_status');
+                const statusIndicator = document.getElementById('status_indicator');
+
+                if (statusSelect && statusIndicator) {
+                    statusSelect.addEventListener('change', function() {
+                        const selected = this.options[this.selectedIndex];
+                        const color = selected.dataset.color;
+                        const bg = selected.dataset.bg;
+                        statusIndicator.style.background = bg;
+                        statusIndicator.style.color = color;
+                        statusIndicator.textContent = selected.text;
+                    });
+                }
+
+                // File upload preview
+                const photoInput = document.getElementById('edit_photo');
+                if (photoInput) {
+                    photoInput.addEventListener('change', function() {
+                        const fileName = this.files[0]?.name || 'Pilih file...';
+                        const label = this.nextElementSibling;
+                        if (label && label.classList.contains('upload-label')) {
+                            const span = label.querySelector('span');
+                            if (span) span.textContent = fileName;
+                        }
+                    });
                 }
             });
         </script>
