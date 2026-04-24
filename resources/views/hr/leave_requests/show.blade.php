@@ -21,6 +21,11 @@
         }
         $typeValue = (string) $typeValue;
         $isTypeCuti = ($typeValue === 'CUTI');
+        $isTypeSakit = ($typeValue === 'SAKIT');
+        $isTypeIzin = ($typeValue === 'IZIN');
+        $isTypeCutiKhusus = ($typeValue === 'CUTI_KHUSUS');
+        $isTypeDinasLuar = ($typeValue === 'DINAS_LUAR');
+        $showDeductOptions = ($isTypeCuti || $isTypeCutiKhusus || $isTypeDinasLuar);
 
         // Status
         $status = $item->status;
@@ -120,10 +125,10 @@
                 <div class="card-content">
                     <div class="card-label">Periode Izin</div>
                     <div class="card-value-lg">
-                        {{ $item->start_date->format('d M Y') }}
+                        {{ \Carbon\Carbon::parse($item->start_date)->translatedFormat('l, j F Y') }}
                         @if($end->ne($start))
                             <span class="date-separator">—</span>
-                            {{ $end->format('d M Y') }}
+                            {{ \Carbon\Carbon::parse($end)->translatedFormat('l, j F Y') }}
                         @endif
                     </div>
                     <div class="card-meta">
@@ -134,6 +139,37 @@
                     </div>
                 </div>
             </div>
+
+            @php
+                // H-7 Warning Calculation (for CUTI type only)
+                // Based on days from submission date (created_at) to start_date
+                $showShortNoticeWarning = false;
+                $shortNoticeDaysDiff = 0;
+                if ($isTypeCuti && $item->start_date && $item->created_at) {
+                    $start = $item->start_date->copy()->startOfDay();
+                    $submitted = $item->created_at->copy()->startOfDay();
+                    $shortNoticeDaysDiff = $submitted->diffInDays($start, false);
+                    $showShortNoticeWarning = ($shortNoticeDaysDiff < 7 && $shortNoticeDaysDiff >= 0);
+                }
+            @endphp
+
+            {{-- H-7 SHORT NOTICE WARNING --}}
+            @if($showShortNoticeWarning)
+            <div class="card" style="background: #fef3c7; border-color: #f59e0b;">
+                <div class="card-icon" style="background: #fde68a; color: #92400e;">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                </div>
+                <div class="card-content">
+                    <div class="card-label" style="color: #92400e;">Pengajuan Kurang dari H-7</div>
+                    <div class="card-value-lg" style="color: #92400e; font-weight: 600;">
+                        ⚠️ H-{{ $shortNoticeDaysDiff }} (kurang dari 7 hari kerja)
+                    </div>
+                    <div class="card-meta" style="color: #78350f;">
+                        Pengajuan dilakukan kurang dari 7 hari sebelum tanggal mulai. Termasuk dalam perhitungan Potong Uang Makan.
+                    </div>
+                </div>
+            </div>
+            @endif
 
             {{-- TIME DETAILS --}}
             @if($startTimeLabel)
@@ -190,7 +226,7 @@
                     <div class="card-label">Diputuskan Oleh</div>
                     <div class="card-value">{{ $item->approver->name }}</div>
                     @if($item->approved_at)
-                    <div class="card-meta">{{ $item->approved_at->format('d M Y, H:i') }}</div>
+                    <div class="card-meta">{{ $item->approved_at->translatedFormat('j F Y, H:i') }}</div>
                     @endif
                 </div>
             </div>
@@ -258,8 +294,21 @@
             </div>
             @endif
 
-            {{-- HR NOTES --}}
-            @if($item->notes_hrd)
+            {{-- POTONG UM INDICATOR --}}
+            @if($item->deduct_um)
+            <div class="notes-box" style="background: #fef3c7; border-color: #f59e0b; margin-bottom: 16px;">
+                <div class="notes-header" style="color: #92400e;">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"/></svg>
+                    Potong Uang Makan (UM)
+                </div>
+                <div class="notes-content" style="color: #92400e; font-size: 13px;">
+                    {!! nl2br(e($item->notes_hrd ?? 'Potong UM')) !!}
+                </div>
+            </div>
+            @endif
+
+            {{-- HR NOTES (hide if deduct_um - already shown in Potong UM card) --}}
+            @if($item->notes_hrd && !$item->deduct_um)
                 @php
                     if ($item->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
                         $notesBoxBg = '#fef2f2';
@@ -521,6 +570,28 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- DEDUCTION OPTIONS SECTION --}}
+                @if(in_array($typeValue, ['SAKIT', 'IZIN']))
+                <div class="edit-section" style="background: #fef3c7; border-color: #fcd34d;">
+                    <div class="section-header" style="color: #92400e; border-bottom-color: #fde68a;">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"/></svg>
+                        <span>Potongan</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="checkbox-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" name="deduct_um_edit" value="1" id="deduct_um_edit"
+                                style="width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer;"
+                                {{ $item->deduct_um ? 'checked' : '' }}>
+                            <span style="font-weight: 600; color: #92400e; font-size: 14px;">Potong UM (Uang Makan)</span>
+                        </label>
+                        <small style="display: block; margin-top: 4px; color: #92400e; font-size: 12px; margin-left: 24px;">
+                            Centang jika potongan uang makan apply untuk izin ini.
+                        </small>
+                    </div>
+                </div>
+                @endif
 
                 {{-- FILE UPLOAD SECTION --}}
                 <div class="edit-section edit-section-upload">
@@ -930,14 +1001,78 @@
                 Pengajuan akan disetujui dan diproses sesuai kebijakan yang berlaku.
             </p>
 
-            @if($isTypeCuti)
+            {{-- SAKIT: Potong Cuti (checkbox + radio, tidak auto-check) --}}
+            @if($isTypeSakit)
             <div class="form-group" style="margin-bottom: 15px; background: #f3f4f6; padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb;">
                 <label class="checkbox-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                    <input type="checkbox" name="deduct_leave" value="1" style="width: 16px; height: 16px; accent-color: #1e4a8d; cursor: pointer;" checked>
-                    <span style="font-weight: 600; color: #1f2937; font-size: 14px;">Potong Cuti</span>
+                    <input type="checkbox" name="deduct_leave_sakit" value="1" id="deduct_leave_sakit" style="width: 16px; height: 16px; accent-color: #1e4a8d; cursor: pointer;" onclick="toggleSakitOptions()">
+                    <span style="font-weight: 600; color: #1f2937; font-size: 14px;">Potong Cuti?</span>
                 </label>
-                <small style="display: block; margin-top: 4px; color: #6b7280; font-size: 12px; margin-left: 24px;">
-                    Jika dicentang, saldo cuti karyawan akan dikurangi sesuai durasi pengajuan.
+                <div id="sakit-deduct-options" style="display:none; margin-top: 10px; margin-left: 24px;">
+                    <label class="radio-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 4px;">
+                        <input type="radio" name="deduct_amount_sakit" value="1" style="width: 16px; height: 16px; accent-color: #1e4a8d; cursor: pointer;">
+                        <span style="font-weight: 500; color: #1f2937; font-size: 14px;">Potong Cuti (Full)</span>
+                    </label>
+                    <label class="radio-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="radio" name="deduct_amount_sakit" value="0.5" style="width: 16px; height: 16px; accent-color: #1e4a8d; cursor: pointer;">
+                        <span style="font-weight: 500; color: #1f2937; font-size: 14px;">Potong Cuti Setengah Hari (0.5)</span>
+                    </label>
+                </div>
+                @if($balance <= 0)
+                <div id="sakit-um-notice" style="margin-top: 8px; margin-left: 24px; display:none;">
+                    <small style="color: #dc2626; font-size: 12px;">* Saldo cuti habis, otomatis dialihkan ke Potong UM</small>
+                </div>
+                @endif
+            </div>
+            @endif
+
+            {{-- SAKIT: Potong UM (jika tidak punya saldo cuti) --}}
+            @if($isTypeSakit && $balance <= 0)
+            <div class="form-group" style="margin-bottom: 15px; background: #fef3c7; padding: 12px; border-radius: 8px; border: 1px solid #f59e0b;">
+                <label class="checkbox-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="deduct_um" value="1" style="width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer;">
+                    <span style="font-weight: 600; color: #92400e; font-size: 14px;">Potong UM (Uang Makan)</span>
+                </label>
+                <small style="display: block; margin-top: 4px; color: #92400e; font-size: 12px; margin-left: 24px;">
+                    Karyawan tidak memiliki saldo cuti.
+                </small>
+            </div>
+            @endif
+
+            {{-- IZIN: Potong Cuti (checkbox + radio, tidak auto-check) --}}
+            @if($isTypeIzin)
+            <div class="form-group" style="margin-bottom: 15px; background: #f3f4f6; padding: 12px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                <label class="checkbox-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="deduct_leave_izin" value="1" id="deduct_leave_izin" style="width: 16px; height: 16px; accent-color: #1e4a8d; cursor: pointer;" onclick="toggleIzinOptions()">
+                    <span style="font-weight: 600; color: #1f2937; font-size: 14px;">Potong Cuti?</span>
+                </label>
+                <div id="izin-deduct-options" style="display:none; margin-top: 10px; margin-left: 24px;">
+                    <label class="radio-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 4px;">
+                        <input type="radio" name="deduct_amount_izin" value="1" style="width: 16px; height: 16px; accent-color: #1e4a8d; cursor: pointer;">
+                        <span style="font-weight: 500; color: #1f2937; font-size: 14px;">Potong Cuti (Full)</span>
+                    </label>
+                    <label class="radio-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="radio" name="deduct_amount_izin" value="0.5" style="width: 16px; height: 16px; accent-color: #1e4a8d; cursor: pointer;">
+                        <span style="font-weight: 500; color: #1f2937; font-size: 14px;">Potong Cuti Setengah Hari (0.5)</span>
+                    </label>
+                </div>
+                @if($balance <= 0)
+                <div id="izin-um-notice" style="margin-top: 8px; margin-left: 24px;">
+                    <small style="color: #dc2626; font-size: 12px;">* Saldo cuti habis, otomatis dialihkan ke Potong UM</small>
+                </div>
+                @endif
+            </div>
+            @endif
+
+            {{-- IZIN: Potong UM (jika tidak punya saldo cuti) --}}
+            @if($isTypeIzin && $balance <= 0)
+            <div class="form-group" style="margin-bottom: 15px; background: #fef3c7; padding: 12px; border-radius: 8px; border: 1px solid #f59e0b;">
+                <label class="checkbox-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" name="deduct_um" value="1" style="width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer;">
+                    <span style="font-weight: 600; color: #92400e; font-size: 14px;">Potong UM (Uang Makan)</span>
+                </label>
+                <small style="display: block; margin-top: 4px; color: #92400e; font-size: 12px; margin-left: 24px;">
+                    Karyawan tidak memiliki saldo cuti.
                 </small>
             </div>
             @endif
@@ -988,6 +1123,24 @@
             if (closeBtn) closeBtn.addEventListener('click', closeViewer);
             if (viewer) viewer.addEventListener('click', (e) => { if (e.target === viewer) closeViewer(); });
             document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer.style.display === 'flex') closeViewer(); });
+
+            // Toggle SAKIT deduct options
+            window.toggleSakitOptions = function() {
+                const checkbox = document.getElementById('deduct_leave_sakit');
+                const optionsDiv = document.getElementById('sakit-deduct-options');
+                if (checkbox && optionsDiv) {
+                    optionsDiv.style.display = checkbox.checked ? 'block' : 'none';
+                }
+            };
+
+            // Toggle IZIN deduct options
+            window.toggleIzinOptions = function() {
+                const checkbox = document.getElementById('deduct_leave_izin');
+                const optionsDiv = document.getElementById('izin-deduct-options');
+                if (checkbox && optionsDiv) {
+                    optionsDiv.style.display = checkbox.checked ? 'block' : 'none';
+                }
+            };
         });
     </script>
 

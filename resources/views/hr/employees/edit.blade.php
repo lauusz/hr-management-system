@@ -68,8 +68,9 @@
                         <label for="kategori">Kategori Pegawai</label>
                         <select id="kategori" name="kategori" class="form-control">
                             <option value="">Pilih Kategori</option>
-                            <option value="Karyawan Tetap" @selected(old('kategori', optional($profile)->kategori) === 'Karyawan Tetap')>Karyawan Tetap</option>
-                            <option value="Karyawan Kontrak" @selected(old('kategori', optional($profile)->kategori) === 'Karyawan Kontrak')>Karyawan Kontrak</option>
+                            <option value="TETAP" @selected(old('kategori', optional($profile)->kategori) === 'TETAP')>Karyawan Tetap</option>
+                            <option value="KONTRAK" @selected(old('kategori', optional($profile)->kategori) === 'KONTRAK')>Karyawan Kontrak</option>
+                            <option value="MAGANG" @selected(old('kategori', optional($profile)->kategori) === 'MAGANG')>Magang</option>
                         </select>
                     </div>
 
@@ -453,7 +454,7 @@
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <input id="leave_balance" type="number" name="leave_balance" class="form-control"
                                 value="{{ old('leave_balance', $item->leave_balance ?? 0) }}"
-                                min="0" step="1">
+                                min="0" step="0.5">
                             <span style="font-size: 13px; color: #6b7280; white-space: nowrap;">Hari</span>
                         </div>
                         <small class="helper-text">Ubah angka ini untuk koreksi manual saldo cuti karyawan.</small>

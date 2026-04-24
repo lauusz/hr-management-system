@@ -104,7 +104,7 @@
                                     {{ $overtime->created_at->format('H:i') }}
                                 </td>
                                 <td>
-                                    <div class="text-date">{{ $overtime->overtime_date->format('d M Y') }}</div>
+                                    <div class="text-date">{{ $overtime->overtime_date->translatedFormat('j F Y') }}</div>
                                 </td>
                                 <td>
                                     <div class="text-date" style="font-size: 12px;">

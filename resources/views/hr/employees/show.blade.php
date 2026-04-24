@@ -40,7 +40,7 @@
                         </span>
                         <span class="emp-leave-badge">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            Sisa Cuti: <strong>{{ $employee->leave_balance ?? 0 }} hari</strong>
+                            Sisa Cuti: <strong>{{ rtrim(rtrim(sprintf('%.1f', $employee->leave_balance ?? 0), '0'), '.') }} hari</strong>
                         </span>
                     </div>
                     <p class="emp-role">{{ $employee->position?->name ?? ($profile?->jabatan ?? 'Tanpa Jabatan') }}</p>
@@ -72,7 +72,7 @@
             </div>
             <div class="emp-quickitem">
                 <span class="emp-quicklabel">Bergabung</span>
-                <span class="emp-quickvalue">{{ $profile?->tgl_bergabung ? $profile->tgl_bergabung->format('d M Y') : '-' }}</span>
+                <span class="emp-quickvalue">{{ $profile?->tgl_bergabung ? $profile->tgl_bergabung->translatedFormat('j F Y') : '-' }}</span>
             </div>
         </div>
 
@@ -127,7 +127,7 @@
                     <div class="emp-work-info">
                         <span class="emp-work-label">Masa Kerja</span>
                         <span class="emp-work-value">{{ $masaKerjaDisplay }}</span>
-                        <span class="emp-work-since">Sejak {{ $profile?->tgl_bergabung ? $profile->tgl_bergabung->format('d M Y') : '-' }}</span>
+                        <span class="emp-work-since">Sejak {{ $profile?->tgl_bergabung ? $profile->tgl_bergabung->translatedFormat('j F Y') : '-' }}</span>
                     </div>
                 </div>
                 @if($isProbation)
@@ -139,11 +139,11 @@
                     <div class="emp-prob-bar">
                         <div class="emp-prob-fill" style="width: {{ $probationPercent }}%"></div>
                     </div>
-                    <span class="emp-prob-end">Berakhir {{ $profile->tgl_akhir_percobaan->format('d M Y') }}</span>
+                    <span class="emp-prob-end">Berakhir {{ $profile->tgl_akhir_percobaan->translatedFormat('j F Y') }}</span>
                 </div>
                 @elseif($employee->status !== 'ACTIVE')
                 <div class="emp-exit-info">
-                    <span class="emp-exit-badge">Keluar {{ $profile?->exit_date ? $profile->exit_date->format('d M Y') : '-' }}</span>
+                    <span class="emp-exit-badge">Keluar {{ $profile?->exit_date ? $profile->exit_date->translatedFormat('j F Y') : '-' }}</span>
                     <span class="emp-exit-reason">Alasan: {{ $profile?->exit_reason_code ?? '-' }}</span>
                 </div>
                 @endif
@@ -161,7 +161,7 @@
                     <div class="emp-data-list">
                         <div class="emp-data-row">
                             <span class="emp-data-label">Tempat, Tgl Lahir</span>
-                            <span class="emp-data-value">{{ $profile?->tempat_lahir ?? '-' }}{{ $profile?->tempat_lahir && $profile?->tgl_lahir ? ', ' : '' }}{{ $profile?->tgl_lahir ? $profile->tgl_lahir->format('d M Y') : '-' }}</span>
+                            <span class="emp-data-value">{{ $profile?->tempat_lahir ?? '-' }}{{ $profile?->tempat_lahir && $profile?->tgl_lahir ? ', ' : '' }}{{ $profile?->tgl_lahir ? $profile->tgl_lahir->translatedFormat('j F Y') : '-' }}</span>
                         </div>
                         <div class="emp-data-row">
                             <span class="emp-data-label">Jenis Kelamin</span>
@@ -391,7 +391,7 @@
                                         -
                                         @endif
                                     </td>
-                                    <td class="emp-doc-upload">{{ $doc->created_at->format('d M Y') }}</td>
+                                    <td class="emp-doc-upload">{{ $doc->created_at->translatedFormat('j F Y') }}</td>
                                     <td class="emp-doc-actions">
                                         @if($doc->file_path)
                                         <a href="{{ asset('storage/'.$doc->file_path) }}" target="_blank" class="emp-icon-btn" title="Lihat">

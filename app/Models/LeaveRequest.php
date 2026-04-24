@@ -34,6 +34,7 @@ class LeaveRequest extends Model
         // Data PIC Pengganti
         'substitute_pic',
         'substitute_phone',
+        'deduct_um', // [BARU] Flag potong uang makan
     ];
 
     protected $casts = [
@@ -52,19 +53,16 @@ class LeaveRequest extends Model
 
     public const PENDING_SUPERVISOR = 'PENDING_SUPERVISOR';
     public const PENDING_HR = 'PENDING_HR';
-
-    public const STATUS_PENDING = 'PENDING';
     public const STATUS_APPROVED = 'APPROVED';
     public const STATUS_REJECTED = 'REJECTED';
 
     public const STATUS_OPTIONS = [
         self::PENDING_SUPERVISOR => 'Menunggu Atasan',
         self::PENDING_HR => 'Menunggu HRD',
-        self::STATUS_PENDING => 'Menunggu',
         self::STATUS_APPROVED => 'Disetujui',
         self::STATUS_REJECTED => 'Ditolak',
-        'CANCEL_REQ' => 'Pengajuan Batal', // Opsional: Tambahan label status
-        'BATAL' => 'Dibatalkan',           // Opsional: Tambahan label status
+        'CANCEL_REQ' => 'Pengajuan Batal',
+        'BATAL' => 'Dibatalkan',
     ];
 
     public function getStatusLabelAttribute(): string

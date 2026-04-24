@@ -115,17 +115,26 @@ class ImportEmployeesFromCsvSeeder extends Seeder
             $tglBergabung = $this->parseTanggalBergabung($data['Tanggal Bergabung'] ?? null);
             $tglAkhirPercobaan = $this->parseTanggalBergabung($data['Tanggal Berakhir Percobaan'] ?? null);
 
+            // Mapping kategori dari Excel ke format DB
+            $kategoriMap = [
+                'Karyawan Tetap' => 'TETAP',
+                'Karyawan Kontrak' => 'KONTRAK',
+                'Karyawan Magang' => 'MAGANG',
+            ];
+            $kategoriRaw = trim($data['Kategori'] ?? '');
+            $kategori = $kategoriMap[$kategoriRaw] ?? $kategoriRaw;
+
             EmployeeProfile::create([
                 'user_id' => $user->id,
                 'pt' => trim($data['PT'] ?? ''),
-                'kategori' => trim($data['Kategori'] ?? ''),
+                'kategori' => $kategori,
                 'nik' => trim($data['NIK'] ?? ''),
                 'email' => $email,
                 'jabatan' => $positionName,
                 'kewarganegaraan' => trim($data['Kewarganegaraan'] ?? ''),
                 'agama' => trim($data['Agama'] ?? ''),
-                'path_kartu_keluarga' => trim($data['Nomor Kartu Keluarga'] ?? ''),
-                'path_ktp' => trim($data['Nomor KTP'] ?? ''),
+                'no_kartu_keluarga' => trim($data['Nomor Kartu Keluarga'] ?? ''),
+                'no_ktp' => trim($data['Nomor KTP'] ?? ''),
                 'nama_bank' => trim($data['Nama Bank'] ?? ''),
                 'no_rekening' => trim($data['Nomor Rekening Bank'] ?? ''),
                 'pendidikan' => trim($data['Pendidikan Terakhir'] ?? ''),

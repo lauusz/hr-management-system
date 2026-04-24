@@ -32,13 +32,54 @@
             <div class="card-icon">
                 <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
             </div>
-            <h2 class="card-title">Ganti Password</h2>
-            <p class="card-desc">Pastikan password baru Anda berbeda dan mudah diingat.</p>
+            <h2 class="card-title">Pengaturan Akun</h2>
+            <p class="card-desc">Kelola username dan password akun Anda.</p>
 
             <form method="POST" action="{{ route('settings.password.update') }}" class="security-form">
                 @csrf
                 @method('PUT')
 
+                {{-- Username Field --}}
+                <div class="form-field">
+                    <label for="username" class="field-label">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                        Username
+                    </label>
+                    <div class="input-wrapper">
+                        <input
+                            type="text"
+                            name="username"
+                            id="username"
+                            class="field-input"
+                            value="{{ old('username', auth()->user()->username ?? '') }}"
+                            placeholder="Masukkan username baru"
+                            autocomplete="username">
+                    </div>
+                    <p class="field-hint">Gunakan huruf, angka, dan underscore. Tidak boleh ada spasi. Username bisa digunakan untuk login.</p>
+                </div>
+
+                {{-- Email Field (read-only) --}}
+                <div class="form-field">
+                    <label for="email" class="field-label">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                        Email
+                    </label>
+                    <div class="input-wrapper">
+                        <input
+                            type="email"
+                            name="email"
+                            id="email"
+                            class="field-input"
+                            value="{{ auth()->user()->email ?? '' }}"
+                            readonly
+                            autocomplete="email">
+                    </div>
+                    <p class="field-hint">Email tidak dapat diubah sendiri. Hubungi HRD untuk mengubah email.</p>
+                </div>
+
+                <div class="divider"></div>
+
+                {{-- Password Fields --}}
                 <div class="form-field">
                     <label for="current_password" class="field-label">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
@@ -319,6 +360,18 @@
 
         .field-label svg {
             color: var(--navy);
+        }
+
+        .field-hint {
+            margin: 6px 0 0;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 24px 0;
         }
 
         .input-wrapper {

@@ -133,7 +133,7 @@ class HREmployeeController extends Controller
 
         $ptOptions = Pt::orderBy('name')->get();
         $positionOptions = Position::orderBy('name')->get();
-        $categoryOptions = ['Karyawan Tetap', 'Karyawan Kontrak'];
+        $categoryOptions = ['TETAP', 'KONTRAK', 'MAGANG'];
 
         return view('hr.employees.index', [
             'items' => $items,
@@ -420,7 +420,7 @@ class HREmployeeController extends Controller
             'status' => ['nullable', 'string', 'in:ACTIVE,INACTIVE'],
 
             // Validasi Saldo Cuti Manual
-            'leave_balance' => ['nullable', 'integer', 'min:0'],
+            'leave_balance' => ['nullable', 'numeric', 'min:0'],
 
             'manager_id'           => ['nullable', 'exists:users,id'],
             'direct_supervisor_id' => ['nullable', 'exists:users,id'],
@@ -468,8 +468,8 @@ class HREmployeeController extends Controller
             // Kita cek dulu: Apakah HRD mengubah angka 'leave_balance' di form?
             // Caranya: Bandingkan saldo lama di DB vs saldo baru dari Form.
 
-            $oldBalance = (int) $employee->leave_balance;
-            $newBalance = isset($validated['leave_balance']) ? (int) $validated['leave_balance'] : $oldBalance;
+            $oldBalance = (float) $employee->leave_balance;
+            $newBalance = isset($validated['leave_balance']) ? (float) $validated['leave_balance'] : $oldBalance;
 
             // Jika angkanya beda, berarti ini adalah EDIT MANUAL (Prioritas Tertinggi)
             $isManualEdit = $oldBalance !== $newBalance;

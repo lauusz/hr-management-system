@@ -20,7 +20,7 @@
 
     {{-- SEARCH & FILTERS --}}
     <div class="card card-search">
-        <form method="GET" action="{{ route('hr.employees.index') }}" class="search-form">
+        <form method="GET" action="{{ route('hr.employees.index') }}" class="search-form" id="filterForm">
             <div class="search-row">
                 <div class="search-input-wrapper">
                     <svg class="search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -36,46 +36,87 @@
                     Reset
                 </a>
                 @endif
+
+                <button type="button" class="btn-toggle-filter {{ ($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false) || ($noLeaveBalance ?? false) || ($noShift ?? false) ? 'active' : '' }}" onclick="toggleFilterPanel()">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                    Filter
+                    @if(($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false) || ($noLeaveBalance ?? false) || ($noShift ?? false))
+                    <span class="filter-badge">{{ collect([$ptId, $positionId, $kategori, $nearExpiry ? 1 : null, $noLeaveBalance ? 1 : null, $noShift ? 1 : null])->filter()->count() }}</span>
+                    @endif
+                </button>
             </div>
 
-            <div class="filter-row">
-                <select name="pt_id" class="filter-select">
-                    <option value="">Semua PT</option>
-                    @foreach($ptOptions as $pt)
-                    <option value="{{ $pt->id }}" @selected(($ptId ?? '') == $pt->id)>{{ $pt->name }}</option>
-                    @endforeach
-                </select>
+            <div class="filter-panel" id="filterPanel" style="{{ ($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false) || ($noLeaveBalance ?? false) || ($noShift ?? false) ? '' : 'display: none;' }}">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label class="filter-label">PT</label>
+                        <div class="select-wrapper">
+                            <select name="pt_id" class="filter-select modern">
+                                <option value="">Semua PT</option>
+                                @foreach($ptOptions as $pt)
+                                <option value="{{ $pt->id }}" @selected(($ptId ?? '') == $pt->id)>{{ $pt->name }}</option>
+                                @endforeach
+                            </select>
+                            <svg class="select-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
 
-                <select name="position_id" class="filter-select">
-                    <option value="">Semua Jabatan</option>
-                    @foreach($positionOptions as $pos)
-                    <option value="{{ $pos->id }}" @selected(($positionId ?? '') == $pos->id)>{{ $pos->name }}</option>
-                    @endforeach
-                </select>
+                    <div class="filter-group">
+                        <label class="filter-label">Jabatan</label>
+                        <div class="select-wrapper">
+                            <select name="position_id" class="filter-select modern">
+                                <option value="">Semua Jabatan</option>
+                                @foreach($positionOptions as $pos)
+                                <option value="{{ $pos->id }}" @selected(($positionId ?? '') == $pos->id)>{{ $pos->name }}</option>
+                                @endforeach
+                            </select>
+                            <svg class="select-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
 
-                <select name="kategori" class="filter-select">
-                    <option value="">Semua Kategori</option>
-                    <option value="Karyawan Tetap" @selected(($kategori ?? '') == 'Karyawan Tetap')>Karyawan Tetap</option>
-                    <option value="Karyawan Kontrak" @selected(($kategori ?? '') == 'Karyawan Kontrak')>Karyawan Kontrak</option>
-                </select>
+                    <div class="filter-group">
+                        <label class="filter-label">Kategori</label>
+                        <div class="select-wrapper">
+                            <select name="kategori" class="filter-select modern">
+                                <option value="">Semua</option>
+                                <option value="TETAP" @selected(($kategori ?? '') == 'TETAP')>Karyawan Tetap</option>
+                                <option value="KONTRAK" @selected(($kategori ?? '') == 'KONTRAK')>Kontrak</option>
+                                <option value="MAGANG" @selected(($kategori ?? '') == 'MAGANG')>Magang</option>
+                            </select>
+                            <svg class="select-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
 
-                <label class="filter-checkbox">
-                    <input type="checkbox" name="near_expiry" value="1" onchange="this.form.submit()" @checked($nearExpiry ?? false)>
-                    <span class="checkbox-custom"></span>
-                    Kontrak Mau Habis
-                </label>
+                    <div class="filter-toggles">
+                        <label class="toggle-chip {{ ($nearExpiry ?? false) ? 'active' : '' }}">
+                            <input type="checkbox" name="near_expiry" value="1" onchange="this.form.submit()" @checked($nearExpiry ?? false) hidden>
+                            <span class="toggle-icon">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </span>
+                            Kontrak Mau Habis
+                        </label>
 
-                <label class="filter-checkbox">
-                    <input type="checkbox" name="no_leave_balance" value="1" onchange="this.form.submit()" @checked($noLeaveBalance ?? false)>
-                    <span class="checkbox-custom"></span>
-                    Belum Dapat Cuti
-                </label>
+                        <label class="toggle-chip {{ ($noLeaveBalance ?? false) ? 'active' : '' }}">
+                            <input type="checkbox" name="no_leave_balance" value="1" onchange="this.form.submit()" @checked($noLeaveBalance ?? false) hidden>
+                            <span class="toggle-icon">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            </span>
+                            Belum Dapat Cuti
+                        </label>
 
-                <label class="filter-checkbox">
-                    <input type="checkbox" name="no_shift" value="1" onchange="this.form.submit()" @checked($noShift ?? false)>
-                    <span class="checkbox-custom"></span>
-                    Belum Ada Shift
-                </label>
+                        <label class="toggle-chip {{ ($noShift ?? false) ? 'active' : '' }}">
+                            <input type="checkbox" name="no_shift" value="1" onchange="this.form.submit()" @checked($noShift ?? false) hidden>
+                            <span class="toggle-icon">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </span>
+                            Belum Ada Shift
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn-apply-filter">
+                        Terapkan Filter
+                    </button>
+                </div>
             </div>
         </form>
     </div>
@@ -125,7 +166,7 @@
                     }
 
                     // Join date formatted
-                    $joinDateFormatted = $joinDate ? \Carbon\Carbon::parse($joinDate)->format('d M Y') : '-';
+                    $joinDateFormatted = $joinDate ? \Carbon\Carbon::parse($joinDate)->translatedFormat('j F Y') : '-';
 
                     // Contact info
                     $email = $emp->email ?? '-';
@@ -190,7 +231,7 @@
                             @endif
                             <div class="info-chip info-chip-leave">
                                 <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                Cuti: <strong>{{ $emp->leave_balance ?? 0 }}</strong>
+                                Cuti: <strong>{{ rtrim(rtrim(sprintf('%.1f', $emp->leave_balance ?? 0), '0'), '.') }}</strong>
                             </div>
                             <div class="shift-selector">
                                 <select class="shift-dropdown @if($emp->employeeShift?->shift_id) has-shift @endif" data-user-id="{{ $emp->id }}" onchange="updateShift(this)">
@@ -386,6 +427,185 @@
             flex-wrap: wrap;
             gap: 10px;
             align-items: center;
+        }
+
+        /* --- TOGGLE FILTER BUTTON --- */
+        .btn-toggle-filter {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 12px 18px;
+            background: var(--white);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .btn-toggle-filter:hover {
+            border-color: var(--navy);
+            color: var(--navy);
+        }
+
+        .btn-toggle-filter.active {
+            background: var(--navy);
+            border-color: var(--navy);
+            color: var(--white);
+        }
+
+        .btn-toggle-filter.active svg {
+            stroke: var(--white);
+        }
+
+        .filter-badge {
+            background: #ef4444;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        .btn-toggle-filter.active .filter-badge {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* --- FILTER PANEL --- */
+        .filter-panel {
+            background: #f9fafb;
+            border-top: 1px solid var(--border);
+            padding: 16px 20px;
+            margin-top: 12px;
+            border-radius: 0 0 10px 10px;
+            animation: slideDown 0.2s ease;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 160px;
+        }
+
+        .filter-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .select-wrapper {
+            position: relative;
+        }
+
+        .filter-select.modern {
+            width: 100%;
+            padding: 10px 36px 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--text-primary);
+            background: var(--white);
+            cursor: pointer;
+            appearance: none;
+            transition: all 0.2s;
+        }
+
+        .filter-select.modern:focus {
+            outline: none;
+            border-color: var(--navy);
+            box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.1);
+        }
+
+        .select-arrow {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--text-muted);
+        }
+
+        /* --- TOGGLE CHIPS --- */
+        .filter-toggles {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .toggle-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .toggle-chip:hover {
+            border-color: var(--navy);
+            color: var(--navy);
+        }
+
+        .toggle-chip.active {
+            background: var(--navy);
+            border-color: var(--navy);
+            color: var(--white);
+        }
+
+        .toggle-chip.active .toggle-icon {
+            color: var(--white);
+        }
+
+        .toggle-icon {
+            display: flex;
+            align-items: center;
+            color: var(--text-muted);
+        }
+
+        /* --- APPLY BUTTON --- */
+        .btn-apply-filter {
+            padding: 10px 20px;
+            background: var(--navy);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-left: auto;
+        }
+
+        .btn-apply-filter:hover {
+            background: var(--navy-dark);
         }
 
         .filter-select {
@@ -756,9 +976,36 @@
                 justify-content: center;
             }
 
+            .btn-toggle-filter {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .filter-panel {
+                padding: 16px;
+            }
+
             .filter-row {
                 flex-direction: column;
                 align-items: stretch;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+
+            .filter-toggles {
+                width: 100%;
+            }
+
+            .toggle-chip {
+                flex: 1;
+                justify-content: center;
+            }
+
+            .btn-apply-filter {
+                width: 100%;
+                margin-left: 0;
             }
 
             .filter-select, .filter-checkbox {
@@ -825,6 +1072,19 @@
     </style>
 
     <script>
+    function toggleFilterPanel() {
+        const panel = document.getElementById('filterPanel');
+        const btn = document.querySelector('.btn-toggle-filter');
+
+        if (panel.style.display === 'none') {
+            panel.style.display = '';
+            btn.classList.add('active');
+        } else {
+            panel.style.display = 'none';
+            btn.classList.remove('active');
+        }
+    }
+
     function updateShift(select) {
         const userId = select.dataset.userId;
         const shiftId = select.value;

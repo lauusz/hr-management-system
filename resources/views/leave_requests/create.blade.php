@@ -173,7 +173,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         <div>
-                            <strong>Sisa Cuti: {{ $leaveBalance }} Hari</strong>
+                            <strong>Sisa Cuti: {{ rtrim(rtrim(sprintf('%.1f', $leaveBalance), '0'), '.') }} Hari</strong>
                             <p>Cuti akan berkurang otomatis setelah disetujui.</p>
                         </div>
                     </div>

@@ -44,6 +44,7 @@ class User extends Authenticatable
             'password'      => 'hashed',
             'role'          => UserRole::class,
             'can_manage_payroll' => 'boolean',
+            'leave_balance' => 'decimal:1',
         ];
     }
 

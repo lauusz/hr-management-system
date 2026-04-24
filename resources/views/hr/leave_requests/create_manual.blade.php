@@ -95,7 +95,7 @@
                                 <option
                                     value="{{ $employee->id }}"
                                     data-role="{{ strtoupper((string) $roleValue) }}"
-                                    data-balance="{{ (int) ($employee->leave_balance ?? 0) }}"
+                                    data-balance="{{ $employee->leave_balance ?? 0 }}"
                                     data-label="{{ $employeeLabel }}"
                                     @selected(old('user_id') == $employee->id)
                                 >{{ $employeeLabel }}</option>

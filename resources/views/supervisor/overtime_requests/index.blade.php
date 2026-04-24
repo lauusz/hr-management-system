@@ -134,7 +134,7 @@
                     <div class="overtime-body">
                         <div class="overtime-info">
                             <span class="overtime-label">Tanggal</span>
-                            <span class="overtime-value">{{ $overtime->overtime_date->format('d M Y') }}</span>
+                            <span class="overtime-value">{{ $overtime->overtime_date->translatedFormat('j F Y') }}</span>
                         </div>
                         <div class="overtime-info">
                             <span class="overtime-label">Jam</span>

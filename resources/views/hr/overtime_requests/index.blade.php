@@ -34,7 +34,7 @@
                                 </td>
                                 <td>
                                     <div class="text-date" style="line-height: 1.2;">
-                                        <div>{{ $overtime->overtime_date->format('d M Y') }}</div>
+                                        <div>{{ $overtime->overtime_date->translatedFormat('j F Y') }}</div>
                                         <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">
                                             {{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}
                                         </div>
@@ -49,7 +49,7 @@
                                     <div class="approver-info">
                                         <strong>{{ $overtime->supervisorApprover->name ?? '-' }}</strong>
                                         @if($overtime->approved_by_supervisor_at)
-                                            <br><span style="font-size: 10px; color: #6b7280;">{{ $overtime->approved_by_supervisor_at->format('d M H:i') }}</span>
+                                            <br><span style="font-size: 10px; color: #6b7280;">{{ $overtime->approved_by_supervisor_at->translatedFormat('j F H:i') }}</span>
                                         @endif
                                     </div>
                                 </td>

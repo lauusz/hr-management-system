@@ -86,7 +86,7 @@
 
                                 <td>
                                     <div style="font-weight:600; font-size:0.95rem;">{{ $item->clock_in_at ? $item->clock_in_at->format('H:i') : '-' }}</div>
-                                    <div style="font-size:0.8rem; color:#64748b;">{{ $item->date->format('d M Y') }}</div>
+                                    <div style="font-size:0.8rem; color:#64748b;">{{ $item->date->translatedFormat('j F Y') }}</div>
                                 </td>
 
                                 <td>

@@ -68,10 +68,17 @@ class AuthController extends Controller
     {
         $user = Auth::user();
 
-        $request->validate([
+        $rules = [
             'current_password' => ['required'],
             'password' => ['required', 'string', 'confirmed'],
-        ]);
+        ];
+
+        // Username validation (unique except for current user)
+        if ($request->filled('username')) {
+            $rules['username'] = ['string', 'max:255', 'regex:/^[a-zA-Z0-9_]+$/', 'unique:users,username,' . $user->id];
+        }
+
+        $validated = $request->validate($rules);
 
         if (!Hash::check($request->input('current_password'), $user->password)) {
             return back()->withErrors([
@@ -79,10 +86,34 @@ class AuthController extends Controller
             ]);
         }
 
-        $user->update([
-            'password' => Hash::make($request->input('password')),
-        ]);
+        $updateData = [];
 
-        return back()->with('success', 'Password berhasil diperbarui.');
+        // Update username if provided and changed
+        if ($request->filled('username') && $request->username !== $user->username) {
+            $updateData['username'] = $request->username;
+        }
+
+        // Update password if provided
+        if ($request->filled('password')) {
+            $updateData['password'] = Hash::make($request->input('password'));
+        }
+
+        if (!empty($updateData)) {
+            $user->update($updateData);
+        }
+
+        $msg = [];
+        if (isset($updateData['username'])) {
+            $msg[] = 'Username';
+        }
+        if (isset($updateData['password'])) {
+            $msg[] = 'Password';
+        }
+
+        $successMsg = !empty($msg)
+            ? implode(' dan ', $msg) . ' berhasil diperbarui.'
+            : 'Tidak ada perubahan.';
+
+        return back()->with('success', $successMsg);
     }
 }

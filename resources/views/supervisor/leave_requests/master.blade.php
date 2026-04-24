@@ -237,14 +237,14 @@
                         <div class="leave-body">
                             <div class="leave-info">
                                 <div class="leave-label">Pengajuan</div>
-                                <div class="leave-value">{{ $row->created_at->format('d M Y') }}</div>
+                                <div class="leave-value">{{ $row->created_at->translatedFormat('j F Y') }}</div>
                             </div>
                             <div class="leave-info">
                                 <div class="leave-label">Periode</div>
                                 <div class="date-range">
-                                    {{ $row->start_date->format('d M') }}
+                                    {{ $row->start_date->translatedFormat('j F Y') }}
                                     @if($row->end_date && !$row->end_date->eq($row->start_date))
-                                        - {{ $row->end_date->format('d M Y') }}
+                                        - {{ $row->end_date->translatedFormat('j F Y') }}
                                     @endif
                                 </div>
                             </div>

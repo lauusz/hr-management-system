@@ -20,6 +20,8 @@ class EmployeeProfile extends Model
         'path_ktp',
         'nama_bank',
         'no_rekening',
+        'no_kartu_keluarga',
+        'no_ktp',
         'pendidikan',
         'golongan_darah',
         'jenis_kelamin',

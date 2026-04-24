@@ -116,7 +116,7 @@
 
                             <td>
                                 <div class="date-block">
-                                    <span class="main-date">{{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->format('d M Y') }}</span>
+                                    <span class="main-date">{{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->translatedFormat('j F Y') }}</span>
                                 </div>
                             </td>
 

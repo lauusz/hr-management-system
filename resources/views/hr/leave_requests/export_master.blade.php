@@ -7,7 +7,7 @@
         <td>MASTER IZIN DAN CUTI</td>
         <td></td>
         <td></td>
-        <td>Dicetak: {{ now()->format('d M Y H:i') }}</td>
+        <td>Dicetak: {{ now()->translatedFormat('j F Y H:i') }}</td>
     </tr>
     <tr>
         <td></td>

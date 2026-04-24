@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use App\Models\LeaveRequest;
 use App\Enums\UserRole;
 use Illuminate\Support\Facades\Gate;
+use Carbon\Carbon;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +26,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Set Carbon locale to Indonesian for all date formatting
+        Carbon::setLocale('id');
+        Carbon::now()->locale('id');
+
         // GATE: Kelola Slip Gaji
         Gate::define('manage-payroll', function ($user) {
             return $user->canManagePayroll();

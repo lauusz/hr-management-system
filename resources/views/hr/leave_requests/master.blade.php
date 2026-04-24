@@ -201,15 +201,15 @@
                             </td>
 
                             <td class="text-muted text-sm">
-                                {{ $row->created_at?->format('d M Y') ?? '-' }}<br>
+                                {{ $row->created_at?->translatedFormat('j F Y') ?? '-' }}<br>
                                 <span class="text-xs">{{ $row->created_at?->format('H:i') ?? '' }}</span>
                             </td>
 
                             <td>
                                 <div class="date-cell">
-                                    <span class="date-main">{{ $row->start_date->format('d M Y') }}</span>
+                                    <span class="date-main">{{ $row->start_date->translatedFormat('j F Y') }}</span>
                                     @if($row->end_date && $row->end_date->ne($row->start_date))
-                                        <span class="date-range">s/d {{ $row->end_date->format('d M Y') }}</span>
+                                        <span class="date-range">s/d {{ $row->end_date->translatedFormat('j F Y') }}</span>
                                     @endif
                                 </div>
                             </td>

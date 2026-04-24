@@ -25,7 +25,7 @@
                             <span class="dot">•</span>
                             <span>{{ $overtimeRequest->user->division->name ?? '-' }}</span>
                             <span class="dot">•</span>
-                            <span>{{ $overtimeRequest->created_at->format('d M Y H:i') }}</span>
+                            <span>{{ $overtimeRequest->created_at->translatedFormat('j F Y H:i') }}</span>
                         </div>
                     </div>
                 </div>
@@ -68,7 +68,7 @@
                     <div class="info-row">
                         <div class="info-label">Tanggal Lembur</div>
                         <div class="info-value">
-                            {{ $overtimeRequest->overtime_date->format('d M Y') }}
+                            {{ $overtimeRequest->overtime_date->translatedFormat('j F Y') }}
                         </div>
                     </div>
 
@@ -92,7 +92,7 @@
                         <div class="info-value">
                             {{ $overtimeRequest->supervisorApprover->name }}
                             <div class="text-muted" style="font-size:12px; margin-top:2px;">
-                                {{ $overtimeRequest->approved_by_supervisor_at ? $overtimeRequest->approved_by_supervisor_at->format('d M Y H:i') : '' }}
+                                {{ $overtimeRequest->approved_by_supervisor_at ? $overtimeRequest->approved_by_supervisor_at->translatedFormat('j F Y H:i') : '' }}
                             </div>
                         </div>
                     </div>
@@ -104,7 +104,7 @@
                         <div class="info-value">
                             {{ $overtimeRequest->hrdApprover->name }}
                             <div class="text-muted" style="font-size:12px; margin-top:2px;">
-                                {{ $overtimeRequest->approved_by_hrd_at ? $overtimeRequest->approved_by_hrd_at->format('d M Y H:i') : '' }}
+                                {{ $overtimeRequest->approved_by_hrd_at ? $overtimeRequest->approved_by_hrd_at->translatedFormat('j F Y H:i') : '' }}
                             </div>
                         </div>
                     </div>

@@ -152,7 +152,7 @@
                 </div>
                 <div class="profile-meta" style="margin-top:0;">
                     <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Diajukan {{ $overtimeRequest->created_at->format('d M Y, H:i') }}
+                    Diajukan {{ $overtimeRequest->created_at->translatedFormat('j F Y, H:i') }}
                 </div>
             </div>
 
@@ -164,7 +164,7 @@
                 <div class="info-grid">
                     <div class="info-item">
                         <div class="info-label">Tanggal</div>
-                        <div class="info-value">{{ $overtimeRequest->overtime_date->format('d M Y') }}</div>
+                        <div class="info-value">{{ $overtimeRequest->overtime_date->translatedFormat('j F Y') }}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Durasi</div>
@@ -194,7 +194,7 @@
                     </div>
                     <div class="approval-text">
                         <div class="approval-name">{{ $overtimeRequest->supervisorApprover->name }}</div>
-                        <div class="approval-time">Disetujui {{ $overtimeRequest->approved_by_supervisor_at ? $overtimeRequest->approved_by_supervisor_at->format('d M Y, H:i') : '' }}</div>
+                        <div class="approval-time">Disetujui {{ $overtimeRequest->approved_by_supervisor_at ? $overtimeRequest->approved_by_supervisor_at->translatedFormat('j F Y, H:i') : '' }}</div>
                     </div>
                 </div>
                 @endif
@@ -205,7 +205,7 @@
                     </div>
                     <div class="approval-text">
                         <div class="approval-name">{{ $overtimeRequest->hrdApprover->name }}</div>
-                        <div class="approval-time">Disetujui HRD {{ $overtimeRequest->approved_by_hrd_at ? $overtimeRequest->approved_by_hrd_at->format('d M Y, H:i') : '' }}</div>
+                        <div class="approval-time">Disetujui HRD {{ $overtimeRequest->approved_by_hrd_at ? $overtimeRequest->approved_by_hrd_at->translatedFormat('j F Y, H:i') : '' }}</div>
                     </div>
                 </div>
                 @endif

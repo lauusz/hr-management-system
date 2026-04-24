@@ -32,7 +32,7 @@
                         <tr style="border-bottom: 1px solid #f3f4f6; transition: background 0.15s;">
                             <td style="padding: 16px; vertical-align: middle;">
                                 <div style="font-size: 14px; color: #111827; font-weight: 500;">
-                                    {{ $overtime->overtime_date->format('d M Y') }}
+                                    {{ $overtime->overtime_date->translatedFormat('j F Y') }}
                                 </div>
                                 <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
                                     {{ $overtime->created_at->diffForHumans() }}

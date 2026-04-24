@@ -122,12 +122,12 @@
                             </td>
 
                             <td class="text-muted">
-                                {{ $overtime->created_at->format('d M Y H:i') }}
+                                {{ $overtime->created_at->translatedFormat('j F Y H:i') }}
                             </td>
 
                             <td>
                                 <span class="text-date">
-                                    {{ $overtime->overtime_date->format('d M Y') }}
+                                    {{ $overtime->overtime_date->translatedFormat('j F Y') }}
                                 </span>
                                 <div style="font-size: 10px; color: #6b7280;">
                                     {{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}

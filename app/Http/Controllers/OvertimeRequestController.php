@@ -110,7 +110,7 @@ class OvertimeRequestController extends Controller
                 OvertimeRequest::STATUS_PENDING_SUPERVISOR, 
                 // Note: Kalau sudah approved SPV (alias Pending HR), user biasa gabisa edit
             ])) {
-                return back()->withErrors('Pengajuan sudah diproses, tidak dapat diubah sendiri. Hubungi HRD.');
+                return redirect()->back()->with('error', 'Pengajuan sudah diproses, tidak dapat diubah sendiri. Hubungi HRD.');
             }
         }
 

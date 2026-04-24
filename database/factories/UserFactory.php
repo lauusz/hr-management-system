@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\UserRole;
 use App\Models\Division;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -27,25 +28,51 @@ class UserFactory extends Factory
        return [
             'name'        => $this->faker->name(),
             'username'    => $this->faker->unique()->userName(),
-            'password'    => 'password',
-            'phone'       => '08' . $this->faker->numerify('##########'), 
-            'role'        => $this->faker->randomElement(['HRD', 'HEAD', 'STAFF']),
-            'division_id' => null,                     
-            'status'      => $this->faker->randomElement(['ACTIVE', 'INACTIVE']),
+            'email'       => $this->faker->unique()->safeEmail(),
+            'password'    => static::$password ??= Hash::make('password'),
+            'phone'       => '08' . $this->faker->numerify('##########'),
+            'role'        => UserRole::EMPLOYEE,
+            'division_id' => null,
+            'position_id' => null,
+            'status'      => 'ACTIVE',
+            'leave_balance' => 12,
             'last_login_at' => null,
-            'remember_token' => str()->random(10),
+            'remember_token' => Str::random(10),
         ];
     }
 
-    public function hrd(): self{
+    public function hrd(): static
+    {
         return $this->state(fn() => [
-            'role' => 'HRD',
+            'role' => UserRole::HRD,
         ]);
     }
 
-    public function head(): self{
+    public function hrStaff(): static
+    {
         return $this->state(fn() => [
-            'role' => 'HEAD',
+            'role' => UserRole::HR_STAFF,
+        ]);
+    }
+
+    public function manager(): static
+    {
+        return $this->state(fn() => [
+            'role' => UserRole::MANAGER,
+        ]);
+    }
+
+    public function supervisor(): static
+    {
+        return $this->state(fn() => [
+            'role' => UserRole::SUPERVISOR,
+        ]);
+    }
+
+    public function employee(): static
+    {
+        return $this->state(fn() => [
+            'role' => UserRole::EMPLOYEE,
         ]);
     }
 }

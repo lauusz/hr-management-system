@@ -8,22 +8,25 @@ use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Services\LeaveBalanceService;
 
-it('counts effective leave days consistently for every role', function (UserRole $role, int $expectedDays) {
+it('counts effective leave days consistently for every role', function (UserRole $role, float $expectedDays) {
     $service = new LeaveBalanceService();
     $user = new User([
         'role' => $role,
         'leave_balance' => 12,
     ]);
 
+    // 2026-03-27 (Fri), 2026-03-28 (Sat), 2026-03-29 (Sun), 2026-03-30 (Mon)
+    // MANAGER (5-day): Fri=1, Sat=0, Sun=0, Mon=1 -> 2
+    // Non-MANAGER (6-day): Fri=1, Sat=0.5, Sun=0, Mon=1 -> 2.5
     $days = $service->calculateEffectiveDaysForUser($user, '2026-03-27', '2026-03-30');
 
     expect($days)->toBe($expectedDays);
 })->with([
-    'hrd uses 5 day work week' => [UserRole::HRD, 2],
-    'hr staff uses 6 day work week' => [UserRole::HR_STAFF, 3],
-    'manager uses 5 day work week' => [UserRole::MANAGER, 2],
-    'supervisor uses 6 day work week' => [UserRole::SUPERVISOR, 3],
-    'employee uses 6 day work week' => [UserRole::EMPLOYEE, 3],
+    'hrd uses 5 day work week' => [UserRole::HRD, 2.0],
+    'hr staff uses 6 day work week' => [UserRole::HR_STAFF, 2.5],
+    'manager uses 5 day work week' => [UserRole::MANAGER, 2.0],
+    'supervisor uses 6 day work week' => [UserRole::SUPERVISOR, 2.5],
+    'employee uses 6 day work week' => [UserRole::EMPLOYEE, 2.5],
 ]);
 
 it('treats enum cast cuti as annual leave for shared balance logic', function () {
@@ -40,7 +43,7 @@ it('treats enum cast cuti as annual leave for shared balance logic', function ()
     ]));
 
     expect($service->isAnnualLeave($leave))->toBeTrue()
-        ->and($service->calculateEffectiveDaysForLeave($leave))->toBe(2);
+        ->and($service->calculateEffectiveDaysForLeave($leave))->toBe(2.0);
 });
 
 it('refunds and deducts annual leave with the same shared rule for all cuti flows', function () {
@@ -69,11 +72,12 @@ it('refunds and deducts annual leave with the same shared rule for all cuti flow
 
     $leave->setRelation('user', $user);
 
-    expect($service->deductLeaveBalanceForLeave($leave))->toBe(2)
-        ->and($user->fresh()->leave_balance)->toBe(10);
+    // HRD (5-day): 2026-03-27(Fri)=1, 2026-03-28(Sat)=0, 2026-03-29(Sun)=0, 2026-03-30(Mon)=1 -> 2 days
+    expect($service->deductLeaveBalanceForLeave($leave))->toBe(2.0)
+        ->and((float) $user->fresh()->leave_balance)->toBe(10.0);
 
     $leave->setRelation('user', $user->fresh());
 
-    expect($service->refundLeaveBalanceForLeave($leave))->toBe(2)
-        ->and($user->fresh()->leave_balance)->toBe(12);
+    expect($service->refundLeaveBalanceForLeave($leave))->toBe(2.0)
+        ->and((float) $user->fresh()->leave_balance)->toBe(12.0);
 });

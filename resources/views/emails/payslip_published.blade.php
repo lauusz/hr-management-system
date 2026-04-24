@@ -118,7 +118,7 @@
                 </td>
                 <td style="width: 25%; text-align: right; vertical-align: top;">
                     <h3 style="font-size: 16px; margin-bottom: 3px;">{{ !empty($thrOnly) ? 'SLIP THR' : 'SLIP GAJI' }}</h3>
-                    <p class="font-bold">{{ \Carbon\Carbon::createFromDate((int)$payslip->period_year, (int)$payslip->period_month, 1)->format('M-y') }}</p>
+                    <p class="font-bold">{{ \Carbon\Carbon::createFromDate((int)$payslip->period_year, (int)$payslip->period_month, 1)->translatedFormat('M-y') }}</p>
                 </td>
             </tr>
         </table>

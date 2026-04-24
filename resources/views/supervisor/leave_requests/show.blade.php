@@ -106,7 +106,7 @@
                 <span class="badge-status" style="background: {{ $statusBg }}; color: {{ $statusColor }};">
                     {{ $statusLabel }}
                 </span>
-                <span class="submit-time">Diajukan {{ $item->created_at->format('d M Y, H:i') }}</span>
+                <span class="submit-time">Diajukan {{ $item->created_at->translatedFormat('j F Y, H:i') }}</span>
             </div>
         </div>
 
@@ -146,9 +146,9 @@
                 <span class="info-label">Periode Izin</span>
                 <div class="date-display">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                    {{ $item->start_date->format('d M Y') }}
+                    {{ $item->start_date->translatedFormat('j F Y') }}
                     @if($item->end_date && $item->end_date->ne($item->start_date))
-                        — {{ $item->end_date->format('d M Y') }}
+                        — {{ $item->end_date->translatedFormat('j F Y') }}
                     @endif
                 </div>
             </div>
@@ -172,6 +172,27 @@
                     @endif
                 </span>
                 <span class="time-display">{{ $startTimeLabel }}{{ $endTimeLabel ? ' — ' . $endTimeLabel : '' }}</span>
+            </div>
+            @endif
+
+            @php
+                // H-7 Warning Calculation (for CUTI type only)
+                $showShortNoticeWarning = false;
+                $shortNoticeDaysDiff = 0;
+                if ($typeValue === 'CUTI' && $item->start_date && $item->created_at) {
+                    $start = $item->start_date->copy()->startOfDay();
+                    $submitted = $item->created_at->copy()->startOfDay();
+                    $shortNoticeDaysDiff = $submitted->diffInDays($start, false);
+                    $showShortNoticeWarning = ($shortNoticeDaysDiff < 7 && $shortNoticeDaysDiff >= 0);
+                }
+            @endphp
+
+            @if($showShortNoticeWarning)
+            <div class="info-row" style="background: #fef3c7; border-radius: 8px; padding: 10px 12px; margin-top: 8px;">
+                <span class="info-label" style="color: #92400e;">Perhatian</span>
+                <span class="info-value" style="color: #92400e; font-weight: 600;">
+                    Pengajuan H-{{ $shortNoticeDaysDiff }} (kurang dari H-7)
+                </span>
             </div>
             @endif
         </div>
@@ -245,7 +266,7 @@
                     <div class="approver-info">
                         <span class="approver-name">{{ $item->approver?->name ?? '-' }}</span>
                         @if($item->approved_at)
-                            <span class="approver-time">{{ $item->approved_at->format('d M Y, H:i') }}</span>
+                            <span class="approver-time">{{ $item->approved_at->translatedFormat('j F Y, H:i') }}</span>
                         @endif
                     </div>
                 </div>

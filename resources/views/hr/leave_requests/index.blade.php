@@ -54,8 +54,16 @@
 
     {{-- FILTER TABS --}}
     <div class="filter-tabs">
-        <button class="tab-btn active" data-filter="all">
+        <button class="tab-btn {{ !$submittedToday && !$periodToday ? 'active' : '' }}" data-filter="all" data-url="{{ route('hr.leave.index') }}">
             Semua
+            <span class="tab-count">{{ $leaves->total() }}</span>
+        </button>
+        <button class="tab-btn {{ $submittedToday ? 'active' : '' }}" data-filter="submitted_today" data-url="{{ route('hr.leave.index', ['submitted_today' => 1]) }}">
+            Diajukan Hari Ini
+            <span class="tab-count">{{ $leaves->total() }}</span>
+        </button>
+        <button class="tab-btn {{ $periodToday ? 'active' : '' }}" data-filter="period_today" data-url="{{ route('hr.leave.index', ['period_today' => 1]) }}">
+            Periode Izin Hari Ini
             <span class="tab-count">{{ $leaves->total() }}</span>
         </button>
         <button class="tab-btn" data-filter="PENDING_HR">
@@ -139,7 +147,7 @@
                     } elseif ($diffDays < 7) {
                         $timeAgo = $diffDays . ' hari lalu';
                     } else {
-                        $timeAgo = $created->format('d M');
+                        $timeAgo = $created->translatedFormat('j F');
                     }
 
                     // Duration
@@ -180,11 +188,9 @@
                             </span>
                         </div>
                         <div class="detail-period">
-                            {{ $lv->start_date->format('d M') }}
+                            {{ \Carbon\Carbon::parse($lv->start_date)->translatedFormat('l, j F Y') }}
                             @if($end->ne($start))
-                                - {{ $end->format('d M Y') }}
-                            @else
-                                {{ $lv->start_date->format('Y') }}
+                                - {{ \Carbon\Carbon::parse($end)->translatedFormat('l, j F Y') }}
                             @endif
                         </div>
                         @if($lv->reason)
@@ -744,28 +750,36 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Filter tabs functionality
             const tabBtns = document.querySelectorAll('.tab-btn');
-            const listItems = document.querySelectorAll('.list-item');
 
             tabBtns.forEach(function(btn) {
-                btn.addEventListener('click', function() {
-                    const filter = this.dataset.filter;
+                btn.addEventListener('click', function(e) {
+                    const url = this.dataset.url;
+                    if (url) {
+                        window.location.href = url;
+                    } else {
+                        // Handle status filter (non-URL filters)
+                        const filter = this.dataset.filter;
+                        const listItems = document.querySelectorAll('.list-item');
 
-                    // Update active tab
-                    tabBtns.forEach(function(b) { b.classList.remove('active'); });
-                    this.classList.add('active');
+                        // Update active tab
+                        tabBtns.forEach(function(b) {
+                            if (!b.dataset.url) b.classList.remove('active');
+                        });
+                        this.classList.add('active');
 
-                    // Filter items
-                    listItems.forEach(function(item) {
-                        if (filter === 'all') {
-                            item.style.display = '';
-                        } else {
-                            if (item.dataset.status === filter) {
+                        // Filter items
+                        listItems.forEach(function(item) {
+                            if (filter === 'all') {
                                 item.style.display = '';
                             } else {
-                                item.style.display = 'none';
+                                if (item.dataset.status === filter) {
+                                    item.style.display = '';
+                                } else {
+                                    item.style.display = 'none';
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
                 });
             });
 

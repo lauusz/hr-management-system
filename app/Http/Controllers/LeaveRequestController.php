@@ -140,7 +140,7 @@ class LeaveRequestController extends Controller
         if (RateLimiter::tooManyAttempts($throttleKey, 1)) {
             $seconds = RateLimiter::availableIn($throttleKey);
             $nextTime = Carbon::now()->addSeconds($seconds)->format('H:i');
-            return redirect()->back()->withInput()->withErrors(['error' => "Anda baru saja melakukan pengajuan. Mohon tunggu hingga pukul $nextTime."]);
+            return redirect()->back()->withInput()->with('error', "Anda baru saja melakukan pengajuan. Mohon tunggu hingga pukul $nextTime.");
         }
 
         // Validasi Input
@@ -171,13 +171,13 @@ class LeaveRequestController extends Controller
             ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
             ->exists();
 
-        if ($isDuplicate) return redirect()->back()->withInput()->withErrors(['error' => 'Anda sudah memiliki pengajuan aktif pada tanggal tersebut.']);
+        if ($isDuplicate) return redirect()->back()->withInput()->with('error', 'Anda sudah memiliki pengajuan aktif pada tanggal tersebut.');
 
         // [VALIDASI] SALDO CUTI & MASA KERJA (ADJUSTED BY ROLE)
         if ($type === LeaveType::CUTI->value) {
             $joinDate = $user->profile?->tgl_bergabung ? Carbon::parse($user->profile->tgl_bergabung) : null;
             if ($joinDate && $joinDate->diffInYears(now()) < 1) {
-                return back()->withInput()->withErrors(['error' => 'Maaf, masa kerja Anda belum 1 tahun. Belum berhak mengajukan Cuti Tahunan.']);
+                return redirect()->back()->withInput()->with('error', 'Maaf, masa kerja Anda belum 1 tahun. Belum berhak mengajukan Cuti Tahunan.');
             }
 
             $daysRequested = $this->leaveBalanceService->calculateEffectiveDaysForUser(
@@ -187,7 +187,7 @@ class LeaveRequestController extends Controller
             );
 
             if ($user->leave_balance < $daysRequested) {
-                return back()->withInput()->withErrors(['error' => "Sisa cuti tidak mencukupi. (Sisa: {$user->leave_balance} hari, Pengajuan Efektif: {$daysRequested} hari)."]);
+                return redirect()->back()->withInput()->with('error', "Sisa cuti tidak mencukupi. (Sisa: {$user->leave_balance} hari, Pengajuan Efektif: {$daysRequested} hari).");
             }
         }
 
@@ -196,23 +196,23 @@ class LeaveRequestController extends Controller
 
         $isOffSpv = $type === LeaveType::OFF_SPV->value;
         if ($isOffSpv) {
-            if (!$this->isSpvUser($user)) return back()->withErrors('Tipe OFF hanya untuk Supervisor.')->withInput();
+            if (!$this->isSpvUser($user)) return redirect()->back()->withInput()->with('error', 'Tipe OFF hanya untuk Supervisor.');
 
             if (Carbon::parse($validated['start_date'])->format('Y-m') !== now()->format('Y-m')) {
-                return back()->withInput()->withErrors(['error' => 'Pengajuan OFF SPV hanya dapat dilakukan untuk bulan ini (tidak bisa untuk bulan depan).']);
+                return redirect()->back()->withInput()->with('error', 'Pengajuan OFF SPV hanya dapat dilakukan untuk bulan ini (tidak bisa untuk bulan depan).');
             }
 
             $monthRef = Carbon::parse($validated['start_date'])->startOfMonth();
             $limit = $this->offSpvMonthlyLimitByMonth($monthRef);
             $approvedCount = $this->offSpvApprovedCountInMonth($userId, $monthRef);
-            if (($limit - $approvedCount) <= 0) return back()->withErrors('Kuota OFF Supervisor habis.')->withInput();
+            if (($limit - $approvedCount) <= 0) return redirect()->back()->withInput()->with('error', 'Kuota OFF Supervisor habis.');
 
             $startDate = Carbon::parse($validated['start_date']);
             $weekStart = $startDate->copy()->startOfWeek(Carbon::MONDAY);
             $weekEnd = $weekStart->copy()->addDays(6);
             $alreadyInWeek = LeaveRequest::query()->where('user_id', $userId)->where('type', LeaveType::OFF_SPV->value)
                 ->whereBetween('start_date', [$weekStart->toDateString(), $weekEnd->toDateString()])->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])->exists();
-            if ($alreadyInWeek) return back()->withErrors('Pengajuan OFF SPV maksimal 1x seminggu.')->withInput();
+            if ($alreadyInWeek) return redirect()->back()->withInput()->with('error', 'Pengajuan OFF SPV maksimal 1x seminggu.');
             $validated['end_date'] = $validated['start_date'];
             $validated['start_time'] = null;
             $validated['end_time'] = null;
@@ -225,9 +225,9 @@ class LeaveRequestController extends Controller
         $rawStartTime = $request->input('start_time');
         $rawEndTime   = $request->input('end_time');
 
-        if ($isIzinTelat && !$rawStartTime) return back()->withErrors('Estimasi jam tiba wajib diisi.')->withInput();
-        if ($isIzinTengahKerja && (!$rawStartTime || !$rawEndTime)) return back()->withErrors('Jam mulai/selesai wajib diisi.')->withInput();
-        if ($isIzinPulangAwal && !$rawStartTime) return back()->withErrors('Jam pulang wajib diisi.')->withInput();
+        if ($isIzinTelat && !$rawStartTime) return redirect()->back()->withInput()->with('error', 'Estimasi jam tiba wajib diisi.');
+        if ($isIzinTengahKerja && (!$rawStartTime || !$rawEndTime)) return redirect()->back()->withInput()->with('error', 'Jam mulai/selesai wajib diisi.');
+        if ($isIzinPulangAwal && !$rawStartTime) return redirect()->back()->withInput()->with('error', 'Jam pulang wajib diisi.');
 
         $photoBasename = null;
         if ($request->hasFile('photo')) {
@@ -239,6 +239,16 @@ class LeaveRequestController extends Controller
         $roleStr = $this->getRoleString($user);
         $initialStatus = LeaveRequest::PENDING_HR;
 
+        // =====================================================================
+        // UNIFIED FLOW: Semua user (EMPLOYEE, SUPERVISOR, HR_STAFF, HRD)
+        // 1. Jika ada direct_supervisor_id → PENDING_SUPERVISOR (ke supervisor)
+        // 2. Jika tidak ada supervisor tapi ada manager_id → PENDING_SUPERVISOR (ke manager)
+        // 3. Jika tidak ada supervisor dan tidak ada manager → PENDING_HR (langsung ke HRD)
+        //
+        // SPECIAL CASE: HRD dengan position "MANAGER HRD" + ada manager
+        // → Manager adalah final approver (tidak perlu ke HRD setelah manager approve)
+        // =====================================================================
+
         if ($roleStr === 'EMPLOYEE') {
             if (!empty($inputApproverId)) {
                 $user->update(['direct_supervisor_id' => $inputApproverId]);
@@ -246,7 +256,16 @@ class LeaveRequestController extends Controller
             if (!empty($user->direct_supervisor_id)) {
                 $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
             }
-        } elseif ($roleStr === 'SUPERVISOR' || $roleStr === 'HRD') {
+        } elseif ($roleStr === 'SUPERVISOR' || $roleStr === 'HR STAFF') {
+            // SUPERVISOR dan HR_STAFF menggunakan manager_id
+            if (!empty($inputApproverId)) {
+                $user->update(['manager_id' => $inputApproverId]);
+            }
+            if (!empty($user->manager_id)) {
+                $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
+            }
+        } elseif ($roleStr === 'HRD') {
+            // HRD menggunakan manager_id
             if (!empty($inputApproverId)) {
                 $user->update(['manager_id' => $inputApproverId]);
             }
@@ -296,12 +315,6 @@ class LeaveRequestController extends Controller
             abort(403, 'Anda tidak berhak mengunggah bukti untuk pengajuan ini.');
         }
 
-        if ($isOwner && !$isHRD) {
-            if (!in_array($leave_request->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
-                return back()->withErrors('Pengajuan sudah diproses, upload bukti susulan tidak dapat dilakukan.');
-            }
-        }
-
         $validated = $request->validate([
             'photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
         ]);
@@ -327,7 +340,7 @@ class LeaveRequestController extends Controller
 
         if ($isOwner && !$isHRD) {
             if (!in_array($leaveRequest->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR])) {
-                return back()->withErrors('Pengajuan sudah diproses, tidak dapat diubah sendiri. Hubungi atasan.');
+                return redirect()->back()->with('error', 'Pengajuan sudah diproses, tidak dapat diubah sendiri. Hubungi atasan.');
             }
         }
 
@@ -388,7 +401,7 @@ class LeaveRequestController extends Controller
 
         if ($isOwner && !$isHRD) {
             if (!in_array($leaveRequest->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
-                return back()->with('error', 'Hanya pengajuan yang masih pending yang bisa dibatalkan oleh pemohon.');
+                return redirect()->back()->with('error', 'Hanya pengajuan yang masih pending yang bisa dibatalkan oleh pemohon.');
             }
         }
 
@@ -418,6 +431,27 @@ class LeaveRequestController extends Controller
         if (method_exists($user, 'isSupervisor')) return $user->isSupervisor();
         return $this->getRoleString($user) === 'SUPERVISOR';
     }
+
+    /**
+     * Cek apakah user adalah HRD dengan position "MANAGER HRD"
+     * Special case: Jika HRD ini punya manager, maka manager adalah final approver
+     * (tidak perlu PENDING_HR setelah manager approve)
+     */
+    private function isManagerHrdSpecialCase(User $user): bool
+    {
+        $roleStr = $this->getRoleString($user);
+        if ($roleStr !== 'HRD') {
+            return false;
+        }
+
+        // Check position name - need to load position relation
+        $user->load('position');
+        $positionName = $user->position?->name ?? '';
+        $isManagerHrdPosition = strtoupper(trim($positionName)) === 'MANAGER HRD';
+
+        return $isManagerHrdPosition && !empty($user->manager_id);
+    }
+
     private function offSpvMonthlyLimitByMonth(Carbon $monthStart): int
     {
         $fridayCount = $monthStart->copy()->startOfMonth()->daysUntil($monthStart->copy()->endOfMonth())

@@ -20,6 +20,8 @@ class LoanRequest extends Model
         'document_path',
         'amount',
         'purpose',
+        'notes',
+        'monthly_installment',
         'repayment_term',
         'disbursement_date',
         'payment_method',
@@ -34,6 +36,7 @@ class LoanRequest extends Model
         'disbursement_date' => 'date',
         'hrd_decided_at' => 'datetime',
         'amount' => 'decimal:2',
+        'monthly_installment' => 'decimal:2',
     ];
 
     public function user()

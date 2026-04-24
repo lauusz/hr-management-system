@@ -161,13 +161,13 @@
 
                     <div class="info-item">
                         <span class="info-label">Tanggal Mulai</span>
-                        <span class="info-value">{{ $item->start_date->format('d M Y') }}</span>
+                        <span class="info-value">{{ $item->start_date->translatedFormat('j F Y') }}</span>
                     </div>
 
                     @if($item->end_date && $item->end_date->ne($item->start_date))
                     <div class="info-item">
                         <span class="info-label">Tanggal Selesai</span>
-                        <span class="info-value">{{ $item->end_date->format('d M Y') }}</span>
+                        <span class="info-value">{{ $item->end_date->translatedFormat('j F Y') }}</span>
                     </div>
                     @endif
 
@@ -200,8 +200,30 @@
 
                     <div class="info-item">
                         <span class="info-label">Diajukan</span>
-                        <span class="info-value">{{ $item->created_at->format('d M Y') }} pukul {{ $item->created_at->format('H:i') }}</span>
+                        <span class="info-value">{{ $item->created_at->translatedFormat('j F Y') }} pukul {{ $item->created_at->format('H:i') }}</span>
                     </div>
+
+                    @php
+                        // H-7 Warning Calculation (for CUTI type only)
+                        // Based on days from submission date (created_at) to start_date
+                        $showShortNoticeWarning = false;
+                        $shortNoticeDaysDiff = 0;
+                        if ($typeValue === 'CUTI' && $item->start_date && $item->created_at) {
+                            $start = $item->start_date->copy()->startOfDay();
+                            $submitted = $item->created_at->copy()->startOfDay();
+                            $shortNoticeDaysDiff = $submitted->diffInDays($start, false);
+                            $showShortNoticeWarning = ($shortNoticeDaysDiff < 7 && $shortNoticeDaysDiff >= 0);
+                        }
+                    @endphp
+
+                    @if($showShortNoticeWarning)
+                    <div class="info-item">
+                        <span class="info-label">Perhatian</span>
+                        <span class="info-value" style="color: #dc2626; font-weight: 600;">
+                            Pengajuan H-{{ $shortNoticeDaysDiff }} (kurang dari H-7)
+                        </span>
+                    </div>
+                    @endif
 
                     @if($item->substitute_pic)
                     <div class="info-item">
@@ -223,7 +245,22 @@
                         <span class="info-value">
                             {{ $item->approver?->name }}
                             @if($item->approved_at)
-                                <span class="info-sub">{{ $item->approved_at->format('d M Y H:i') }}</span>
+                                <span class="info-sub">{{ $item->approved_at->translatedFormat('j F Y H:i') }}</span>
+                            @endif
+                        </span>
+                    </div>
+                    @endif
+
+                    @php
+                        $atasanName = $item->user->directSupervisor->name ?? $item->user->manager->name ?? null;
+                    @endphp
+                    @if($atasanName)
+                    <div class="info-item">
+                        <span class="info-label">Atasan Mengetahui</span>
+                        <span class="info-value">
+                            {{ $atasanName }}
+                            @if($item->supervisor_ack_at)
+                                <span class="info-sub">{{ $item->supervisor_ack_at->translatedFormat('j F Y H:i') }}</span>
                             @endif
                         </span>
                     </div>
@@ -231,8 +268,18 @@
                 </div>
             </div>
 
-            {{-- Notes Section --}}
-            @if($item->notes || $item->notes_hrd)
+            {{-- POTONG UM INDICATOR --}}
+            @if($item->deduct_um)
+            <div class="note-box" style="background: #fef3c7; border-color: #f59e0b; margin-bottom: 16px;">
+                <span class="note-label" style="color: #92400e; font-size: 12px; font-weight: 600;">⚠️ Potong Uang Makan (UM)</span>
+                <p class="note-text" style="color: #92400e; margin-top: 4px;">
+                    {!! nl2br(e($item->notes_hrd ?? 'Potong UM')) !!}
+                </p>
+            </div>
+            @endif
+
+            {{-- Notes Section (skip if notes_hrd only and deduct_um - already shown above) --}}
+            @if($item->notes || ($item->notes_hrd && !$item->deduct_um))
             <div class="card-section">
                 <h3 class="section-heading">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/></svg>
@@ -246,7 +293,7 @@
                 </div>
                 @endif
 
-                @if($item->notes_hrd)
+                @if($item->notes_hrd && !$item->deduct_um)
                     @php
                         if ($item->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
                             $noteBg = '#fef2f2';
@@ -301,7 +348,7 @@
                     $isHrdUploader = in_array(strtoupper((string) $authRole), ['HRD', 'HR STAFF', 'MANAGER'], true);
                     $isOwnerUploader = $authUser->id === $item->user_id;
                     $isPendingStatus = in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true);
-                    $canUploadFollowupPhoto = $isHrdUploader || ($isOwnerUploader && $isPendingStatus);
+                    $canUploadFollowupPhoto = $isHrdUploader || $isOwnerUploader;
                 @endphp
 
                 @if($url)

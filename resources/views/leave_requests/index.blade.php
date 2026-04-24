@@ -190,10 +190,10 @@
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        <span>{{ $row->start_date->format('d M Y') }}</span>
+                        <span>{{ $row->start_date->translatedFormat('j F Y') }}</span>
                         @if($row->end_date && $row->end_date->ne($row->start_date))
                             <span class="period-separator">—</span>
-                            <span>{{ $row->end_date->format('d M Y') }}</span>
+                            <span>{{ $row->end_date->translatedFormat('j F Y') }}</span>
                         @endif
                     </div>
 
@@ -210,7 +210,7 @@
                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                             </svg>
-                            {{ $row->created_at->format('d M Y') }} · {{ $row->created_at->format('H:i') }}
+                            {{ $row->created_at->translatedFormat('j F Y') }} · {{ $row->created_at->format('H:i') }}
                         </span>
                     </div>
                     <div class="leave-action">

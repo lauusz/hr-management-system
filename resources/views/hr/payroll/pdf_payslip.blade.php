@@ -130,7 +130,7 @@
                 </td>
                 <td style="width: 25%; text-align: right; vertical-align: top; padding: 0;">
                     <h3 style="font-size: 16px; margin-bottom: 3px; font-family: sans-serif;">{{ !empty($thrOnly) ? 'SLIP THR' : 'SLIP GAJI' }}</h3>
-                    <p class="font-bold" style="font-family: sans-serif;">{{ \Carbon\Carbon::createFromDate((int)$payslip->period_year, (int)$payslip->period_month, 1)->format('M-y') }}</p>
+                    <p class="font-bold" style="font-family: sans-serif;">{{ \Carbon\Carbon::createFromDate((int)$payslip->period_year, (int)$payslip->period_month, 1)->translatedFormat('M-y') }}</p>
                 </td>
             </tr>
         </table>

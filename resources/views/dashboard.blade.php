@@ -26,8 +26,13 @@
         </div>
       </div>
       <div class="welcome-date">
-        <div class="date-main">{{ now()->format('d M Y') }}</div>
-        <div class="date-sub">{{ now()->format('l') }}</div>
+        <div class="date-main">{{ now()->translatedFormat('j F Y') }}</div>
+        <div class="date-sub">
+          @php
+            $dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+          @endphp
+          {{ $dayNames[now()->dayOfWeek] }}
+        </div>
       </div>
     </div>
 
@@ -44,7 +49,7 @@
         </div>
         <div class="info-content">
           <div class="info-label">Sisa Cuti</div>
-          <div class="info-value">{{ auth()->user()->leave_balance ?? 0 }} <span class="info-unit">hari</span></div>
+          <div class="info-value">{{ rtrim(rtrim(sprintf('%.1f', auth()->user()->leave_balance ?? 0), '0'), '.') }} <span class="info-unit">hari</span></div>
         </div>
       </div>
 

@@ -137,11 +137,19 @@ Route::middleware('auth')->group(function () {
         Route::post('/hr/approval-attendance/{attendance}/approve', [ApprovalAttendanceController::class, 'approve'])->name('hr.approval_attendance.approve');
         Route::post('/hr/approval-attendance/{attendance}/reject', [ApprovalAttendanceController::class, 'reject'])->name('hr.approval_attendance.reject');
 
-        Route::get('/hr/loan-requests', [HrLoanRequestController::class, 'index'])->name('hr.loan_requests.index');
-        Route::get('/hr/loan-requests/{id}', [HrLoanRequestController::class, 'show'])->name('hr.loan_requests.show');
-        Route::post('/hr/loan-requests/{id}/approve', [HrLoanRequestController::class, 'approve'])->name('hr.loan_requests.approve');
-        Route::post('/hr/loan-requests/{id}/reject', [HrLoanRequestController::class, 'reject'])->name('hr.loan_requests.reject');
-        Route::post('/hr/loan-requests/{id}/repayments', [HrLoanRequestController::class, 'storeRepayment'])->name('hr.loan_requests.repayments.store');
+        // LOAN REQUESTS (HRD & HR STAFF)
+        Route::middleware('role:HRD,HR STAFF')->group(function () {
+            Route::get('/hr/loan-requests', [HrLoanRequestController::class, 'index'])->name('hr.loan_requests.index');
+            Route::get('/hr/loan-requests/{id}', [HrLoanRequestController::class, 'show'])->name('hr.loan_requests.show');
+            Route::get('/hr/loan-requests/{id}/edit', [HrLoanRequestController::class, 'edit'])->name('hr.loan_requests.edit');
+            Route::put('/hr/loan-requests/{id}', [HrLoanRequestController::class, 'update'])->name('hr.loan_requests.update');
+            Route::post('/hr/loan-requests/{id}/approve', [HrLoanRequestController::class, 'approve'])->name('hr.loan_requests.approve');
+            Route::post('/hr/loan-requests/{id}/reject', [HrLoanRequestController::class, 'reject'])->name('hr.loan_requests.reject');
+            Route::put('/hr/loan-requests/{id}/internal-note', [HrLoanRequestController::class, 'saveInternalNote'])->name('hr.loan_requests.saveInternalNote');
+            Route::post('/hr/loan-requests/{id}/repayments', [HrLoanRequestController::class, 'storeRepayment'])->name('hr.loan_requests.repayments.store');
+            Route::put('/hr/loan-requests/{id}/repayments/{repaymentId}', [HrLoanRequestController::class, 'updateRepayment'])->name('hr.loan_requests.repayments.update');
+            Route::delete('/hr/loan-requests/{id}/repayments/{repaymentId}', [HrLoanRequestController::class, 'destroyRepayment'])->name('hr.loan_requests.repayments.destroy');
+        });
 
         // Overtime Requests (HR) - Routes Manual untuk Action
         Route::get('/hr/overtime-requests/master', [HrOvertimeController::class, 'master'])->name('hr.overtime-requests.master');
@@ -193,6 +201,7 @@ Route::middleware('auth')->group(function () {
     Route::middleware('role:SUPERVISOR')->prefix('supervisor')->name('supervisor.')->group(function () {
         Route::get('/leave-requests', [ApprovalController::class, 'index'])->name('leave.index');
         Route::get('/leave-requests/{leave}', [ApprovalController::class, 'show'])->name('leave.show');
+        Route::post('/leave-requests/{leave}/ack', [ApprovalController::class, 'ack'])->name('leave.ack');
         Route::post('/leave-requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('leave.approve');
         Route::post('/leave-requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('leave.reject');
 
