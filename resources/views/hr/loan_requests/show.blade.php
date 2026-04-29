@@ -95,7 +95,7 @@
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
             <h2 class="section-title">Detail Pinjaman</h2>
-            @if(auth()->user()->isHrManager() && in_array($loan->status, ['PENDING_HRD', 'APPROVED']))
+            @if(auth()->user()->isHR() && in_array($loan->status, ['PENDING_HRD', 'APPROVED']))
             <a href="{{ route('hr.loan_requests.edit', $loan->id) }}" class="btn-edit-loan">
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 Edit
@@ -197,7 +197,7 @@
                 </div>
             </div>
 
-            @if(auth()->user()->isHrManager())
+            @if(auth()->user()->isHR())
             @if($loan->status !== 'LUNAS')
             <div class="repayment-form" id="add-repayment-form" style="display: none;">
                 <h4 class="repayment-title">Catat Cicilan Baru</h4>
@@ -325,7 +325,7 @@
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
             <h2 class="section-title">Riwayat Pembayaran</h2>
-            @if(auth()->user()->isHrManager() && $loan->status !== 'LUNAS' && $loan->status !== 'REJECTED')
+            @if(auth()->user()->isHR() && $loan->status !== 'LUNAS' && $loan->status !== 'REJECTED')
             <button type="button" class="btn-add-repayment" onclick="openAddRepaymentForm()">
                 <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Tambah
@@ -355,7 +355,7 @@
                             @endif
                         </div>
                     </div>
-                    @if(auth()->user()->isHrManager() && in_array($loan->status, ['APPROVED', 'PENDING_HRD']))
+                    @if(auth()->user()->isHR() && in_array($loan->status, ['APPROVED', 'PENDING_HRD']))
                     <div class="history-actions">
                         <button type="button" class="btn-edit-repayment" onclick="editRepayment({{ $repayment->id }}, '{{ \Carbon\Carbon::parse($repayment->paid_at)->format('Y-m-d') }}', {{ $repayment->amount }}, '{{ $repayment->method }}', '{{ $repayment->note ?? '' }}')">
                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>

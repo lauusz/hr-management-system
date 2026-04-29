@@ -1,158 +1,186 @@
 <x-app title="Ganti Password">
-
-    <div class="page-wrapper">
-        {{-- Header --}}
-        <div class="page-header">
-            <a href="{{ route('dashboard') }}" class="back-btn">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-            </a>
-            <div class="header-text">
-                <h1 class="page-title">Pengaturan Keamanan</h1>
-                <p class="page-subtitle">Kelola kata sandi akun Anda</p>
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="section-title">Pengaturan Keamanan</h1>
+                <p class="section-subtitle">Kelola kata sandi akun Anda</p>
             </div>
         </div>
+    </x-slot>
 
-        {{-- Alert --}}
+    <div class="security-page">
+        {{-- Back Button --}}
+        <a href="{{ route('dashboard') }}" class="back-btn" aria-label="Kembali ke dashboard">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span class="back-btn-text">Kembali</span>
+        </a>
+
+        {{-- Alerts --}}
         @if(session('success'))
             <div class="alert alert-success">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
                 <span>{{ session('success') }}</span>
             </div>
         @endif
 
         @if ($errors->any())
             <div class="alert alert-error">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
                 <span>{{ $errors->first() }}</span>
             </div>
         @endif
 
-        {{-- Main Card --}}
-        <div class="card-security">
-            <div class="card-icon">
-                <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        {{-- Main Layout: Form + Side Panel --}}
+        <div class="security-layout">
+            {{-- Form Card --}}
+            <div class="security-card">
+                <form method="POST" action="{{ route('settings.password.update') }}" class="security-form" id="passwordForm">
+                    @csrf
+                    @method('PUT')
+
+                    {{-- Identity Section --}}
+                    <div class="form-section">
+                        <div class="field">
+                            <label class="field-label" for="username">Username</label>
+                            <div class="input-wrap">
+                                <input
+                                    type="text"
+                                    name="username"
+                                    id="username"
+                                    class="field-input @error('username') input-error @enderror"
+                                    value="{{ old('username', auth()->user()->username ?? '') }}"
+                                    placeholder="Masukkan username baru"
+                                    autocomplete="username">
+                            </div>
+                            <p class="field-hint">Tidak boleh ada spasi. Username bisa digunakan untuk login.</p>
+                            @error('username')
+                                <p class="error-text">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="email">Email</label>
+                            <div class="input-wrap">
+                                <input
+                                    type="email"
+                                    name="email"
+                                    id="email"
+                                    class="field-input field-input--readonly"
+                                    value="{{ auth()->user()->email ?? '' }}"
+                                    readonly
+                                    autocomplete="email">
+
+                            </div>
+                            <p class="field-hint">Hubungi HRD jika perlu mengubah alamat email.</p>
+                        </div>
+                    </div>
+
+                    {{-- Password Section --}}
+                    <div class="form-section">
+                        <div class="field">
+                            <label class="field-label field-label--spaced" for="current_password">Password Saat Ini</label>
+                            <div class="input-wrap">
+                                <input
+                                    type="password"
+                                    name="current_password"
+                                    id="current_password"
+                                    class="field-input @error('current_password') input-error @enderror"
+                                    placeholder="Masukkan password lama"
+                                    required
+                                    autocomplete="current-password">
+                                <button type="button" class="toggle-password" data-target="current_password" aria-label="Tampilkan password">
+                                    <svg class="icon-eye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            @error('current_password')
+                                <p class="error-text">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="password">Password Baru</label>
+                            <div class="input-wrap">
+                                <input
+                                    type="password"
+                                    name="password"
+                                    id="password"
+                                    class="field-input @error('password') input-error @enderror"
+                                    placeholder="Minimal 8 karakter"
+                                    required
+                                    autocomplete="new-password">
+                                <button type="button" class="toggle-password" data-target="password" aria-label="Tampilkan password">
+                                    <svg class="icon-eye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            @error('password')
+                                <p class="error-text">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="field">
+                            <label class="field-label" for="password_confirmation">Konfirmasi Password Baru</label>
+                            <div class="input-wrap">
+                                <input
+                                    type="password"
+                                    name="password_confirmation"
+                                    id="password_confirmation"
+                                    class="field-input"
+                                    placeholder="Ulangi password baru"
+                                    required
+                                    autocomplete="new-password">
+                                <button type="button" class="toggle-password" data-target="password_confirmation" aria-label="Tampilkan password">
+                                    <svg class="icon-eye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="password-rules">
+                            <div class="rule-title">Persyaratan Password</div>
+                            <ul class="rule-list">
+                                <li data-rule="length">
+                                    <span class="rule-check"></span>
+                                    <span>Minimal 8 karakter</span>
+                                </li>
+                                <li data-rule="match">
+                                    <span class="rule-check"></span>
+                                    <span>Password baru harus sama</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-submit" id="btnSubmit">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            <span class="btn-text">Simpan Perubahan</span>
+                        </button>
+                    </div>
+                </form>
             </div>
-            <h2 class="card-title">Pengaturan Akun</h2>
-            <p class="card-desc">Kelola username dan password akun Anda.</p>
 
-            <form method="POST" action="{{ route('settings.password.update') }}" class="security-form">
-                @csrf
-                @method('PUT')
 
-                {{-- Username Field --}}
-                <div class="form-field">
-                    <label for="username" class="field-label">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                        Username
-                    </label>
-                    <div class="input-wrapper">
-                        <input
-                            type="text"
-                            name="username"
-                            id="username"
-                            class="field-input"
-                            value="{{ old('username', auth()->user()->username ?? '') }}"
-                            placeholder="Masukkan username baru"
-                            autocomplete="username">
-                    </div>
-                    <p class="field-hint">Gunakan huruf, angka, dan underscore. Tidak boleh ada spasi. Username bisa digunakan untuk login.</p>
-                </div>
-
-                {{-- Email Field (read-only) --}}
-                <div class="form-field">
-                    <label for="email" class="field-label">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                        Email
-                    </label>
-                    <div class="input-wrapper">
-                        <input
-                            type="email"
-                            name="email"
-                            id="email"
-                            class="field-input"
-                            value="{{ auth()->user()->email ?? '' }}"
-                            readonly
-                            autocomplete="email">
-                    </div>
-                    <p class="field-hint">Email tidak dapat diubah sendiri. Hubungi HRD untuk mengubah email.</p>
-                </div>
-
-                <div class="divider"></div>
-
-                {{-- Password Fields --}}
-                <div class="form-field">
-                    <label for="current_password" class="field-label">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-                        Password Saat Ini
-                    </label>
-                    <div class="input-wrapper">
-                        <input
-                            type="password"
-                            name="current_password"
-                            id="current_password"
-                            class="field-input"
-                            placeholder="Masukkan password lama"
-                            required
-                            autocomplete="current-password">
-                        <button type="button" class="toggle-password" data-target="current_password">
-                            <svg class="icon-eye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="form-field">
-                    <label for="password" class="field-label">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                        Password Baru
-                    </label>
-                    <div class="input-wrapper">
-                        <input
-                            type="password"
-                            name="password"
-                            id="password"
-                            class="field-input"
-                            placeholder="Minimal 8 karakter"
-                            required
-                            autocomplete="new-password">
-                        <button type="button" class="toggle-password" data-target="password">
-                            <svg class="icon-eye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="form-field">
-                    <label for="password_confirmation" class="field-label">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Konfirmasi Password Baru
-                    </label>
-                    <div class="input-wrapper">
-                        <input
-                            type="password"
-                            name="password_confirmation"
-                            id="password_confirmation"
-                            class="field-input"
-                            placeholder="Ulangi password baru"
-                            required
-                            autocomplete="new-password">
-                        <button type="button" class="toggle-password" data-target="password_confirmation">
-                            <svg class="icon-eye" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        </button>
-                    </div>
-                </div>
-
-                <div class="password-rules">
-                    <div class="rule-title">Persyaratan Password:</div>
-                    <ul class="rule-list">
-                        <li data-rule="length">Minimal 8 karakter</li>
-                        <li data-rule="match">Password baru harus sama</li>
-                    </ul>
-                </div>
-
-                <button type="submit" class="btn-submit">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    Simpan Password
-                </button>
-            </form>
         </div>
     </div>
 
@@ -168,9 +196,11 @@
                     if (input.type === 'password') {
                         input.type = 'text';
                         icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 19.02A8.001 8.001 0 017.875 5.875M6.125 4.98A8.001 8.001 0 0112 3c4.478 0 8.268 2.943 9.542 7a8.001 8.001 0 01-2.125 4.02M6.125 4.98A8.001 8.001 0 0112 3"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3l18 18"/>';
+                        this.setAttribute('aria-label', 'Sembunyikan password');
                     } else {
                         input.type = 'password';
                         icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>';
+                        this.setAttribute('aria-label', 'Tampilkan password');
                     }
                 });
             });
@@ -206,55 +236,54 @@
 
             passwordInput.addEventListener('input', checkPassword);
             confirmInput.addEventListener('input', checkPassword);
+
+            // Loading state on submit
+            const form = document.getElementById('passwordForm');
+            const btnSubmit = document.getElementById('btnSubmit');
+            if (form && btnSubmit) {
+                form.addEventListener('submit', function() {
+                    btnSubmit.disabled = true;
+                    btnSubmit.classList.add('is-loading');
+                });
+            }
         });
     </script>
 
     <style>
-        :root {
-            --navy: #1e4a8d;
-            --navy-dark: #163a75;
-            --bg-page: #f8fafc;
-            --white: #ffffff;
-            --border: #e5e7eb;
-            --text-primary: #111827;
-            --text-secondary: #6b7280;
-            --text-muted: #9ca3af;
-        }
-
-        * { box-sizing: border-box; }
-
-        .page-wrapper {
-            max-width: 480px;
-            margin: 0 auto;
-            padding: 24px 16px 48px;
-        }
-
-        /* Header */
-        .page-header {
+        /* =============================================
+           SECURITY PAGE ROOT
+           ============================================= */
+        .security-page {
             display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 24px;
+            flex-direction: column;
+            gap: 10px;
+            padding-bottom: 24px;
         }
 
+        /* =============================================
+           PAGE HEADER
+           ============================================= */
         .back-btn {
-            width: 40px;
-            height: 40px;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            justify-content: center;
-            background: var(--white);
-            border: 1px solid var(--border);
+            gap: 6px;
+            height: 36px;
+            padding: 0 12px 0 10px;
+            background: var(--white, #fff);
+            border: 1px solid var(--border, #E5E7EB);
             border-radius: 10px;
-            color: var(--text-secondary);
+            color: var(--text-muted, #6B7280);
             text-decoration: none;
-            transition: all 0.2s;
+            transition: all 0.15s ease;
             flex-shrink: 0;
+            align-self: flex-start;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
 
         .back-btn:hover {
-            border-color: var(--navy);
-            color: var(--navy);
+            border-color: var(--primary, #145DA0);
+            color: var(--primary, #145DA0);
+            background: var(--gray-50, #F5F7FA);
         }
 
         .back-btn:hover svg {
@@ -262,306 +291,435 @@
         }
 
         .back-btn svg {
-            transition: transform 0.2s;
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
         }
 
-        .header-text { flex: 1; }
-
-        .page-title {
-            margin: 0;
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-primary);
+        .back-btn-text {
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
         }
 
-        .page-subtitle {
-            margin: 2px 0 0;
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        /* Alerts */
+        /* =============================================
+           ALERTS
+           ============================================= */
         .alert {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 14px 16px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 14px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.8125rem;
+            font-weight: 600;
             line-height: 1.4;
         }
 
         .alert-success {
-            background: #ecfdf5;
-            border: 1px solid #a7f3d0;
-            color: #065f46;
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: #15803d;
         }
 
         .alert-error {
-            background: #fef2f2;
-            border: 1px solid #fecaca;
-            color: #991b1b;
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.15);
+            color: #b91c1c;
         }
 
-        /* Card */
-        .card-security {
-            background: var(--white);
-            border-radius: 16px;
-            border: 1px solid var(--border);
-            padding: 32px 28px;
-            text-align: center;
+        .alert svg {
+            flex-shrink: 0;
+            width: 18px;
+            height: 18px;
         }
 
-        .card-icon {
-            width: 64px;
-            height: 64px;
-            background: #eff6ff;
-            border-radius: 16px;
+        /* =============================================
+           LAYOUT: Form + Side Panel
+           ============================================= */
+        .security-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .security-card {
+            background: var(--white, #fff);
+            border: 1px solid var(--border, #E5E7EB);
+            border-radius: var(--radius-xl, 16px);
+            padding: 20px 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        /* =============================================
+           FORM SECTIONS
+           ============================================= */
+        .form-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .section-header-inline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0;
+        }
+
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 20px;
-            color: var(--navy);
+            flex-shrink: 0;
         }
 
-        .card-title {
-            margin: 0 0 8px;
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--text-primary);
+        .section-icon svg {
+            width: 16px;
+            height: 16px;
         }
 
-        .card-desc {
-            margin: 0 0 28px;
-            font-size: 14px;
-            color: var(--text-secondary);
-            line-height: 1.5;
+        .section-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary, #111827);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
         }
 
-        /* Form */
-        .security-form {
-            text-align: left;
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+            line-height: 1.35;
         }
 
-        .form-field {
-            margin-bottom: 20px;
+        /* =============================================
+           FORM FIELDS (matched with login page)
+           ============================================= */
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
         }
 
         .field-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 8px;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: var(--text-secondary, #374151);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
         }
 
-        .field-label svg {
-            color: var(--navy);
+        .field-label--spaced {
+            margin-top: 2px;
         }
 
-        .field-hint {
-            margin: 6px 0 0;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .divider {
-            height: 1px;
-            background: var(--border);
-            margin: 24px 0;
-        }
-
-        .input-wrapper {
+        .input-wrap {
             position: relative;
         }
 
         .field-input {
             width: 100%;
-            padding: 12px 44px 12px 14px;
-            border: 1px solid var(--border);
+            height: 46px;
+            padding: 0 44px 0 14px;
+            border: 1.5px solid var(--border, #E5E7EB);
             border-radius: 10px;
-            font-size: 14px;
-            color: var(--text-primary);
-            background: var(--white);
-            transition: border-color 0.2s, box-shadow 0.2s;
+            background: var(--white, #fff);
             font-family: inherit;
+            font-size: 0.9375rem;
+            color: var(--text-primary, #111827);
+            transition: all 0.2s ease;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .field-input::placeholder {
+            color: var(--text-muted, #6B7280);
+            opacity: 1;
         }
 
         .field-input:focus {
             outline: none;
-            border-color: var(--navy);
-            box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.1);
+            border-color: var(--primary, #145DA0);
+            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1), 0 0 0 1px rgba(212, 175, 55, 0.15);
         }
 
-        .field-input::placeholder {
-            color: var(--text-muted);
+        .field-input:hover:not(:focus):not(.field-input--readonly) {
+            border-color: #D1D5DB;
         }
 
+        .field-input.input-error {
+            border-color: var(--error, #EF4444);
+        }
+
+        .field-input.input-error:focus {
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1);
+        }
+
+        .field-input--readonly {
+            background: var(--gray-50, #F5F7FA);
+            color: var(--text-muted, #6B7280);
+            cursor: not-allowed;
+            padding-right: 14px;
+        }
+
+        .field-hint {
+            margin: 0;
+            font-size: 0.6875rem;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+            line-height: 1.45;
+        }
+
+        .error-text {
+            margin: 0;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--error, #EF4444);
+            line-height: 1.4;
+        }
+
+        /* =============================================
+           PASSWORD TOGGLE
+           ============================================= */
         .toggle-password {
             position: absolute;
-            right: 12px;
+            right: 4px;
             top: 50%;
             transform: translateY(-50%);
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 4px;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted, #6B7280);
+            border-radius: 8px;
+            transition: all 0.15s ease;
         }
 
         .toggle-password:hover {
-            color: var(--navy);
+            color: var(--text-secondary, #374151);
+            background: var(--gray-50, #F5F7FA);
         }
 
-        /* Password Rules */
+        .toggle-password:focus-visible {
+            outline: 2px solid var(--primary, #145DA0);
+            outline-offset: -2px;
+        }
+
+        .toggle-password svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* =============================================
+           PASSWORD RULES
+           ============================================= */
         .password-rules {
-            background: #f9fafb;
+            background: var(--gray-50, #F5F7FA);
             border-radius: 10px;
-            padding: 14px 16px;
-            margin-bottom: 24px;
+            padding: 12px 14px;
         }
 
         .rule-title {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text-secondary);
+            font-size: 0.625rem;
+            font-weight: 700;
+            color: var(--text-muted, #6B7280);
             margin-bottom: 8px;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
         }
 
         .rule-list {
             margin: 0;
             padding: 0;
             list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         .rule-list li {
-            font-size: 13px;
-            color: var(--text-muted);
-            padding: 3px 0 3px 22px;
-            position: relative;
-            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+            transition: color 0.2s ease;
         }
 
-        .rule-list li::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 14px;
-            height: 14px;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            transition: all 0.2s;
-        }
-
-        .rule-list li.met {
-            color: #065f46;
-        }
-
-        .rule-list li.met::before {
-            background: #059669;
-            border-color: #059669;
-        }
-
-        .rule-list li.met::after {
-            content: '';
-            position: absolute;
-            left: 3px;
-            top: 50%;
-            transform: translateY(-60%) rotate(45deg);
-            width: 5px;
-            height: 9px;
-            border: 2px solid #fff;
-            border-top: none;
-            border-left: none;
-        }
-
-        .rule-list li.active {
-            color: #dc2626;
-        }
-
-        .rule-list li.active::before {
-            border-color: #dc2626;
-        }
-
-        /* Submit Button */
-        .btn-submit {
+        .rule-check {
+            width: 16px;
+            height: 16px;
+            min-width: 16px;
+            border-radius: 5px;
+            border: 1.5px solid var(--border, #E5E7EB);
+            background: var(--white, #fff);
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .rule-check::after {
+            content: '';
+            width: 5px;
+            height: 8px;
+            border: 2px solid transparent;
+            border-top: none;
+            border-left: none;
+            transform: rotate(45deg) translateY(-1px);
+            transition: all 0.2s ease;
+        }
+
+        .rule-list li.met {
+            color: #15803d;
+        }
+
+        .rule-list li.met .rule-check {
+            background: var(--success, #22C55E);
+            border-color: var(--success, #22C55E);
+        }
+
+        .rule-list li.met .rule-check::after {
+            border-color: #fff;
+        }
+
+        .rule-list li.active {
+            color: var(--error, #EF4444);
+        }
+
+        .rule-list li.active .rule-check {
+            border-color: var(--error, #EF4444);
+            background: rgba(239, 68, 68, 0.06);
+        }
+
+        /* =============================================
+           FORM ACTIONS
+           ============================================= */
+        .form-actions {
+            margin-top: 6px;
+        }
+
+        .btn-submit {
             width: 100%;
-            padding: 14px 24px;
-            background: var(--navy);
-            color: var(--white);
-            border: none;
+            height: 46px;
             border-radius: 10px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
+            border: none;
+            color: var(--white, #fff);
             font-family: inherit;
+            font-weight: 700;
+            font-size: 0.875rem;
+            cursor: pointer;
+            background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
+            box-shadow: 0 3px 10px rgba(10, 61, 98, 0.22);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            position: relative;
         }
 
-        .btn-submit:hover {
-            background: var(--navy-dark);
+        .btn-submit:hover:not(:disabled) {
+            background: linear-gradient(135deg, #082D4A, var(--primary-dark, #0A3D62));
+            box-shadow: 0 6px 20px rgba(10, 61, 98, 0.38);
+            transform: translateY(-1px);
         }
 
-        .btn-submit:active {
-            transform: scale(0.98);
+        .btn-submit:active:not(:disabled) {
+            transform: translateY(0);
+            box-shadow: 0 2px 8px rgba(10, 61, 98, 0.28);
         }
 
-        /* Responsive */
-        @media (max-width: 480px) {
-            .page-wrapper {
-                padding: 16px 12px 32px;
-            }
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
 
-            .card-security {
-                padding: 24px 20px;
-                border-radius: 14px;
-            }
+        .btn-submit.is-loading .btn-text {
+            opacity: 0.85;
+        }
 
-            .page-header {
+        .btn-text {
+            transition: opacity 0.2s ease;
+        }
+
+        /* =============================================
+           ICON COLORS
+           ============================================= */
+        .icon-navy  { background: rgba(10, 61, 98, 0.08);  color: var(--primary-dark, #0A3D62); }
+        .icon-blue  { background: rgba(20, 93, 160, 0.08);  color: var(--primary, #145DA0); }
+
+        /* =============================================
+           RESPONSIVE
+           ============================================= */
+        @media (min-width: 480px) {
+            .security-page {
                 gap: 12px;
+                padding-bottom: 32px;
             }
 
             .back-btn {
-                width: 36px;
-                height: 36px;
+                height: 40px;
+                padding: 0 14px 0 12px;
             }
 
-            .page-title {
-                font-size: 18px;
+            .back-btn-text {
+                font-size: 0.8125rem;
             }
 
-            .card-icon {
-                width: 56px;
-                height: 56px;
+            .security-card {
+                padding: 24px 24px;
+                border-radius: var(--radius-2xl, 20px);
             }
 
-            .card-icon svg {
-                width: 28px;
-                height: 28px;
+            .field-input {
+                height: 50px;
+                padding: 0 48px 0 16px;
+                border-radius: 12px;
+            }
+
+            .toggle-password {
+                width: 44px;
+                height: 44px;
+                right: 6px;
+            }
+
+            .btn-submit {
+                height: 50px;
+                border-radius: 12px;
+                font-size: 0.9375rem;
+            }
+
+            .field-hint {
+                font-size: 0.625rem;
             }
         }
 
-        @media (min-width: 640px) {
-            .page-wrapper {
-                padding: 32px 24px 64px;
+        @media (min-width: 768px) {
+            .security-card {
+                padding: 28px 32px;
             }
 
-            .card-security {
-                padding: 40px 36px;
+            .form-section {
+                gap: 12px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .security-card {
+                padding: 32px 36px;
             }
         }
     </style>

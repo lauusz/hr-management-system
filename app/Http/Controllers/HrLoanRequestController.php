@@ -39,7 +39,7 @@ class HrLoanRequestController extends Controller
 
     public function edit($id)
     {
-        abort_unless(auth()->user()->isHrManager(), 403);
+        abort_unless(auth()->user()->isHR(), 403);
 
         $loan = LoanRequest::findOrFail($id);
 
@@ -48,7 +48,7 @@ class HrLoanRequestController extends Controller
 
     public function update(Request $request, $id)
     {
-        abort_unless(auth()->user()->isHrManager(), 403);
+        abort_unless(auth()->user()->isHR(), 403);
 
         $loan = LoanRequest::findOrFail($id);
 
@@ -71,7 +71,7 @@ class HrLoanRequestController extends Controller
 
     public function approve(Request $request, $id)
     {
-        abort_unless(auth()->user()->isHrManager(), 403);
+        abort_unless(auth()->user()->isHR(), 403);
 
         $loan = LoanRequest::findOrFail($id);
 
@@ -91,7 +91,7 @@ class HrLoanRequestController extends Controller
 
     public function reject(Request $request, $id)
     {
-        abort_unless(auth()->user()->isHrManager(), 403);
+        abort_unless(auth()->user()->isHR(), 403);
 
         $loan = LoanRequest::findOrFail($id);
 
@@ -111,7 +111,7 @@ class HrLoanRequestController extends Controller
 
     public function saveInternalNote(Request $request, $id)
     {
-        abort_unless(auth()->user()->isHrManager(), 403);
+        abort_unless(auth()->user()->isHR(), 403);
 
         $request->validate([
             'hrd_note' => ['nullable', 'string', 'max:1000']
@@ -139,7 +139,7 @@ class HrLoanRequestController extends Controller
 
     public function storeRepayment(Request $request, $id)
     {
-        abort_unless(auth()->user()->isHrManager(), 403);
+        abort_unless(auth()->user()->isHR(), 403);
 
         $request->validate([
             'paid_at' => ['required', 'date'],
@@ -196,7 +196,7 @@ class HrLoanRequestController extends Controller
 
     public function updateRepayment(Request $request, $id, $repaymentId)
     {
-        abort_unless(auth()->user()->isHrManager(), 403);
+        abort_unless(auth()->user()->isHR(), 403);
 
         $request->validate([
             'paid_at' => ['required', 'date'],
@@ -236,7 +236,7 @@ class HrLoanRequestController extends Controller
 
     public function destroyRepayment($id, $repaymentId)
     {
-        abort_unless(auth()->user()->isHrManager(), 403);
+        abort_unless(auth()->user()->isHR(), 403);
 
         $loan = LoanRequest::with('repayments')->findOrFail($id);
         $repayment = $loan->repayments()->where('id', $repaymentId)->firstOrFail();

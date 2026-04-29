@@ -97,4 +97,19 @@ class EmployeeLoanRequestController extends Controller
 
         return view('loan_requests.show', compact('loan'));
     }
+
+    public function destroy($id)
+    {
+        $loan = LoanRequest::where('user_id', Auth::id())
+            ->where('id', $id)
+            ->firstOrFail();
+
+        if ($loan->status !== 'PENDING_HRD') {
+            return redirect()->back()->with('error', 'Pengajuan yang sudah diproses tidak bisa dibatalkan.');
+        }
+
+        $loan->update(['status' => 'CANCELED']);
+
+        return redirect()->route('employee.loan_requests.index')->with('success', 'Pengajuan hutang berhasil dibatalkan.');
+    }
 }

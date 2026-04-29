@@ -457,6 +457,130 @@ describe('EmployeeLoanRequestController', function () {
 
         $response->assertRedirect('/login');
     });
+
+    // === CANCEL (DESTROY) ===
+    it('employee can cancel own PENDING_HRD loan', function () {
+        $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+        $loan = LoanRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'PENDING_HRD',
+        ]);
+
+        $this->actingAs($user, 'web');
+
+        // Start session and generate CSRF token
+        $this->startSession();
+        $token = $this->app['session']->token();
+
+        $response = $this->delete(route('employee.loan_requests.destroy', $loan->id), [
+            '_token' => $token,
+        ]);
+
+        $response->assertRedirect(route('employee.loan_requests.index'))
+            ->assertSessionHas('success');
+        expect($loan->fresh()->status)->toBe('CANCELED');
+    });
+
+    it('employee cancel keeps the record and updates status to CANCELED', function () {
+        $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+        $loan = LoanRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'PENDING_HRD',
+            'amount' => 3000000,
+        ]);
+
+        $this->actingAs($user, 'web');
+
+        $this->startSession();
+        $token = $this->app['session']->token();
+        $this->delete(route('employee.loan_requests.destroy', $loan->id), ['_token' => $token]);
+
+        expect($loan->fresh())->toBeTruthy()
+            ->and($loan->fresh()->status)->toBe('CANCELED')
+            ->and($loan->fresh()->amount)->toBe('3000000.00');
+    });
+
+    it('employee cannot cancel APPROVED loan', function () {
+        $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+        $loan = LoanRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'APPROVED',
+        ]);
+
+        $this->actingAs($user, 'web');
+
+        $this->startSession();
+        $token = $this->app['session']->token();
+        $response = $this->delete(route('employee.loan_requests.destroy', $loan->id), ['_token' => $token]);
+
+        $response->assertRedirect()
+            ->assertSessionHas('error');
+        expect($loan->fresh()->status)->toBe('APPROVED');
+    });
+
+    it('employee cannot cancel REJECTED loan', function () {
+        $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+        $loan = LoanRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'REJECTED',
+        ]);
+
+        $this->actingAs($user, 'web');
+
+        $this->startSession();
+        $token = $this->app['session']->token();
+        $response = $this->delete(route('employee.loan_requests.destroy', $loan->id), ['_token' => $token]);
+
+        $response->assertRedirect()
+            ->assertSessionHas('error');
+        expect($loan->fresh()->status)->toBe('REJECTED');
+    });
+
+    it('employee cannot cancel LUNAS loan', function () {
+        $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+        $loan = LoanRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'LUNAS',
+        ]);
+
+        $this->actingAs($user, 'web');
+
+        $this->startSession();
+        $token = $this->app['session']->token();
+        $response = $this->delete(route('employee.loan_requests.destroy', $loan->id), ['_token' => $token]);
+
+        $response->assertRedirect()
+            ->assertSessionHas('error');
+        expect($loan->fresh()->status)->toBe('LUNAS');
+    });
+
+    it('employee cannot cancel other users loan', function () {
+        $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+        $otherUser = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+        $loan = LoanRequest::factory()->create([
+            'user_id' => $otherUser->id,
+            'status' => 'PENDING_HRD',
+        ]);
+
+        $this->actingAs($user, 'web');
+
+        $this->startSession();
+        $token = $this->app['session']->token();
+        $response = $this->delete(route('employee.loan_requests.destroy', $loan->id), ['_token' => $token]);
+
+        $response->assertStatus(404);
+        expect($loan->fresh()->status)->toBe('PENDING_HRD');
+    });
+
+    it('unauthenticated user redirected to login for destroy', function () {
+        $loan = LoanRequest::factory()->create();
+
+        $this->startSession();
+        $token = $this->app['session']->token();
+        $response = $this->delete(route('employee.loan_requests.destroy', $loan->id), ['_token' => $token]);
+
+        $response->assertRedirect('/login');
+    });
 });
 
 describe('HrLoanRequestController', function () {

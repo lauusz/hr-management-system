@@ -63,6 +63,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/loan-requests/create', [EmployeeLoanRequestController::class, 'create'])->name('employee.loan_requests.create');
     Route::post('/loan-requests', [EmployeeLoanRequestController::class, 'store'])->name('employee.loan_requests.store');
     Route::get('/loan-requests/{loan}', [EmployeeLoanRequestController::class, 'show'])->name('employee.loan_requests.show');
+    Route::delete('/loan-requests/{loan}', [EmployeeLoanRequestController::class, 'destroy'])->name('employee.loan_requests.destroy');
 
     Route::get('/settings/password', [AuthController::class, 'showChangePasswordForm'])->name('settings.password');
     Route::put('/settings/password', [AuthController::class, 'updatePassword'])->name('settings.password.update');

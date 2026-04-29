@@ -295,7 +295,9 @@ class LeaveRequestController extends Controller
         ]);
 
         RateLimiter::hit($throttleKey, 10);
-        if ($isIzinTelat) return redirect()->route('leave-requests.create')->with('show_izin_telat_popup', true);
+        if ($isIzinTelat) {
+            return redirect()->route('leave-requests.index')->with('success', 'Pengajuan izin terlambat berhasil dikirim ke HRD. Silakan menunggu proses pengecekan.');
+        }
         return redirect()->route('leave-requests.index')->with('success', 'Pengajuan izin berhasil dikirim.');
     }
 

@@ -10,7 +10,7 @@
   <meta http-equiv="Expires" content="0">
 
   {{-- PWA Meta Tags --}}
-  <meta name="theme-color" content="#1e4a8d">
+  <meta name="theme-color" content="#0A3D62">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="HRD System">
@@ -28,22 +28,42 @@
 
   <style>
     :root {
-      --navy: #1e4a8d;
-      --navy-dark: #163a75;
-      --navy-light: #eef4ff;
-      --navy-muted: #3b82f6;
-      --bg: #f3f4f6;
-      --bg-white: #ffffff;
-      --text: #1f2937;
-      --text-muted: #6b7280;
-      --text-light: #9ca3af;
-      --border: #e5e7eb;
-      --border-light: #f3f4f6;
-      --sidebar-width: 272px;
-      --sidebar-bg: #ffffff;
-      --sidebar-header-height: 64px;
-      --danger: #ef4444;
-      --danger-light: #fef2f2;
+      --primary-dark: #0A3D62;
+      --primary: #145DA0;
+      --primary-light: #1E81B0;
+      --accent: #D4AF37;
+      --accent-light: #E6C65C;
+
+      --white: #FFFFFF;
+      --gray-50: #F5F7FA;
+      --gray-100: #F8FAFC;
+      --border: #E5E7EB;
+      --border-light: #F3F4F6;
+
+      --text-primary: #111827;
+      --text-secondary: #374151;
+      --text-muted: #6B7280;
+      --text-light: #9CA3AF;
+
+      --success: #22C55E;
+      --warning: #F59E0B;
+      --error: #EF4444;
+      --info: #3B82F6;
+
+      /* Legacy mappings for child view compatibility */
+      --navy: var(--primary);
+      --navy-dark: var(--primary-dark);
+      --navy-light: rgba(20, 93, 160, 0.08);
+      --navy-muted: var(--primary-light);
+      --bg: var(--gray-50);
+      --bg-white: var(--white);
+      --text: var(--text-primary);
+      --danger: var(--error);
+      --danger-light: #FEF2F2;
+
+      --sidebar-width: 264px;
+      --sidebar-bg: var(--white);
+      --sidebar-header-height: 60px;
     }
 
     * {
@@ -53,8 +73,8 @@
     body {
       margin: 0;
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: var(--gray-50);
+      color: var(--text-primary);
       -webkit-font-smoothing: antialiased;
     }
 
@@ -77,7 +97,9 @@
       top: 0;
       height: 100vh;
       height: 100dvh;
-      transition: transform .3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform .35s cubic-bezier(0.4, 0, 0.2, 1),
+                  width .35s cubic-bezier(0.4, 0, 0.2, 1),
+                  margin .35s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     /* Brand Header */
@@ -85,42 +107,45 @@
       height: var(--sidebar-header-height);
       display: flex;
       align-items: center;
-      padding: 0 20px;
+      padding: 0 16px;
       border-bottom: 1px solid var(--border-light);
       flex-shrink: 0;
-      gap: 12px;
+      gap: 10px;
     }
 
     .brand-icon {
-      width: 36px;
-      height: 36px;
-      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-muted) 100%);
-      border-radius: 10px;
+      width: 32px;
+      height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
+      border-radius: 8px;
+      overflow: hidden;
     }
 
-    .brand-icon svg {
-      color: #fff;
+    .brand-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
     }
 
     .brand-text {
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
 
     .brand-title {
-      font-size: 0.95rem;
+      font-size: 0.875rem;
       font-weight: 700;
-      color: var(--navy);
-      letter-spacing: -0.02em;
-      line-height: 1.2;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+      line-height: 1.25;
     }
 
     .brand-subtitle {
-      font-size: 0.7rem;
+      font-size: 0.6875rem;
       color: var(--text-muted);
       font-weight: 500;
     }
@@ -129,7 +154,7 @@
     .sidebar-menu {
       flex: 1;
       overflow-y: auto;
-      padding: 12px 12px;
+      padding: 8px 8px;
       scrollbar-width: thin;
       scrollbar-color: #d1d5db transparent;
     }
@@ -149,67 +174,80 @@
 
     /* Section Label */
     .menu-section {
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
     .menu-section-title {
-      font-size: 0.65rem;
+      font-size: 0.625rem;
       font-weight: 700;
       color: var(--text-light);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin: 16px 12px 6px;
+      letter-spacing: 0.06em;
+      margin: 20px 14px 8px;
     }
 
     .menu-section:first-child .menu-section-title {
-      margin-top: 0;
+      margin-top: 4px;
     }
 
     /* Menu Items */
     .menu-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 12px;
-      margin-bottom: 2px;
+      gap: 10px;
+      padding: 8px 12px;
+      margin: 0 6px 2px;
       border-radius: 10px;
       color: var(--text-muted);
       text-decoration: none;
-      font-size: 0.85rem;
+      font-size: 0.8125rem;
       font-weight: 500;
       transition: all 0.15s ease;
       cursor: pointer;
       border: none;
       background: transparent;
-      width: 100%;
+      width: calc(100% - 12px);
       text-align: left;
+      position: relative;
     }
 
     .menu-item:hover {
-      background: var(--navy-light);
-      color: var(--navy);
+      background: var(--gray-50);
+      color: var(--primary);
     }
 
     .menu-item.active {
-      background: var(--navy-light);
-      color: var(--navy);
+      background: rgba(20, 93, 160, 0.08);
+      color: var(--primary-dark);
       font-weight: 600;
     }
 
+    .menu-item.active::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 18px;
+      background: var(--primary-dark);
+      border-radius: 0 3px 3px 0;
+    }
+
     .menu-item.active .menu-icon {
-      color: var(--navy);
+      color: var(--primary-dark);
     }
 
     .menu-icon {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       flex-shrink: 0;
       color: var(--text-light);
       transition: color 0.15s ease;
     }
 
     .menu-item:hover .menu-icon {
-      color: var(--navy);
+      color: var(--primary);
     }
 
     .menu-text {
@@ -218,78 +256,97 @@
     }
 
     .menu-badge {
-      background: var(--danger);
+      background: var(--error);
       color: #fff;
-      font-size: 0.65rem;
+      font-size: 0.625rem;
       font-weight: 700;
-      padding: 2px 6px;
+      padding: 2px 7px;
       border-radius: 9999px;
       min-width: 18px;
       text-align: center;
       line-height: 1.4;
+      box-shadow: 0 0 0 2px var(--sidebar-bg);
     }
 
     /* Collapsible Submenu */
     .menu-group-btn {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 12px;
-      margin-bottom: 2px;
+      gap: 10px;
+      padding: 8px 12px;
+      margin: 0 6px 2px;
       border-radius: 10px;
       color: var(--text-muted);
-      font-size: 0.85rem;
+      font-size: 0.8125rem;
       font-weight: 500;
       transition: all 0.15s ease;
       cursor: pointer;
       border: none;
       background: transparent;
-      width: 100%;
+      width: calc(100% - 12px);
       text-align: left;
+      position: relative;
     }
 
     .menu-group-btn:hover {
-      background: var(--navy-light);
-      color: var(--navy);
+      background: var(--gray-50);
+      color: var(--primary);
     }
 
     .menu-group-btn.open {
-      background: var(--navy-light);
-      color: var(--navy);
+      background: rgba(20, 93, 160, 0.06);
+      color: var(--primary-dark);
+      font-weight: 600;
     }
 
     .menu-group-icon {
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       flex-shrink: 0;
       color: var(--text-light);
-      transition: transform 0.2s ease;
+      transition: transform 0.2s ease, color 0.15s ease;
     }
 
-    .menu-group-btn.open .menu-group-icon {
+    .menu-group-btn:hover .menu-group-icon {
+      color: var(--primary);
+    }
+
+    .menu-group-btn.open .menu-group-icon:first-child {
+      color: var(--primary-dark);
+    }
+
+    .menu-group-btn .menu-group-icon:last-child {
+      margin-left: auto;
+      width: 16px;
+      height: 16px;
+    }
+
+    .menu-group-btn.open .menu-group-icon:last-child {
       transform: rotate(180deg);
-      color: var(--navy);
+      color: var(--primary-dark);
     }
 
     .menu-group-label {
       flex: 1;
+      min-width: 0;
     }
 
     .submenu-panel {
       display: none;
-      padding-left: 44px;
-      margin: 2px 0 8px;
+      padding-left: 40px;
+      margin: 2px 6px 6px;
       position: relative;
     }
 
     .submenu-panel::before {
       content: '';
       position: absolute;
-      left: 20px;
-      top: 0;
-      bottom: 12px;
-      width: 1px;
+      left: 18px;
+      top: 4px;
+      bottom: 8px;
+      width: 1.5px;
       background: var(--border);
+      border-radius: 1px;
     }
 
     .submenu-panel.open {
@@ -297,44 +354,52 @@
     }
 
     .submenu-item {
-      display: block;
-      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
       margin-bottom: 1px;
       border-radius: 8px;
       color: var(--text-muted);
       text-decoration: none;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 500;
       transition: all 0.15s ease;
     }
 
+    .submenu-text {
+      flex: 1;
+      min-width: 0;
+    }
+
     .submenu-item:hover {
-      background: var(--navy-light);
-      color: var(--navy);
+      background: var(--gray-50);
+      color: var(--primary);
     }
 
     .submenu-item.active {
-      color: var(--navy);
+      color: var(--primary-dark);
       font-weight: 600;
+      background: rgba(20, 93, 160, 0.06);
     }
 
     /* Sidebar Footer */
     .sidebar-footer {
       flex-shrink: 0;
-      padding: 12px;
+      padding: 12px 16px;
       border-top: 1px solid var(--border-light);
       background: var(--sidebar-bg);
     }
 
     .btn-logout {
       width: 100%;
-      padding: 10px 12px;
+      padding: 8px 12px;
       border-radius: 10px;
-      border: 1px solid #fecaca;
-      background: var(--danger-light);
-      color: #b91c1c;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--error);
       font-weight: 600;
-      font-size: 0.85rem;
+      font-size: 0.8125rem;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -345,14 +410,46 @@
     }
 
     .btn-logout:hover {
-      background: #fee2e2;
-      border-color: #fca5a5;
+      background: var(--danger-light);
+      border-color: #FECACA;
+      color: #B91C1C;
     }
 
     .btn-logout svg {
       width: 18px;
       height: 18px;
     }
+
+    /* Sidebar Toggle Button */
+    .sidebar-toggle {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--primary-dark);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      flex-shrink: 0;
+    }
+
+    .sidebar-toggle:hover {
+      background: var(--gray-50);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .sidebar-toggle svg {
+      width: 18px;
+      height: 18px;
+      transition: transform 0.3s ease;
+    }
+
+
 
     /* --- MAIN CONTENT --- */
     .main-content {
@@ -361,7 +458,7 @@
       height: 100vh;
       height: 100dvh;
       overflow-y: auto;
-      background: var(--bg);
+      background: var(--gray-50);
     }
 
     .content-wrapper {
@@ -382,69 +479,76 @@
       font-size: 1.35rem;
       margin: 0;
       font-weight: 700;
-      color: #111827;
+      color: var(--text-primary);
       letter-spacing: -0.02em;
     }
 
     .user-chip {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 6px;
       margin-left: auto;
-      padding: 6px 12px 6px 6px;
+      padding: 4px 10px 4px 4px;
       background: var(--bg-white);
       border-radius: 9999px;
       border: 1px solid var(--border);
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+      min-width: 0;
+      flex-shrink: 0;
     }
 
     .user-avatar {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, var(--navy) 0%, var(--navy-muted) 100%);
+      width: 26px;
+      height: 26px;
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
       color: #fff;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
+      flex-shrink: 0;
     }
 
     .user-details {
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
 
     .user-name {
-      font-size: 0.85rem;
+      font-size: 0.8125rem;
       font-weight: 600;
-      color: #111827;
+      color: var(--text-primary);
       line-height: 1.2;
+      white-space: nowrap;
     }
 
     .user-role {
-      font-size: 0.7rem;
+      font-size: 0.625rem;
       color: var(--text-muted);
       font-weight: 500;
+      line-height: 1.2;
+      white-space: nowrap;
     }
 
     /* Mobile Burger */
     .burger {
       display: none;
       border: none;
-      background: var(--bg-white);
+      background: var(--white);
       padding: 10px;
       border-radius: 10px;
       cursor: pointer;
-      color: var(--navy);
+      color: var(--primary-dark);
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       border: 1px solid var(--border);
       transition: all 0.15s ease;
     }
 
     .burger:hover {
-      background: var(--navy-light);
+      background: var(--gray-50);
     }
 
     .burger svg {
@@ -478,11 +582,14 @@
         box-shadow: none;
         height: 100vh;
         height: 100dvh;
+        border-radius: 0 20px 20px 0;
+        border-right: 1px solid var(--border);
+        overflow: hidden;
       }
 
       .sidebar.open {
         transform: translateX(0);
-        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
       }
 
       .main-content {
@@ -516,6 +623,66 @@
       }
     }
 
+    /* Desktop: rounded sidebar + collapse support */
+    @media (min-width: 1025px) {
+      .sidebar {
+        margin: 12px 0 12px 12px;
+        height: calc(100dvh - 24px);
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        box-shadow:
+          0 4px 6px -1px rgba(0, 0, 0, 0.04),
+          0 2px 4px -2px rgba(0, 0, 0, 0.04),
+          0 10px 20px -4px rgba(0, 0, 0, 0.06);
+        overflow: hidden;
+      }
+
+      .sidebar-header {
+        border-bottom: 1px solid var(--border-light);
+        border-radius: 20px 20px 0 0;
+      }
+
+      .sidebar-footer {
+        border-radius: 0 0 20px 20px;
+      }
+
+      .sidebar-menu {
+        padding: 10px;
+      }
+
+      .menu-item,
+      .menu-group-btn {
+        border-radius: 12px;
+        margin: 0 4px 3px;
+        width: calc(100% - 8px);
+      }
+
+      .menu-item.active::before {
+        left: -4px;
+        border-radius: 0 4px 4px 0;
+      }
+
+      .btn-logout {
+        border-radius: 12px;
+      }
+
+      /* Collapsed state */
+      .app.sidebar-collapsed .sidebar {
+        width: 0;
+        margin: 12px 0;
+        border: none;
+        box-shadow: none;
+      }
+
+      .app.sidebar-collapsed .main-content {
+        /* content naturally expands via flex:1 */
+      }
+
+      .sidebar-toggle {
+        display: flex;
+      }
+    }
+
     /* Components */
     .card {
       background: var(--bg-white);
@@ -529,7 +696,7 @@
       display: none;
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.35);
       justify-content: center;
       align-items: center;
       z-index: 2000;
@@ -538,13 +705,13 @@
     }
 
     .modal-content {
-      background: var(--bg-white);
+      background: var(--white);
       padding: 24px;
       border-radius: 16px;
       width: 100%;
       max-width: 420px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-      animation: modalPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+      animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
 
     @keyframes modalPop {
@@ -571,16 +738,11 @@
       <!-- Header / Brand -->
       <div class="sidebar-header">
         <div class="brand-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
+          <img src="{{ asset('images/logo-triguna-clean.png') }}" alt="Triguna Samudratrans">
         </div>
         <div class="brand-text">
-          <span class="brand-title">HRD System</span>
-          <span class="brand-subtitle">Triguna Samudratrans</span>
+          <span class="brand-title">Triguna Samudratrans</span>
+          <span class="brand-subtitle">HRD System</span>
         </div>
       </div>
 
@@ -840,18 +1002,30 @@
             <a href="{{ route('hr.leave.master') }}" class="submenu-item {{ request()->routeIs('hr.leave.master') ? 'active' : '' }}">Master Jenis Izin</a>
           </div>
 
+          @php
+          $pendingLoanCount = \App\Models\LoanRequest::where('status', 'PENDING_HRD')->count();
+          @endphp
+
           {{-- Keuangan Group --}}
           <button type="button" class="menu-group-btn {{ $hrLoanOpen ? 'open' : '' }}" data-menu-group="keuangan">
             <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
             </svg>
             <span class="menu-group-label">Keuangan</span>
+            @if($pendingLoanCount > 0)
+            <span class="menu-badge" data-loan-badge="group">{{ $pendingLoanCount }}</span>
+            @endif
             <svg class="menu-group-icon" style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
           <div class="submenu-panel {{ $hrLoanOpen ? 'open' : '' }}" data-menu-panel="keuangan">
-            <a href="{{ route('hr.loan_requests.index') }}" class="submenu-item {{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">Pengajuan Hutang</a>
+            <a href="{{ route('hr.loan_requests.index') }}" class="submenu-item {{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">
+              <span class="submenu-text">Pengajuan Hutang</span>
+              @if($pendingLoanCount > 0)
+              <span class="menu-badge" data-loan-badge="submenu">{{ $pendingLoanCount }}</span>
+              @endif
+            </a>
             @can('manage-payroll')
             <a href="{{ route('hr.payroll.index') }}" class="submenu-item {{ request()->routeIs('hr.payroll.*') ? 'active' : '' }}">Master Gaji Karyawan</a>
             @endcan
@@ -883,7 +1057,17 @@
             </svg>
           </button>
 
-          <h2 class="page-title">{{ $title ?? 'Dashboard' }}</h2>
+          <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar" title="Toggle sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          @isset($header)
+            {{ $header }}
+          @else
+            <h2 class="page-title">{{ $title ?? 'Dashboard' }}</h2>
+          @endisset
 
           <div class="user-chip">
             <div class="user-avatar">
@@ -907,18 +1091,20 @@
     id="confirm-logout"
     title="Keluar dari Sistem?"
     type="confirm"
-    variant="dark"
+    variant="danger"
     confirmLabel="Ya, Keluar"
     cancelLabel="Batal"
     :confirmFormAction="route('logout')"
     confirmFormMethod="POST">
-    <p style="margin:0; color:#374151;">Apakah Anda yakin ingin mengakhiri sesi ini?</p>
+    <p style="margin:0;">Apakah Anda yakin ingin mengakhiri sesi ini?</p>
   </x-modal>
 
   <script>
     const sidebar = document.getElementById('sidebar');
     const burger = document.getElementById('burger');
     const backdrop = document.getElementById('backdrop');
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const appRoot = document.querySelector('.app');
 
     // Mobile Menu Toggle
     function toggleMobile() {
@@ -934,6 +1120,20 @@
 
     if (burger) burger.addEventListener('click', toggleMobile);
     if (backdrop) backdrop.addEventListener('click', toggleMobile);
+
+    // Desktop Sidebar Collapse Toggle
+    function toggleDesktopSidebar() {
+      const isCollapsed = appRoot.classList.contains('sidebar-collapsed');
+      if (isCollapsed) {
+        appRoot.classList.remove('sidebar-collapsed');
+        if (sidebarToggle) sidebarToggle.setAttribute('title', 'Sembunyikan sidebar');
+      } else {
+        appRoot.classList.add('sidebar-collapsed');
+        if (sidebarToggle) sidebarToggle.setAttribute('title', 'Tampilkan sidebar');
+      }
+    }
+
+    if (sidebarToggle) sidebarToggle.addEventListener('click', toggleDesktopSidebar);
 
     // Modal Logic
     document.addEventListener('DOMContentLoaded', function() {
@@ -983,8 +1183,34 @@
             this.classList.add('open');
             if (targetPanel) targetPanel.classList.add('open');
           }
+
+          // Dynamic loan badge: move between group button and submenu item
+          if (targetGroup === 'keuangan') {
+            const groupBadge = this.querySelector('[data-loan-badge="group"]');
+            const submenuBadge = targetPanel ? targetPanel.querySelector('[data-loan-badge="submenu"]') : null;
+            if (!isOpen) {
+              // Opening: hide group badge, show submenu badge
+              if (groupBadge) groupBadge.style.display = 'none';
+              if (submenuBadge) submenuBadge.style.display = '';
+            } else {
+              // Closing: show group badge, hide submenu badge
+              if (groupBadge) groupBadge.style.display = '';
+              if (submenuBadge) submenuBadge.style.display = 'none';
+            }
+          }
         });
       });
+
+      // Init loan badge visibility on page load
+      const keuanganBtn = document.querySelector('[data-menu-group="keuangan"]');
+      if (keuanganBtn) {
+        const isOpen = keuanganBtn.classList.contains('open');
+        const groupBadge = keuanganBtn.querySelector('[data-loan-badge="group"]');
+        const targetPanel = document.querySelector('[data-menu-panel="keuangan"]');
+        const submenuBadge = targetPanel ? targetPanel.querySelector('[data-loan-badge="submenu"]') : null;
+        if (groupBadge) groupBadge.style.display = isOpen ? 'none' : '';
+        if (submenuBadge) submenuBadge.style.display = isOpen ? '' : 'none';
+      }
     });
   </script>
 

@@ -12,19 +12,27 @@ return new class extends Migration
         Schema::create('loan_requests', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->string('type'); // KASBON, PINJAMAN
-            $table->decimal('amount', 15, 2);
-            $table->text('reason')->nullable();
-            $table->integer('tenure_months')->default(1);
-            $table->decimal('monthly_installment', 15, 2)->nullable();
-            $table->string('status', 50)->default('PENDING'); // PENDING, APPROVED, REJECTED, LUNAS, CANCELLED
+            $table->string('snapshot_name');
+            $table->string('snapshot_nik')->nullable();
+            $table->string('snapshot_position')->nullable();
+            $table->string('snapshot_division')->nullable();
+            $table->string('snapshot_company')->nullable();
+            $table->date('submitted_at');
+            $table->string('document_path')->nullable();
+            $table->decimal('amount', 16, 2);
+            $table->text('purpose')->nullable();
             $table->text('notes')->nullable();
-            $table->text('internal_notes')->nullable()->comment('Notes for HR internal');
-            $table->unsignedBigInteger('approved_by')->nullable();
-            $table->timestamp('approved_at')->nullable();
+            $table->decimal('monthly_installment', 16, 2)->nullable();
+            $table->string('repayment_term')->nullable();
+            $table->date('disbursement_date')->nullable();
+            $table->string('payment_method', 50)->default('POTONG_GAJI'); // TUNAI, CICILAN, POTONG_GAJI
+            $table->string('status', 50)->default('PENDING_HRD'); // PENDING_HRD, APPROVED, REJECTED, LUNAS, CANCELED
+            $table->unsignedBigInteger('hrd_id')->nullable();
+            $table->timestamp('hrd_decided_at')->nullable();
+            $table->text('hrd_note')->nullable()->comment('Notes for HR internal');
             $table->timestamps();
 
-            $table->foreign('approved_by')->references('id')->on('users')->nullOnDelete();
+            $table->foreign('hrd_id')->references('id')->on('users')->nullOnDelete();
         });
 
         // Loan repayments table
