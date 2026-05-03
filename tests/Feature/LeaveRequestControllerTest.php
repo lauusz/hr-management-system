@@ -8,14 +8,15 @@ use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Services\LeaveBalanceService;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+// ⚠️ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
+// karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
+
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 
 pest()->extend(Tests\TestCase::class)
-    ->use(LazilyRefreshDatabase::class)
     ->in('Feature');
 
 describe('LeaveRequestController', function () {

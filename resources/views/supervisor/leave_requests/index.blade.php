@@ -2,7 +2,6 @@
 @php
 use Illuminate\Support\Str;
 use App\Enums\LeaveType;
-use App\Enums\UserRole;
 
 $user = auth()->user();
 $roleVal = $user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role;
@@ -10,563 +9,463 @@ $roleStr = strtoupper((string)$roleVal);
 
 $pageTitle = 'Inbox Approval';
 $subTitle  = 'Daftar pengajuan yang membutuhkan persetujuan Anda.';
-$roleBadge = 'Atasan';
 
 if ($roleStr === 'MANAGER') {
     $pageTitle = 'Inbox Approval Manager';
     $subTitle  = 'Daftar pengajuan dari Supervisor yang membutuhkan persetujuan Anda.';
-    $roleBadge = 'Manager';
 } elseif ($roleStr === 'SUPERVISOR' || $roleStr === 'SPV') {
     $pageTitle = 'Inbox Approval Supervisor';
     $subTitle  = 'Daftar pengajuan dari Staff yang membutuhkan persetujuan Anda.';
-    $roleBadge = 'Supervisor';
 }
-
-$isApprover = $isApprover ?? false;
 @endphp
 
 <x-app :title="$pageTitle">
-
-    <div class="approval-container">
-
-        {{-- Flash Messages --}}
-        @if(session('success'))
-        <div class="flash flash-success">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            <span>{{ session('success') }}</span>
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="section-title">{{ $pageTitle }}</h1>
+                <p class="section-subtitle">{{ $subTitle }}</p>
+            </div>
         </div>
-        @endif
+    </x-slot>
 
-        @if(session('error'))
-        <div class="flash flash-error">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    @if (session('success'))
+        <div class="apv-alert apv-alert--success">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="apv-alert apv-alert--error">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <span>{{ session('error') }}</span>
+            {{ session('error') }}
         </div>
-        @endif
+    @endif
 
-        @if ($errors->any())
-        <div class="flash flash-error">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    @if ($errors->any())
+        <div class="apv-alert apv-alert--error">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <span>{{ $errors->first() }}</span>
+            {{ $errors->first() }}
         </div>
-        @endif
+    @endif
 
-        {{-- Page Header --}}
-        <div class="page-header">
-            <div class="page-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
-            <div class="page-header-text">
-                <h1 class="page-title">{{ $pageTitle }}</h1>
-                <p class="page-subtitle">{{ $subTitle }}</p>
-            </div>
-            <div class="page-header-meta">
-                <span class="role-indicator role-{{ strtolower($roleBadge) }}">{{ $roleBadge }}</span>
-                <span class="total-badge">{{ $leaves->total() }} Pengajuan</span>
-            </div>
-        </div>
-
-        {{-- Cards List --}}
-        @if($leaves->isEmpty())
-        <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <p>Tidak ada pengajuan yang perlu diproses saat ini.</p>
-        </div>
-        @else
-        <div class="cards-list">
-            @foreach($leaves as $lv)
+    {{-- Request List --}}
+    <div class="apv-list">
+        @forelse($leaves as $lv)
             @php
                 $type = $lv->type;
-                $badgeClass = 'badge-basic';
-                $badgeBg = 'var(--bg-body)';
-                $badgeColor = 'var(--text-main)';
+                $typeClass = 'apv-type--default';
 
-                if (in_array($type, [\App\Enums\LeaveType::CUTI->value, \App\Enums\LeaveType::CUTI_KHUSUS->value])) {
-                    $badgeClass = 'badge-cuti';
-                    $badgeBg = 'var(--blue-light)';
-                    $badgeColor = 'var(--blue-text)';
-                } elseif ($type === \App\Enums\LeaveType::SAKIT->value) {
-                    $badgeClass = 'badge-sakit';
-                    $badgeBg = '#fce7f3';
-                    $badgeColor = '#be185d';
-                } elseif (in_array($type, [\App\Enums\LeaveType::IZIN_TELAT->value, \App\Enums\LeaveType::IZIN_PULANG_AWAL->value])) {
-                    $badgeClass = 'badge-izin';
-                    $badgeBg = 'var(--warning-bg)';
-                    $badgeColor = 'var(--warning-text)';
-                } elseif ($type === \App\Enums\LeaveType::DINAS_LUAR->value) {
-                    $badgeClass = 'badge-dinas';
-                    $badgeBg = 'var(--purple-light)';
-                    $badgeColor = 'var(--purple-text)';
-                } elseif ($type === \App\Enums\LeaveType::OFF_SPV->value) {
-                    $badgeClass = 'badge-offspv';
-                    $badgeBg = '#f3e8ff';
-                    $badgeColor = '#6b21a8';
+                if (in_array($type?->value, [\App\Enums\LeaveType::CUTI->value, \App\Enums\LeaveType::CUTI_KHUSUS->value])) {
+                    $typeClass = 'apv-type--cuti';
+                } elseif ($type?->value === \App\Enums\LeaveType::SAKIT->value) {
+                    $typeClass = 'apv-type--sakit';
+                } elseif (in_array($type?->value, [\App\Enums\LeaveType::IZIN_TELAT->value, \App\Enums\LeaveType::IZIN_PULANG_AWAL->value, \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value, \App\Enums\LeaveType::IZIN->value])) {
+                    $typeClass = 'apv-type--izin';
+                } elseif ($type?->value === \App\Enums\LeaveType::DINAS_LUAR->value) {
+                    $typeClass = 'apv-type--dinas';
                 }
 
-                $statusBg = 'var(--bg-body)';
-                $statusColor = 'var(--text-muted)';
-                $statusLabel = $lv->status;
-                $isPending = false;
+                $typeLabel = Str::contains($lv->type_label, 'Cuti Khusus') ? 'Cuti Khusus' : $lv->type_label;
 
-                if ($lv->status == \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
-                    $statusBg = 'var(--warning-bg)';
-                    $statusColor = 'var(--warning-text)';
-                    $statusLabel = 'Menunggu Approval';
-                    $isPending = true;
-                } elseif ($lv->status == \App\Models\LeaveRequest::PENDING_HR) {
-                    $statusBg = 'var(--teal-bg)';
-                    $statusColor = 'var(--teal-text)';
-                    $statusLabel = 'Atasan Mengetahui';
-                } elseif ($lv->status == \App\Models\LeaveRequest::STATUS_APPROVED) {
-                    $statusBg = 'var(--success-bg)';
-                    $statusColor = 'var(--success-text)';
-                    $statusLabel = 'Disetujui';
-                } elseif ($lv->status == \App\Models\LeaveRequest::STATUS_REJECTED) {
-                    $statusBg = 'var(--danger-bg)';
-                    $statusColor = 'var(--danger-text)';
-                    $statusLabel = 'Ditolak';
-                }
+                $isPending = $lv->status === \App\Models\LeaveRequest::PENDING_SUPERVISOR;
             @endphp
 
-            <div class="approval-card {{ $isPending ? 'card-pending' : '' }}">
-                {{-- Card Header --}}
-                <div class="card-header">
-                    <div class="card-header-left">
-                        <div class="employee-avatar">{{ substr($lv->user->name, 0, 1) }}</div>
-                        <div class="employee-info">
-                            <span class="employee-name">{{ $lv->user->name }}</span>
-                            <span class="employee-detail">{{ $lv->user->position->name ?? '-' }} — {{ $lv->user->division->name ?? '-' }}</span>
-                        </div>
-                    </div>
-                    <div class="card-header-right">
-                        <span class="badge-status" style="background: {{ $statusBg }}; color: {{ $statusColor }};">
-                            {{ $statusLabel }}
-                        </span>
+            <a href="{{ route('approval.show', $lv) }}" class="apv-card">
+                <div class="apv-card-top">
+                    <span class="apv-type {{ $typeClass }}">
+                        @if($type?->value === \App\Enums\LeaveType::CUTI->value)
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        @elseif($type?->value === \App\Enums\LeaveType::CUTI_KHUSUS->value)
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        @elseif($type?->value === \App\Enums\LeaveType::SAKIT->value)
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                        @else
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        @endif
+                        {{ $typeLabel }}
+                    </span>
+
+                    <span class="apv-badge apv-badge--warning">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        Menunggu Approval
+                    </span>
+                </div>
+
+                <div class="apv-card-employee">
+                    <div class="apv-avatar">{{ substr($lv->user->name, 0, 1) }}</div>
+                    <div class="apv-employee-info">
+                        <span class="apv-employee-name">{{ $lv->user->name }}</span>
+                        <span class="apv-employee-detail">{{ $lv->user->position->name ?? '-' }} — {{ $lv->user->division->name ?? '-' }}</span>
                     </div>
                 </div>
 
-                {{-- Card Body --}}
-                <div class="card-body">
-                    <div class="card-row">
-                        <div class="card-item">
-                            <span class="card-label">Jenis</span>
-                            <span class="badge" style="background: {{ $badgeBg }}; color: {{ $badgeColor }};">
-                                {{ $lv->type_label ?? $lv->type }}
-                            </span>
-                        </div>
-                        <div class="card-item">
-                            <span class="card-label">Pengajuan</span>
-                            <span class="card-value">{{ $lv->created_at->translatedFormat('j F Y') }}</span>
-                        </div>
-                    </div>
-
-                    <div class="card-item card-item-full">
-                        <span class="card-label">Periode Izin</span>
-                        <span class="card-value card-value-date">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            {{ $lv->start_date->translatedFormat('j F Y') }}
-                            @if($lv->end_date && $lv->end_date->ne($lv->start_date))
-                                — {{ $lv->end_date->translatedFormat('j F Y') }}
-                            @endif
-                        </span>
-                    </div>
-
-                    @if($lv->reason)
-                    <div class="card-item card-item-full">
-                        <span class="card-label">Alasan</span>
-                        <span class="card-value card-value-reason">{{ $lv->reason }}</span>
-                    </div>
+                <div class="apv-card-date">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>{{ $lv->start_date->translatedFormat('l, j F Y') }}</span>
+                    @if($lv->end_date && $lv->end_date->ne($lv->start_date))
+                        <span class="apv-card-date-sep">—</span>
+                        <span>{{ $lv->end_date->translatedFormat('l, j F Y') }}</span>
                     @endif
                 </div>
 
-                {{-- Card Footer --}}
-                <div class="card-footer">
-                    @if($isPending)
-                        <a href="{{ route('approval.show', $lv) }}" class="btn btn-primary btn-full">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>
-                            Proses Sekarang
-                        </a>
-                    @else
-                        <a href="{{ route('approval.show', $lv) }}" class="btn btn-secondary btn-full">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                            Lihat Detail
-                        </a>
-                    @endif
+                @if($lv->reason)
+                    <div class="apv-card-note">
+                        {{ Str::limit($lv->reason, 100) }}
+                    </div>
+                @endif
+
+                <div class="apv-card-footer">
+                    <div class="apv-card-meta">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>{{ $lv->created_at->translatedFormat('l, j F Y') }} · {{ $lv->created_at->format('H:i') }}</span>
+                    </div>
+                    <div class="apv-card-action">
+                        <span>Proses</span>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
                 </div>
+            </a>
+        @empty
+            <div class="apv-empty">
+                <div class="apv-empty-icon">
+                    <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 class="apv-empty-title">Tidak Ada Pengajuan</h3>
+                <p class="apv-empty-desc">Tidak ada pengajuan yang perlu diproses saat ini.</p>
             </div>
-            @endforeach
-        </div>
-        @endif
-
-        {{-- Pagination --}}
-        @if($leaves->hasPages())
-        <div class="pagination-wrap">
-            {{ $leaves->links() }}
-        </div>
-        @endif
-
+        @endforelse
     </div>
 
+    @if($leaves->hasPages())
+    <div class="apv-pagination">
+        <x-pagination :items="$leaves" />
+    </div>
+    @endif
+
     <style>
-        /* === BASE VARIABLES === */
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --secondary: #64748b;
-            --bg-body: #f1f5f9;
-            --bg-card: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --success-bg: #f0fdf4;
-            --success-text: #15803d;
-            --success-border: #bbf7d0;
-            --danger-bg: #fef2f2;
-            --danger-text: #b91c1c;
-            --danger-border: #fecaca;
-            --warning-bg: #fffbeb;
-            --warning-text: #c2410c;
-            --warning-border: #fed7aa;
-            --blue-light: #eff6ff;
-            --blue-text: #1d4ed8;
-            --purple-light: #faf5ff;
-            --purple-text: #7e22ce;
-            --teal-bg: #ccfbf1;
-            --teal-text: #0f766e;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-        }
-
-        /* === RESET & BASE === */
-        .approval-container {
-            max-width: 680px;
-            margin: 0 auto;
-            padding: 20px 16px 40px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            color: var(--text-main);
-        }
-
-        /* === FLASH MESSAGES === */
-        .flash {
+        /* ========================================== */
+        /* ALERTS                                     */
+        /* ========================================== */
+        .apv-alert {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 14px 18px;
-            border-radius: var(--radius-md);
-            margin-bottom: 16px;
-            font-size: 0.9rem;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
             font-weight: 500;
         }
-        .flash-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
-        .flash-error { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
-        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
-
-        /* === PAGE HEADER === */
-        .page-header {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+        .apv-alert--success {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: #16a34a;
         }
-        .page-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--primary);
-            color: #fff;
-            border-radius: var(--radius-md);
+        .apv-alert--error {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #dc2626;
+        }
+
+        /* ========================================== */
+        /* SECTION HEADER (x-slot)                    */
+        /* ========================================== */
+        .section-header-inline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
         }
-        .page-icon svg { width: 24px; height: 24px; }
-        .page-header-text { flex: 1; min-width: 200px; }
-        .page-title {
+        .section-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+        .section-title {
             margin: 0;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary, #111827);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
         }
-        .page-subtitle {
-            margin: 4px 0 0;
-            font-size: 0.875rem;
-            color: var(--text-muted);
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+            line-height: 1.35;
         }
-        .page-header-meta {
+        .icon-navy  { background: rgba(10, 61, 98, 0.08);  color: var(--primary-dark, #0A3D62); }
+
+        /* ========================================== */
+        /* REQUEST LIST & CARDS                       */
+        /* ========================================== */
+        .apv-list {
             display: flex;
             flex-direction: column;
-            align-items: flex-end;
-            gap: 6px;
+            gap: 10px;
         }
-        .role-indicator {
-            display: inline-flex;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 3px 10px;
-            border-radius: 20px;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
+        .apv-card {
+            display: block;
+            background: var(--white, #FFFFFF);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--border-light, #E5E7EB);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s ease;
         }
-        .role-indicator.role-supervisor {
-            background: var(--warning-bg);
-            color: var(--warning-text);
+        .apv-card:hover {
+            border-color: rgba(20, 93, 160, 0.35);
+            box-shadow: 0 4px 12px rgba(20, 93, 160, 0.08);
+            transform: translateY(-2px);
         }
-        .role-indicator.role-manager {
-            background: var(--purple-light);
-            color: var(--purple-text);
-        }
-        .role-indicator.role-atasan {
-            background: var(--blue-light);
-            color: var(--blue-text);
-        }
-        .total-badge {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        /* === CARDS LIST === */
-        .cards-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        /* === APPROVAL CARD === */
-        .approval-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-            transition: box-shadow 0.2s;
-        }
-        .approval-card:hover {
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-        }
-        .approval-card.card-pending {
-            border-left: 4px solid var(--primary);
-        }
-
-        /* Card Header */
-        .card-header {
+        .apv-card-top {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border);
-            gap: 12px;
-        }
-        .card-header-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex: 1;
-            min-width: 0;
-        }
-        .card-header-right {
-            flex-shrink: 0;
-        }
-        .employee-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-sm);
-            background: var(--blue-light);
-            color: var(--blue-text);
-            font-size: 0.9rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .employee-info {
-            min-width: 0;
-        }
-        .employee-name {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--text-main);
-            display: block;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .employee-detail {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            display: block;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* Card Body */
-        .card-body {
-            padding: 14px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .card-row {
-            display: flex;
-            gap: 16px;
+            gap: 8px;
+            margin-bottom: 12px;
             flex-wrap: wrap;
         }
-        .card-item {
+
+        /* Type badge (rounded, not pill) */
+        .apv-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .apv-type--default { background: #F8FAFC; color: var(--text-secondary, #374151); }
+        .apv-type--cuti    { background: rgba(59, 130, 246, 0.1); color: var(--info, #3B82F6); }
+        .apv-type--sakit   { background: rgba(245, 158, 11, 0.1); color: #b45309; }
+        .apv-type--izin    { background: rgba(20, 93, 160, 0.08); color: var(--primary, #145DA0); }
+        .apv-type--dinas   { background: rgba(147, 51, 234, 0.1); color: var(--purple, #9333EA); }
+
+        /* Status badge (pill) */
+        .apv-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 9999px;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .apv-badge--warning { background: rgba(245, 158, 11, 0.1); color: #a16207; }
+
+        /* Employee info */
+        .apv-card-employee {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .apv-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: rgba(20, 93, 160, 0.08);
+            color: var(--primary, #145DA0);
+            font-size: 0.875rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .apv-employee-info {
+            min-width: 0;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 2px;
         }
-        .card-item-full {
-            width: 100%;
-        }
-        .card-label {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-        }
-        .card-value {
+        .apv-employee-name {
             font-size: 0.875rem;
-            color: var(--text-main);
-        }
-        .card-value-date {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-weight: 500;
-        }
-        .card-value-date svg {
-            width: 14px;
-            height: 14px;
-            color: var(--text-muted);
-        }
-        .card-value-reason {
-            color: var(--text-muted);
-            line-height: 1.5;
-            font-size: 0.8125rem;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+            font-weight: 600;
+            color: var(--text-primary, #111827);
+            white-space: nowrap;
             overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .apv-employee-detail {
+            font-size: 0.75rem;
+            color: var(--text-muted, #6B7280);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        /* === BADGES === */
-        .badge {
-            display: inline-flex;
-            font-size: 0.7rem;
-            font-weight: 600;
-            padding: 3px 8px;
-            border-radius: 6px;
-            letter-spacing: 0.02em;
-        }
-        .badge-basic { background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border); }
-        .badge-cuti { }
-        .badge-sakit { }
-        .badge-izin { }
-        .badge-dinas { }
-        .badge-offspv { }
-
-        .badge-status {
-            display: inline-flex;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 20px;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-        }
-
-        /* === CARD FOOTER === */
-        .card-footer {
-            padding: 12px 16px;
-            border-top: 1px solid var(--border);
-            background: var(--bg-body);
-        }
-
-        /* === BUTTONS === */
-        .btn {
-            display: inline-flex;
+        /* Date */
+        .apv-card-date {
+            display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 12px 20px;
-            border-radius: var(--radius-sm);
+            flex-wrap: wrap;
+            gap: 6px;
             font-size: 0.875rem;
             font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: 0.2s;
-            text-decoration: none;
+            color: var(--text-primary, #111827);
+            margin-bottom: 8px;
         }
-        .btn svg { width: 16px; height: 16px; }
-        .btn-full { width: 100%; }
-        .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:hover { background: var(--primary-dark); }
-        .btn-secondary { background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border); }
-        .btn-secondary:hover { background: var(--border); }
-
-        /* === EMPTY STATE === */
-        .empty-state {
-            padding: 60px 24px;
-            text-align: center;
-            color: var(--text-muted);
+        .apv-card-date svg {
+            color: var(--text-muted, #6B7280);
+            flex-shrink: 0;
         }
-        .empty-state svg { width: 56px; height: 56px; margin-bottom: 16px; opacity: 0.3; }
-        .empty-state p { font-size: 0.95rem; margin: 0; }
+        .apv-card-date-sep {
+            color: var(--text-muted, #6B7280);
+            font-weight: 400;
+        }
 
-        /* === PAGINATION === */
-        .pagination-wrap {
-            margin-top: 20px;
+        /* Note */
+        .apv-card-note {
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        /* Footer */
+        .apv-card-footer {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-light, #E5E7EB);
+            gap: 8px;
+        }
+        .apv-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75rem;
+            color: var(--text-muted, #6B7280);
+        }
+        .apv-card-meta svg {
+            flex-shrink: 0;
+        }
+        .apv-card-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--primary, #145DA0);
+            flex-shrink: 0;
+        }
+        .apv-card-action svg {
+            transition: transform 0.2s ease;
+        }
+        .apv-card:hover .apv-card-action svg {
+            transform: translateX(3px);
         }
 
-        /* === MOBILE RESPONSIVE === */
-        @media (max-width: 640px) {
-            .page-header {
-                flex-direction: column;
+        /* ========================================== */
+        /* EMPTY STATE                                */
+        /* ========================================== */
+        .apv-empty {
+            text-align: center;
+            padding: 48px 24px;
+            background: var(--white, #FFFFFF);
+            border-radius: 16px;
+            border: 1px solid var(--border-light, #E5E7EB);
+        }
+        .apv-empty-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 16px;
+            background: var(--gray-50, #F5F7FA);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light, #9CA3AF);
+        }
+        .apv-empty-title {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-secondary, #374151);
+            margin: 0 0 6px;
+        }
+        .apv-empty-desc {
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            margin: 0 auto;
+            max-width: 280px;
+            line-height: 1.5;
+        }
+
+        /* ========================================== */
+        /* PAGINATION                                 */
+        /* ========================================== */
+        .apv-pagination {
+            margin-top: 24px;
+        }
+
+        /* ========================================== */
+        /* RESPONSIVE                                 */
+        /* ========================================== */
+        @media (min-width: 480px) {
+            .apv-card {
+                padding: 18px 20px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .apv-card {
+                padding: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .apv-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
                 gap: 12px;
-                text-align: center;
             }
-            .page-icon { margin: 0 auto; }
-            .page-header-meta {
-                align-items: center;
-                width: 100%;
-            }
-            .total-badge { font-size: 0.85rem; }
-
-            .card-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            .card-header-right {
-                align-self: flex-start;
-                margin-top: 8px;
-            }
-
-            .card-row {
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .btn {
-                padding: 14px 20px;
+            .apv-empty {
+                grid-column: 1 / -1;
             }
         }
     </style>
-
 </x-app>

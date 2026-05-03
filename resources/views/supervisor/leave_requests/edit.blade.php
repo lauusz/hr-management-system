@@ -1,167 +1,74 @@
 <x-app title="Edit Pengajuan Bawahan">
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --primary-light: #dbeafe;
-            --success: #059669;
-            --warning: #d97706;
-            --danger: #dc2626;
-            --gray-50: #f9fafb;
-            --gray-100: #f3f4f6;
-            --gray-200: #e5e7eb;
-            --gray-300: #d1d5db;
-            --gray-400: #9ca3af;
-            --gray-500: #6b7280;
-            --gray-600: #4b5563;
-            --gray-700: #374151;
-            --gray-800: #1f2937;
-            --gray-900: #111827;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: var(--gray-50); color: var(--gray-900); }
 
-        .page-wrapper { max-width: 680px; margin: 0 auto; padding: 16px; padding-bottom: 100px; }
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="section-title">Edit Pengajuan Bawahan</h1>
+                <p class="section-subtitle">Sesuaikan data pengajuan milik {{ $leave->user->name }}</p>
+            </div>
+        </div>
+    </x-slot>
 
-        /* Info Alert */
-        .info-alert { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; font-size: 13.5px; line-height: 1.5; }
-        .info-alert strong { font-weight: 700; }
+    <div class="apv-edit-page">
 
-        /* Card */
-        .card { background: #fff; border-radius: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid var(--gray-200); overflow: hidden; }
-        .card-header { padding: 20px 20px 16px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-        .card-header-text {}
-        .form-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--gray-900); }
-        .form-subtitle { margin: 4px 0 0; font-size: 13px; color: var(--gray-500); }
-        .btn-back { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 10px; border: 1px solid var(--gray-200); background: #fff; color: var(--gray-700); font-size: 13px; font-weight: 500; text-decoration: none; transition: all 0.2s; white-space: nowrap; align-self: center; }
-        .btn-back:hover { background: var(--gray-50); border-color: var(--gray-300); }
-        .btn-back svg { flex-shrink: 0; }
+        {{-- Back Button --}}
+        <a href="{{ route('approval.show', $leave->id) }}" class="back-btn" aria-label="Kembali ke detail pengajuan">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span class="back-btn-text">Kembali</span>
+        </a>
 
-        .divider { height: 1px; background: var(--gray-100); }
-
-        /* Form Content */
-        .form-content { padding: 20px; }
-        .form-group { margin-bottom: 24px; }
-        .form-group:last-child { margin-bottom: 0; }
-        .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 8px; }
-        .section-label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-700); margin-bottom: 10px; }
-        .req { color: var(--danger); margin-left: 2px; }
-
-        .form-control { width: 100%; padding: 12px 14px; border: 1.5px solid var(--gray-200); border-radius: 10px; font-size: 14px; outline: none; background: #fff; color: var(--gray-900); font-family: inherit; transition: border-color 0.2s, box-shadow 0.2s; -webkit-appearance: none; appearance: none; }
-        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-        textarea.form-control { resize: vertical; min-height: 100px; line-height: 1.5; }
-        select.form-control { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 40px; }
-
-        /* Radio Cards */
-        .radio-group-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-        .radio-card { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1.5px solid var(--gray-200); border-radius: 10px; cursor: pointer; transition: all 0.2s; background: #fff; }
-        .radio-card:hover { border-color: var(--primary); background: #f0f7ff; }
-        .radio-card input[type="radio"] { accent-color: var(--primary); width: 16px; height: 16px; margin: 0; cursor: pointer; flex-shrink: 0; }
-        .radio-label { font-size: 13px; color: var(--gray-700); font-weight: 500; line-height: 1.3; }
-
-        /* Special Leave */
-        #special-leave-container { display: none; margin-top: 12px; padding: 14px; background: var(--primary-light); border: 1px solid #bfdbfe; border-radius: 10px; }
-        #special-leave-container label { color: var(--primary-dark); }
-        #special-leave-badge { display: none; margin-top: 10px; }
-        .info-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--primary); color: #fff; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-
-        /* Warning */
-        .warning-container { margin-top: 8px; }
-        .alert-warning { display: none; background: #fefce8; border: 1px solid #fde047; color: #854d0e; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
-        .alert-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 10px; margin-bottom: 16px; font-size: 13.5px; }
-
-        /* Time Range */
-        .time-range-wrapper { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .time-input-box { flex: 1; min-width: 120px; }
-        .separator { color: var(--gray-500); font-size: 13px; font-weight: 500; }
-
-        /* PIC Section */
-        #substitute-pic-section { display: none; margin-bottom: 24px; padding: 16px; background: var(--gray-50); border: 1px dashed var(--gray-300); border-radius: 10px; }
-        .pic-section-title { font-size: 13px; font-weight: 600; color: var(--primary-dark); margin-bottom: 12px; }
-        .pic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-        /* File Input */
-        .file-input-wrapper { border: 1.5px dashed var(--gray-300); padding: 14px; border-radius: 10px; background: var(--gray-50); }
-        .form-control-file { width: 100%; font-size: 13px; }
-        .preview-container { display: none; margin-top: 12px; padding: 10px; border: 1px solid var(--gray-200); border-radius: 10px; background: var(--gray-50); }
-        .preview-label { font-size: 12px; font-weight: 600; color: var(--gray-600); margin: 0 0 6px 0; }
-        .preview-container img { max-width: 100%; max-height: 280px; border-radius: 8px; display: block; }
-        .current-file { margin-top: 8px; font-size: 13px; }
-        .current-file a { color: var(--primary); text-decoration: underline; }
-
-        /* Action Bar */
-        .action-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid var(--gray-200); padding: 12px 16px; padding-bottom: max(12px, env(safe-area-inset-bottom)); z-index: 50; box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }
-        .action-bar-inner { max-width: 680px; margin: 0 auto; }
-        .btn-primary { width: 100%; padding: 14px 24px; background: var(--primary); color: #fff; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary:hover { background: var(--primary-dark); }
-        .btn-primary svg { flex-shrink: 0; }
-
-        /* Bottom spacer */
-        .bottom-spacer { height: 80px; }
-
-        @media (max-width: 480px) {
-            .card-header { flex-direction: column; gap: 12px; }
-            .btn-back { align-self: flex-start; }
-            .radio-group-container { grid-template-columns: 1fr 1fr; }
-            .time-range-wrapper { flex-direction: column; align-items: stretch; gap: 8px; }
-            .separator { display: none !important; }
-            .time-input-box { width: 100%; flex: none; }
-            .pic-grid { grid-template-columns: 1fr; }
-        }
-        @media (min-width: 681px) {
-            .page-wrapper { padding: 24px 16px 100px; }
-        }
-    </style>
-
-    <div class="page-wrapper">
         {{-- Info Alert --}}
-        <div class="info-alert">
-            <strong>Mode Supervisor:</strong> Anda sedang mengubah data pengajuan milik <strong>{{ $leave->user->name }}</strong>.
-            <br>Perubahan yang Anda simpan akan otomatis disetujui oleh Anda dan diteruskan ke HRD.
+        <div class="apv-info-alert">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+                <strong>Mode Supervisor:</strong> Anda sedang mengubah data pengajuan milik <strong>{{ $leave->user->name }}</strong>.
+                <br>Perubahan yang Anda simpan akan otomatis disetujui oleh Anda dan diteruskan ke HRD.
+            </div>
         </div>
 
         @if($errors->any())
-            <div class="alert-error">
+            <div class="apv-alert apv-alert--error">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
                 {{ $errors->first() }}
             </div>
         @endif
 
-        <div class="card">
-            <div class="card-header">
-                <div class="card-header-text">
-                    <h3 class="form-title">Form Edit Data</h3>
-                    <p class="form-subtitle">Sesuaikan data pengajuan di bawah ini.</p>
-                </div>
-                <a href="{{ route('approval.show', $leave->id) }}" class="btn-back">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-                    Batal
-                </a>
-            </div>
-
-            <div class="divider"></div>
-
-            <form class="form-content" method="POST" action="{{ route('approval.update', $leave->id) }}" enctype="multipart/form-data">
+        <div class="apv-card">
+            <form method="POST" action="{{ route('approval.update', $leave->id) }}" enctype="multipart/form-data" id="editForm">
                 @csrf
                 @method('PUT')
 
                 {{-- 1. JENIS PENGAJUAN --}}
-                <div class="form-group">
-                    <label class="section-label">Jenis Pengajuan <span class="req">*</span></label>
-                    <div class="radio-group-container">
+                <div class="apv-form-group">
+                    <label class="apv-form-label">Jenis Pengajuan <span class="apv-req">*</span></label>
+                    <div class="apv-radio-group">
                         @foreach (\App\Enums\LeaveType::cases() as $case)
                             @if ($case->value === \App\Enums\LeaveType::OFF_SPV->value && !$leave->user->isSupervisor())
                                 @continue
                             @endif
-                            <label class="radio-card">
+                            <label class="apv-radio-card">
                                 <input type="radio" name="type" value="{{ $case->value }}" @checked(old('type', $leave->type->value) === $case->value)>
-                                <span class="radio-label">{{ $case->label() }}</span>
+                                <span class="apv-radio-label">{{ $case->label() }}</span>
                             </label>
                         @endforeach
                     </div>
 
                     {{-- DROPDOWN CUTI KHUSUS --}}
                     <div id="special-leave-container">
-                        <label for="special_leave_detail">Pilih Kategori Cuti Khusus <span class="req">*</span></label>
+                        <label for="special_leave_detail" class="apv-form-label" style="margin-top: 12px;">Pilih Kategori Cuti Khusus <span class="apv-req">*</span></label>
                         @php
                             $specialLeaveList = [
                                 ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 4],
@@ -178,7 +85,7 @@
                             ];
                             $currentSpecial = old('special_leave_detail', $leave->special_leave_category);
                         @endphp
-                        <select name="special_leave_detail" id="special_leave_detail" class="form-control" style="margin-top:8px;">
+                        <select name="special_leave_detail" id="special_leave_detail" class="apv-form-control" style="margin-top:8px;">
                             <option value="" disabled @if(!$currentSpecial) selected @endif>-- Pilih Alasan --</option>
                             @foreach($specialLeaveList as $sl)
                                 <option value="{{ $sl['id'] }}" data-days="{{ $sl['days'] }}" @selected($currentSpecial == $sl['id'])>
@@ -186,7 +93,7 @@
                                 </option>
                             @endforeach
                         </select>
-                        <div id="special-leave-badge" class="info-badge">
+                        <div id="special-leave-badge" class="apv-info-badge">
                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                             <span id="special-leave-text">Maksimal X Hari</span>
                         </div>
@@ -194,84 +101,84 @@
                 </div>
 
                 {{-- 2. PERIODE --}}
-                <div class="form-group">
-                    <label for="date_range">Periode Izin <span class="req">*</span></label>
+                <div class="apv-form-group">
+                    <label for="date_range" class="apv-form-label">Periode Izin <span class="apv-req">*</span></label>
                     @php
                         $startVal = old('start_date', $leave->start_date ? $leave->start_date->format('Y-m-d') : '');
                         $endVal   = old('end_date', $leave->end_date ? $leave->end_date->format('Y-m-d') : '');
                         $rangeVal = ($startVal && $endVal) ? ($startVal . ' sampai ' . $endVal) : $startVal;
                     @endphp
-                    <input type="text" id="date_range" name="date_range" class="form-control" value="{{ $rangeVal }}" placeholder="Pilih tanggal mulai sampai selesai" autocomplete="off">
+                    <input type="text" id="date_range" name="date_range" class="apv-form-control" value="{{ $rangeVal }}" placeholder="Pilih tanggal mulai sampai selesai" autocomplete="off">
                     <input type="hidden" name="start_date" id="start_date" value="{{ $startVal }}">
                     <input type="hidden" name="end_date" id="end_date" value="{{ $endVal }}">
-                    <div class="warning-container">
-                        <div id="special-limit-warning" class="alert-warning" style="display:none;"></div>
-                    </div>
+                    <div id="special-limit-warning" class="apv-limit-warning" style="display:none;"></div>
                 </div>
 
                 {{-- 3. JAM (Kondisional) --}}
-                <div class="form-group" id="worktime-field" style="display:none;">
-                    <label id="worktime-label">Jam Izin</label>
-                    <div class="time-range-wrapper">
-                        <div class="time-input-box">
-                            <input type="time" name="start_time" id="start_time_input" class="form-control" value="{{ old('start_time', $leave->start_time ? $leave->start_time->format('H:i') : '') }}">
+                <div class="apv-form-group" id="worktime-field" style="display:none;">
+                    <label id="worktime-label" class="apv-form-label">Jam Izin</label>
+                    <div class="apv-time-range">
+                        <div class="apv-time-input-box">
+                            <input type="time" name="start_time" id="start_time_input" class="apv-form-control" value="{{ old('start_time', $leave->start_time ? $leave->start_time->format('H:i') : '') }}">
                         </div>
-                        <span id="worktime-separator" class="separator">s/d</span>
-                        <div id="end_time_wrapper" class="time-input-box">
-                            <input type="time" name="end_time" id="end_time_input" class="form-control" value="{{ old('end_time', $leave->end_time ? $leave->end_time->format('H:i') : '') }}">
+                        <span id="worktime-separator" class="apv-time-sep">s/d</span>
+                        <div id="end_time_wrapper" class="apv-time-input-box">
+                            <input type="time" name="end_time" id="end_time_input" class="apv-form-control" value="{{ old('end_time', $leave->end_time ? $leave->end_time->format('H:i') : '') }}">
                         </div>
                     </div>
                 </div>
 
                 {{-- 4. PIC PENGGANTI --}}
-                <div id="substitute-pic-section">
-                    <p class="pic-section-title">Informasi Pendelegasian Tugas</p>
-                    <div class="pic-grid">
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label for="substitute_pic">Nama PIC Pengganti</label>
-                            <input type="text" name="substitute_pic" id="substitute_pic" class="form-control" value="{{ old('substitute_pic', $leave->substitute_pic) }}">
+                <div id="substitute-pic-section" class="apv-pic-section">
+                    <p class="apv-pic-section-title">Informasi Pendelegasian Tugas</p>
+                    <div class="apv-pic-grid">
+                        <div class="apv-form-group" style="margin-bottom:0;">
+                            <label for="substitute_pic" class="apv-form-label">Nama PIC Pengganti</label>
+                            <input type="text" name="substitute_pic" id="substitute_pic" class="apv-form-control" value="{{ old('substitute_pic', $leave->substitute_pic) }}">
                         </div>
-                        <div class="form-group" style="margin-bottom:0;">
-                            <label for="substitute_phone">Nomor HP PIC</label>
-                            <input type="text" name="substitute_phone" id="substitute_phone" class="form-control" value="{{ old('substitute_phone', $leave->substitute_phone) }}">
+                        <div class="apv-form-group" style="margin-bottom:0;">
+                            <label for="substitute_phone" class="apv-form-label">Nomor HP PIC</label>
+                            <input type="text" name="substitute_phone" id="substitute_phone" class="apv-form-control" value="{{ old('substitute_phone', $leave->substitute_phone) }}">
                         </div>
                     </div>
                 </div>
 
                 {{-- 5. UPLOAD BUKTI --}}
-                <div class="form-group">
-                    <label for="photoInput">Update Bukti Pendukung <span style="font-weight:400; color:var(--gray-500);">(Opsional)</span></label>
-                    <div class="file-input-wrapper">
-                        <input type="file" name="photo" id="photoInput" class="form-control-file" accept="image/*,.pdf">
+                <div class="apv-form-group">
+                    <label for="photoInput" class="apv-form-label">Update Bukti Pendukung <span class="apv-optional">(Opsional)</span></label>
+                    <div class="apv-file-input-wrapper">
+                        <input type="file" name="photo" id="photoInput" class="apv-form-control-file" accept="image/*,.pdf">
                     </div>
                     @if($leave->photo)
-                        <div class="current-file">
-                            <span style="color:var(--success);">File saat ini:</span>
+                        <div class="apv-current-file">
+                            <span class="apv-current-file-label">File saat ini:</span>
                             <a href="{{ asset('storage/leave_photos/' . $leave->photo) }}" target="_blank">Lihat File</a>
                         </div>
                     @endif
-                    <div id="photoPreviewContainer" class="preview-container">
-                        <p class="preview-label">Preview File Baru:</p>
+                    <div id="photoPreviewContainer" class="apv-preview-container">
+                        <p class="apv-preview-label">Preview File Baru:</p>
                         <img id="photoPreview" src="#" alt="Preview">
                     </div>
                 </div>
 
                 {{-- 6. ALASAN --}}
-                <div class="form-group">
-                    <label for="reason">Alasan / Keterangan <span class="req">*</span></label>
-                    <textarea name="reason" id="reason" rows="4" class="form-control" required>{{ old('reason', $leave->reason) }}</textarea>
+                <div class="apv-form-group">
+                    <label for="reason" class="apv-form-label">Alasan / Keterangan <span class="apv-req">*</span></label>
+                    <textarea name="reason" id="reason" rows="4" class="apv-form-control" required>{{ old('reason', $leave->reason) }}</textarea>
                 </div>
 
-                <div class="bottom-spacer"></div>
+                <div class="apv-bottom-spacer"></div>
             </form>
         </div>
     </div>
 
     {{-- Fixed Action Bar --}}
-    <div class="action-bar">
-        <div class="action-bar-inner">
-            <button class="btn-primary" type="submit" form="fake-submit" onclick="document.querySelector('form').requestSubmit(); return false;">
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+    <div class="apv-action-bar">
+        <div class="apv-action-main">
+            <button class="apv-action-btn apv-action-btn--primary" type="submit" form="editForm">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
                 Simpan Edit & Teruskan ke HRD
             </button>
         </div>
@@ -454,4 +361,458 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <style>
+        /* ========================================== */
+        /* PAGE LAYOUT                                */
+        /* ========================================== */
+        .apv-edit-page {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-bottom: 8px;
+        }
+
+        /* ========================================== */
+        /* ALERTS                                     */
+        /* ========================================== */
+        .apv-info-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 12px;
+            padding: 14px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #92400e;
+            line-height: 1.6;
+        }
+        .apv-info-alert svg {
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .apv-info-alert strong {
+            font-weight: 700;
+        }
+
+        .apv-alert {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .apv-alert--error {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #dc2626;
+        }
+
+        /* ========================================== */
+        /* BACK BUTTON (KIMI.md pattern)              */
+        /* ========================================== */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 36px;
+            padding: 0 12px 0 10px;
+            background: var(--white, #fff);
+            border: 1px solid var(--border, #E5E7EB);
+            border-radius: 10px;
+            color: var(--text-muted, #6B7280);
+            text-decoration: none;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            align-self: flex-start;
+        }
+        .back-btn:hover {
+            border-color: var(--primary, #145DA0);
+            color: var(--primary, #145DA0);
+            background: var(--gray-50, #F5F7FA);
+        }
+        .back-btn:hover svg {
+            transform: translateX(-2px);
+        }
+        .back-btn svg {
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .back-btn-text {
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        /* ========================================== */
+        /* SECTION HEADER (x-slot)                    */
+        /* ========================================== */
+        .section-header-inline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .section-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+        .section-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary, #111827);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+            line-height: 1.35;
+        }
+        .icon-navy  { background: rgba(10, 61, 98, 0.08);  color: var(--primary-dark, #0A3D62); }
+
+        /* ========================================== */
+        /* CARD                                       */
+        /* ========================================== */
+        .apv-card {
+            background: var(--white, #FFFFFF);
+            border-radius: 16px;
+            padding: 24px 20px;
+            border: 1px solid var(--border-light, #E5E7EB);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        /* ========================================== */
+        /* FORM GROUPS                                */
+        /* ========================================== */
+        .apv-form-group {
+            margin-bottom: 24px;
+        }
+        .apv-form-group:last-child {
+            margin-bottom: 0;
+        }
+        .apv-form-label {
+            display: block;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-secondary, #374151);
+            margin-bottom: 8px;
+        }
+        .apv-req {
+            color: var(--error, #EF4444);
+            margin-left: 2px;
+        }
+        .apv-optional {
+            font-weight: 400;
+            color: var(--text-muted, #6B7280);
+        }
+
+        /* ========================================== */
+        /* FORM CONTROLS                              */
+        /* ========================================== */
+        .apv-form-control {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border-light, #E5E7EB);
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            background: var(--white, #FFFFFF);
+            color: var(--text-primary, #111827);
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .apv-form-control:focus {
+            border-color: var(--primary, #145DA0);
+            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
+        }
+        textarea.apv-form-control {
+            resize: vertical;
+            min-height: 100px;
+            line-height: 1.6;
+        }
+        select.apv-form-control {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 40px;
+        }
+
+        /* ========================================== */
+        /* RADIO CARDS                                */
+        /* ========================================== */
+        .apv-radio-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .apv-radio-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border-light, #E5E7EB);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--white, #FFFFFF);
+        }
+        .apv-radio-card:hover {
+            border-color: var(--primary, #145DA0);
+            background: rgba(20, 93, 160, 0.04);
+        }
+        .apv-radio-card input[type="radio"] {
+            accent-color: var(--primary, #145DA0);
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .apv-radio-label {
+            font-size: 13px;
+            color: var(--text-secondary, #374151);
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        /* ========================================== */
+        /* SPECIAL LEAVE                              */
+        /* ========================================== */
+        #special-leave-container {
+            display: none;
+            margin-top: 12px;
+            padding: 14px;
+            background: rgba(59, 130, 246, 0.06);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 10px;
+        }
+        #special-leave-container .apv-form-label {
+            color: var(--primary, #145DA0);
+        }
+        #special-leave-badge {
+            display: none;
+            margin-top: 10px;
+        }
+        .apv-info-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--primary, #145DA0);
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .apv-limit-warning {
+            display: none;
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #dc2626;
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            margin-top: 8px;
+        }
+
+        /* ========================================== */
+        /* TIME RANGE                                 */
+        /* ========================================== */
+        .apv-time-range {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .apv-time-input-box {
+            flex: 1;
+            min-width: 120px;
+        }
+        .apv-time-sep {
+            color: var(--text-muted, #6B7280);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        /* ========================================== */
+        /* PIC SECTION                                */
+        /* ========================================== */
+        #substitute-pic-section {
+            display: none;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: var(--gray-50, #F5F7FA);
+            border: 1px dashed var(--border-light, #E5E7EB);
+            border-radius: 10px;
+        }
+        .apv-pic-section-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--primary-dark, #0A3D62);
+            margin-bottom: 12px;
+        }
+        .apv-pic-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* ========================================== */
+        /* FILE INPUT                                 */
+        /* ========================================== */
+        .apv-file-input-wrapper {
+            border: 1.5px dashed var(--border-light, #E5E7EB);
+            padding: 14px;
+            border-radius: 10px;
+            background: var(--gray-50, #F5F7FA);
+        }
+        .apv-form-control-file {
+            width: 100%;
+            font-size: 13px;
+            color: var(--text-secondary, #374151);
+        }
+        .apv-preview-container {
+            display: none;
+            margin-top: 12px;
+            padding: 10px;
+            border: 1px solid var(--border-light, #E5E7EB);
+            border-radius: 10px;
+            background: var(--gray-50, #F5F7FA);
+        }
+        .apv-preview-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted, #6B7280);
+            margin: 0 0 6px 0;
+        }
+        .apv-preview-container img {
+            max-width: 100%;
+            max-height: 280px;
+            border-radius: 8px;
+            display: block;
+        }
+        .apv-current-file {
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .apv-current-file-label {
+            color: var(--success, #22C55E);
+            font-weight: 500;
+        }
+        .apv-current-file a {
+            color: var(--primary, #145DA0);
+            text-decoration: underline;
+            font-weight: 500;
+        }
+        .apv-current-file a:hover {
+            color: var(--primary-dark, #0A3D62);
+        }
+
+        /* ========================================== */
+        /* FIXED ACTION BAR                           */
+        /* ========================================== */
+        .apv-action-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--white, #FFFFFF);
+            border-top: 1px solid var(--border-light, #E5E7EB);
+            padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+            z-index: 50;
+            box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+        }
+        .apv-action-main {
+            max-width: 720px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .apv-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            white-space: nowrap;
+            font-family: inherit;
+            min-height: 48px;
+            width: 100%;
+        }
+        .apv-action-btn svg { flex-shrink: 0; }
+
+        .apv-action-btn--primary {
+            background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(10, 61, 98, 0.22);
+        }
+        .apv-action-btn--primary:hover {
+            box-shadow: 0 6px 20px rgba(10, 61, 98, 0.32);
+            transform: translateY(-1px);
+        }
+
+        .apv-bottom-spacer { height: 100px; }
+
+        /* ========================================== */
+        /* RESPONSIVE                                 */
+        /* ========================================== */
+        @media (max-width: 480px) {
+            .apv-radio-group {
+                grid-template-columns: 1fr 1fr;
+            }
+            .apv-time-range {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+            .apv-time-sep {
+                display: none !important;
+            }
+            .apv-time-input-box {
+                width: 100%;
+                flex: none;
+            }
+            .apv-pic-grid {
+                grid-template-columns: 1fr;
+            }
+            .apv-card {
+                padding: 20px 16px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .apv-action-bar {
+                padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
+            }
+            .apv-card {
+                padding: 28px 24px;
+            }
+        }
+    </style>
+
 </x-app>

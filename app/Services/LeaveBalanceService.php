@@ -64,7 +64,9 @@ class LeaveBalanceService
 
     public function deductLeaveBalanceForLeave(LeaveRequest $leave, ?float $amount = null): float
     {
-        if (!$this->isAnnualLeave($leave)) {
+        // Jika HRD memberikan amount eksplisit (via form), proses tanpa cek tipe
+        // karena HRD bisa memutuskan potong saldo cuti untuk CUTI_KHUSUS/SAKIT/IZIN/DINAS_LUAR.
+        if ($amount === null && !$this->isAnnualLeave($leave)) {
             return 0;
         }
 
@@ -82,13 +84,14 @@ class LeaveBalanceService
         return $daysToDeduct;
     }
 
-    public function refundLeaveBalanceForLeave(LeaveRequest $leave): float
+    public function refundLeaveBalanceForLeave(LeaveRequest $leave, ?float $amount = null): float
     {
-        if (!$this->isAnnualLeave($leave)) {
+        // Jika amount eksplisit diberikan, proses refund tanpa cek tipe.
+        if ($amount === null && !$this->isAnnualLeave($leave)) {
             return 0;
         }
 
-        $daysToRefund = $this->calculateEffectiveDaysForLeave($leave);
+        $daysToRefund = $amount ?? $this->calculateEffectiveDaysForLeave($leave);
 
         if ($daysToRefund > 0) {
             $leave->user->increment('leave_balance', $daysToRefund);

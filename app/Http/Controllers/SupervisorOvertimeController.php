@@ -19,8 +19,9 @@ class SupervisorOvertimeController extends Controller
 
         $query = OvertimeRequest::with(['user.profile.pt', 'user.division'])
             ->whereHas('user', function ($q) use ($me) {
-                // Filter hanya bawahan langsung
-                $q->where('direct_supervisor_id', $me->id);
+                // Filter bawahan langsung (supervisor atau manager)
+                $q->where('direct_supervisor_id', $me->id)
+                  ->orWhere('manager_id', $me->id);
             })
             ->orderByDesc('created_at');
 
@@ -68,15 +69,17 @@ class SupervisorOvertimeController extends Controller
         
         $overtimes = OvertimeRequest::where('status', OvertimeRequest::STATUS_PENDING_SUPERVISOR)
             ->whereHas('user', function ($query) use ($me) {
-                // Filter hanya bawahan langsung
-                $query->where('direct_supervisor_id', $me->id);
+                // Filter bawahan langsung (supervisor atau manager)
+                $query->where('direct_supervisor_id', $me->id)
+                      ->orWhere('manager_id', $me->id);
             })
             ->with(['user.profile.pt', 'user.division'])
             ->orderByDesc('created_at')
             ->paginate(100);
 
-        // Ambil daftar bawahan langsung
+        // Ambil daftar bawahan langsung (supervisor atau manager)
         $subordinates = \App\Models\User::where('direct_supervisor_id', $me->id)
+            ->orWhere('manager_id', $me->id)
             ->with(['division', 'position'])
             ->orderBy('name')
             ->get();
@@ -142,8 +145,8 @@ class SupervisorOvertimeController extends Controller
     private function authorizeSupervisor(OvertimeRequest $overtime)
     {
         $me = Auth::user();
-        // Cek apakah user adalah atasan langsung
-        if ($overtime->user->direct_supervisor_id !== $me->id) {
+        // Cek apakah user adalah atasan langsung (supervisor atau manager)
+        if ($overtime->user->direct_supervisor_id !== $me->id && $overtime->user->manager_id !== $me->id) {
             abort(403, 'Akses Ditolak: Anda bukan atasan langsung karyawan ini.');
         }
     }

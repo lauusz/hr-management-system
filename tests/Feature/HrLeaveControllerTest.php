@@ -8,12 +8,13 @@ use App\Models\LeaveRequest;
 use App\Models\Pt;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+// ⚠️ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
+// karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
+
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
 pest()->extend(Tests\TestCase::class)
-    ->use(LazilyRefreshDatabase::class)
     ->in('Feature');
 
 describe('HrLeaveController', function () {

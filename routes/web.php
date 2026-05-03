@@ -199,13 +199,7 @@ Route::middleware('auth')->group(function () {
             ->names('hr.payroll')
             ->parameters(['payroll' => 'payslip']);
     });
-    Route::middleware('role:SUPERVISOR')->prefix('supervisor')->name('supervisor.')->group(function () {
-        Route::get('/leave-requests', [ApprovalController::class, 'index'])->name('leave.index');
-        Route::get('/leave-requests/{leave}', [ApprovalController::class, 'show'])->name('leave.show');
-        Route::post('/leave-requests/{leave}/ack', [ApprovalController::class, 'ack'])->name('leave.ack');
-        Route::post('/leave-requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('leave.approve');
-        Route::post('/leave-requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('leave.reject');
-
+    Route::middleware('has.subordinates')->prefix('supervisor')->name('supervisor.')->group(function () {
         // Overtime Requests (Supervisor)
         Route::get('/overtime-requests/master', [SupervisorOvertimeController::class, 'master'])->name('overtime-requests.master');
         Route::get('/overtime-requests', [SupervisorOvertimeController::class, 'index'])->name('overtime-requests.index');
@@ -214,13 +208,14 @@ Route::middleware('auth')->group(function () {
         Route::post('/overtime-requests/{overtimeRequest}/reject', [SupervisorOvertimeController::class, 'reject'])->name('overtime-requests.reject');
     });
 
-    Route::middleware('role:SUPERVISOR,MANAGER')->group(function () {
+    Route::middleware('has.subordinates')->group(function () {
         Route::get('/approval/requests', [ApprovalController::class, 'index'])->name('approval.index');
         Route::get('/supervisor/leave/master', [ApprovalController::class, 'master'])->name('supervisor.leave.master');
         Route::get('/approval/requests/{leave}', [ApprovalController::class, 'show'])->name('approval.show');
         Route::get('/approval/requests/{leave}/edit', [ApprovalController::class, 'edit'])->name('approval.edit');
         Route::put('/approval/requests/{leave}', [ApprovalController::class, 'update'])->name('approval.update');
         Route::delete('/approval/requests/{leave}', [ApprovalController::class, 'destroy'])->name('approval.destroy');
+        Route::post('/approval/requests/{leave}/ack', [ApprovalController::class, 'ack'])->name('approval.ack');
         Route::post('/approval/requests/{leave}/approve', [ApprovalController::class, 'approve'])->name('approval.approve');
         Route::post('/approval/requests/{leave}/reject', [ApprovalController::class, 'reject'])->name('approval.reject');
     });

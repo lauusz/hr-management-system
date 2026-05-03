@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\LeaveType;
+use App\Enums\UserRole;
 use App\Exports\LeaveMasterExport;
 use App\Models\LeaveRequest;
 use App\Models\Pt;
@@ -28,10 +29,8 @@ class HrLeaveController extends Controller
     }
 
     /**
-     * Menampilkan daftar pengajuan yang statusnya:
-     * 1. PENDING_HR (Tugas Utama HR)
-     * 2. PENDING_SUPERVISOR tapi user-nya bawahan saya (Saya merangkap SPV)
-     * 3. PENDING_SUPERVISOR tapi user-nya TIDAK PUNYA SPV (Orphan/Bypass)
+     * Menampilkan daftar pengajuan dengan status PENDING_HR.
+     * HR inbox hanya menangani final approval.
      *
      * Filter options:
      * - submitted_today: pengajuan yang dibuat hari ini (created_at = today)
@@ -41,7 +40,6 @@ class HrLeaveController extends Controller
     {
         $this->authorizeAccess();
 
-        $userId = Auth::id();
         $today = Carbon::today();
 
         $leaves = LeaveRequest::withoutGlobalScopes()
@@ -50,25 +48,7 @@ class HrLeaveController extends Controller
                 'user.position',
                 'user.profile.pt'
             ])
-            ->where(function ($query) use ($userId) {
-                // 1. Ambil yang statusnya PENDING_HR (Tugas Global HR Manager)
-                $query->where('status', LeaveRequest::PENDING_HR)
-
-                // 2. ATAU Ambil yang statusnya PENDING_SUPERVISOR...
-                ->orWhere(function ($subQuery) use ($userId) {
-                    $subQuery->where('status', LeaveRequest::PENDING_SUPERVISOR)
-                        ->where(function ($q) use ($userId) {
-                            // A. ...Dimana Saya adalah Supervisor-nya
-                            $q->whereHas('user', function ($u) use ($userId) {
-                                $u->where('direct_supervisor_id', $userId);
-                            })
-                            // B. ...ATAU User tersebut TIDAK PUNYA Supervisor (Orphan Data)
-                            ->orWhereHas('user', function ($u) {
-                                $u->whereNull('direct_supervisor_id');
-                            });
-                        });
-                });
-            });
+            ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR]);
 
         // Filter: Pengajuan yang dilakukan hari ini (created_at = today)
         if ($request->boolean('submitted_today')) {
@@ -395,16 +375,25 @@ class HrLeaveController extends Controller
         // Load relasi yang diperlukan
         $leave->load(['user.profile.pt', 'user.division', 'user.position', 'approver']);
 
+        $me = auth()->user();
+
         // [LOGIC TOMBOL APPROVE] Gunakan rule yang sama dengan endpoint approve/reject
-        $canApprove = $this->canHrActOnLeave(auth()->user(), $leave);
+        $canApprove = $this->canHrActOnLeave($me, $leave);
 
         // Check if current user is HR staff (for edit permissions)
-        $isHrStaff = auth()->user()->isHR();
+        $isHrStaff = $me->isHR();
+
+        // [DINAMIS] Cek apakah user ini adalah atasan langsung (supervisor/manager) dari pemohon
+        $isDirectApprover = ((int) $leave->user->direct_supervisor_id === (int) $me->id)
+            || ((int) $leave->user->manager_id === (int) $me->id);
+        $canApproveAsSupervisor = $isDirectApprover && ($leave->status === LeaveRequest::PENDING_SUPERVISOR);
 
         return view('hr.leave_requests.show', [
             'item' => $leave,
             'canApprove' => $canApprove,
             'isHrStaff' => $isHrStaff,
+            'isDirectApprover' => $isDirectApprover,
+            'canApproveAsSupervisor' => $canApproveAsSupervisor,
         ]);
     }
 
@@ -556,7 +545,7 @@ class HrLeaveController extends Controller
         ]);
 
         // Pastikan status valid
-        $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
+        $allowedStatus = [LeaveRequest::PENDING_HR];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk disetujui.');
 
         abort_unless($this->canHrActOnLeave(auth()->user(), $leave), 403, 'Anda tidak memiliki izin untuk menyetujui pengajuan ini.');
@@ -565,90 +554,14 @@ class HrLeaveController extends Controller
              return back()->with('error', 'Etika Profesi: Anda tidak dapat menyetujui pengajuan Anda sendiri.');
         }
 
-        // =====================================================================
-        // LOGIKA APPROVAL BERDASARKAN ROLE
-        // =====================================================================
         $actor = auth()->user();
-        $isManagerApprovingHrdStaff = $this->isManagerOfHrdStaff($actor, $leave);
-        $isSpecialHrdCase = $this->isManagerHrdSpecialCase($leave);
 
-        // 1) MANAGER approve SPECIAL CASE HRD (MANAGER HRD position)
-        //    → Langsung APPROVED (Manager adalah final approver)
-        if ($leave->status === LeaveRequest::PENDING_SUPERVISOR && $isSpecialHrdCase && $isManagerApprovingHrdStaff) {
-            try {
-                DB::transaction(function () use ($request, $leave, $actor) {
-                    $shouldDeduct = $request->filled('deduct_amount');
-                    $deductAmount = $shouldDeduct ? (float) $request->input('deduct_amount') : null;
-
-                    if ($shouldDeduct) {
-                        $this->leaveBalanceService->deductLeaveBalanceForLeave($leave, $deductAmount);
-                    }
-
-                    $leave->update([
-                        'status'      => LeaveRequest::STATUS_APPROVED,
-                        'approved_by' => $actor->id,
-                        'approved_at' => now(),
-                        'notes_hrd'   => $request->notes_hrd,
-                        'supervisor_ack_at' => now(), // Manager sekaligus ack
-                    ]);
-
-                    $this->deleteDuplicateLeaveRequests($leave);
-                });
-
-                return back()->with('success', 'Pengajuan disetujui oleh Manager (Final Approver) & Saldo dipotong.');
-
-            } catch (\Exception $e) {
-                return back()->with('error', $e->getMessage());
-            }
-        }
-
-        // 2) MANAGER approve HR_STAFF (bukan special case HRD)
-        //    → Tetap PENDING_HR (butuh HRD untuk approval final)
-        if ($leave->status === LeaveRequest::PENDING_SUPERVISOR && $isManagerApprovingHrdStaff && !$isSpecialHrdCase) {
-            try {
-                DB::transaction(function () use ($request, $leave, $actor) {
-                    $leave->update([
-                        'status'      => LeaveRequest::PENDING_HR,
-                        'approved_by' => $actor->id,
-                        'approved_at' => now(),
-                        'notes_hrd'   => $request->notes_hrd,
-                    ]);
-                });
-
-                return back()->with('success', 'Pengajuan telah disetujui oleh Manager & diteruskan ke HRD.');
-
-            } catch (\Exception $e) {
-                return back()->with('error', $e->getMessage());
-            }
-        }
-
-        // 3) PENDING_SUPERVISOR → HR/HRD approve (bukan MANAGER)
-        //    → Menjadi PENDING_HR (untuk employees tanpa manager atau supervisor)
-        if ($leave->status === LeaveRequest::PENDING_SUPERVISOR && !$isManagerApprovingHrdStaff) {
-            try {
-                DB::transaction(function () use ($request, $leave, $actor) {
-                    $leave->update([
-                        'status'      => LeaveRequest::PENDING_HR,
-                        'approved_by' => $actor->id,
-                        'approved_at' => now(),
-                        'notes_hrd'   => $request->notes_hrd,
-                    ]);
-                });
-
-                return back()->with('success', 'Pengajuan telah disetujui & diteruskan ke HRD.');
-
-            } catch (\Exception $e) {
-                return back()->with('error', $e->getMessage());
-            }
-        }
-
-        // 4) PENDING_HR → HRD/HR approve (flow normal)
+        // PENDING_HR → HRD/HR Staff final approve
         try {
             DB::transaction(function () use ($request, $leave, $actor) {
 
                 // LOGIKA APPROVE
-                $shouldDeduct = $request->filled('deduct_amount');
-                $deductAmount = $shouldDeduct ? (float) $request->input('deduct_amount') : null;
+                $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : (string) $leave->type;
 
                 // SAKIT: potong cuti jika checkbox dicentang
                 $shouldDeductSakit = $request->filled('deduct_leave_sakit');
@@ -661,9 +574,9 @@ class HrLeaveController extends Controller
                 // SAKIT/IZIN: potong UM jika checkbox dicentang (tanpa cuti)
                 $shouldDeductUM = $request->filled('deduct_um');
 
-                // Potong cuti (CUTI/CUTI_KHUSUS/DINAS_LUAR)
-                if ($shouldDeduct && $leave->status !== LeaveRequest::STATUS_APPROVED) {
-                    $this->leaveBalanceService->deductLeaveBalanceForLeave($leave, $deductAmount);
+                // Potong cuti (CUTI: otomatis berdasarkan hari kerja efektif)
+                if ($leaveTypeValue === LeaveType::CUTI->value && $leave->status !== LeaveRequest::STATUS_APPROVED) {
+                    $this->leaveBalanceService->deductLeaveBalanceForLeave($leave);
                 }
 
                 // Potong cuti (SAKIT)
@@ -676,11 +589,17 @@ class HrLeaveController extends Controller
                     $this->leaveBalanceService->deductLeaveBalanceForLeave($leave, $deductAmountIzin);
                 }
 
+                // Audit trail di notes
+                $currentNotes = $leave->notes;
+                $systemNote = "[System] Disetujui oleh HR (" . $actor->name . ") pada " . now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes . "\n" . $systemNote : $systemNote;
+
                 // Update status pengajuan jadi APPROVED
                 $leave->update([
                     'status'      => LeaveRequest::STATUS_APPROVED,
                     'approved_by' => $actor->id,
                     'approved_at' => now(),
+                    'notes'       => $newNotes,
                     'notes_hrd'   => $request->notes_hrd,
                     'deduct_um'   => $shouldDeductUM ? true : ($leave->deduct_um ?? false),
                 ]);
@@ -692,13 +611,13 @@ class HrLeaveController extends Controller
             // Pesan sukses
             // Jika ini Cancel Request, pesannya "Pembatalan Disetujui"
             if ($leave->status === 'BATAL') {
-                return back()->with('success', 'Permintaan pembatalan telah disetujui.');
+                return redirect()->route('hr.leave.index')->with('success', 'Permintaan pembatalan telah disetujui.');
             }
 
-            return back()->with('success', 'Pengajuan disetujui & Saldo dipotong sesuai hari kerja Role.');
+            return redirect()->route('hr.leave.index')->with('success', 'Pengajuan disetujui & Saldo dipotong sesuai hari kerja Role.');
 
         } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage());
+            return redirect()->route('hr.leave.index')->with('error', $e->getMessage());
         }
     }
 
@@ -710,7 +629,7 @@ class HrLeaveController extends Controller
             'notes_hrd' => 'required|string|max:1000',
         ]);
 
-        $allowedStatus = [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR];
+        $allowedStatus = [LeaveRequest::PENDING_HR];
         abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk ditolak.');
 
         abort_unless($this->canHrActOnLeave(auth()->user(), $leave), 403, 'Anda tidak memiliki izin untuk menolak pengajuan ini.');
@@ -729,19 +648,25 @@ class HrLeaveController extends Controller
                     $this->leaveBalanceService->refundLeaveBalanceForLeave($leave);
                 }
 
+                // Audit trail di notes
+                $currentNotes = $leave->notes;
+                $systemNote = "[System] Ditolak oleh HR (" . auth()->user()->name . ") pada " . now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes . "\n" . $systemNote : $systemNote;
+
                 // Update status menjadi REJECTED
                 $leave->update([
                     'status'      => LeaveRequest::STATUS_REJECTED,
                     'approved_by' => auth()->id(),
                     'approved_at' => now(),
+                    'notes'       => $newNotes,
                     'notes_hrd'   => $request->notes_hrd,
                 ]);
             });
 
-            return back()->with('success', 'Pengajuan ditolak & saldo (jika ada) dikembalikan.');
+            return redirect()->route('hr.leave.index')->with('success', 'Pengajuan ditolak & saldo (jika ada) dikembalikan.');
 
         } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage());
+            return redirect()->route('hr.leave.index')->with('error', $e->getMessage());
         }
     }
 
@@ -750,130 +675,63 @@ class HrLeaveController extends Controller
         $user = auth()->user();
 
         if (!$user || !method_exists($user, 'isHR') || !$user->isHR()) {
-            if (!in_array($user->role, ['HRD', 'HR STAFF', 'MANAGER HR'])) {
-                 abort(403, 'Akses khusus HRD');
-            }
+            abort(403, 'Akses khusus HRD');
         }
     }
 
     private function canHrActOnLeave(User $actor, LeaveRequest $leave): bool
     {
+        // Self-approval tidak diperbolehkan
         if ($leave->user_id === $actor->id) {
             return false;
         }
 
+        // [DINAMIS] Jika actor adalah atasan langsung (supervisor atau manager) dari pemohon,
+        // izinkan act (untuk supervisor-level action dari halaman HR)
+        if ((int) $leave->user->direct_supervisor_id === (int) $actor->id) {
+            return true;
+        }
+        if ((int) $leave->user->manager_id === (int) $actor->id) {
+            return true;
+        }
+
         $actorRole = $this->normalizeRole($actor->role);
-        $employeeRole = $this->normalizeRole($leave->user->role);
+        $applicantRole = $this->normalizeRole($leave->user->role);
 
-        // =====================================================================
-        // PENDING_SUPERVISOR: Siapa yang bisa approve?
-        // =====================================================================
-        if ($leave->status === LeaveRequest::PENDING_SUPERVISOR) {
-
-            // 1) DIRECT SUPERVISOR bisa approve bawahan langsung
-            if ((int) $leave->user->direct_supervisor_id === (int) $actor->id) {
-                return true;
-            }
-
-            // 2) MANAGER dari HRD/HR_STAFF bisa approve
-            if ($actorRole === 'MANAGER' && in_array($employeeRole, ['HRD', 'HR STAFF'], true)) {
-                return (int) $leave->user->manager_id === (int) $actor->id;
-            }
-
-            // 3) HRD/HR_STAFF bisa approve (mengakui/meneruskan ke HRD)
-            //    Untuk users yang tidak punya supervisor langsung
-            if (empty($leave->user->direct_supervisor_id) && empty($leave->user->manager_id)) {
-                return $this->isHrdMaster($actor) || $this->isHrStaff($actor);
-            }
-
-            // 4) HRD MASTER bisa approve untuk HR_STAFF (CUTI/CUTI_KHUSUS)
-            $typeValue = $leave->type instanceof LeaveType ? $leave->type->value : $leave->type;
-            $isCutiOrSpecial = in_array($typeValue, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value], true);
-            if ($isCutiOrSpecial && $this->isHrdMaster($actor)) {
-                return true;
-            }
-
+        // HRD / HR STAFF hanya boleh final approve/reject request dengan status PENDING_HR
+        if ($leave->status !== LeaveRequest::PENDING_HR) {
             return false;
         }
 
-        // =====================================================================
-        // PENDING_HR: HRD/HR_STAFF bisa approve (kecuali request sendiri)
-        // =====================================================================
-        if ($leave->status === LeaveRequest::PENDING_HR) {
-            // CUTI/CUTI_KHUSUS: HR STAFF atau HRD Master bisa approve
-            $typeValue = $leave->type instanceof LeaveType ? $leave->type->value : $leave->type;
-            $isCutiOrSpecial = in_array($typeValue, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value], true);
-
-            if ($isCutiOrSpecial) {
-                return $this->isHrStaff($actor) || $this->isHrdMaster($actor);
-            }
-
-            // Non-CUTI: HR STAFF atau HRD Master bisa approve
-            if ($this->isHrStaff($actor) || $this->isHrdMaster($actor)) {
-                return $actor->id !== $leave->user_id;
-            }
-
-            return false;
+        // MANAGER applicant: HANYA HRD yang boleh approve
+        if ($applicantRole === 'MANAGER') {
+            return $actorRole === 'HRD';
         }
 
-        return false;
+        // HRD applicant: HANYA HRD yang boleh approve (HR_STAFF tidak boleh)
+        if ($applicantRole === 'HRD') {
+            return $actorRole === 'HRD';
+        }
+
+        // HR_STAFF applicant: HANYA HRD yang boleh approve
+        if ($applicantRole === 'HR STAFF') {
+            return $actorRole === 'HRD';
+        }
+
+        // EMPLOYEE / SUPERVISOR applicant: HRD dan HR_STAFF boleh approve
+        return in_array($actorRole, ['HRD', 'HR STAFF'], true);
     }
 
     private function isHrdMaster(User $user): bool
     {
         $role = $this->normalizeRole($user->role);
 
-        return in_array($role, ['HRD', 'HR MANAGER'], true);
+        return $role === 'HRD';
     }
 
     private function isHrStaff(User $user): bool
     {
         return $this->normalizeRole($user->role) === 'HR STAFF';
-    }
-
-    /**
-     * Cek apakah actor adalah MANAGER dari HRD/HR_STAFF yang mengajukan
-     * Jika ya, MANAGER bisa langsung APPROVE (tanpa perlu PENDING_HR)
-     *
-     * SPECIAL CASE: Jika employee adalah HRD dengan position "MANAGER HRD",
-     * maka MANAGER adalah final approver (tidak perlu ke HRD setelah manager approve)
-     */
-    private function isManagerOfHrdStaff(User $actor, LeaveRequest $leave): bool
-    {
-        $actorRole = $this->normalizeRole($actor->role);
-
-        // Hanya MANAGER yang bisa approve langsung
-        if ($actorRole !== 'MANAGER') {
-            return false;
-        }
-
-        // Cek apakah employee yang mengajukan adalah HRD atau HR_STAFF
-        $employeeRole = $this->normalizeRole($leave->user->role);
-        if (!in_array($employeeRole, ['HRD', 'HR STAFF'], true)) {
-            return false;
-        }
-
-        // Cek apakah actor adalah manager_id employee tersebut
-        return (int) $leave->user->manager_id === (int) $actor->id;
-    }
-
-    /**
-     * Cek apakah ini special case HRD "MANAGER HRD"
-     * Jika ya, setelah MANAGER approve → langsung APPROVED (tidak perlu PENDING_HR)
-     */
-    private function isManagerHrdSpecialCase(LeaveRequest $leave): bool
-    {
-        $employeeRole = $this->normalizeRole($leave->user->role);
-        if ($employeeRole !== 'HRD') {
-            return false;
-        }
-
-        // Load position relation to check position name
-        $leave->user->load('position');
-        $positionName = $leave->user->position?->name ?? '';
-        $isManagerHrdPosition = strtoupper(trim($positionName)) === 'MANAGER HRD';
-
-        return $isManagerHrdPosition && !empty($leave->user->manager_id);
     }
 
     private function normalizeRole(mixed $role): string
@@ -887,17 +745,36 @@ class HrLeaveController extends Controller
 
     private function defaultManualStatusForUser(User $user): string
     {
-        $role = $this->normalizeRole($user->role);
-
-        if ($role === 'EMPLOYEE' && !empty($user->direct_supervisor_id)) {
-            return LeaveRequest::PENDING_SUPERVISOR;
+        $applicantRole = $this->normalizeRole($user->role);
+        $hasValidSupervisor = !empty($user->direct_supervisor_id);
+        $hasValidManager = false;
+        if (!empty($user->manager_id)) {
+            $hasValidManager = User::where('id', $user->manager_id)->exists();
         }
 
-        if (in_array($role, ['SUPERVISOR', 'HRD'], true) && !empty($user->manager_id)) {
-            return LeaveRequest::PENDING_SUPERVISOR;
-        }
+        switch ($applicantRole) {
+            case 'EMPLOYEE':
+                return ($hasValidSupervisor || $hasValidManager)
+                    ? LeaveRequest::PENDING_SUPERVISOR
+                    : LeaveRequest::PENDING_HR;
 
-        return LeaveRequest::PENDING_HR;
+            case 'SUPERVISOR':
+                return $hasValidManager
+                    ? LeaveRequest::PENDING_SUPERVISOR
+                    : LeaveRequest::PENDING_HR;
+
+            case 'MANAGER':
+            case 'HR_STAFF':
+                return LeaveRequest::PENDING_HR;
+
+            case 'HRD':
+                return $hasValidManager
+                    ? LeaveRequest::PENDING_SUPERVISOR
+                    : LeaveRequest::PENDING_HR;
+
+            default:
+                return LeaveRequest::PENDING_HR;
+        }
     }
 
     /**

@@ -5,10 +5,10 @@ use App\Enums\UserRole;
 use App\Models\Division;
 use App\Models\LeaveRequest;
 use App\Models\User;
-use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+// ⚠️ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
+// karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
 
 pest()->extend(Tests\TestCase::class)
-    ->use(LazilyRefreshDatabase::class)
     ->in('Feature');
 
 /**

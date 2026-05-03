@@ -4,7 +4,8 @@ use App\Enums\UserRole;
 use App\Models\LoanRepayment;
 use App\Models\LoanRequest;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+// ⚠️ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
+// karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
 
 describe('LoanRequest Model', function () {
     it('can be created with valid data', function () {

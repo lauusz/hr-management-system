@@ -28,26 +28,50 @@ class ApprovalController extends Controller
     // =====================================================================
 
     /**
-     * Inbox Approval — PENDING_SUPERVISOR berdasarkan hierarki
-     * (direct_supervisor_id = me OR manager_id = me AND direct_supervisor_id = NULL).
+     * Inbox Approval — PENDING_SUPERVISOR berdasarkan hierarki dan role user login.
+     *
+     * - Supervisor: lihat bawahan langsung (direct_supervisor_id = me)
+     * - Manager   : lihat bawahan tanpa SPV (manager_id = me AND ds IS NULL)
+     * - HRD+Manager: lihat bawahan yang mg = me (untuk kasus HRD applicant)
      */
     public function index(Request $request)
     {
         $me = auth()->user();
-
-        if (!in_array($me->role, [UserRole::MANAGER, UserRole::SUPERVISOR, UserRole::HRD])) {
-            abort(403, 'Anda tidak memiliki akses approval.');
-        }
+        $myRole = strtoupper((string) ($me->role instanceof UserRole ? $me->role->value : $me->role));
 
         $query = LeaveRequest::with(['user.profile.pt', 'user.division', 'user.position'])
             ->orderByDesc('created_at')
             ->where('status', LeaveRequest::PENDING_SUPERVISOR)
-            ->whereHas('user', function (Builder $q) use ($me) {
-                $q->where(function ($subQ) use ($me) {
+            ->whereHas('user', function (Builder $q) use ($me, $myRole) {
+                $q->where(function ($subQ) use ($me, $myRole) {
+                    // Supervisor: ack untuk bawahan langsung
+                    if ($myRole === 'SUPERVISOR') {
+                        $subQ->where('direct_supervisor_id', $me->id);
+                        return;
+                    }
+
+                    // Manager: ack hanya jika tidak ada SPV (ds null)
+                    if ($myRole === 'MANAGER') {
+                        $subQ->whereNull('direct_supervisor_id')
+                             ->where('manager_id', $me->id);
+                        return;
+                    }
+
+                    // HRD yang juga punya bawahan sebagai manager
+                    if ($myRole === 'HRD') {
+                        $isManagerForSomeone = User::where('manager_id', $me->id)->exists();
+                        if ($isManagerForSomeone) {
+                            $subQ->whereNull('direct_supervisor_id')
+                                 ->where('manager_id', $me->id);
+                            return;
+                        }
+                    }
+
+                    // Fallback: tampilkan semua yang relevan
                     $subQ->where('direct_supervisor_id', $me->id)
                          ->orWhere(function ($q2) use ($me) {
-                             $q2->where('manager_id', $me->id)
-                                ->whereNull('direct_supervisor_id');
+                             $q2->whereNull('direct_supervisor_id')
+                                ->where('manager_id', $me->id);
                          });
                 });
             });
@@ -92,10 +116,6 @@ class ApprovalController extends Controller
     public function master(Request $request)
     {
         $me = auth()->user();
-
-        if (!in_array($me->role, [UserRole::MANAGER, UserRole::SUPERVISOR, UserRole::HRD])) {
-            abort(403, 'Anda tidak memiliki akses ini.');
-        }
 
         $query = LeaveRequest::with(['user.profile.pt', 'user.division', 'user.position'])
             ->orderByDesc('created_at')
@@ -179,7 +199,8 @@ class ApprovalController extends Controller
     // =====================================================================
 
     /**
-     * [Supervisor/Manager] ACK — set status ke PENDING_HR + supervisor_ack_at.
+     * [Supervisor/Manager] ACK — Mengetahui & teruskan ke HRD.
+     * Hanya untuk status PENDING_SUPERVISOR.
      */
     public function ack(Request $request, LeaveRequest $leave)
     {
@@ -193,9 +214,42 @@ class ApprovalController extends Controller
             return redirect()->route('approval.index')->with('error', 'Status pengajuan tidak valid atau sudah berubah.');
         }
 
+        $applicantRole = $leave->user->role instanceof UserRole ? $leave->user->role->value : $leave->user->role;
+        $isHRD = in_array(strtoupper((string) $applicantRole), ['HRD', 'HR MANAGER']);
+
+        // [ADJUSTMENT] HRD Applicant: ACK = Final Approval (langsung APPROVED, tidak ke HR inbox)
+        if ($isHRD) {
+            DB::transaction(function () use ($leave, $me, $request) {
+                $this->leaveBalanceService->deductLeaveBalanceForLeave($leave);
+
+                $currentNotes = $leave->notes;
+                $systemNote = "[System] Disetujui oleh Atasan (" . $me->name . ") pada " . now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes . "\n" . $systemNote : $systemNote;
+
+                $leave->update([
+                    'status'            => LeaveRequest::STATUS_APPROVED,
+                    'supervisor_ack_at' => now(),
+                    'approved_by'       => $me->id,
+                    'approved_at'       => now(),
+                    'notes'             => ($request->notes ? $request->notes . "\n" : '') . $systemNote,
+                ]);
+
+                $this->deleteDuplicateLeaveRequests($leave);
+            });
+
+            return redirect()->route('approval.index')->with('success', 'Pengajuan HRD telah disetujui sepenuhnya.');
+        }
+
+        $currentNotes = $leave->notes;
+        $systemNote = "[System] Diketahui oleh Atasan (" . $me->name . ") pada " . now()->format('d M Y H:i');
+        $newNotes = $currentNotes ? $currentNotes . "\n" . $systemNote : $systemNote;
+
         $leave->update([
             'status'             => LeaveRequest::PENDING_HR,
             'supervisor_ack_at'  => now(),
+            'approved_by'        => $me->id,
+            'approved_at'        => now(),
+            'notes'              => $newNotes,
         ]);
 
         return redirect()->route('approval.index')->with('success', 'Pengajuan telah diketahui dan diteruskan ke HR.');
@@ -274,11 +328,15 @@ class ApprovalController extends Controller
             return redirect()->route('approval.index')->with('success', 'Pengajuan HRD telah disetujui sepenuhnya (Auto-Approved).');
         }
 
+        $currentNotes = $leave->notes;
+        $systemNote = "[System] Disetujui oleh Atasan (" . $me->name . ") pada " . now()->format('d M Y H:i');
+        $newNotes = $currentNotes ? $currentNotes . "\n" . $systemNote : $systemNote;
+
         $leave->update([
             'status'      => LeaveRequest::PENDING_HR,
             'approved_by' => $me->id,
             'approved_at' => now(),
-            'notes'       => $request->notes,
+            'notes'       => ($request->notes ? $request->notes . "\n" : '') . $systemNote,
         ]);
 
         return redirect()->route('approval.index')->with('success', 'Pengajuan disetujui. Menunggu verifikasi HRD.');
@@ -416,9 +474,10 @@ class ApprovalController extends Controller
     }
 
     /**
-     * Hak Approve (STRICT):
-     * - direct_supervisor_id = me → SELALU bisa approve
-     * - manager_id = me AND direct_supervisor_id = NULL → bisa approve
+     * Hak Acknowledge (STRICT):
+     * - direct_supervisor_id = me → SELALU bisa ack
+     * - direct_supervisor_id is null AND manager_id = me AND current user role is MANAGER → bisa ack
+     * - Jika keduanya ada, hanya direct_supervisor_id yang boleh ack
      */
     private function checkIsAuthorizedApprover($applicant, $me): bool
     {
@@ -426,7 +485,7 @@ class ApprovalController extends Controller
             return true;
         }
 
-        if ((int) $applicant->manager_id === (int) $me->id && empty($applicant->direct_supervisor_id)) {
+        if (empty($applicant->direct_supervisor_id) && (int) $applicant->manager_id === (int) $me->id) {
             return true;
         }
 
@@ -435,8 +494,10 @@ class ApprovalController extends Controller
 
     /**
      * Hak Lihat (LOOSE):
-     * - atasan langsung
-     * - manager dari staff tersebut
+     * - atasan langsung (direct_supervisor_id = me)
+     * - manager dari staff tersebut (manager_id = me)
+     * Manager boleh melihat meskipun direct_supervisor_id exists,
+     * tetapi tidak boleh melakukan ack.
      */
     private function checkCanView($applicant, $me): bool
     {
@@ -444,7 +505,7 @@ class ApprovalController extends Controller
             return true;
         }
 
-        if ($applicant->manager_id === $me->id) {
+        if ((int) $applicant->manager_id === (int) $me->id) {
             return true;
         }
 

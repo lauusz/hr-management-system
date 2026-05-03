@@ -156,7 +156,6 @@ class LeaveRequestController extends Controller
             'longitude'  => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy_m' => ['nullable', 'numeric', 'min:0', 'max:5000'],
             'location_captured_at' => ['nullable', 'date'],
-            'manager_id' => ['nullable', 'exists:users,id'],
             'substitute_pic' => ['nullable', 'string', 'max:255', Rule::requiredIf(fn() => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
             'substitute_phone' => ['nullable', 'string', 'max:50', Rule::requiredIf(fn() => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
             'special_leave_detail' => ['nullable', 'string', Rule::requiredIf(fn() => $request->type === LeaveType::CUTI_KHUSUS->value)],
@@ -235,43 +234,60 @@ class LeaveRequestController extends Controller
             $photoBasename = basename($fullPath);
         }
 
-        $inputApproverId = $request->input('manager_id');
-        $roleStr = $this->getRoleString($user);
+        // =====================================================================
+        // ROLE-BASED INITIAL STATUS
+        // =====================================================================
+        // Flow approval berbeda tergantung role pemohon:
+        // - EMPLOYEE  : SPV ack (jika ada ds/mg) → HR final
+        // - SUPERVISOR: Manager ack (jika ada mg) → HR final
+        // - MANAGER   : Langsung ke HR (HANYA HRD boleh approve)
+        // - HR_STAFF  : Langsung ke HR (HANYA HRD boleh approve)
+        // - HRD       : Manager ack (jika ada mg) → APPROVED, atau ke HR inbox
+        // =====================================================================
+
+        $applicantRole = $this->getRoleString($user);
+        $hasValidSupervisor = !empty($user->direct_supervisor_id);
+        $hasValidManager = false;
+        if (!empty($user->manager_id)) {
+            $hasValidManager = User::where('id', $user->manager_id)->exists();
+        }
+
         $initialStatus = LeaveRequest::PENDING_HR;
 
-        // =====================================================================
-        // UNIFIED FLOW: Semua user (EMPLOYEE, SUPERVISOR, HR_STAFF, HRD)
-        // 1. Jika ada direct_supervisor_id → PENDING_SUPERVISOR (ke supervisor)
-        // 2. Jika tidak ada supervisor tapi ada manager_id → PENDING_SUPERVISOR (ke manager)
-        // 3. Jika tidak ada supervisor dan tidak ada manager → PENDING_HR (langsung ke HRD)
-        //
-        // SPECIAL CASE: HRD dengan position "MANAGER HRD" + ada manager
-        // → Manager adalah final approver (tidak perlu ke HRD setelah manager approve)
-        // =====================================================================
+        switch ($applicantRole) {
+            case 'EMPLOYEE':
+                // SPV atau Manager mengetahui (jika ada), lalu HR final
+                if ($hasValidSupervisor || $hasValidManager) {
+                    $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
+                }
+                break;
 
-        if ($roleStr === 'EMPLOYEE') {
-            if (!empty($inputApproverId)) {
-                $user->update(['direct_supervisor_id' => $inputApproverId]);
-            }
-            if (!empty($user->direct_supervisor_id)) {
-                $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
-            }
-        } elseif ($roleStr === 'SUPERVISOR' || $roleStr === 'HR STAFF') {
-            // SUPERVISOR dan HR_STAFF menggunakan manager_id
-            if (!empty($inputApproverId)) {
-                $user->update(['manager_id' => $inputApproverId]);
-            }
-            if (!empty($user->manager_id)) {
-                $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
-            }
-        } elseif ($roleStr === 'HRD') {
-            // HRD menggunakan manager_id
-            if (!empty($inputApproverId)) {
-                $user->update(['manager_id' => $inputApproverId]);
-            }
-            if (!empty($user->manager_id)) {
-                $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
-            }
+            case 'SUPERVISOR':
+                // Manager mengetahui (jika ada), lalu HR final
+                if ($hasValidManager) {
+                    $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
+                }
+                break;
+
+            case 'MANAGER':
+                // Langsung ke HR inbox
+                $initialStatus = LeaveRequest::PENDING_HR;
+                break;
+
+            case 'HR_STAFF':
+                // Langsung ke HR inbox (HANYA HRD boleh approve)
+                $initialStatus = LeaveRequest::PENDING_HR;
+                break;
+
+            case 'HRD':
+                // Manager_id approve langsung (jika ada), atau ke HR inbox
+                if ($hasValidManager) {
+                    $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
+                }
+                break;
+
+            default:
+                $initialStatus = LeaveRequest::PENDING_HR;
         }
 
         LeaveRequest::create([
@@ -432,26 +448,6 @@ class LeaveRequestController extends Controller
         if (!$user) return false;
         if (method_exists($user, 'isSupervisor')) return $user->isSupervisor();
         return $this->getRoleString($user) === 'SUPERVISOR';
-    }
-
-    /**
-     * Cek apakah user adalah HRD dengan position "MANAGER HRD"
-     * Special case: Jika HRD ini punya manager, maka manager adalah final approver
-     * (tidak perlu PENDING_HR setelah manager approve)
-     */
-    private function isManagerHrdSpecialCase(User $user): bool
-    {
-        $roleStr = $this->getRoleString($user);
-        if ($roleStr !== 'HRD') {
-            return false;
-        }
-
-        // Check position name - need to load position relation
-        $user->load('position');
-        $positionName = $user->position?->name ?? '';
-        $isManagerHrdPosition = strtoupper(trim($positionName)) === 'MANAGER HRD';
-
-        return $isManagerHrdPosition && !empty($user->manager_id);
     }
 
     private function offSpvMonthlyLimitByMonth(Carbon $monthStart): int
