@@ -42,7 +42,7 @@ class HrLeaveController extends Controller
 
         $today = Carbon::today();
 
-        $leaves = LeaveRequest::withoutGlobalScopes()
+        $baseQuery = LeaveRequest::withoutGlobalScopes()
             ->with([
                 'user.division',
                 'user.position',
@@ -50,23 +50,69 @@ class HrLeaveController extends Controller
             ])
             ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR]);
 
-        // Filter: Pengajuan yang dilakukan hari ini (created_at = today)
+        // Determine active filter with backward compatibility for old query params
+        $activeFilter = 'all';
         if ($request->boolean('submitted_today')) {
-            $leaves->whereDate('created_at', $today);
+            $activeFilter = 'submitted_today';
+        } elseif ($request->boolean('period_today')) {
+            $activeFilter = 'period_today';
+        } elseif ($request->filled('filter')) {
+            $allowedFilters = ['all', 'submitted_today', 'period_today', 'pending_hr', 'pending_supervisor'];
+            $filter = $request->query('filter');
+            if (in_array($filter, $allowedFilters, true)) {
+                $activeFilter = $filter;
+            }
         }
 
-        // Filter: Periode izin yang diajukan mencakup hari ini (start_date <= today AND end_date >= today)
-        if ($request->boolean('period_today')) {
-            $leaves->whereDate('start_date', '<=', $today)
-                   ->whereDate('end_date', '>=', $today);
+        // Compute stable counts from cloned base queries (unfiltered)
+        $totalCount = (clone $baseQuery)->count();
+        $submittedTodayCount = (clone $baseQuery)->whereDate('created_at', $today)->count();
+        $periodTodayCount = (clone $baseQuery)->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)->count();
+        $pendingHrCount = (clone $baseQuery)->where('status', LeaveRequest::PENDING_HR)->count();
+        $pendingSupervisorCount = (clone $baseQuery)->where('status', LeaveRequest::PENDING_SUPERVISOR)->count();
+
+        // Stable supervisor breakdown for stat card
+        $pendingSupervisorBreakdown = (clone $baseQuery)
+            ->where('status', LeaveRequest::PENDING_SUPERVISOR)
+            ->with(['user.directSupervisor', 'user.manager'])
+            ->get()
+            ->groupBy(fn($lv) => ($lv->user->directSupervisor?->name ?? $lv->user->manager?->name) ?? 'Tanpa Atasan')
+            ->sortByDesc(fn($group) => $group->count());
+
+        // Apply selected filter only to the main list query
+        $leaves = clone $baseQuery;
+
+        switch ($activeFilter) {
+            case 'submitted_today':
+                $leaves->whereDate('created_at', $today);
+                break;
+            case 'period_today':
+                $leaves->whereDate('start_date', '<=', $today)
+                       ->whereDate('end_date', '>=', $today);
+                break;
+            case 'pending_hr':
+                $leaves->where('status', LeaveRequest::PENDING_HR);
+                break;
+            case 'pending_supervisor':
+                $leaves->where('status', LeaveRequest::PENDING_SUPERVISOR);
+                break;
         }
 
-        $leaves = $leaves->orderByDesc('created_at')->paginate(100);
+        $leaves = $leaves->orderByDesc('created_at')->paginate(100)->appends(['filter' => $activeFilter]);
 
         return view('hr.leave_requests.index', [
             'leaves' => $leaves,
-            'submittedToday' => $request->boolean('submitted_today'),
-            'periodToday' => $request->boolean('period_today'),
+            'activeFilter' => $activeFilter,
+            'totalCount' => $totalCount,
+            'submittedTodayCount' => $submittedTodayCount,
+            'periodTodayCount' => $periodTodayCount,
+            'pendingHrCount' => $pendingHrCount,
+            'pendingSupervisorCount' => $pendingSupervisorCount,
+            'pendingSupervisorBreakdown' => $pendingSupervisorBreakdown,
+            // Backward compatibility for any view references
+            'submittedToday' => $activeFilter === 'submitted_today',
+            'periodToday' => $activeFilter === 'period_today',
         ]);
     }
 

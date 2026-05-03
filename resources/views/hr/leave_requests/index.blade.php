@@ -43,7 +43,7 @@
                 </svg>
             </div>
             <div class="hr-stat-content">
-                <div class="hr-stat-value">{{ $leaves->total() }}</div>
+                <div class="hr-stat-value">{{ $totalCount }}</div>
                 <div class="hr-stat-label">Total Pengajuan</div>
             </div>
         </div>
@@ -55,15 +55,11 @@
                 </svg>
             </div>
             <div class="hr-stat-content">
-                <div class="hr-stat-value">{{ $leaves->where('status', \App\Models\LeaveRequest::PENDING_HR)->count() }}</div>
+                <div class="hr-stat-value">{{ $pendingHrCount }}</div>
                 <div class="hr-stat-label">Menunggu HRD</div>
             </div>
         </div>
 
-        @php
-            $pendingSupervisorLeaves = $leaves->where('status', \App\Models\LeaveRequest::PENDING_SUPERVISOR);
-            $bySupervisor = $pendingSupervisorLeaves->groupBy(fn($lv) => ($lv->user->directSupervisor?->name ?? $lv->user->manager?->name) ?? 'Tanpa Atasan')->sortByDesc(fn($group) => $group->count());
-        @endphp
         <div class="hr-stat-card">
             <div class="hr-stat-icon hr-stat-icon--supervisor">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,16 +67,16 @@
                 </svg>
             </div>
             <div class="hr-stat-content">
-                <div class="hr-stat-value">{{ $pendingSupervisorLeaves->count() }}</div>
+                <div class="hr-stat-value">{{ $pendingSupervisorCount }}</div>
                 <div class="hr-stat-label">Menunggu Atasan</div>
-                @foreach($bySupervisor->take(3) as $supName => $group)
+                @foreach($pendingSupervisorBreakdown->take(3) as $supName => $group)
                 <div class="hr-stat-row">
                     <span class="hr-stat-row-name">{{ $supName }}</span>
                     <span class="hr-stat-row-count">{{ $group->count() }}</span>
                 </div>
                 @endforeach
-                @if($bySupervisor->count() > 3)
-                <div class="hr-stat-row-more">+{{ $bySupervisor->count() - 3 }} atasan lainnya</div>
+                @if($pendingSupervisorBreakdown->count() > 3)
+                <div class="hr-stat-row-more">+{{ $pendingSupervisorBreakdown->count() - 3 }} atasan lainnya</div>
                 @endif
             </div>
         </div>
@@ -88,26 +84,26 @@
 
     {{-- FILTER TABS --}}
     <div class="hr-tabs">
-        <button class="hr-tab {{ !$submittedToday && !$periodToday ? 'active' : '' }}" data-filter="all" data-url="{{ route('hr.leave.index') }}">
+        <a href="{{ route('hr.leave.index') }}" class="hr-tab {{ $activeFilter === 'all' ? 'active' : '' }}">
             Semua
-            <span class="hr-tab-count">{{ $leaves->total() }}</span>
-        </button>
-        <button class="hr-tab {{ $submittedToday ? 'active' : '' }}" data-filter="submitted_today" data-url="{{ route('hr.leave.index', ['submitted_today' => 1]) }}">
+            <span class="hr-tab-count">{{ $totalCount }}</span>
+        </a>
+        <a href="{{ route('hr.leave.index', ['filter' => 'submitted_today']) }}" class="hr-tab {{ $activeFilter === 'submitted_today' ? 'active' : '' }}">
             Diajukan Hari Ini
-            <span class="hr-tab-count">{{ $leaves->total() }}</span>
-        </button>
-        <button class="hr-tab {{ $periodToday ? 'active' : '' }}" data-filter="period_today" data-url="{{ route('hr.leave.index', ['period_today' => 1]) }}">
+            <span class="hr-tab-count">{{ $submittedTodayCount }}</span>
+        </a>
+        <a href="{{ route('hr.leave.index', ['filter' => 'period_today']) }}" class="hr-tab {{ $activeFilter === 'period_today' ? 'active' : '' }}">
             Periode Izin Hari Ini
-            <span class="hr-tab-count">{{ $leaves->total() }}</span>
-        </button>
-        <button class="hr-tab" data-filter="PENDING_HR">
+            <span class="hr-tab-count">{{ $periodTodayCount }}</span>
+        </a>
+        <a href="{{ route('hr.leave.index', ['filter' => 'pending_hr']) }}" class="hr-tab {{ $activeFilter === 'pending_hr' ? 'active' : '' }}">
             Menunggu HRD
-            <span class="hr-tab-count">{{ $leaves->where('status', \App\Models\LeaveRequest::PENDING_HR)->count() }}</span>
-        </button>
-        <button class="hr-tab" data-filter="PENDING_SUPERVISOR">
+            <span class="hr-tab-count">{{ $pendingHrCount }}</span>
+        </a>
+        <a href="{{ route('hr.leave.index', ['filter' => 'pending_supervisor']) }}" class="hr-tab {{ $activeFilter === 'pending_supervisor' ? 'active' : '' }}">
             Menunggu Atasan
-            <span class="hr-tab-count">{{ $leaves->where('status', \App\Models\LeaveRequest::PENDING_SUPERVISOR)->count() }}</span>
-        </button>
+            <span class="hr-tab-count">{{ $pendingSupervisorCount }}</span>
+        </a>
     </div>
 
     {{-- REQUEST LIST --}}
@@ -468,6 +464,7 @@
             transition: all 0.2s ease;
             font-family: inherit;
             flex-shrink: 0;
+            text-decoration: none;
         }
         .hr-tab:hover {
             border-color: var(--primary, #145DA0);
@@ -814,46 +811,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Filter tabs functionality
-            const tabBtns = document.querySelectorAll('.hr-tab');
-
-            tabBtns.forEach(function(btn) {
-                btn.addEventListener('click', function(e) {
-                    const url = this.dataset.url;
-                    if (url) {
-                        window.location.href = url;
-                    } else {
-                        // Handle status filter (non-URL filters)
-                        const filter = this.dataset.filter;
-                        const listItems = document.querySelectorAll('.apv-card');
-
-                        // Update active tab
-                        tabBtns.forEach(function(b) {
-                            if (!b.dataset.url) b.classList.remove('active');
-                        });
-                        this.classList.add('active');
-
-                        // Also deactivate URL-based tabs
-                        tabBtns.forEach(function(b) {
-                            if (b.dataset.url) b.classList.remove('active');
-                        });
-
-                        // Filter items
-                        listItems.forEach(function(item) {
-                            if (filter === 'all') {
-                                item.style.display = '';
-                            } else {
-                                if (item.dataset.status === filter) {
-                                    item.style.display = '';
-                                } else {
-                                    item.style.display = 'none';
-                                }
-                            }
-                        });
-                    }
-                });
-            });
-
             // pageshow handler for back navigation
             window.addEventListener('pageshow', function(event) {
                 var shouldRefresh = sessionStorage.getItem('hrLeaveForceRefreshOnBack') === '1';
