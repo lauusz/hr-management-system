@@ -17,7 +17,7 @@ class HrOvertimeController extends Controller
         $overtimes = OvertimeRequest::where('status', OvertimeRequest::STATUS_APPROVED_SUPERVISOR)
             ->with(['user.profile.pt', 'user.division', 'supervisorApprover'])
             ->orderByDesc('created_at')
-            ->paginate(100);
+            ->paginate(20);
 
         return view('hr.overtime_requests.index', compact('overtimes'));
     }
@@ -84,7 +84,7 @@ class HrOvertimeController extends Controller
             }
         }
 
-        $overtimes = $query->paginate(100)->withQueryString();
+        $overtimes = $query->paginate(20)->withQueryString();
 
         // Data untuk Filter UI
         $statusOptions = [

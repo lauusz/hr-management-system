@@ -10,7 +10,7 @@ class PtController extends Controller
 {
      public function index()
     {
-        $items = Pt::orderBy('name')->paginate(50);
+        $items = Pt::orderBy('name')->paginate(20);
 
         return view('hr.pts.index', [
             'items' => $items,

@@ -15,7 +15,7 @@ class PositionController extends Controller
         $positions = Position::with('division')
             ->orderBy('division_id')
             ->orderBy('name')
-            ->paginate(100);
+            ->paginate(20);
 
         $divisions = Division::orderBy('name')->get();
 

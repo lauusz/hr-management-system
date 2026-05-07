@@ -19,7 +19,7 @@ class OvertimeRequestController extends Controller
         
         $overtimes = OvertimeRequest::where('user_id', $userId)
             ->orderByDesc('created_at')
-            ->paginate(100);
+            ->paginate(20);
 
         return view('overtime_requests.index', compact('overtimes'));
     }

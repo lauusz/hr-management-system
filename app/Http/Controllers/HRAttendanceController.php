@@ -58,7 +58,7 @@ class HRAttendanceController extends Controller
             });
         }
 
-        $items = $query->paginate(100)->appends([
+        $items = $query->paginate(20)->appends([
             'date_start' => $dateStart,
             'date_end'   => $dateEnd,
             'status'     => $status,

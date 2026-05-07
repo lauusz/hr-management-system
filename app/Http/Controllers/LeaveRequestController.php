@@ -69,7 +69,7 @@ class LeaveRequestController extends Controller
             }
         }
 
-        $items = $query->paginate(100)->appends([
+        $items = $query->paginate(20)->appends([
             'type'            => $typeFilter,
             'submitted_range' => $submittedRange,
         ]);

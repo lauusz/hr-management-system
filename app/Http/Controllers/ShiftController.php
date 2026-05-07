@@ -12,7 +12,7 @@ class ShiftController extends Controller
     {
         $items = Shift::withCount('days')
             ->orderBy('name')
-            ->paginate(100);
+            ->paginate(20);
 
         return view('hr.shifts.index', compact('items'));
     }

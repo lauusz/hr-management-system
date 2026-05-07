@@ -105,7 +105,7 @@ class ApprovalController extends Controller
                 });
             })
             ->orderByDesc('id')
-            ->paginate(100);
+            ->paginate(20);
 
         return view('supervisor.leave_requests.index', compact('leaves'));
     }

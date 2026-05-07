@@ -47,7 +47,7 @@ class EmployeeLoanRequestController extends Controller
             'notes' => ['nullable', 'string'],
             'disbursement_date' => ['nullable', 'date'],
             'payment_method' => ['required', 'in:TUNAI,CICILAN,POTONG_GAJI'],
-            'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:2048'],
+            'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt', 'max:8192'],
         ]);
 
         $user = Auth::user()->load([

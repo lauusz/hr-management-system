@@ -75,7 +75,7 @@ class SupervisorOvertimeController extends Controller
             })
             ->with(['user.profile.pt', 'user.division'])
             ->orderByDesc('created_at')
-            ->paginate(100);
+            ->paginate(20);
 
         // Ambil daftar bawahan langsung (supervisor atau manager)
         $subordinates = \App\Models\User::where('direct_supervisor_id', $me->id)

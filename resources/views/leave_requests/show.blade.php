@@ -190,6 +190,7 @@
                             'DEATH_HOUSE'      => 'Kematian Anggota Rumah (1 Hari)',
                             'HAJI'             => 'Ibadah Haji (40 Hari)',
                             'UMROH'            => 'Ibadah Umroh (14 Hari)',
+                            'CUTI_MELAHIRKAN'  => 'Cuti Melahirkan (90 Hari)',
                         ];
                         $catLabel = $catMap[$item->special_leave_category] ?? $item->special_leave_category;
                     @endphp
@@ -396,6 +397,15 @@
             $url = $item->photo
                 ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
                 : null;
+
+            $docUrl = null;
+            $isImageDoc = false;
+            if ($item->photo) {
+                $docUrl = asset('storage/leave_photos/' . ltrim($item->photo, '/'));
+                $docExt = strtolower(pathinfo($item->photo, PATHINFO_EXTENSION));
+                $isImageDoc = in_array($docExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
+            }
+
             $authUser = auth()->user();
             $authRole = $authUser->role instanceof \App\Enums\UserRole ? $authUser->role->value : $authUser->role;
             $isHrdUploader = in_array(strtoupper((string) $authRole), ['HRD', 'HR STAFF', 'MANAGER'], true);
@@ -413,7 +423,8 @@
             </div>
 
             @if($url)
-                <div class="lrs-photo-card js-view-photo" data-url="{{ $url }}">
+                @if($isImageDoc)
+                <div class="lrs-photo-card" onclick="openDocModal()" style="cursor:pointer;">
                     <img src="{{ $url }}" alt="Bukti Izin" loading="lazy">
                     <div class="lrs-photo-overlay">
                         <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24">
@@ -423,6 +434,17 @@
                         <span>Lihat Full Screen</span>
                     </div>
                 </div>
+                @else
+                <a href="{{ $docUrl }}" target="_blank" class="lrs-photo-card" style="text-decoration:none;">
+                    <img src="{{ $url }}" alt="Bukti Izin" loading="lazy">
+                    <div class="lrs-photo-overlay">
+                        <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                        <span>Buka File</span>
+                    </div>
+                </a>
+                @endif
             @else
                 <div class="lrs-empty-photo">
                     <div class="lrs-empty-photo-icon">
@@ -510,16 +532,39 @@
     </div>
 
     {{-- ============================================== --}}
-    {{-- FULL SCREEN PHOTO VIEWER                       --}}
+    {{-- FIXED PREVIEW MODAL (ENHANCED)                 --}}
     {{-- ============================================== --}}
-    <div id="simple-viewer" class="lrs-viewer" style="display: none;">
-        <button type="button" id="btn-close-simple" class="lrs-viewer-close">
-            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    @if($isImageDoc)
+    <div id="docModal" class="doc-modal" onclick="closeDocModal(event)">
+        <div class="doc-modal-backdrop"></div>
+
+        {{-- Toolbar --}}
+        <div class="doc-modal-toolbar">
+            <button type="button" class="doc-tb-btn" onclick="zoomDoc(-0.25)" aria-label="Perkecil gambar">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <span id="docZoomPct" class="doc-tb-pct">100%</span>
+            <button type="button" class="doc-tb-btn" onclick="zoomDoc(0.25)" aria-label="Perbesar gambar">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button type="button" class="doc-tb-btn" onclick="resetDocZoom()" aria-label="Reset zoom">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </button>
+        </div>
+
+        {{-- Close button --}}
+        <button type="button" class="doc-modal-close" onclick="closeDocModal()" aria-label="Tutup preview">
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
         </button>
-        <img id="simple-viewer-img" src="" alt="Full Preview">
+
+        {{-- Viewer --}}
+        <div class="doc-modal-viewer">
+            <img id="docModalImage" src="{{ $docUrl }}" alt="Bukti Izin" class="doc-modal-img" draggable="false">
+        </div>
     </div>
+    @endif
 
     {{-- ============================================== --}}
     {{-- CANCEL MODAL                                   --}}
@@ -548,34 +593,170 @@
     {{-- ============================================== --}}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const viewer = document.getElementById('simple-viewer');
-            const viewerImg = document.getElementById('simple-viewer-img');
-            const closeBtn = document.getElementById('btn-close-simple');
+            // --- Fixed Preview Modal (Enhanced) ---
+            @if($isImageDoc)
+            (function() {
+                const MIN_ZOOM = 0.5;
+                const MAX_ZOOM = 4;
+                const ZOOM_STEP = 0.25;
+
+                let docZoom = 1;
+                let docPanX = 0;
+                let docPanY = 0;
+                let isDragging = false;
+                let dragStartX = 0;
+                let dragStartY = 0;
+                let panStartX = 0;
+                let panStartY = 0;
+
+                const modal = document.getElementById('docModal');
+                const viewer = modal.querySelector('.doc-modal-viewer');
+                const img = document.getElementById('docModalImage');
+                const pctEl = document.getElementById('docZoomPct');
+
+                function updateDocTransform() {
+                    img.style.transform = 'translate(' + docPanX + 'px, ' + docPanY + 'px) scale(' + docZoom + ')';
+                    if (pctEl) pctEl.textContent = Math.round(docZoom * 100) + '%';
+                    updateCursor();
+                }
+
+                function updateCursor() {
+                    viewer.classList.remove('is-grab', 'is-grabbing');
+                    if (docZoom > 1) {
+                        viewer.classList.add(isDragging ? 'is-grabbing' : 'is-grab');
+                    }
+                }
+
+                window.zoomDoc = function(delta) {
+                    let newZoom = Math.round((docZoom + delta) / ZOOM_STEP) * ZOOM_STEP;
+                    newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+                    if (newZoom === docZoom) return;
+                    docZoom = newZoom;
+                    if (docZoom <= 1) {
+                        docPanX = 0;
+                        docPanY = 0;
+                    }
+                    updateDocTransform();
+                };
+
+                window.resetDocZoom = function() {
+                    docZoom = 1;
+                    docPanX = 0;
+                    docPanY = 0;
+                    isDragging = false;
+                    updateDocTransform();
+                };
+
+                window.openDocModal = function() {
+                    modal.classList.add('is-open');
+                    document.body.style.overflow = 'hidden';
+                    window.resetDocZoom();
+                };
+
+                window.closeDocModal = function(e) {
+                    if (e && e.type === 'click') {
+                        if (!(e.target.classList.contains('doc-modal') || e.target.classList.contains('doc-modal-backdrop'))) {
+                            return;
+                        }
+                    }
+                    modal.classList.remove('is-open');
+                    document.body.style.overflow = '';
+                    window.resetDocZoom();
+                };
+
+                viewer.addEventListener('mousedown', function(e) {
+                    if (e.button !== 0) return;
+                    if (docZoom <= 1) return;
+                    isDragging = true;
+                    dragStartX = e.clientX;
+                    dragStartY = e.clientY;
+                    panStartX = docPanX;
+                    panStartY = docPanY;
+                    updateCursor();
+                    e.preventDefault();
+                });
+
+                window.addEventListener('mousemove', function(e) {
+                    if (!isDragging) return;
+                    docPanX = panStartX + (e.clientX - dragStartX);
+                    docPanY = panStartY + (e.clientY - dragStartY);
+                    updateDocTransform();
+                });
+
+                window.addEventListener('mouseup', function() {
+                    if (!isDragging) return;
+                    isDragging = false;
+                    updateCursor();
+                });
+
+                viewer.addEventListener('touchstart', function(e) {
+                    if (docZoom <= 1) return;
+                    if (e.touches.length !== 1) return;
+                    isDragging = true;
+                    dragStartX = e.touches[0].clientX;
+                    dragStartY = e.touches[0].clientY;
+                    panStartX = docPanX;
+                    panStartY = docPanY;
+                    updateCursor();
+                }, { passive: false });
+
+                viewer.addEventListener('touchmove', function(e) {
+                    if (!isDragging || e.touches.length !== 1) return;
+                    e.preventDefault();
+                    docPanX = panStartX + (e.touches[0].clientX - dragStartX);
+                    docPanY = panStartY + (e.touches[0].clientY - dragStartY);
+                    updateDocTransform();
+                }, { passive: false });
+
+                viewer.addEventListener('touchend', function() {
+                    isDragging = false;
+                    updateCursor();
+                });
+
+                viewer.addEventListener('wheel', function(e) {
+                    e.preventDefault();
+                    if (e.deltaY < 0) {
+                        window.zoomDoc(ZOOM_STEP);
+                    } else {
+                        window.zoomDoc(-ZOOM_STEP);
+                    }
+                }, { passive: false });
+
+                viewer.addEventListener('dblclick', function(e) {
+                    e.preventDefault();
+                    if (docZoom === 1) {
+                        docZoom = 2;
+                    } else {
+                        docZoom = 1;
+                        docPanX = 0;
+                        docPanY = 0;
+                    }
+                    updateDocTransform();
+                });
+
+                document.addEventListener('keydown', function(e) {
+                    if (!modal.classList.contains('is-open')) return;
+                    if (e.key === 'Escape') {
+                        window.closeDocModal();
+                    } else if (e.key === '+' || e.key === '=') {
+                        e.preventDefault();
+                        window.zoomDoc(ZOOM_STEP);
+                    } else if (e.key === '-') {
+                        e.preventDefault();
+                        window.zoomDoc(-ZOOM_STEP);
+                    } else if (e.key === '0') {
+                        e.preventDefault();
+                        window.resetDocZoom();
+                    }
+                });
+            })();
+            @endif
+
+            // --- File Upload Preview (existing) ---
             const followupPhotoInput = document.getElementById('followupPhotoInput');
             const followupUploadBtn = document.getElementById('followupUploadBtn');
             const followupPreviewContainer = document.getElementById('followupPhotoPreviewContainer');
             const followupPreviewImg = document.getElementById('followupPhotoPreview');
-
-            document.querySelectorAll('.js-view-photo').forEach(el => {
-                el.addEventListener('click', () => {
-                    const url = el.getAttribute('data-url');
-                    if (url && viewer && viewerImg) {
-                        viewerImg.src = url;
-                        viewer.style.display = 'flex';
-                        document.body.style.overflow = 'hidden';
-                    }
-                });
-            });
-
-            function closeViewer() {
-                if (viewer) viewer.style.display = 'none';
-                if (viewerImg) viewerImg.src = '';
-                document.body.style.overflow = '';
-            }
-
-            if (closeBtn) closeBtn.addEventListener('click', closeViewer);
-            if (viewer) viewer.addEventListener('click', (e) => { if (e.target === viewer) closeViewer(); });
-            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer && viewer.style.display === 'flex') closeViewer(); });
 
             if (followupPhotoInput && followupUploadBtn) {
                 const toggleUploadButton = () => {
@@ -1324,41 +1505,182 @@
         }
 
         /* ========================================== */
-        /* FULL SCREEN VIEWER                         */
+        /* FIXED PREVIEW MODAL (ENHANCED)             */
         /* ========================================== */
-        .lrs-viewer {
+        .doc-modal {
+            display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.92);
-            z-index: 99999;
-            display: flex;
+            z-index: 9999;
+            width: 100vw;
+            height: 100vh;
             align-items: center;
             justify-content: center;
-            padding: 16px;
+            overflow: hidden;
         }
-        .lrs-viewer-close {
+        .doc-modal.is-open {
+            display: flex;
+        }
+        .doc-modal-backdrop {
             position: absolute;
-            top: 16px;
-            right: 16px;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: var(--white);
-            width: 44px;
-            height: 44px;
+            inset: 0;
+            background: rgba(0,0,0,0.88);
+            backdrop-filter: blur(4px);
+        }
+
+        /* Toolbar */
+        .doc-modal-toolbar {
+            position: fixed;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 11;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px 10px;
+            background: rgba(30, 30, 35, 0.85);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 999px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            user-select: none;
+        }
+        .doc-tb-btn {
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s;
-            z-index: 1;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            flex-shrink: 0;
+            padding: 0;
         }
-        .lrs-viewer-close:hover { background: rgba(255,255,255,0.25); }
-        #simple-viewer-img {
-            max-width: 95vw;
-            max-height: 90vh;
+        .doc-tb-btn:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .doc-tb-btn:active {
+            background: rgba(255,255,255,0.25);
+        }
+        .doc-tb-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+        }
+        .doc-tb-pct {
+            min-width: 44px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.9);
+            font-variant-numeric: tabular-nums;
+            padding: 0 6px;
+            user-select: none;
+        }
+
+        /* Close button */
+        .doc-modal-close {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.25);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 11;
+            flex-shrink: 0;
+            padding: 0;
+        }
+        .doc-modal-close:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+
+        /* Viewer */
+        .doc-modal-viewer {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 56px 8px 8px;
+            box-sizing: border-box;
+            cursor: default;
+        }
+        .doc-modal-viewer.is-grab {
+            cursor: grab;
+        }
+        .doc-modal-viewer.is-grabbing {
+            cursor: grabbing;
+        }
+
+        /* Image */
+        .doc-modal-img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
             object-fit: contain;
             border-radius: 8px;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+            transition: transform 0.15s ease-out;
+            transform-origin: center center;
+            -webkit-user-drag: none;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        /* Desktop refinement */
+        @media (min-width: 768px) {
+            .doc-modal-toolbar {
+                top: 20px;
+                padding: 4px 10px;
+                gap: 3px;
+                background: rgba(28, 28, 32, 0.82);
+                border-color: rgba(255,255,255,0.08);
+                box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+            }
+            .doc-tb-btn {
+                width: 32px;
+                height: 32px;
+            }
+            .doc-tb-btn svg {
+                width: 14px;
+                height: 14px;
+            }
+            .doc-tb-pct {
+                font-size: 12px;
+                min-width: 40px;
+                padding: 0 4px;
+                color: rgba(255,255,255,0.75);
+            }
+            .doc-modal-close {
+                top: 16px;
+                right: 16px;
+                width: 44px;
+                height: 44px;
+            }
+            .doc-modal-viewer {
+                padding: 60px 16px 16px;
+            }
+            .doc-modal-img {
+                border-radius: 10px;
+            }
         }
     </style>
 

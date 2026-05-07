@@ -170,6 +170,7 @@
                             'DEATH_HOUSE'      => 'Kematian Anggota Rumah (1 Hari)',
                             'HAJI'             => 'Ibadah Haji (40 Hari)',
                             'UMROH'            => 'Ibadah Umroh (14 Hari)',
+                            'CUTI_MELAHIRKAN'  => 'Cuti Melahirkan (90 Hari)',
                         ];
                         $catLabel = $catMap[$item->special_leave_category] ?? $item->special_leave_category;
                     @endphp
@@ -353,14 +354,14 @@
             </div>
             @endif
 
-            {{-- Bottom Spacer for Fixed Actions --}}
-            <div class="apv-bottom-spacer"></div>
+
         </div>
     </div>
 
     {{-- Fixed Action Bar --}}
     <div class="apv-action-bar">
-        <div class="apv-action-main">
+        <div class="apv-action-dock">
+            <div class="apv-action-main">
 
             @if($showActionButtons)
                 {{-- Primary action: Acknowledge --}}
@@ -424,6 +425,7 @@
                     </button>
                 </div>
             @endif
+        </div>
         </div>
     </div>
 
@@ -489,6 +491,17 @@
             display: flex;
             flex-direction: column;
             gap: 12px;
+            padding-bottom: 160px;
+        }
+        @media (min-width: 640px) {
+            .apv-detail-page {
+                padding-bottom: 120px;
+            }
+        }
+        @media (min-width: 768px) {
+            .apv-detail-page {
+                padding-bottom: 100px;
+            }
         }
 
         .apv-detail-body {
@@ -988,17 +1001,29 @@
             bottom: 0;
             left: 0;
             right: 0;
+            z-index: 50;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            pointer-events: none;
+            transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        right 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        bottom 0.35s ease;
+        }
+        .apv-action-dock {
             background: var(--white, #FFFFFF);
             border-top: 1px solid var(--border-light, #E5E7EB);
+            border-radius: 18px 18px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
             padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-            z-index: 50;
-            box-shadow: 0 -2px 12px rgba(0,0,0,0.06);
+            pointer-events: auto;
         }
         .apv-action-main {
             display: flex;
             flex-direction: column;
             gap: 8px;
-            max-width: 720px;
+            max-width: 1200px;
             margin: 0 auto;
             width: 100%;
         }
@@ -1093,8 +1118,6 @@
         }
         .apv-status-notice svg { flex-shrink: 0; }
 
-        .apv-bottom-spacer { height: 140px; }
-
         /* ========================================== */
         /* PHOTO VIEWER                               */
         /* ========================================== */
@@ -1156,13 +1179,9 @@
             .apv-action-secondary .apv-action-btn {
                 flex: none;
             }
-            .apv-bottom-spacer { height: 100px; }
         }
 
         @media (min-width: 768px) {
-            .apv-action-bar {
-                padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
-            }
             .apv-action-main {
                 flex-wrap: nowrap;
             }
@@ -1173,7 +1192,24 @@
             .apv-action-secondary {
                 flex: none;
             }
-            .apv-bottom-spacer { height: 90px; }
+        }
+
+        @media (min-width: 1025px) {
+            .apv-action-bar {
+                left: calc(var(--sidebar-width) + 12px);
+                right: 0;
+                bottom: 16px;
+                padding: 0 32px;
+            }
+            .app.sidebar-collapsed .apv-action-bar {
+                left: 0;
+            }
+            .apv-action-dock {
+                border: 1px solid var(--border-light, #E5E7EB);
+                border-radius: 18px;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+                padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+            }
         }
     </style>
 

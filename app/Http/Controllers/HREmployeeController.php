@@ -90,7 +90,7 @@ class HREmployeeController extends Controller
         }
 
         $totalEmployees = (clone $query)->count();
-        $items = $query->paginate(100)->withQueryString();
+        $items = $query->paginate(20)->withQueryString();
 
         $items->getCollection()->transform(function ($user) {
             $profile = $user->profile;

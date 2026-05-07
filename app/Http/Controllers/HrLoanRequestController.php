@@ -6,6 +6,7 @@ use App\Models\LoanRequest;
 use App\Models\LoanRepayment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class HrLoanRequestController extends Controller
 {
@@ -25,9 +26,20 @@ class HrLoanRequestController extends Controller
             $query->whereDate('submitted_at', $request->submitted_at);
         }
 
-        $loans = $query->get();
+        $totalCount = $query->count();
+        $pendingCount = (clone $query)->where('status', 'PENDING_HRD')->count();
+        $approvedCount = (clone $query)->whereIn('status', ['APPROVED', 'LUNAS'])->count();
+        $rejectedCount = (clone $query)->where('status', 'REJECTED')->count();
 
-        return view('hr.loan_requests.index', compact('loans'));
+        $loans = $query->paginate(20)->withQueryString();
+
+        return view('hr.loan_requests.index', compact(
+            'loans',
+            'totalCount',
+            'pendingCount',
+            'approvedCount',
+            'rejectedCount'
+        ));
     }
 
     public function show($id)
@@ -60,9 +72,38 @@ class HrLoanRequestController extends Controller
             'payment_method' => ['required', 'in:TUNAI,CICILAN,POTONG_GAJI'],
             'purpose' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
+            'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt', 'max:8192'],
+            'delete_document' => ['nullable', 'boolean'],
         ]);
 
-        $loan->update($validated);
+        // Handle document deletion or replacement
+        $documentPath = $loan->document_path;
+
+        if ($request->boolean('delete_document')) {
+            if ($documentPath && Storage::disk('public')->exists($documentPath)) {
+                Storage::disk('public')->delete($documentPath);
+            }
+            $documentPath = null;
+        }
+
+        if ($request->hasFile('document')) {
+            // Delete old document if exists
+            if ($loan->document_path && Storage::disk('public')->exists($loan->document_path)) {
+                Storage::disk('public')->delete($loan->document_path);
+            }
+            $documentPath = $request->file('document')->store('loan_documents', 'public');
+        }
+
+        $loan->update([
+            'amount' => $validated['amount'],
+            'monthly_installment' => $validated['monthly_installment'],
+            'repayment_term' => $validated['repayment_term'],
+            'disbursement_date' => $validated['disbursement_date'] ?? null,
+            'payment_method' => $validated['payment_method'],
+            'purpose' => $validated['purpose'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+            'document_path' => $documentPath,
+        ]);
 
         return redirect()
             ->route('hr.loan_requests.show', $loan->id)

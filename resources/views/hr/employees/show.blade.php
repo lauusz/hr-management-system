@@ -1,196 +1,246 @@
 <x-app title="Detail Karyawan">
 
-    <div class="emp-container">
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="section-title">Detail Karyawan</h1>
+                <p class="section-subtitle">Profil dan dokumen karyawan</p>
+            </div>
+        </div>
+    </x-slot>
+
+    @php
+    // Masa Kerja
+    $masaKerjaDisplay = '-';
+    if ($profile && $profile->tgl_bergabung) {
+        $start = \Carbon\Carbon::parse($profile->tgl_bergabung)->startOfDay();
+        $end = $profile->exit_date ? \Carbon\Carbon::parse($profile->exit_date)->startOfDay() : \Carbon\Carbon::today();
+        if ($end->greaterThanOrEqualTo($start)) {
+            $diff = $start->diff($end);
+            $masaKerjaDisplay = ($diff->y > 0 ? $diff->y . ' Thn ' : '') . ($diff->m > 0 ? $diff->m . ' Bln' : '');
+            if(empty($masaKerjaDisplay)) $masaKerjaDisplay = $diff->d . ' Hr';
+        }
+    }
+    // Probation
+    $probationPercent = 0; $isProbation = false;
+    if($profile && $profile->tgl_bergabung && $profile->tgl_akhir_percobaan && $employee->status === 'ACTIVE') {
+        $startP = \Carbon\Carbon::parse($profile->tgl_bergabung);
+        $endP = \Carbon\Carbon::parse($profile->tgl_akhir_percobaan);
+        $now = \Carbon\Carbon::now();
+        if($now->lessThanOrEqualTo($endP)) {
+            $isProbation = true;
+            $totalDays = $startP->diffInDays($endP);
+            $currentDays = $startP->diffInDays($now);
+            $probationPercent = $totalDays > 0 ? round(($currentDays / $totalDays) * 100) : 0;
+        }
+    }
+    @endphp
+
+    <div class="emp-page">
 
         {{-- Flash Messages --}}
         @if(session('success'))
-        <div class="flash flash-success">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
+        <div class="alert alert-success">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span>{{ session('success') }}</span>
+            {{ session('success') }}
         </div>
         @endif
 
         @if($errors->any())
-        <div class="flash flash-error">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <div class="alert alert-error">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10"/>
                 <line x1="12" y1="8" x2="12" y2="12"/>
                 <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <span>{{ $errors->first() }}</span>
+            {{ $errors->first() }}
         </div>
         @endif
 
-        {{-- Header Card --}}
-        <div class="emp-header-card">
-            <div class="emp-header-bg"></div>
-            <div class="emp-header-body">
-                <div class="emp-avatar-wrap">
-                    <div class="emp-avatar">{{ substr($employee->name, 0, 1) }}</div>
-                    <div class="emp-status-dot {{ $employee->status === 'ACTIVE' ? 'active' : 'inactive' }}"></div>
+        {{-- Top Actions --}}
+        <div class="page-header">
+            <button type="button" class="back-btn" onclick="history.back();">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+                <span class="back-btn-text">Kembali</span>
+            </button>
+            <a href="{{ route('hr.employees.edit', $employee->id) }}" class="btn-edit">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit Data
+            </a>
+        </div>
+
+        {{-- Profile Hero Card --}}
+        <div class="profile-card">
+            <div class="profile-card-accent"></div>
+            <div class="profile-card-body">
+                <div class="profile-identity">
+                    <div class="profile-avatar-wrap">
+                        <div class="profile-avatar">{{ substr($employee->name, 0, 1) }}</div>
+                        <div class="profile-status-dot {{ $employee->status === 'ACTIVE' ? 'active' : 'inactive' }}"></div>
+                    </div>
+                    <div class="profile-info">
+                        <div class="profile-name-row">
+                            <h1 class="profile-name">{{ $employee->name }}</h1>
+                            <span class="profile-badge {{ $employee->status === 'ACTIVE' ? 'badge-on' : 'badge-off' }}">
+                                {{ $employee->status === 'ACTIVE' ? 'Aktif' : 'Non-Aktif' }}
+                            </span>
+                        </div>
+                        <p class="profile-role">{{ $employee->position?->name ?? ($profile?->jabatan ?? 'Tanpa Jabatan') }}</p>
+                        <div class="profile-meta">
+                            <span class="profile-meta-item">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                                {{ $employee->division->name ?? '-' }}
+                            </span>
+                            @if($profile && $profile->pt)
+                            <span class="profile-meta-item">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                {{ $profile->pt->name }}
+                            </span>
+                            @endif
+                        </div>
+                    </div>
                 </div>
-                <div class="emp-header-info">
-                    <div class="emp-name-row">
-                        <h1 class="emp-name">{{ $employee->name }}</h1>
-                        <span class="emp-status-badge {{ $employee->status === 'ACTIVE' ? 'badge-on' : 'badge-off' }}">
-                            {{ $employee->status === 'ACTIVE' ? 'Aktif' : 'Non-Aktif' }}
-                        </span>
-                        <span class="emp-leave-badge">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            Sisa Cuti: <strong>{{ rtrim(rtrim(sprintf('%.1f', $employee->leave_balance ?? 0), '0'), '.') }} hari</strong>
-                        </span>
-                    </div>
-                    <p class="emp-role">{{ $employee->position?->name ?? ($profile?->jabatan ?? 'Tanpa Jabatan') }}</p>
-                    <div class="emp-meta-row">
-                        <span class="emp-meta-item">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                            {{ $employee->division->name ?? '-' }}
-                        </span>
-                        @if($profile && $profile->pt)
-                        <span class="emp-meta-item">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                            {{ $profile->pt->name }}
-                        </span>
-                        @endif
-                    </div>
+                <div class="profile-badges">
+                    <span class="profile-leave-badge">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        Sisa Cuti: <strong>{{ rtrim(rtrim(sprintf('%.1f', $employee->leave_balance ?? 0), '0'), '.') }} hari</strong>
+                    </span>
                 </div>
             </div>
         </div>
 
         {{-- Quick Info Strip --}}
-        <div class="emp-quickstrip">
-            <div class="emp-quickitem">
-                <span class="emp-quicklabel">NIK</span>
-                <span class="emp-quickvalue">{{ $profile?->nik ?? '-' }}</span>
+        <div class="quick-strip">
+            <div class="quick-item">
+                <span class="quick-label">NIK</span>
+                <span class="quick-value">{{ $profile?->nik ?? '-' }}</span>
             </div>
-            <div class="emp-quickitem">
-                <span class="emp-quicklabel">Kategori</span>
-                <span class="emp-quickvalue">{{ $profile?->kategori ?? '-' }}</span>
+            <div class="quick-item">
+                <span class="quick-label">Kategori</span>
+                <span class="quick-value">{{ $profile?->kategori ?? '-' }}</span>
             </div>
-            <div class="emp-quickitem">
-                <span class="emp-quicklabel">Bergabung</span>
-                <span class="emp-quickvalue">{{ $profile?->tgl_bergabung ? $profile->tgl_bergabung->translatedFormat('j F Y') : '-' }}</span>
+            <div class="quick-item">
+                <span class="quick-label">Bergabung</span>
+                <span class="quick-value">{{ $profile?->tgl_bergabung ? $profile->tgl_bergabung->translatedFormat('j F Y') : '-' }}</span>
             </div>
         </div>
 
         {{-- Tab Navigation --}}
-        <div class="emp-tabs">
-            <button class="emp-tab-btn active" data-tab="overview">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="overview">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                 Ringkasan
             </button>
-            <button class="emp-tab-btn" data-tab="documents">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <button class="tab-btn" data-tab="documents">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 Dokumen
             </button>
         </div>
 
         {{-- Tab: Overview --}}
-        <div id="tab-overview" class="emp-tab-content active">
-
-            @php
-            // Masa Kerja
-            $masaKerjaDisplay = '-';
-            if ($profile && $profile->tgl_bergabung) {
-                $start = \Carbon\Carbon::parse($profile->tgl_bergabung)->startOfDay();
-                $end = $profile->exit_date ? \Carbon\Carbon::parse($profile->exit_date)->startOfDay() : \Carbon\Carbon::today();
-                if ($end->greaterThanOrEqualTo($start)) {
-                    $diff = $start->diff($end);
-                    $masaKerjaDisplay = ($diff->y > 0 ? $diff->y . ' Thn ' : '') . ($diff->m > 0 ? $diff->m . ' Bln' : '');
-                    if(empty($masaKerjaDisplay)) $masaKerjaDisplay = $diff->d . ' Hr';
-                }
-            }
-            // Probation
-            $probationPercent = 0; $isProbation = false;
-            if($profile && $profile->tgl_bergabung && $profile->tgl_akhir_percobaan && $employee->status === 'ACTIVE') {
-                $startP = \Carbon\Carbon::parse($profile->tgl_bergabung);
-                $endP = \Carbon\Carbon::parse($profile->tgl_akhir_percobaan);
-                $now = \Carbon\Carbon::now();
-                if($now->lessThanOrEqualTo($endP)) {
-                    $isProbation = true;
-                    $totalDays = $startP->diffInDays($endP);
-                    $currentDays = $startP->diffInDays($now);
-                    $probationPercent = $totalDays > 0 ? round(($currentDays / $totalDays) * 100) : 0;
-                }
-            }
-            @endphp
+        <div id="tab-overview" class="tab-panel active">
 
             {{-- Masa Kerja Card --}}
-            <div class="emp-work-card">
-                <div class="emp-work-main">
-                    <div class="emp-work-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <div class="summary-card">
+                <div class="summary-card-main">
+                    <div class="summary-icon">
+                        <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     </div>
-                    <div class="emp-work-info">
-                        <span class="emp-work-label">Masa Kerja</span>
-                        <span class="emp-work-value">{{ $masaKerjaDisplay }}</span>
-                        <span class="emp-work-since">Sejak {{ $profile?->tgl_bergabung ? $profile->tgl_bergabung->translatedFormat('j F Y') : '-' }}</span>
+                    <div class="summary-info">
+                        <span class="summary-label">Masa Kerja</span>
+                        <span class="summary-value">{{ $masaKerjaDisplay }}</span>
+                        <span class="summary-since">Sejak {{ $profile?->tgl_bergabung ? $profile->tgl_bergabung->translatedFormat('j F Y') : '-' }}</span>
                     </div>
                 </div>
                 @if($isProbation)
-                <div class="emp-probation">
-                    <div class="emp-prob-header">
+                <div class="probation-wrap">
+                    <div class="probation-header">
                         <span>Masa Percobaan</span>
                         <span>{{ $probationPercent }}%</span>
                     </div>
-                    <div class="emp-prob-bar">
-                        <div class="emp-prob-fill" style="width: {{ $probationPercent }}%"></div>
+                    <div class="probation-bar">
+                        <div class="probation-fill" style="width: {{ $probationPercent }}%"></div>
                     </div>
-                    <span class="emp-prob-end">Berakhir {{ $profile->tgl_akhir_percobaan->translatedFormat('j F Y') }}</span>
+                    <span class="probation-end">Berakhir {{ $profile->tgl_akhir_percobaan->translatedFormat('j F Y') }}</span>
                 </div>
                 @elseif($employee->status !== 'ACTIVE')
-                <div class="emp-exit-info">
-                    <span class="emp-exit-badge">Keluar {{ $profile?->exit_date ? $profile->exit_date->translatedFormat('j F Y') : '-' }}</span>
-                    <span class="emp-exit-reason">Alasan: {{ $profile?->exit_reason_code ?? '-' }}</span>
+                <div class="exit-wrap">
+                    <span class="exit-badge">Keluar {{ $profile?->exit_date ? $profile->exit_date->translatedFormat('j F Y') : '-' }}</span>
+                    <span class="exit-reason">Alasan: {{ $profile?->exit_reason_code ?? '-' }}</span>
                 </div>
                 @endif
             </div>
 
             {{-- Info Grid --}}
-            <div class="emp-info-grid">
+            <div class="info-grid">
 
-                {{-- Col 1: Data Pribadi --}}
-                <div class="emp-info-section">
-                    <div class="emp-section-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                        Identitas Diri
+                {{-- Identitas Diri --}}
+                <div class="info-section">
+                    <div class="info-section-header">
+                        <div class="info-section-icon">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <span>Identitas Diri</span>
                     </div>
-                    <div class="emp-data-list">
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Tempat, Tgl Lahir</span>
-                            <span class="emp-data-value">{{ $profile?->tempat_lahir ?? '-' }}{{ $profile?->tempat_lahir && $profile?->tgl_lahir ? ', ' : '' }}{{ $profile?->tgl_lahir ? $profile->tgl_lahir->translatedFormat('j F Y') : '-' }}</span>
+                    <div class="data-list">
+                        <div class="data-item">
+                            <span class="data-label">Tempat, Tgl Lahir</span>
+                            <span class="data-value">
+                                @php
+                                    $tl = $profile?->tempat_lahir ?? '';
+                                    $tgl = $profile?->tgl_lahir ? $profile->tgl_lahir->translatedFormat('j F Y') : '';
+                                @endphp
+                                @if($tl && $tgl)
+                                    {{ $tl }}, {{ $tgl }}
+                                @elseif($tl)
+                                    {{ $tl }}
+                                @elseif($tgl)
+                                    {{ $tgl }}
+                                @else
+                                    -
+                                @endif
+                            </span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Jenis Kelamin</span>
-                            <span class="emp-data-value">{{ $profile?->jenis_kelamin == 'L' ? 'Laki-laki' : ($profile?->jenis_kelamin == 'P' ? 'Perempuan' : '-') }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Jenis Kelamin</span>
+                            <span class="data-value">{{ $profile?->jenis_kelamin == 'L' ? 'Laki-laki' : ($profile?->jenis_kelamin == 'P' ? 'Perempuan' : '-') }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Agama</span>
-                            <span class="emp-data-value">{{ $profile?->agama ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Agama</span>
+                            <span class="data-value">{{ $profile?->agama ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Pendidikan</span>
-                            <span class="emp-data-value">{{ $profile?->pendidikan ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Pendidikan</span>
+                            <span class="data-value">{{ $profile?->pendidikan ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Kewarganegaraan</span>
-                            <span class="emp-data-value">{{ $profile?->kewarganegaraan ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Kewarganegaraan</span>
+                            <span class="data-value">{{ $profile?->kewarganegaraan ?? '-' }}</span>
                         </div>
                     </div>
                     @if($profile?->path_ktp || $profile?->path_kartu_keluarga)
-                    <div class="emp-docs-btns">
+                    <div class="doc-chips">
                         @if($profile?->path_ktp)
-                        <a href="{{ asset('storage/'.$profile->path_ktp) }}" target="_blank" class="emp-doc-btn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="13" y2="12"/></svg>
+                        <a href="{{ asset('storage/'.$profile->path_ktp) }}" target="_blank" class="doc-chip">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="13" y2="12"/></svg>
                             KTP
                         </a>
                         @endif
                         @if($profile?->path_kartu_keluarga)
-                        <a href="{{ asset('storage/'.$profile->path_kartu_keluarga) }}" target="_blank" class="emp-doc-btn">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="13" y2="12"/></svg>
+                        <a href="{{ asset('storage/'.$profile->path_kartu_keluarga) }}" target="_blank" class="doc-chip">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="13" y2="12"/></svg>
                             KK
                         </a>
                         @endif
@@ -198,103 +248,109 @@
                     @endif
                 </div>
 
-                {{-- Col 2: Kontak & Domisili --}}
-                <div class="emp-info-section">
-                    <div class="emp-section-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                        Kontak & Domisili
+                {{-- Kontak & Domisili --}}
+                <div class="info-section">
+                    <div class="info-section-header">
+                        <div class="info-section-icon">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+                        </div>
+                        <span>Kontak & Domisili</span>
                     </div>
-                    <div class="emp-data-list">
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Email</span>
-                            <span class="emp-data-value emp-email">{{ $profile?->email ?? '-' }}</span>
+                    <div class="data-list">
+                        <div class="data-item">
+                            <span class="data-label">Email</span>
+                            <span class="data-value data-email">{{ $profile?->email ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">No. HP</span>
-                            <span class="emp-data-value">{{ $employee->phone ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">No. HP</span>
+                            <span class="data-value">{{ $employee->phone ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row emp-data-full">
-                            <span class="emp-data-label">Alamat</span>
-                            <span class="emp-data-value">{{ $profile?->alamat1 ?? '-' }}</span>
-                            @if($profile?->alamat2)<span class="emp-data-sub">{{ $profile->alamat2 }}</span>@endif
+                        <div class="data-item full-width">
+                            <span class="data-label">Alamat</span>
+                            <span class="data-value">{{ $profile?->alamat1 ?? '-' }}</span>
+                            @if($profile?->alamat2)<span class="data-sub">{{ $profile->alamat2 }}</span>@endif
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Kota/Kab</span>
-                            <span class="emp-data-value">{{ $profile?->kab_kota ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Kota/Kab</span>
+                            <span class="data-value">{{ $profile?->kab_kota ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Kode Pos</span>
-                            <span class="emp-data-value">{{ $profile?->kode_pos ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Kode Pos</span>
+                            <span class="data-value">{{ $profile?->kode_pos ?? '-' }}</span>
                         </div>
                         @if($profile?->alamat_sesuai_ktp)
-                        <div class="emp-data-row emp-data-full">
-                            <span class="emp-data-label">Alamat KTP</span>
-                            <span class="emp-data-value">{{ $profile->alamat_sesuai_ktp }}</span>
+                        <div class="data-item full-width">
+                            <span class="data-label">Alamat KTP</span>
+                            <span class="data-value">{{ $profile->alamat_sesuai_ktp }}</span>
                         </div>
                         @endif
                     </div>
                 </div>
 
-                {{-- Col 3: Payroll & BPJS --}}
-                <div class="emp-info-section">
-                    <div class="emp-section-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-                        Payroll & BPJS
+                {{-- Payroll & BPJS --}}
+                <div class="info-section">
+                    <div class="info-section-header">
+                        <div class="info-section-icon">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                        </div>
+                        <span>Payroll & BPJS</span>
                     </div>
-                    <div class="emp-data-list">
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Nama Bank</span>
-                            <span class="emp-data-value">{{ $profile?->nama_bank ?? '-' }}</span>
+                    <div class="data-list">
+                        <div class="data-item">
+                            <span class="data-label">Nama Bank</span>
+                            <span class="data-value">{{ $profile?->nama_bank ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">No. Rekening</span>
-                            <span class="emp-data-value emp-mono">{{ $profile?->no_rekening ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">No. Rekening</span>
+                            <span class="data-value data-num">{{ $profile?->no_rekening ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">NPWP</span>
-                            <span class="emp-data-value emp-mono">{{ $profile?->nomor_npwp ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">NPWP</span>
+                            <span class="data-value data-num">{{ $profile?->nomor_npwp ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">PTKP</span>
-                            <span class="emp-data-value">{{ $profile?->ptkp ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">PTKP</span>
+                            <span class="data-value">{{ $profile?->ptkp ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">BPJS TK</span>
-                            <span class="emp-data-value emp-mono">{{ $profile?->bpjs_tk ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">BPJS TK</span>
+                            <span class="data-value data-num">{{ $profile?->bpjs_tk ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">BPJS Kesehatan</span>
-                            <span class="emp-data-value emp-mono">{{ $profile?->nomor_bpjs_kesehatan ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">BPJS Kesehatan</span>
+                            <span class="data-value data-num">{{ $profile?->nomor_bpjs_kesehatan ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Kelas BPJS</span>
-                            <span class="emp-data-value">{{ $profile?->kelas_bpjs ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Kelas BPJS</span>
+                            <span class="data-value">{{ $profile?->kelas_bpjs ?? '-' }}</span>
                         </div>
                     </div>
                 </div>
 
-                {{-- Col 4: Lokasi Kerja --}}
-                <div class="emp-info-section">
-                    <div class="emp-section-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                        Lokasi Kerja
+                {{-- Lokasi Kerja --}}
+                <div class="info-section">
+                    <div class="info-section-header">
+                        <div class="info-section-icon">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        </div>
+                        <span>Lokasi Kerja</span>
                     </div>
-                    <div class="emp-data-list">
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Lokasi</span>
-                            <span class="emp-data-value">{{ $profile?->lokasi_kerja ?? '-' }}</span>
+                    <div class="data-list">
+                        <div class="data-item">
+                            <span class="data-label">Lokasi</span>
+                            <span class="data-value">{{ $profile?->lokasi_kerja ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Provinsi</span>
-                            <span class="emp-data-value">{{ $profile?->provinsi ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Provinsi</span>
+                            <span class="data-value">{{ $profile?->provinsi ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Kecamatan</span>
-                            <span class="emp-data-value">{{ $profile?->kecamatan ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Kecamatan</span>
+                            <span class="data-value">{{ $profile?->kecamatan ?? '-' }}</span>
                         </div>
-                        <div class="emp-data-row">
-                            <span class="emp-data-label">Desa/Kelurahan</span>
-                            <span class="emp-data-value">{{ $profile?->desa_kelurahan ?? '-' }}</span>
+                        <div class="data-item">
+                            <span class="data-label">Desa/Kelurahan</span>
+                            <span class="data-value">{{ $profile?->desa_kelurahan ?? '-' }}</span>
                         </div>
                     </div>
                 </div>
@@ -303,137 +359,113 @@
         </div>
 
         {{-- Tab: Documents --}}
-        <div id="tab-documents" class="emp-tab-content">
-            <div class="emp-docs-layout">
+        <div id="tab-documents" class="tab-panel">
+            <div class="docs-grid">
 
                 {{-- Upload Form --}}
-                <div class="emp-upload-card">
-                    <div class="emp-upload-header">Unggah Dokumen</div>
-                    <form method="POST" action="{{ route('hr.employees.documents.store', $employee->id) }}" enctype="multipart/form-data" class="emp-upload-form">
-                        @csrf
-                        <div class="emp-form-group">
-                            <label>Tipe Dokumen <span class="required">*</span></label>
-                            <select name="type" required>
-                                <option value="">-- Pilih --</option>
-                                @foreach($documentTypes as $type)
-                                <option value="{{ $type }}">{{ str_replace('_', ' ', $type) }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="emp-form-group">
-                            <label>Judul</label>
-                            <input type="text" name="title" placeholder="Contoh: Kontrak Kerja 2026">
-                        </div>
-                        <div class="emp-form-row">
-                            <div class="emp-form-group">
-                                <label>Tgl. Efektif</label>
-                                <input type="date" name="effective_date">
+                <div class="docs-upload">
+                    <div class="card">
+                        <div class="card-header">Unggah Dokumen</div>
+                        <form method="POST" action="{{ route('hr.employees.documents.store', $employee->id) }}" enctype="multipart/form-data" class="upload-form">
+                            @csrf
+                            <div class="form-group">
+                                <label>Tipe Dokumen <span class="required">*</span></label>
+                                <select name="type" required>
+                                    <option value="">-- Pilih --</option>
+                                    @foreach($documentTypes as $type)
+                                    <option value="{{ $type }}">{{ str_replace('_', ' ', $type) }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="emp-form-group">
-                                <label>Tgl. Berakhir</label>
-                                <input type="date" name="expired_date">
+                            <div class="form-group">
+                                <label>Judul</label>
+                                <input type="text" name="title" placeholder="Contoh: Kontrak Kerja 2026">
                             </div>
-                        </div>
-                        <div class="emp-form-group">
-                            <label>File <span class="required">*</span></label>
-                            <input type="file" name="file" required>
-                        </div>
-                        <button type="submit" class="emp-btn emp-btn-primary">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                            Simpan
-                        </button>
-                    </form>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Tgl. Efektif</label>
+                                    <input type="date" name="effective_date">
+                                </div>
+                                <div class="form-group">
+                                    <label>Tgl. Berakhir</label>
+                                    <input type="date" name="expired_date">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>File <span class="required">*</span></label>
+                                <input type="file" name="file" required>
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                Simpan
+                            </button>
+                        </form>
+                    </div>
                 </div>
 
                 {{-- Document List --}}
-                <div class="emp-doclist-card">
-                    <div class="emp-doclist-header">
-                        <span>Riwayat Dokumen</span>
-                        <span class="emp-doc-count">{{ $documents->count() }} file</span>
-                    </div>
+                <div class="docs-history">
+                    <div class="card">
+                        <div class="card-header flex-between">
+                            <span>Riwayat Dokumen</span>
+                            <span class="doc-count">{{ $documents->count() }} file</span>
+                        </div>
 
-                    @if($documents->isEmpty())
-                    <div class="emp-empty">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        <p>Belum ada dokumen.</p>
-                    </div>
-                    @else
-                    <div class="emp-doc-table-wrap">
-                        <table class="emp-doc-table">
-                            <thead>
-                                <tr>
-                                    <th>Dokumen</th>
-                                    <th>Berlaku</th>
-                                    <th>Diunggah</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($documents as $doc)
-                                <tr>
-                                    <td>
-                                        <div class="emp-doc-info">
-                                            <div class="emp-doc-icon">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
-                                            </div>
-                                            <div>
-                                                <div class="emp-doc-title">{{ $doc->title ?: $doc->type_label }}</div>
-                                                <div class="emp-doc-type">{{ $doc->type_label }}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="emp-doc-date">
+                        @if($documents->isEmpty())
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            </div>
+                            <p class="empty-title">Belum ada dokumen</p>
+                            <p class="empty-desc">Unggah dokumen karyawan melalui form di samping.</p>
+                        </div>
+                        @else
+                        <div class="doc-list">
+                            @foreach($documents as $doc)
+                            <div class="doc-list-item">
+                                <div class="doc-list-icon">
+                                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+                                </div>
+                                <div class="doc-list-content">
+                                    <div class="doc-list-title">{{ $doc->title ?: $doc->type_label }}</div>
+                                    <div class="doc-list-meta">
+                                        <span>{{ $doc->type_label }}</span>
                                         @if($doc->effective_date)
-                                        {{ $doc->effective_date->format('d/m/Y') }}
-                                        @if($doc->expired_date) <span class="emp-doc-sep">—</span> {{ $doc->expired_date->format('d/m/Y') }}
+                                        <span class="doc-list-sep">•</span>
+                                        <span>{{ $doc->effective_date->format('d/m/Y') }}</span>
+                                        @if($doc->expired_date) — {{ $doc->expired_date->format('d/m/Y') }} @endif
                                         @endif
-                                        @else
-                                        -
-                                        @endif
-                                    </td>
-                                    <td class="emp-doc-upload">{{ $doc->created_at->translatedFormat('j F Y') }}</td>
-                                    <td class="emp-doc-actions">
-                                        @if($doc->file_path)
-                                        <a href="{{ asset('storage/'.$doc->file_path) }}" target="_blank" class="emp-icon-btn" title="Lihat">
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                                        </a>
-                                        @endif
-                                        <form action="{{ route('hr.employee_documents.destroy', $doc->id) }}" method="POST" onsubmit="return confirm('Hapus?');" style="display:inline;">
-                                            @csrf @method('DELETE')
-                                            <button type="submit" class="emp-icon-btn emp-icon-btn-danger" title="Hapus">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                            </button>
-                                        </form>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                                    </div>
+                                </div>
+                                <div class="doc-list-actions">
+                                    @if($doc->file_path)
+                                    <a href="{{ asset('storage/'.$doc->file_path) }}" target="_blank" class="icon-btn" title="Lihat">
+                                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                                    </a>
+                                    @endif
+                                    <form action="{{ route('hr.employee_documents.destroy', $doc->id) }}" method="POST" onsubmit="return confirm('Hapus dokumen ini?');" style="display:inline;">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="icon-btn icon-btn-danger" title="Hapus">
+                                            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                        @endif
                     </div>
-                    @endif
                 </div>
 
             </div>
-        </div>
-
-        {{-- Bottom Action Bar (Mobile-First Thumb Zone) --}}
-        <div class="emp-bottom-bar">
-            <a href="{{ route('hr.employees.index') }}" class="emp-btn emp-btn-ghost">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-                Kembali
-            </a>
-            <a href="{{ route('hr.employees.edit', $employee->id) }}" class="emp-btn emp-btn-primary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit Data
-            </a>
         </div>
 
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const tabs = document.querySelectorAll('.emp-tab-btn');
-            const contents = document.querySelectorAll('.emp-tab-content');
+            const tabs = document.querySelectorAll('.tab-btn');
+            const contents = document.querySelectorAll('.tab-panel');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     tabs.forEach(t => t.classList.remove('active'));
@@ -446,497 +478,928 @@
     </script>
 
     <style>
-        /* === BASE VARIABLES === */
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --secondary: #64748b;
-            --bg-body: #f1f5f9;
-            --bg-card: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --success-bg: #f0fdf4;
-            --success-text: #15803d;
-            --success-border: #bbf7d0;
-            --danger-bg: #fef2f2;
-            --danger-text: #b91c1c;
-            --danger-border: #fecaca;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
+            --primary-dark: #0A3D62;
+            --primary: #145DA0;
+            --primary-light: #1E81B0;
+            --accent: #D4AF37;
+            --accent-light: #E6C65C;
+            --accent-dark: #B8962E;
+            --white: #FFFFFF;
+            --gray-50: #F5F7FA;
+            --gray-100: #F8FAFC;
+            --gray-200: #E5E7EB;
+            --gray-300: #D1D5DB;
+            --gray-400: #9CA3AF;
+            --gray-500: #6B7280;
+            --gray-600: #374151;
+            --gray-700: #1F2937;
+            --gray-900: #111827;
+            --success: #22C55E;
+            --warning: #F59E0B;
+            --error: #EF4444;
+            --info: #3B82F6;
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
         }
 
-        /* === RESET & BASE === */
-        .emp-container {
-            max-width: 960px;
+        .emp-page {
+            max-width: 1200px;
             margin: 0 auto;
-            padding: 16px;
             padding-bottom: 100px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            color: var(--text-main);
         }
 
-        /* === FLASH MESSAGES === */
-        .flash {
+        /* Alerts */
+        .alert {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 14px 18px;
-            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            border-radius: var(--radius-lg);
             margin-bottom: 16px;
-            font-size: 0.9rem;
+            font-size: 13px;
             font-weight: 500;
         }
-        .flash-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
-        .flash-error { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
-        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
+        .alert-success {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: #16a34a;
+        }
+        .alert-error {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #dc2626;
+        }
 
-        /* === HEADER CARD === */
-        .emp-header-card {
-            background: var(--bg-card);
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--border);
+        /* Section Header (x-slot) */
+        .section-header-inline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .section-icon svg { width: 16px; height: 16px; }
+        .section-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--gray-900);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: var(--gray-500);
+            font-weight: 500;
+            line-height: 1.35;
+        }
+        .icon-navy { background: rgba(10, 61, 98, 0.08); color: var(--primary-dark); }
+
+        /* Profile Card */
+        .profile-card {
+            background: var(--white);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--gray-200);
+            box-shadow: var(--shadow-sm);
             overflow: hidden;
             margin-bottom: 12px;
         }
-        .emp-header-bg {
-            height: 72px;
-            background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+        .profile-card-accent {
+            height: 48px;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
         }
-        .emp-header-body {
+        .profile-card-body {
+            padding: 0 16px 16px;
+            margin-top: -24px;
+        }
+        .profile-identity {
             display: flex;
             align-items: flex-end;
-            gap: 16px;
-            padding: 0 20px 20px;
-            margin-top: -48px;
+            gap: 14px;
         }
-        .emp-avatar-wrap {
+        .profile-avatar-wrap {
             position: relative;
             flex-shrink: 0;
         }
-        .emp-avatar {
-            width: 88px;
-            height: 88px;
+        .profile-avatar {
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-            color: var(--primary);
-            font-size: 36px;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            color: #fff;
+            font-size: 28px;
             font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 4px solid #fff;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border: 3px solid var(--white);
+            box-shadow: 0 2px 8px rgba(10, 61, 98, 0.2);
         }
-        .emp-status-dot {
-            width: 18px;
-            height: 18px;
+        .profile-status-dot {
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
-            border: 3px solid #fff;
+            border: 2.5px solid var(--white);
             position: absolute;
-            bottom: 4px;
-            right: 4px;
+            bottom: 3px;
+            right: 3px;
         }
-        .emp-status-dot.active { background: #22c55e; }
-        .emp-status-dot.inactive { background: #ef4444; }
-        .emp-header-info {
+        .profile-status-dot.active { background: var(--success); }
+        .profile-status-dot.inactive { background: var(--error); }
+        .profile-info {
             flex: 1;
             min-width: 0;
-            padding-top: 48px;
+            padding-top: 28px;
         }
-        .emp-name-row {
+        .profile-name-row {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             flex-wrap: wrap;
         }
-        .emp-name {
-            font-size: 1.35rem;
+        .profile-name {
+            font-size: 1.15rem;
             font-weight: 700;
             margin: 0;
-            color: var(--text-main);
+            color: var(--gray-900);
+            letter-spacing: -0.01em;
         }
-        .emp-status-badge {
-            font-size: 0.7rem;
+        .profile-badge {
+            font-size: 0.65rem;
             font-weight: 700;
             padding: 3px 10px;
             border-radius: 20px;
             text-transform: uppercase;
             letter-spacing: 0.03em;
+            flex-shrink: 0;
         }
-        .badge-on { background: var(--success-bg); color: var(--success-text); }
-        .badge-off { background: var(--danger-bg); color: var(--danger-text); }
-        .emp-leave-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 20px;
-            background: #eff6ff;
-            color: #1e40af;
-            border: 1px solid #bfdbfe;
-            margin-left: 8px;
-        }
-        .emp-leave-badge strong { font-weight: 700; }
-        .emp-role {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            margin: 4px 0 8px;
+        .badge-on { background: rgba(34, 197, 94, 0.1); color: #15803d; }
+        .badge-off { background: rgba(239, 68, 68, 0.1); color: #b91c1c; }
+        .profile-role {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+            margin: 3px 0 6px;
             font-weight: 500;
         }
-        .emp-meta-row {
+        .profile-meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 12px;
+            gap: 10px;
         }
-        .emp-meta-item {
+        .profile-meta-item {
             display: flex;
             align-items: center;
-            gap: 5px;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-        .emp-meta-item svg { width: 14px; height: 14px; }
-
-        /* === QUICK STRIP === */
-        .emp-quickstrip {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-        @media (min-width: 640px) {
-            .emp-quickstrip { grid-template-columns: repeat(4, 1fr); }
-        }
-        .emp-quickitem {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            padding: 12px 14px;
-        }
-        .emp-quicklabel {
-            display: block;
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 2px;
-        }
-        .emp-quickvalue {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        /* === TABS === */
-        .emp-tabs {
-            display: flex;
             gap: 4px;
-            margin-bottom: 12px;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 4px;
+            font-size: 0.78rem;
+            color: var(--gray-500);
         }
-        .emp-tab-btn {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 16px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-size: 0.85rem;
-            font-weight: 600;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .emp-tab-btn svg { width: 16px; height: 16px; }
-        .emp-tab-btn.active {
-            background: var(--primary);
-            color: #fff;
-        }
-        .emp-tab-content { display: none; }
-        .emp-tab-content.active { display: block; }
-
-        /* === WORK CARD === */
-        .emp-work-card {
-            background: linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 20px;
-            margin-bottom: 12px;
+        .profile-meta-item svg { flex-shrink: 0; }
+        .profile-badges {
             display: flex;
             flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-        }
-        .emp-work-main { display: flex; align-items: center; gap: 14px; }
-        .emp-work-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--primary);
-            border-radius: var(--radius-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-        }
-        .emp-work-icon svg { width: 24px; height: 24px; }
-        .emp-work-label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-        .emp-work-value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--text-main); line-height: 1.2; }
-        .emp-work-since { display: block; font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
-        .emp-probation { flex: 1; min-width: 200px; }
-        .emp-prob-header { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; color: var(--text-main); margin-bottom: 6px; }
-        .emp-prob-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; }
-        .emp-prob-fill { height: 100%; background: var(--primary); border-radius: 3px; transition: width 0.3s; }
-        .emp-prob-end { display: block; font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-align: right; }
-        .emp-exit-info { text-align: right; }
-        .emp-exit-badge { display: inline-block; background: var(--danger-bg); color: var(--danger-text); font-size: 0.75rem; font-weight: 600; padding: 4px 10px; border-radius: 20px; margin-bottom: 4px; }
-        .emp-exit-reason { display: block; font-size: 0.75rem; color: var(--text-muted); }
-
-        /* === INFO GRID === */
-        .emp-info-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            margin-bottom: 12px;
-        }
-        @media (min-width: 640px) {
-            .emp-info-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-        .emp-info-section {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            padding: 18px;
-        }
-        .emp-section-header {
-            display: flex;
-            align-items: center;
             gap: 8px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 14px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--bg-body);
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--gray-200);
         }
-        .emp-section-header svg { width: 16px; height: 16px; color: var(--primary); }
-        .emp-data-list { display: flex; flex-direction: column; gap: 10px; }
-        .emp-data-row { display: flex; flex-direction: column; gap: 1px; }
-        .emp-data-label { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-        .emp-data-value { font-size: 0.9rem; font-weight: 500; color: var(--text-main); }
-        .emp-data-sub { font-size: 0.8rem; color: var(--text-muted); }
-        .emp-data-full { }
-        .emp-email { word-break: break-all; font-size: 0.85rem; }
-        .emp-mono { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85rem; background: var(--bg-body); padding: 2px 6px; border-radius: 4px; }
-        .emp-docs-btns { display: flex; gap: 8px; margin-top: 12px; }
-        .emp-doc-btn {
+        .profile-leave-badge {
             display: inline-flex;
             align-items: center;
             gap: 5px;
             font-size: 0.75rem;
             font-weight: 600;
-            padding: 5px 12px;
-            background: var(--bg-body);
-            color: var(--primary);
+            padding: 4px 12px;
             border-radius: 20px;
-            text-decoration: none;
-            transition: 0.2s;
+            background: rgba(20, 93, 160, 0.08);
+            color: var(--primary);
+            border: 1px solid rgba(20, 93, 160, 0.15);
         }
-        .emp-doc-btn:hover { background: #e0e7ff; }
-        .emp-doc-btn svg { width: 12px; height: 12px; }
+        .profile-leave-badge strong { font-weight: 700; }
 
-        /* === DOCUMENTS === */
-        .emp-docs-layout { display: grid; grid-template-columns: 1fr; gap: 12px; }
-        @media (min-width: 768px) {
-            .emp-docs-layout { grid-template-columns: 280px 1fr; }
+        /* Quick Strip */
+        .quick-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
         }
-        .emp-upload-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
+        .quick-item {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 12px 14px;
+            box-shadow: var(--shadow-sm);
+        }
+        .quick-label {
+            display: block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--gray-400);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 3px;
+        }
+        .quick-value {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Tabs */
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 16px;
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            padding: 4px;
+            box-shadow: var(--shadow-sm);
+        }
+        .tab-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 9px 14px;
+            border: none;
+            background: transparent;
+            color: var(--gray-500);
+            font-size: 0.85rem;
+            font-weight: 600;
             border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
         }
-        .emp-upload-header {
-            padding: 14px 18px;
+        .tab-btn svg { flex-shrink: 0; }
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(10, 61, 98, 0.2);
+        }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Summary Card (Masa Kerja) */
+        .summary-card {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-sm);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+        }
+        .summary-card-main {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .summary-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .summary-label {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--gray-400);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .summary-value {
+            display: block;
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            line-height: 1.2;
+            letter-spacing: -0.01em;
+        }
+        .summary-since {
+            display: block;
+            font-size: 0.78rem;
+            color: var(--gray-500);
+            margin-top: 2px;
+        }
+        .probation-wrap {
+            flex: 1;
+            min-width: 200px;
+        }
+        .probation-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 6px;
+        }
+        .probation-bar {
+            height: 6px;
+            background: var(--gray-200);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .probation-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-dark), var(--primary));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        .probation-end {
+            display: block;
+            font-size: 0.7rem;
+            color: var(--gray-500);
+            margin-top: 4px;
+            text-align: right;
+        }
+        .exit-wrap {
+            text-align: right;
+        }
+        .exit-badge {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.08);
+            color: #b91c1c;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+            margin-bottom: 4px;
+        }
+        .exit-reason {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--gray-500);
+        }
+
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            align-items: start;
+        }
+        .info-section {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            padding: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+        .info-section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             font-size: 0.85rem;
             font-weight: 700;
-            color: var(--text-main);
-            border-bottom: 1px solid var(--border);
-            background: #fafafa;
+            color: var(--gray-900);
+            margin-bottom: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1.5px solid var(--gray-100);
         }
-        .emp-upload-form { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
-        .emp-form-group { display: flex; flex-direction: column; gap: 4px; }
-        .emp-form-group label { font-size: 0.8rem; font-weight: 500; color: var(--text-muted); }
-        .emp-form-group .required { color: var(--danger-text); }
-        .emp-form-group input, .emp-form-group select {
+        .info-section-icon {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(20, 93, 160, 0.08);
+            border-radius: var(--radius-md);
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+        .data-list {
+            display: flex;
+            flex-direction: column;
+        }
+        .data-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        .data-item:first-child { padding-top: 0; }
+        .data-item:last-child { border-bottom: none; padding-bottom: 0; }
+        .data-label {
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: var(--gray-400);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            line-height: 1.4;
+        }
+        .data-value {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--gray-900);
+            line-height: 1.45;
+            word-break: break-word;
+        }
+        .data-sub {
+            font-size: 0.78rem;
+            color: var(--gray-500);
+            line-height: 1.4;
+            margin-top: 1px;
+        }
+        .data-email { word-break: break-all; }
+        .data-num {
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.01em;
+        }
+        .doc-chips {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--gray-100);
+        }
+        .doc-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 6px 14px;
+            background: var(--gray-50);
+            color: var(--primary);
+            border: 1px solid var(--gray-200);
+            border-radius: 20px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        .doc-chip:hover {
+            background: rgba(20, 93, 160, 0.08);
+            border-color: rgba(20, 93, 160, 0.25);
+        }
+
+        /* Documents Grid */
+        .docs-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        /* Card Component */
+        .card {
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .card-header {
+            padding: 14px 16px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            border-bottom: 1px solid var(--gray-200);
+            background: var(--gray-50);
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .doc-count {
+            font-weight: 500;
+            color: var(--gray-500);
+            font-size: 0.8rem;
+        }
+
+        /* Upload Form */
+        .upload-form {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-group label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--gray-500);
+        }
+        .required { color: var(--error); }
+        .form-group input,
+        .form-group select {
             padding: 9px 12px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
-            color: var(--text-main);
-            background: #fff;
-            transition: border-color 0.2s;
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            font-size: 0.88rem;
+            color: var(--gray-900);
+            background: var(--white);
+            transition: all 0.2s ease;
             width: 100%;
             box-sizing: border-box;
+            font-family: inherit;
         }
-        .emp-form-group input:focus, .emp-form-group select:focus {
+        .form-group input:focus,
+        .form-group select:focus {
             outline: none;
             border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
         }
-        .emp-form-row { display: flex; flex-direction: column; gap: 8px; }
-        .emp-btn {
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Buttons */
+        .btn-primary {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
             padding: 10px 20px;
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 0.88rem;
             font-weight: 600;
             text-decoration: none;
             cursor: pointer;
-            border: none;
-            transition: 0.2s;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(10, 61, 98, 0.22);
+            font-family: inherit;
+            width: 100%;
         }
-        .emp-btn svg { width: 16px; height: 16px; }
-        .emp-btn-primary { background: var(--primary); color: #fff; }
-        .emp-btn-primary:hover { background: var(--primary-dark); }
-        .emp-btn-ghost {
-            background: transparent;
-            color: var(--text-muted);
-            border: 1px solid var(--border);
+        .btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(10, 61, 98, 0.32);
+            transform: translateY(-1px);
         }
-        .emp-btn-ghost:hover { background: var(--bg-body); color: var(--text-main); }
-
-        .emp-doclist-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-        }
-        .emp-doclist-header {
-            display: flex;
-            justify-content: space-between;
+        .btn-secondary {
+            display: inline-flex;
             align-items: center;
-            padding: 14px 18px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--text-main);
-            border-bottom: 1px solid var(--border);
-            background: #fafafa;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--white);
+            color: var(--gray-600);
+            border: 1.5px solid var(--gray-200);
+            border-radius: var(--radius-md);
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
         }
-        .emp-doc-count { font-weight: 500; color: var(--text-muted); font-size: 0.8rem; }
-        .emp-empty {
-            padding: 48px 24px;
+        .btn-secondary:hover {
+            background: var(--gray-50);
+            border-color: var(--gray-300);
+            color: var(--gray-900);
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 40px 24px;
             text-align: center;
-            color: var(--text-muted);
+            color: var(--gray-500);
         }
-        .emp-empty svg { width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4; }
-        .emp-empty p { font-size: 0.9rem; margin: 0; }
-        .emp-doc-table-wrap { overflow-x: auto; }
-        .emp-doc-table { width: 100%; border-collapse: collapse; min-width: 500px; }
-        .emp-doc-table th {
-            text-align: left;
-            padding: 10px 16px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            background: var(--bg-body);
-            border-bottom: 1px solid var(--border);
-        }
-        .emp-doc-table td {
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border);
-            vertical-align: middle;
-        }
-        .emp-doc-table tr:last-child td { border-bottom: none; }
-        .emp-doc-info { display: flex; align-items: center; gap: 10px; }
-        .emp-doc-icon {
-            width: 36px;
-            height: 36px;
-            background: var(--bg-body);
-            border-radius: var(--radius-sm);
+        .empty-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 12px;
+            background: var(--gray-50);
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--secondary);
+            color: var(--gray-400);
+        }
+        .empty-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin: 0 0 4px;
+        }
+        .empty-desc {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+            margin: 0 auto;
+            max-width: 260px;
+            line-height: 1.5;
+        }
+
+        /* Document List */
+        .doc-list {
+            display: flex;
+            flex-direction: column;
+        }
+        .doc-list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--gray-200);
+            transition: background 0.15s ease;
+        }
+        .doc-list-item:last-child { border-bottom: none; }
+        .doc-list-item:hover { background: var(--gray-50); }
+        .doc-list-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--gray-50);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gray-400);
             flex-shrink: 0;
         }
-        .emp-doc-icon svg { width: 16px; height: 16px; }
-        .emp-doc-title { font-size: 0.9rem; font-weight: 600; color: var(--text-main); }
-        .emp-doc-type { font-size: 0.75rem; color: var(--text-muted); }
-        .emp-doc-date { font-size: 0.85rem; color: var(--text-main); white-space: nowrap; }
-        .emp-doc-sep { color: var(--text-muted); margin: 0 4px; }
-        .emp-doc-upload { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; }
-        .emp-doc-actions { text-align: right; white-space: nowrap; }
-        .emp-icon-btn {
+        .doc-list-content {
+            flex: 1;
+            min-width: 0;
+        }
+        .doc-list-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .doc-list-meta {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 2px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            align-items: center;
+        }
+        .doc-list-sep { color: var(--gray-300); }
+        .doc-list-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .icon-btn {
             width: 30px;
             height: 30px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: var(--radius-sm);
+            border-radius: var(--radius-md);
             border: none;
             background: transparent;
-            color: var(--text-muted);
+            color: var(--gray-500);
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s ease;
             vertical-align: middle;
+            text-decoration: none;
+            padding: 0;
         }
-        .emp-icon-btn:hover { background: var(--bg-body); color: var(--primary); }
-        .emp-icon-btn-danger:hover { background: var(--danger-bg); color: var(--danger-text); }
-        .emp-icon-btn svg { width: 15px; height: 15px; }
+        .icon-btn:hover { background: var(--gray-100); color: var(--primary); }
+        .icon-btn-danger:hover { background: rgba(239, 68, 68, 0.08); color: var(--error); }
 
-        /* === BOTTOM ACTION BAR === */
-        .emp-bottom-bar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: #fff;
-            border-top: 1px solid var(--border);
-            padding: 12px 16px;
+        /* Top Actions */
+        .page-header {
             display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            z-index: 50;
-            box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
         }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 36px;
+            padding: 0 12px 0 10px;
+            background: var(--white);
+            border: 1px solid var(--gray-200);
+            border-radius: 10px;
+            color: var(--gray-500);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            align-self: flex-start;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .back-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--gray-50);
+        }
+        .back-btn:hover svg { transform: translateX(-2px); }
+        .back-btn svg { transition: transform 0.2s ease; flex-shrink: 0; }
+        .btn-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 36px;
+            padding: 0 16px;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(10, 61, 98, 0.22);
+            cursor: pointer;
+            font-family: inherit;
+            margin-left: auto;
+        }
+        .btn-edit:hover {
+            box-shadow: 0 6px 20px rgba(10, 61, 98, 0.32);
+            transform: translateY(-1px);
+        }
+        .btn-edit svg { flex-shrink: 0; }
+
+        /* ========================================== */
+        /* TABLET & DESKTOP (768px+)                  */
+        /* ========================================== */
         @media (min-width: 768px) {
-            .emp-bottom-bar {
-                position: static;
-                background: transparent;
-                border-top: none;
-                padding: 0;
-                margin-top: 16px;
-                box-shadow: none;
-                justify-content: flex-start;
+            .emp-page { padding-bottom: 24px; }
+
+            .profile-card-accent { height: 56px; }
+            .profile-card-body {
+                padding: 0 20px 20px;
+                margin-top: -28px;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                gap: 16px;
             }
-            .emp-container { padding-bottom: 16px; }
+            .profile-identity { align-items: flex-end; }
+            .profile-avatar {
+                width: 80px;
+                height: 80px;
+                font-size: 32px;
+            }
+            .profile-info { padding-top: 32px; }
+            .profile-name { font-size: 1.35rem; }
+            .profile-badges {
+                margin-top: 0;
+                padding-top: 0;
+                border-top: none;
+                justify-content: flex-end;
+            }
+
+            .quick-strip { gap: 12px; }
+            .quick-item { padding: 14px 16px; }
+            .quick-value { font-size: 0.9rem; }
+
+            .tab-bar { margin-bottom: 20px; }
+            .tab-btn { padding: 10px 18px; font-size: 0.88rem; }
+
+            .summary-card {
+                padding: 20px;
+                gap: 20px;
+            }
+            .summary-value { font-size: 1.5rem; }
+
+            .info-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+                align-items: start;
+            }
+            .info-section { padding: 20px; }
+
+            .docs-grid {
+                grid-template-columns: 300px 1fr;
+                gap: 16px;
+            }
+            .upload-form { padding: 20px; }
+            .card-header { padding: 14px 20px; }
+            .doc-list-item { padding: 14px 20px; }
+            .empty-state { padding: 48px 24px; }
+
+            .page-header {
+                margin-bottom: 20px;
+            }
+            .back-btn {
+                height: 38px;
+                padding: 0 14px 0 12px;
+                font-size: 0.8rem;
+            }
+            .btn-edit {
+                height: 38px;
+                padding: 0 18px;
+                font-size: 0.8rem;
+            }
         }
 
-        /* === MOBILE OPTIMIZATION === */
+        /* ========================================== */
+        /* SMALL MOBILE (480px and below)             */
+        /* ========================================== */
         @media (max-width: 480px) {
-            .emp-header-body { flex-direction: column; align-items: center; text-align: center; margin-top: -56px; }
-            .emp-header-info { padding-top: 56px; }
-            .emp-name-row { justify-content: center; }
-            .emp-meta-row { justify-content: center; }
-            .emp-quickstrip { grid-template-columns: repeat(2, 1fr); }
-            .emp-form-row { grid-template-columns: 1fr; }
-            .emp-tab-btn { padding: 8px 12px; font-size: 0.8rem; }
-            .emp-tab-btn svg { width: 14px; height: 14px; }
+            .profile-card-body {
+                flex-direction: column;
+                align-items: flex-start;
+                text-align: left;
+                margin-top: -32px;
+            }
+            .profile-identity {
+                flex-direction: row;
+                align-items: flex-end;
+                width: 100%;
+            }
+            .profile-info { padding-top: 32px; }
+            .profile-name-row { flex-wrap: wrap; }
+            .profile-badges { width: 100%; }
+
+            .quick-strip { grid-template-columns: repeat(3, 1fr); }
+            .quick-item { padding: 10px 12px; }
+            .quick-value {
+                font-size: 0.78rem;
+                white-space: normal;
+            }
+
+            .tab-btn { padding: 8px 10px; font-size: 0.8rem; }
+            .tab-btn svg { width: 14px; height: 14px; }
+
+            .summary-card { flex-direction: column; align-items: flex-start; }
+            .summary-value { font-size: 1.25rem; }
+            .exit-wrap { text-align: left; width: 100%; }
+
+            .info-section { padding: 14px; }
+            .data-value { font-size: 0.82rem; }
+
+            .form-row { grid-template-columns: 1fr; gap: 12px; }
+
+            .doc-list-item {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            .doc-list-content {
+                min-width: 0;
+                order: 1;
+                flex: 1;
+            }
+            .doc-list-actions {
+                order: 2;
+                margin-left: auto;
+            }
+            .doc-list-title {
+                white-space: normal;
+                overflow: visible;
+            }
+        }
+
+        /* ========================================== */
+        /* EXTRA SMALL (360px and below)              */
+        /* ========================================== */
+        @media (max-width: 360px) {
+            .quick-strip { grid-template-columns: 1fr; }
+            .quick-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 8px;
+            }
+            .quick-label { margin-bottom: 0; }
+            .quick-value { text-align: right; }
+
+            .profile-name { font-size: 1.05rem; }
+            .profile-avatar {
+                width: 60px;
+                height: 60px;
+                font-size: 22px;
+            }
         }
     </style>
 </x-app>

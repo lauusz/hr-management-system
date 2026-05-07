@@ -99,7 +99,7 @@ class HrLeaveController extends Controller
                 break;
         }
 
-        $leaves = $leaves->orderByDesc('created_at')->paginate(100)->appends(['filter' => $activeFilter]);
+        $leaves = $leaves->orderByDesc('created_at')->paginate(20)->appends(['filter' => $activeFilter]);
 
         return view('hr.leave_requests.index', [
             'leaves' => $leaves,
@@ -218,7 +218,7 @@ class HrLeaveController extends Controller
             });
         }
 
-        $items = $query->paginate(100)->appends([
+        $items = $query->paginate(20)->appends([
             'status'          => $status,
             'type'            => $typeFilter,
             'submitted_range' => $submittedRange,
@@ -298,15 +298,16 @@ class HrLeaveController extends Controller
             ->get();
 
         $specialLeaveList = [
-            ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 4],
+            ['id' => 'CUTI_MELAHIRKAN', 'label' => 'Cuti Melahirkan', 'days' => 90],
             ['id' => 'ISTRI_MELAHIRKAN', 'label' => 'Istri Melahirkan', 'days' => 2],
+            ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 4],
+            ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Menantu/Istri/Suami/Anak)', 'days' => 2],
+            ['id' => 'DEATH_EXTENDED', 'label' => 'Kematian (Adik/Kakak/Ipar)', 'days' => 2],
+            ['id' => 'DEATH_HOUSE', 'label' => 'Kematian Anggota Rumah', 'days' => 1],
             ['id' => 'ISTRI_KEGUGURAN', 'label' => 'Istri Keguguran', 'days' => 2],
             ['id' => 'KHITANAN_ANAK', 'label' => 'Khitanan Anak', 'days' => 2],
             ['id' => 'PEMBAPTISAN_ANAK', 'label' => 'Pembaptisan Anak', 'days' => 2],
             ['id' => 'NIKAH_ANAK', 'label' => 'Pernikahan Anak', 'days' => 2],
-            ['id' => 'DEATH_EXTENDED', 'label' => 'Kematian (Adik/Kakak/Ipar)', 'days' => 2],
-            ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Menantu/Istri/Suami/Anak)', 'days' => 2],
-            ['id' => 'DEATH_HOUSE', 'label' => 'Kematian Anggota Rumah', 'days' => 1],
             ['id' => 'HAJI', 'label' => 'Ibadah Haji (1x)', 'days' => 40],
             ['id' => 'UMROH', 'label' => 'Ibadah Umroh (1x)', 'days' => 14],
         ];

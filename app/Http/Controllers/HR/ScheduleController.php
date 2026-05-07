@@ -63,7 +63,7 @@ class ScheduleController extends Controller
             $query->where('employee_shifts.shift_id', $shiftFilter);
         }
 
-        $items = $query->paginate(100)->withQueryString();
+        $items = $query->paginate(20)->withQueryString();
 
         $ptOptions = \App\Models\Pt::orderBy('name')->get();
         $positionOptions = Position::orderBy('name')->get();
