@@ -585,11 +585,88 @@
         border-radius: 0 20px 20px 0;
         border-right: 1px solid var(--border);
         overflow: hidden;
+        width: min(86vw, 340px);
+        min-width: 260px;
       }
 
       .sidebar.open {
         transform: translateX(0);
-        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
+        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+      }
+
+      .sidebar-header {
+        padding: 0 18px;
+        height: 64px;
+      }
+
+      .brand-title {
+        font-size: 0.9375rem;
+      }
+
+      .brand-subtitle {
+        font-size: 0.75rem;
+      }
+
+      .sidebar-menu {
+        padding: 10px 10px;
+      }
+
+      .menu-section-title {
+        font-size: 0.6875rem;
+        margin: 20px 14px 10px;
+      }
+
+      .menu-item,
+      .menu-group-btn {
+        padding: 11px 14px;
+        margin: 0 6px 3px;
+        font-size: 0.9375rem;
+        min-height: 44px;
+        width: calc(100% - 12px);
+        border-radius: 12px;
+        gap: 12px;
+      }
+
+      .menu-icon,
+      .menu-group-icon:first-child {
+        width: 20px;
+        height: 20px;
+      }
+
+      .menu-item.active::before {
+        left: -8px;
+        width: 4px;
+        height: 20px;
+        border-radius: 0 4px 4px 0;
+      }
+
+      .submenu-panel {
+        padding-left: 44px;
+        margin: 2px 6px 8px;
+      }
+
+      .submenu-panel::before {
+        left: 20px;
+      }
+
+      .submenu-item {
+        padding: 9px 12px;
+        font-size: 0.875rem;
+        min-height: 40px;
+        border-radius: 10px;
+        margin-bottom: 2px;
+      }
+
+      .sidebar-footer {
+        padding: 14px 18px;
+        padding-bottom: max(14px, env(safe-area-inset-bottom));
+      }
+
+      .btn-logout {
+        padding: 11px 14px;
+        font-size: 0.9375rem;
+        min-height: 44px;
+        border-radius: 12px;
       }
 
       .main-content {
@@ -1104,9 +1181,11 @@
       if (isOpen) {
         sidebar.classList.remove('open');
         backdrop.classList.remove('show');
+        document.body.style.overflow = '';
       } else {
         sidebar.classList.add('open');
         backdrop.classList.add('show');
+        document.body.style.overflow = 'hidden';
       }
     }
 
@@ -1133,7 +1212,10 @@
         const modal = document.getElementById(id);
         if (!modal) return;
         modal.style.display = show ? 'flex' : 'none';
-        document.body.style.overflow = show ? 'hidden' : '';
+        const sidebarOpen = sidebar && sidebar.classList.contains('open');
+        if (!sidebarOpen) {
+          document.body.style.overflow = show ? 'hidden' : '';
+        }
       }
 
       document.querySelectorAll('[data-modal-target]').forEach(btn => {
