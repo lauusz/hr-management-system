@@ -467,6 +467,37 @@
                             <small class="helper-text">Ubah angka ini untuk koreksi manual saldo cuti karyawan.</small>
                         </div>
 
+                        @php
+                            $viewerRole = auth()->user()?->role instanceof \App\Enums\UserRole
+                                ? auth()->user()->role->value
+                                : auth()->user()?->role;
+                            $canManageHrStaffNonCutiApproval = in_array($viewerRole, ['HRD', 'HR STAFF'], true);
+
+                            $targetRole = $item->role instanceof \App\Enums\UserRole
+                                ? $item->role->value
+                                : $item->role;
+                            $isTargetSupervisorOrManager = in_array($targetRole, ['SUPERVISOR', 'MANAGER'], true);
+                        @endphp
+
+                        @if($canManageHrStaffNonCutiApproval)
+                        <div class="form-group full-width" id="hr-staff-noncuti-setting" style="{{ $isTargetSupervisorOrManager ? '' : 'display:none;' }}">
+                            <input type="hidden" name="hr_staff_can_approve_non_cuti" value="0">
+                            <div class="setting-row">
+                                <label class="setting-label" for="hr_staff_can_approve_non_cuti">
+                                    <input
+                                        id="hr_staff_can_approve_non_cuti"
+                                        type="checkbox"
+                                        name="hr_staff_can_approve_non_cuti"
+                                        value="1"
+                                        @checked(old('hr_staff_can_approve_non_cuti', $item->hr_staff_can_approve_non_cuti))
+                                    >
+                                    <span class="setting-title">Selain Cuti bisa di-accept HR STAFF</span>
+                                </label>
+                            </div>
+                            <small class="helper-text">Khusus SUPERVISOR dan MANAGER. Jika aktif, HR STAFF dapat approve/reject pengajuan selain CUTI. Pengajuan CUTI tetap hanya dapat diproses HRD.</small>
+                        </div>
+                        @endif
+
                         <div class="form-group full-width">
                             <div class="info-alert">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -606,6 +637,27 @@
                         form.submit();
                     }
                 });
+            }
+
+            // Dynamic show/hide for HR STAFF non-CUTI approval setting
+            var roleSelect = document.getElementById('role');
+            var nonCutiSetting = document.getElementById('hr-staff-noncuti-setting');
+            var nonCutiCheckbox = document.getElementById('hr_staff_can_approve_non_cuti');
+
+            if (roleSelect && nonCutiSetting) {
+                function toggleNonCutiSetting() {
+                    if (roleSelect.value === 'SUPERVISOR' || roleSelect.value === 'MANAGER') {
+                        nonCutiSetting.style.display = '';
+                    } else {
+                        nonCutiSetting.style.display = 'none';
+                        if (nonCutiCheckbox) {
+                            nonCutiCheckbox.checked = false;
+                        }
+                    }
+                }
+
+                toggleNonCutiSetting();
+                roleSelect.addEventListener('change', toggleNonCutiSetting);
             }
         });
     </script>
@@ -1006,6 +1058,44 @@
         }
         .btn-reset-danger svg {
             flex-shrink: 0;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--edit-bg);
+            border: 1.5px solid var(--edit-border);
+            border-radius: var(--edit-radius-md);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .setting-row:focus-within {
+            border-color: var(--edit-primary);
+            box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.08);
+        }
+        .setting-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            width: 100%;
+            margin: 0;
+            font-weight: normal;
+        }
+        .setting-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--edit-primary);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin: 0;
+        }
+        .setting-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--edit-text-secondary);
+            line-height: 1.4;
         }
 
         .form-actions {

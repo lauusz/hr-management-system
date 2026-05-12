@@ -362,6 +362,168 @@ describe('HrLeaveController', function () {
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
         });
 
+        // --- MANAGER tests ---
+        it('HR Staff CANNOT approve MANAGER CUTI even with flag true', function () {
+            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+            $manager = User::factory()->create([
+                'role' => UserRole::MANAGER,
+                'hr_staff_can_approve_non_cuti' => true,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($manager)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::CUTI,
+            ]);
+
+            actingAs($hrStaff, 'web');
+
+            $response = $this->post(route('hr.leave.approve', $leave->id));
+            $response->assertStatus(403);
+        });
+
+        it('HR Staff CAN approve MANAGER non-CUTI when flag is true', function () {
+            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+            $manager = User::factory()->create([
+                'role' => UserRole::MANAGER,
+                'hr_staff_can_approve_non_cuti' => true,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($manager)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::SAKIT,
+            ]);
+
+            actingAs($hrStaff, 'web');
+
+            $this->post(route('hr.leave.approve', $leave->id));
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
+        });
+
+        it('HR Staff CANNOT approve MANAGER non-CUTI when flag is false', function () {
+            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+            $manager = User::factory()->create([
+                'role' => UserRole::MANAGER,
+                'hr_staff_can_approve_non_cuti' => false,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($manager)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::IZIN,
+            ]);
+
+            actingAs($hrStaff, 'web');
+
+            $response = $this->post(route('hr.leave.approve', $leave->id));
+            $response->assertStatus(403);
+        });
+
+        // --- SUPERVISOR tests ---
+        it('HR Staff CANNOT approve SUPERVISOR CUTI even when flag is true', function () {
+            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+            $supervisor = User::factory()->create([
+                'role' => UserRole::SUPERVISOR,
+                'hr_staff_can_approve_non_cuti' => true,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($supervisor)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::CUTI,
+            ]);
+
+            actingAs($hrStaff, 'web');
+
+            $response = $this->post(route('hr.leave.approve', $leave->id));
+            $response->assertStatus(403);
+        });
+
+        it('HR Staff CAN approve SUPERVISOR non-CUTI when flag is true', function () {
+            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+            $supervisor = User::factory()->create([
+                'role' => UserRole::SUPERVISOR,
+                'hr_staff_can_approve_non_cuti' => true,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($supervisor)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::IZIN,
+            ]);
+
+            actingAs($hrStaff, 'web');
+
+            $this->post(route('hr.leave.approve', $leave->id));
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
+        });
+
+        it('HR Staff CANNOT approve SUPERVISOR non-CUTI when flag is false', function () {
+            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+            $supervisor = User::factory()->create([
+                'role' => UserRole::SUPERVISOR,
+                'hr_staff_can_approve_non_cuti' => false,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($supervisor)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::SAKIT,
+            ]);
+
+            actingAs($hrStaff, 'web');
+
+            $response = $this->post(route('hr.leave.approve', $leave->id));
+            $response->assertStatus(403);
+        });
+
+        it('HRD can still approve MANAGER and SUPERVISOR CUTI', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $manager = User::factory()->create([
+                'role' => UserRole::MANAGER,
+                'hr_staff_can_approve_non_cuti' => false,
+            ]);
+            $supervisor = User::factory()->create([
+                'role' => UserRole::SUPERVISOR,
+                'hr_staff_can_approve_non_cuti' => false,
+            ]);
+            $leaveManager = LeaveRequest::factory()->forUser($manager)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::CUTI,
+            ]);
+            $leaveSupervisor = LeaveRequest::factory()->forUser($supervisor)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::CUTI,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('hr.leave.approve', $leaveManager->id));
+            $leaveManager->refresh();
+            expect($leaveManager->status)->toBe(LeaveRequest::STATUS_APPROVED);
+
+            $this->post(route('hr.leave.approve', $leaveSupervisor->id));
+            $leaveSupervisor->refresh();
+            expect($leaveSupervisor->status)->toBe(LeaveRequest::STATUS_APPROVED);
+        });
+
+        it('EMPLOYEE approval behavior unchanged for HR Staff', function () {
+            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leaveEmployeeCuti = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::CUTI_KHUSUS,
+            ]);
+            $leaveEmployeeIzin = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type'   => LeaveType::IZIN,
+            ]);
+
+            actingAs($hrStaff, 'web');
+
+            $this->post(route('hr.leave.approve', $leaveEmployeeCuti->id));
+            $leaveEmployeeCuti->refresh();
+            expect($leaveEmployeeCuti->status)->toBe(LeaveRequest::STATUS_APPROVED);
+
+            $this->post(route('hr.leave.approve', $leaveEmployeeIzin->id));
+            $leaveEmployeeIzin->refresh();
+            expect($leaveEmployeeIzin->status)->toBe(LeaveRequest::STATUS_APPROVED);
+        });
+
         it('cannot approve already approved leave', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();

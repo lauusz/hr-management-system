@@ -23,6 +23,7 @@ class User extends Authenticatable
         'role', 
         'can_manage_payroll', // <--- [BARU] Hak akses kelola slip gaji 
         'leave_balance',        // <--- [BARU] Tambahkan ini agar sisa cuti bisa di-update
+        'hr_staff_can_approve_non_cuti', // <--- [BARU] HR STAFF boleh approve non-CUTI untuk MANAGER
         'division_id',
         'position_id',
         'direct_supervisor_id', 
@@ -44,6 +45,7 @@ class User extends Authenticatable
             'password'      => 'hashed',
             'role'          => UserRole::class,
             'can_manage_payroll' => 'boolean',
+            'hr_staff_can_approve_non_cuti' => 'boolean',
             'leave_balance' => 'decimal:1',
         ];
     }
@@ -89,6 +91,11 @@ class User extends Authenticatable
     public function isEmployee(): bool
     {
         return $this->role === UserRole::EMPLOYEE;
+    }
+
+    public function allowsHrStaffNonCutiApproval(): bool
+    {
+        return (bool) $this->hr_staff_can_approve_non_cuti;
     }
 
     public function isActive(): bool

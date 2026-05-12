@@ -175,8 +175,6 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/hr/pts', [PtController::class, 'index'])->name('hr.pts.index');
 
-        // Debug
-        Route::get('/hr/phpinfo', fn() => phpinfo())->name('hr.phpinfo');
         Route::get('/hr/pts/create', [PtController::class, 'create'])->name('hr.pts.create');
         Route::post('/hr/pts', [PtController::class, 'store'])->name('hr.pts.store');
         Route::get('/hr/pts/{pt}/edit', [PtController::class, 'edit'])->name('hr.pts.edit');

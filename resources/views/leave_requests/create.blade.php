@@ -421,7 +421,7 @@
 
     <x-modal id="duplicate-warning-modal" title="Peringatan" variant="warning" type="info" cancelLabel="Kembali">
         <div id="duplicate-content" style="color: #1e293b; line-height: 1.6;">
-            <p style="margin: 0 0 12px 0;"><strong>Anda sudah memiliki pengajuan pada periode tanggal yang sama.</strong></p>
+            <p id="duplicate-message" style="margin: 0 0 12px 0;"><strong>Anda sudah memiliki pengajuan pada periode tanggal yang sama.</strong></p>
             <div id="duplicate-list" style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 4px; margin-bottom: 12px;"></div>
             <p style="margin: 0; font-size: 13px; color: #6b7280;">Hubungi HRD untuk menghapus pengajuan duplikat.</p>
         </div>
@@ -1355,28 +1355,6 @@
                     previewContainer.style.display = 'none';
                 });
             }
-            const formIzin = document.getElementById('form-create-izin');
-            const btnSubmit = document.getElementById('btn-submit-izin');
-            if(formIzin) {
-                formIzin.addEventListener('submit', function(e) {
-                    if(!formIzin.checkValidity()) return;
-                    if(btnSubmit) {
-                        if(btnSubmit.disabled || btnSubmit.classList.contains('disabled')) {
-                            e.preventDefault();
-                            return;
-                        }
-                        btnSubmit.disabled = true;
-                        btnSubmit.classList.add('disabled');
-                        btnSubmit.innerHTML = `
-                            <svg class="animate-spin" style="width:18px;height:18px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                            </svg>
-                            Memproses...
-                        `;
-                    }
-                });
-            }
         });
     </script>
 
@@ -1530,6 +1508,7 @@
             const btnSubmit = document.getElementById('btn-submit-izin');
             const duplicateModal = document.getElementById('duplicate-warning-modal');
             const duplicateList = document.getElementById('duplicate-list');
+            const duplicateMessage = document.getElementById('duplicate-message');
             let hasDuplicate = false;
             let originalBtnText = null;
             if (formIzin) {
@@ -1571,7 +1550,7 @@
                         btnSubmit.innerHTML = originalBtnText;
                         if (data.has_duplicate) {
                             hasDuplicate = true;
-                            showDuplicateWarning(data.duplicates);
+                            showDuplicateWarning(data.duplicates, data.message);
                         } else {
                             hasDuplicate = false;
                             formIzin.submit();
@@ -1584,10 +1563,20 @@
                     });
                 }
             }
-            function showDuplicateWarning(duplicates) {
+            function showDuplicateWarning(duplicates, message) {
+                if (duplicateMessage) {
+                    const strong = duplicateMessage.querySelector('strong');
+                    if (strong) {
+                        strong.textContent = message || 'Anda sudah memiliki pengajuan pada periode tanggal yang sama.';
+                    } else {
+                        duplicateMessage.textContent = message || 'Anda sudah memiliki pengajuan pada periode tanggal yang sama.';
+                    }
+                }
                 let html = '<ul style="margin: 0; padding-left: 16px; font-size: 13px;">';
                 duplicates.forEach(function(dup) {
-                    html += `<li style="margin-bottom: 6px;"><strong>${dup.type}</strong><br><span style="font-size: 12px; color: #6b7280;">${dup.start_date} s/d ${dup.end_date} | Status: <strong>${dup.status}</strong></span></li>`;
+                    const statusLabel = dup.status_label || dup.status;
+                    const dateText = dup.start_date === dup.end_date ? dup.start_date : `${dup.start_date} - ${dup.end_date}`;
+                    html += `<li style="margin-bottom: 8px;"><strong>${dup.type}</strong><br><span style="font-size: 12px; color: #6b7280;">${dateText}</span><br><span style="font-size: 12px; color: #6b7280;">Status: <strong>${statusLabel}</strong></span></li>`;
                 });
                 html += '</ul>';
                 duplicateList.innerHTML = html;

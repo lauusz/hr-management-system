@@ -297,6 +297,7 @@ class HREmployeeController extends Controller
             'exit_date' => ['nullable', 'date'],
             'exit_reason_code' => ['nullable', 'string', 'max:50'],
             'exit_reason_note' => ['nullable', 'string'],
+            'hr_staff_can_approve_non_cuti' => ['nullable', 'boolean'],
         ]);
 
         return DB::transaction(function () use ($request, $validated) {
@@ -314,6 +315,10 @@ class HREmployeeController extends Controller
 
             $userData['status'] = 'ACTIVE';
             $userData['password'] = Hash::make('123456');
+            $userData['hr_staff_can_approve_non_cuti'] = (
+                in_array($validated['role'], [UserRole::SUPERVISOR->value, UserRole::MANAGER->value], true)
+                && !empty($validated['hr_staff_can_approve_non_cuti'])
+            );
 
             $user = User::create($userData);
 
@@ -329,6 +334,7 @@ class HREmployeeController extends Controller
                 'path_kartu_keluarga',
                 'path_ktp',
                 'email',
+                'hr_staff_can_approve_non_cuti',
             ]);
 
             $profileData['email'] = $validated['email'] ?? null;
@@ -460,6 +466,14 @@ class HREmployeeController extends Controller
             'exit_reason_note' => ['nullable', 'string'],
         ]);
 
+        // Normalisasi checkbox: pastikan unchecked tersimpan sebagai false
+        $validated['hr_staff_can_approve_non_cuti'] = $request->boolean('hr_staff_can_approve_non_cuti');
+
+        // Safety: field ini hanya relevan untuk SUPERVISOR dan MANAGER
+        if (! in_array($validated['role'] ?? null, [UserRole::SUPERVISOR->value, UserRole::MANAGER->value], true)) {
+            $validated['hr_staff_can_approve_non_cuti'] = false;
+        }
+
         return DB::transaction(function () use ($request, $employee, $validated) {
 
             // -------------------------------------------------------------
@@ -489,6 +503,7 @@ class HREmployeeController extends Controller
                 'position_id',
                 'email',
                 'leave_balance', // Ini akan menyimpan angka manual HRD
+                'hr_staff_can_approve_non_cuti',
             ]);
 
             $employee->update($userData);
@@ -509,6 +524,7 @@ class HREmployeeController extends Controller
                 'path_ktp',
                 'email',
                 'leave_balance',
+                'hr_staff_can_approve_non_cuti',
             ]);
 
             $profileData['email'] = $validated['email'] ?? null;

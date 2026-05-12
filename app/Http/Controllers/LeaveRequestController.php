@@ -163,14 +163,19 @@ class LeaveRequestController extends Controller
 
         $type = $validated['type'];
 
-        // Cek Duplikasi
-        $isDuplicate = LeaveRequest::where('user_id', $userId)
-            ->where('type', $type)
-            ->whereDate('start_date', $validated['start_date'])
-            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
-            ->exists();
+        // Cek overlap tanggal dengan pengajuan aktif lainnya
+        $duplicates = $this->findOverlappingLeaveRequests(
+            $userId,
+            $validated['start_date'],
+            $validated['end_date']
+        );
 
-        if ($isDuplicate) return redirect()->back()->withInput()->with('error', 'Anda sudah memiliki pengajuan aktif pada tanggal tersebut.');
+        if ($duplicates->isNotEmpty()) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $this->formatOverlapMessage($duplicates));
+        }
 
         // [VALIDASI] SALDO CUTI & MASA KERJA (ADJUSTED BY ROLE)
         if ($type === LeaveType::CUTI->value) {
@@ -319,6 +324,12 @@ class LeaveRequestController extends Controller
 
     public function show(LeaveRequest $leave_request)
     {
+        abort_unless(
+            $leave_request->user_id === Auth::id(),
+            403,
+            'Anda tidak berhak melihat data pengajuan ini.'
+        );
+
         return view('leave_requests.show', ['item' => $leave_request->load('user', 'approver')]);
     }
 
@@ -393,6 +404,21 @@ class LeaveRequestController extends Controller
             $validated['end_time'] = null;
         }
 
+        // Cek overlap tanggal dengan pengajuan aktif lainnya (kecuali dirinya sendiri)
+        $duplicates = $this->findOverlappingLeaveRequests(
+            $leaveRequest->user_id,
+            $validated['start_date'],
+            $validated['end_date'],
+            $leaveRequest->id
+        );
+
+        if ($duplicates->isNotEmpty()) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $this->formatOverlapMessage($duplicates));
+        }
+
         if ($request->hasFile('photo')) {
             if ($leaveRequest->photo) Storage::disk('public')->delete('leave_photos/' . $leaveRequest->photo);
             $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
@@ -415,7 +441,13 @@ class LeaveRequestController extends Controller
         $user = Auth::user();
         $isOwner = $user->id === $leaveRequest->user_id;
         $roleStr = $this->getRoleString($user);
-        $isHRD   = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER']);
+        $isHRD   = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER'], true);
+
+        abort_unless(
+            $isOwner || $isHRD,
+            403,
+            'Anda tidak berhak membatalkan pengajuan ini.'
+        );
 
         if ($isOwner && !$isHRD) {
             if (!in_array($leaveRequest->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
@@ -438,6 +470,46 @@ class LeaveRequestController extends Controller
     }
 
     // --- Private Helpers ---
+    private function findOverlappingLeaveRequests(
+        int $userId,
+        string $startDate,
+        string $endDate,
+        ?int $excludeLeaveId = null
+    ): \Illuminate\Database\Eloquent\Collection {
+        return LeaveRequest::query()
+            ->where('user_id', $userId)
+            ->when($excludeLeaveId, fn ($query) => $query->whereKeyNot($excludeLeaveId))
+            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->where('start_date', '<=', $endDate)
+                      ->where('end_date', '>=', $startDate);
+            })
+            ->orderBy('start_date')
+            ->get(['id', 'type', 'start_date', 'end_date', 'status', 'created_at']);
+    }
+
+    private function formatOverlapMessage($duplicates): string
+    {
+        $first = $duplicates->first();
+
+        if (!$first) {
+            return 'Tanggal yang dipilih bertabrakan dengan pengajuan yang sudah ada.';
+        }
+
+        $typeLabel = $first->type instanceof LeaveType
+            ? $first->type->label()
+            : (LeaveType::tryFrom((string) $first->type)?->label() ?? (string) $first->type);
+
+        $start = Carbon::parse($first->start_date)->locale('id')->translatedFormat('j F Y');
+        $end = Carbon::parse($first->end_date)->locale('id')->translatedFormat('j F Y');
+
+        $dateText = $start === $end
+            ? $start
+            : "{$start} - {$end}";
+
+        return "Tanggal yang dipilih bertabrakan dengan pengajuan {$typeLabel} tanggal {$dateText}.";
+    }
+
     private function getRoleString($user)
     {
         if (!$user) return '';
@@ -538,36 +610,24 @@ class LeaveRequestController extends Controller
             ]);
         }
 
-        // Cari pengajuan yang overlap di tanggal yang sama (masih pending)
-        $duplicates = LeaveRequest::where('user_id', $userId)
-            ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR])
-            ->where(function ($query) use ($startDate, $endDate) {
-                // Cek overlap tanggal
-                $query->whereBetween('start_date', [$startDate, $endDate])
-                    ->orWhereBetween('end_date', [$startDate, $endDate])
-                    ->orWhere(function ($q) use ($startDate, $endDate) {
-                        // Pengajuan yang range-nya meliputi range sekarang
-                        $q->where('start_date', '<=', $startDate)
-                          ->where('end_date', '>=', $endDate);
-                    });
-            })
-            ->get(['id', 'type', 'start_date', 'end_date', 'status', 'created_at']);
+        $duplicates = $this->findOverlappingLeaveRequests($userId, $startDate, $endDate);
 
         if ($duplicates->isNotEmpty()) {
             $duplicateData = $duplicates->map(function ($dup) {
                 return [
                     'id' => $dup->id,
-                    'type' => $dup->type instanceof LeaveType ? $dup->type->label() : $dup->type,
-                    'start_date' => Carbon::parse($dup->start_date)->format('d M Y'),
-                    'end_date' => Carbon::parse($dup->end_date)->format('d M Y'),
+                    'type' => $dup->type instanceof LeaveType ? $dup->type->label() : (LeaveType::tryFrom((string) $dup->type)?->label() ?? (string) $dup->type),
+                    'start_date' => Carbon::parse($dup->start_date)->locale('id')->translatedFormat('j F Y'),
+                    'end_date' => Carbon::parse($dup->end_date)->locale('id')->translatedFormat('j F Y'),
                     'status' => $dup->status,
+                    'status_label' => $dup->status_label,
                     'created_at' => $dup->created_at->format('d M Y H:i'),
                 ];
             });
 
             return response()->json([
                 'has_duplicate' => true,
-                'message' => 'Anda sudah memiliki pengajuan pada tanggal tersebut',
+                'message' => $this->formatOverlapMessage($duplicates),
                 'duplicates' => $duplicateData
             ]);
         }

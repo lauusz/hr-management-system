@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use function Pest\Laravel\actingAs;
 
 pest()->extend(Tests\TestCase::class)
     ->in('Feature');
@@ -349,6 +350,90 @@ describe('LeaveRequestController', function () {
 
             $response->assertSessionHasErrors(['error']);
         });
+
+        it('blocks overlap even when type is different', function () {
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'direct_supervisor_id' => null,
+            ]);
+            LeaveRequest::factory()->forUser($employee)->create([
+                'type'       => LeaveType::CUTI->value,
+                'start_date' => '2026-05-01',
+                'end_date'   => '2026-05-05',
+                'status'     => LeaveRequest::PENDING_HR,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $response = $this->post(route('leave-requests.store'), [
+                'type'       => LeaveType::IZIN->value,
+                'start_date' => '2026-05-04',
+                'end_date'   => '2026-05-04',
+                'reason'     => 'Keperluan lain',
+            ]);
+
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
+            expect(session('error'))->toContain('Cuti');
+            expect(LeaveRequest::where('user_id', $employee->id)->count())->toBe(1);
+        });
+
+        it('allows non-overlapping date', function () {
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'direct_supervisor_id' => null,
+            ]);
+            LeaveRequest::factory()->forUser($employee)->create([
+                'type'       => LeaveType::CUTI->value,
+                'start_date' => '2026-05-01',
+                'end_date'   => '2026-05-05',
+                'status'     => LeaveRequest::PENDING_HR,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $response = $this->post(route('leave-requests.store'), [
+                'type'       => LeaveType::IZIN->value,
+                'start_date' => '2026-05-06',
+                'end_date'   => '2026-05-06',
+                'reason'     => 'Keperluan lain',
+            ]);
+
+            $response->assertRedirect(route('leave-requests.index'));
+            $response->assertSessionHas('success');
+            expect(LeaveRequest::where('user_id', $employee->id)->count())->toBe(2);
+        });
+
+        it('ignores rejected and BATAL when checking overlap', function () {
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'direct_supervisor_id' => null,
+            ]);
+            LeaveRequest::factory()->forUser($employee)->create([
+                'type'       => LeaveType::CUTI->value,
+                'start_date' => '2026-05-01',
+                'end_date'   => '2026-05-05',
+                'status'     => LeaveRequest::STATUS_REJECTED,
+            ]);
+            LeaveRequest::factory()->forUser($employee)->create([
+                'type'       => LeaveType::SAKIT->value,
+                'start_date' => '2026-05-10',
+                'end_date'   => '2026-05-10',
+                'status'     => 'BATAL',
+            ]);
+
+            actingAs($employee, 'web');
+
+            $response = $this->post(route('leave-requests.store'), [
+                'type'       => LeaveType::IZIN->value,
+                'start_date' => '2026-05-03',
+                'end_date'   => '2026-05-03',
+                'reason'     => 'Keperluan lain',
+            ]);
+
+            $response->assertRedirect(route('leave-requests.index'));
+            $response->assertSessionHas('success');
+        });
     });
 
     // =====================================================================
@@ -487,6 +572,39 @@ describe('LeaveRequestController', function () {
 
             $response->assertSessionHasErrors(['error']);
         });
+
+        it('blocks overlap with another leave on update', function () {
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'direct_supervisor_id' => null,
+            ]);
+            LeaveRequest::factory()->forUser($employee)->create([
+                'type'       => LeaveType::CUTI->value,
+                'start_date' => '2026-05-01',
+                'end_date'   => '2026-05-05',
+                'status'     => LeaveRequest::PENDING_HR,
+            ]);
+            $leaveB = LeaveRequest::factory()->forUser($employee)->create([
+                'type'       => LeaveType::IZIN->value,
+                'start_date' => '2026-05-10',
+                'end_date'   => '2026-05-10',
+                'status'     => LeaveRequest::PENDING_HR,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $response = $this->put(route('leave-requests.update', $leaveB->id), [
+                'type'       => LeaveType::IZIN->value,
+                'start_date' => '2026-05-04',
+                'end_date'   => '2026-05-04',
+                'reason'     => 'Updated reason',
+            ]);
+
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
+            $leaveB->refresh();
+            expect($leaveB->start_date->format('Y-m-d'))->toBe('2026-05-10');
+        });
     });
 
     // =====================================================================
@@ -535,6 +653,24 @@ describe('LeaveRequestController', function () {
             $response = $this->delete(route('leave-requests.destroy', $leave->id));
 
             $response->assertStatus(302);
+        });
+
+        it('prevents employee from canceling another users leave request', function () {
+            $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $other = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+            $leave = LeaveRequest::factory()->forUser($other)->create([
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+
+            actingAs($user, 'web');
+
+            $response = $this->delete(route('leave-requests.destroy', $leave->id));
+
+            $response->assertStatus(403);
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR);
         });
     });
 
@@ -641,6 +777,33 @@ describe('LeaveRequestController', function () {
             $response = $this->post(route('leave-requests.checkDuplicate'), []);
 
             $response->assertJson(['has_duplicate' => false]);
+        });
+
+        it('returns specific duplicate data with type and date range', function () {
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'direct_supervisor_id' => null,
+            ]);
+            LeaveRequest::factory()->forUser($employee)->create([
+                'type'       => LeaveType::CUTI->value,
+                'start_date' => '2026-05-01',
+                'end_date'   => '2026-05-05',
+                'status'     => LeaveRequest::PENDING_HR,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $response = $this->postJson(route('leave-requests.checkDuplicate'), [
+                'start_date' => '2026-05-04',
+                'end_date'   => '2026-05-04',
+            ]);
+
+            $response->assertOk();
+            $json = $response->json();
+            expect($json['has_duplicate'])->toBeTrue();
+            expect($json['message'])->toContain('Cuti');
+            expect($json['duplicates'][0]['start_date'])->toBe('1 Mei 2026');
+            expect($json['duplicates'][0]['end_date'])->toBe('5 Mei 2026');
         });
     });
 });

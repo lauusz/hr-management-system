@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('phone')->nullable();
             $table->string('role')->default('EMPLOYEE'); // EMPLOYEE, SUPERVISOR, MANAGER, HRD, HR_STAFF
             $table->boolean('can_manage_payroll')->default(false);
+            $table->boolean('hr_staff_can_approve_non_cuti')->default(false);
             $table->unsignedBigInteger('direct_supervisor_id')->nullable();
             $table->unsignedBigInteger('manager_id')->nullable();
             $table->unsignedBigInteger('division_id')->nullable();
