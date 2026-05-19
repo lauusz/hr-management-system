@@ -13,6 +13,7 @@ class HRAttendanceController extends Controller
         $dateStart = $request->query('date_start');
         $dateEnd   = $request->query('date_end');
         $status    = $request->query('status');
+        $completionStatus = $request->query('completion_status');
         $q         = $request->query('q');
 
         if (!$dateStart && !$dateEnd) {
@@ -52,6 +53,18 @@ class HRAttendanceController extends Controller
             $status = null;
         }
 
+        $validCompletionStatuses = [
+            Attendance::COMPLETION_OPEN,
+            Attendance::COMPLETION_CLOSED,
+            Attendance::COMPLETION_MISSED_CLOCK_OUT,
+            Attendance::COMPLETION_LATE_CLOCK_OUT,
+        ];
+        if (in_array($completionStatus, $validCompletionStatuses, true)) {
+            $query->where('completion_status', $completionStatus);
+        } else {
+            $completionStatus = null;
+        }
+
         if ($q) {
             $query->whereHas('user', function ($sub) use ($q) {
                 $sub->where('name', 'like', '%' . $q . '%');
@@ -59,18 +72,20 @@ class HRAttendanceController extends Controller
         }
 
         $items = $query->paginate(20)->appends([
-            'date_start' => $dateStart,
-            'date_end'   => $dateEnd,
-            'status'     => $status,
-            'q'          => $q,
+            'date_start'        => $dateStart,
+            'date_end'          => $dateEnd,
+            'status'            => $status,
+            'completion_status' => $completionStatus,
+            'q'                 => $q,
         ]);
 
         return view('hr.attendances.index', [
-            'items'      => $items,
-            'date_start' => $dateStart,
-            'date_end'   => $dateEnd,
-            'status'     => $status,
-            'q'          => $q,
+            'items'             => $items,
+            'date_start'        => $dateStart,
+            'date_end'          => $dateEnd,
+            'status'            => $status,
+            'completion_status' => $completionStatus,
+            'q'                 => $q,
         ]);
     }
 }

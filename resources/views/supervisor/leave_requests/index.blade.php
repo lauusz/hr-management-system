@@ -112,7 +112,7 @@ if ($roleStr === 'MANAGER') {
                     <div class="apv-avatar">{{ substr($lv->user->name, 0, 1) }}</div>
                     <div class="apv-employee-info">
                         <span class="apv-employee-name">{{ $lv->user->name }}</span>
-                        <span class="apv-employee-detail">{{ $lv->user->position->name ?? '-' }} — {{ $lv->user->division->name ?? '-' }}</span>
+                        <span class="apv-employee-detail">{{ $lv->user->position->name ?? '-' }} - {{ $lv->user->division->name ?? '-' }}</span>
                     </div>
                 </div>
 
@@ -122,7 +122,7 @@ if ($roleStr === 'MANAGER') {
                     </svg>
                     <span>{{ $lv->start_date->translatedFormat('l, j F Y') }}</span>
                     @if($lv->end_date && $lv->end_date->ne($lv->start_date))
-                        <span class="apv-card-date-sep">—</span>
+                        <span class="apv-card-date-sep">-</span>
                         <span>{{ $lv->end_date->translatedFormat('l, j F Y') }}</span>
                     @endif
                 </div>

@@ -1,178 +1,565 @@
-<x-app title="Approval Lembur (Supervisor)">
+<x-app title="Inbox Approval Lembur">
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="section-title">Inbox Approval Lembur</h1>
+                <p class="section-subtitle">Daftar pengajuan lembur yang membutuhkan persetujuan Anda</p>
+            </div>
+        </div>
+    </x-slot>
+
+    @if (session('success'))
+        <div class="sov-alert sov-alert--success">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            {{ session('success') }}
+        </div>
+    @endif
+
+    @if (session('error'))
+        <div class="sov-alert sov-alert--error">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            {{ session('error') }}
+        </div>
+    @endif
+
+    {{-- ============================================== --}}
+    {{-- SUMMARY STATS --}}
+    {{-- ============================================== --}}
+    <div class="sov-stats">
+        <div class="sov-stat">
+            <div class="sov-stat-value">{{ $overtimes->total() }}</div>
+            <div class="sov-stat-label">Total</div>
+        </div>
+        <div class="sov-stat-divider"></div>
+        <div class="sov-stat">
+            <div class="sov-stat-value sov-stat-value--warning">
+                {{ $overtimes->where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)->count() }}
+            </div>
+            <div class="sov-stat-label">Menunggu</div>
+        </div>
+        <div class="sov-stat-divider"></div>
+        <div class="sov-stat">
+            <div class="sov-stat-value sov-stat-value--success">
+                {{ $overtimes->whereIn('status', [\App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR, \App\Models\OvertimeRequest::STATUS_APPROVED_HRD])->count() }}
+            </div>
+            <div class="sov-stat-label">Disetujui</div>
+        </div>
+        <div class="sov-stat-divider"></div>
+        <div class="sov-stat">
+            <div class="sov-stat-value sov-stat-value--error">
+                {{ $overtimes->where('status', \App\Models\OvertimeRequest::STATUS_REJECTED)->count() }}
+            </div>
+            <div class="sov-stat-label">Ditolak</div>
+        </div>
+    </div>
+
+    {{-- ============================================== --}}
+    {{-- REQUEST LIST --}}
+    {{-- ============================================== --}}
+    <div class="sov-list">
+        @forelse($overtimes as $overtime)
+            @php
+                $st = $overtime->status;
+                $badgeClass = 'sov-badge--gray';
+                $statusLabel = $overtime->status_label;
+                $statusIcon = '';
+
+                if (in_array($st, [\App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR, \App\Models\OvertimeRequest::STATUS_APPROVED_HRD])) {
+                    $badgeClass = 'sov-badge--success';
+                    $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
+                } elseif ($st === \App\Models\OvertimeRequest::STATUS_REJECTED) {
+                    $badgeClass = 'sov-badge--error';
+                    $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>';
+                } elseif ($st === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
+                    $badgeClass = 'sov-badge--warning';
+                    $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+                } elseif ($st === \App\Models\OvertimeRequest::STATUS_CANCELLED) {
+                    $badgeClass = 'sov-badge--gray';
+                    $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+                }
+
+                $isPending = $st === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR;
+            @endphp
+
+            <a href="{{ route('supervisor.overtime-requests.show', $overtime->id) }}" class="sov-card">
+                <div class="sov-card-top">
+                    <span class="sov-type">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Lembur
+                    </span>
+                    <span class="sov-badge {{ $badgeClass }}">
+                        {!! $statusIcon !!}
+                        {{ $statusLabel }}
+                    </span>
+                </div>
+
+                <div class="sov-card-employee">
+                    <div class="sov-avatar">{{ substr($overtime->user->name, 0, 1) }}</div>
+                    <div class="sov-employee-info">
+                        <span class="sov-employee-name">{{ $overtime->user->name }}</span>
+                        <span class="sov-employee-detail">{{ $overtime->user->position->name ?? '-' }} - {{ $overtime->user->division->name ?? '-' }}</span>
+                    </div>
+                </div>
+
+                <div class="sov-card-date">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>{{ $overtime->overtime_date->translatedFormat('l, j F Y') }}</span>
+                </div>
+
+                <div class="sov-card-time">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</span>
+                    <span class="sov-duration">{{ $overtime->duration_human }}</span>
+                </div>
+
+                @if($overtime->description)
+                    <div class="sov-card-note">
+                        {{ Str::limit($overtime->description, 100) }}
+                    </div>
+                @endif
+
+                <div class="sov-card-footer">
+                    <div class="sov-card-meta">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>{{ $overtime->created_at->translatedFormat('l, j F Y') }} · {{ $overtime->created_at->format('H:i') }}</span>
+                    </div>
+                    <div class="sov-card-action">
+                        <span>{{ $isPending ? 'Proses' : 'Detail' }}</span>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </div>
+                </div>
+            </a>
+        @empty
+            <div class="sov-empty">
+                <div class="sov-empty-icon">
+                    <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 class="sov-empty-title">Tidak Ada Pengajuan</h3>
+                <p class="sov-empty-desc">Tidak ada pengajuan lembur yang perlu diproses saat ini.</p>
+            </div>
+        @endforelse
+    </div>
+
+    @if($overtimes->hasPages())
+    <div class="sov-pagination">
+        <x-pagination :items="$overtimes" />
+    </div>
+    @endif
+
     <style>
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --primary-light: #dbeafe;
-            --success: #059669;
-            --success-bg: #dcfce7;
-            --warning: #d97706;
-            --warning-bg: #fefce8;
-            --danger: #dc2626;
-            --danger-bg: #fee2e2;
-            --gray-50: #f9fafb;
-            --gray-100: #f3f4f6;
-            --gray-200: #e5e7eb;
-            --gray-300: #d1d5db;
-            --gray-400: #9ca3af;
-            --gray-500: #6b7280;
-            --gray-600: #4b5563;
-            --gray-700: #374151;
-            --gray-900: #111827;
+        /* ========================================== */
+        /* ALERTS                                     */
+        /* ========================================== */
+        .sov-alert {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: 500;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: system-ui, -apple-system, sans-serif; background: var(--gray-50); color: var(--gray-900); }
-
-        .page-wrapper { max-width: 680px; margin: 0 auto; padding: 16px; }
-
-        /* Header */
-        .page-header { margin-bottom: 16px; }
-        .page-header-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
-        .page-title { font-size: 20px; font-weight: 700; color: var(--gray-900); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .role-chip { font-size: 11px; background: #e0e7ff; color: #3730a3; padding: 3px 10px; border-radius: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-        .page-subtitle { font-size: 13px; color: var(--gray-500); }
-        .total-badge { font-size: 12px; color: var(--gray-500); white-space: nowrap; }
-        .total-badge strong { color: var(--gray-700); }
-
-        /* Alerts */
-        .alert-success { background: var(--success-bg); color: #065f46; padding: 12px 16px; border-radius: 10px; border: 1px solid #a7f3d0; margin-bottom: 16px; font-size: 13.5px; }
-        .alert-danger { background: var(--danger-bg); color: #991b1b; padding: 12px 16px; border-radius: 10px; border: 1px solid #fecaca; margin-bottom: 16px; font-size: 13.5px; }
-
-        /* Cards */
-        .card { background: #fff; border-radius: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border: 1px solid var(--gray-200); overflow: hidden; }
-
-        /* Overtime Card */
-        .overtime-card { padding: 16px; border-bottom: 1px solid var(--gray-100); display: flex; flex-direction: column; gap: 10px; }
-        .overtime-card:last-child { border-bottom: none; }
-        .overtime-card.card-pending { border-left: 4px solid var(--primary); }
-
-        .overtime-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
-        .employee-info { display: flex; align-items: center; gap: 10px; }
-        .avatar { width: 42px; height: 42px; background: var(--primary-light); color: var(--primary-dark); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; flex-shrink: 0; }
-        .employee-name { font-size: 14px; font-weight: 700; color: var(--gray-900); }
-        .employee-division { font-size: 11.5px; color: var(--gray-400); margin-top: 1px; }
-
-        /* Status chips */
-        .chip-status { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
-        .status-pending { background: var(--warning-bg); color: #a16207; }
-        .status-supervisor { background: var(--primary-light); color: var(--primary-dark); }
-        .status-approved { background: var(--success-bg); color: #166534; }
-        .status-rejected { background: var(--danger-bg); color: #991b1b; }
-
-        .overtime-body { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-        .overtime-info { display: flex; flex-direction: column; gap: 2px; }
-        .overtime-label { font-size: 10.5px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
-        .overtime-value { font-size: 13px; font-weight: 600; color: var(--gray-800); }
-        .badge-duration { display: inline-block; background: #f3e8ff; color: #7e22ce; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-
-        .overtime-desc { background: var(--gray-50); padding: 10px 12px; border-radius: 8px; border: 1px dashed var(--gray-200); font-size: 12.5px; color: var(--gray-600); line-height: 1.5; margin-top: 2px; }
-
-        .overtime-footer { display: flex; justify-content: flex-end; }
-        .btn-card { padding: 8px 18px; border-radius: 10px; font-size: 12.5px; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; transition: all 0.2s; }
-        .btn-card-process { background: var(--primary); color: #fff; }
-        .btn-card-process:hover { background: var(--primary-dark); }
-        .btn-card-detail { background: var(--gray-100); color: var(--gray-700); border: 1px solid var(--gray-200); }
-        .btn-card-detail:hover { background: var(--gray-200); }
-
-        /* Empty State */
-        .empty-state { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 60px 20px; color: var(--gray-400); text-align: center; }
-        .empty-state svg { opacity: 0.5; }
-        .empty-state p { font-size: 14px; max-width: 280px; line-height: 1.6; }
-
-        /* Pagination */
-        .pagination-wrapper { margin-top: 16px; display: flex; justify-content: center; }
-
-        @media (max-width: 480px) {
-            .overtime-body { grid-template-columns: 1fr; }
+        .sov-alert--success {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: #16a34a;
         }
-        @media (min-width: 681px) {
-            .page-wrapper { padding: 24px 16px; }
+        .sov-alert--error {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #dc2626;
+        }
+
+        /* ========================================== */
+        /* SECTION HEADER (x-slot)                    */
+        /* ========================================== */
+        .section-header-inline {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .section-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+        .section-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary, #111827);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+            line-height: 1.35;
+        }
+        .icon-navy  { background: rgba(10, 61, 98, 0.08);  color: var(--primary-dark, #0A3D62); }
+
+        /* ========================================== */
+        /* STATS ROW                                  */
+        /* ========================================== */
+        .sov-stats {
+            display: flex;
+            align-items: center;
+            gap: 1px;
+            background: var(--border-light, #E5E7EB);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-light, #E5E7EB);
+        }
+        .sov-stat {
+            flex: 1;
+            background: var(--white, #FFFFFF);
+            padding: 10px 4px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            min-width: 0;
+        }
+        .sov-stat-value {
+            font-size: 1.0625rem;
+            font-weight: 700;
+            color: var(--text-primary, #111827);
+            line-height: 1;
+        }
+        .sov-stat-value--success { color: var(--success, #22C55E); }
+        .sov-stat-value--warning { color: var(--warning, #F59E0B); }
+        .sov-stat-value--error   { color: var(--error, #EF4444); }
+        .sov-stat-label {
+            font-size: 0.5625rem;
+            font-weight: 600;
+            color: var(--text-muted, #6B7280);
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            line-height: 1.2;
+        }
+        .sov-stat-divider {
+            display: none;
+        }
+
+        /* ========================================== */
+        /* REQUEST LIST & CARDS                       */
+        /* ========================================== */
+        .sov-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .sov-card {
+            display: block;
+            background: var(--white, #FFFFFF);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid var(--border-light, #E5E7EB);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            text-decoration: none;
+            color: inherit;
+            transition: all 0.2s ease;
+        }
+        .sov-card:hover {
+            border-color: rgba(20, 93, 160, 0.35);
+            box-shadow: 0 4px 12px rgba(20, 93, 160, 0.08);
+            transform: translateY(-2px);
+        }
+        .sov-card-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Type badge (rounded, not pill) */
+        .sov-type {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(10, 61, 98, 0.08);
+            color: var(--primary-dark, #0A3D62);
+        }
+
+        /* Status badge (pill) */
+        .sov-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 10px;
+            border-radius: 9999px;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .sov-badge--success { background: rgba(34, 197, 94, 0.1); color: #15803d; }
+        .sov-badge--error   { background: rgba(239, 68, 68, 0.1); color: #b91c1c; }
+        .sov-badge--warning { background: rgba(245, 158, 11, 0.1); color: #a16207; }
+        .sov-badge--gray    { background: #F8FAFC; color: var(--text-secondary, #374151); }
+
+        /* Employee info */
+        .sov-card-employee {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .sov-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: rgba(20, 93, 160, 0.08);
+            color: var(--primary, #145DA0);
+            font-size: 0.875rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .sov-employee-info {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .sov-employee-name {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary, #111827);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .sov-employee-detail {
+            font-size: 0.75rem;
+            color: var(--text-muted, #6B7280);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Date */
+        .sov-card-date {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary, #111827);
+            margin-bottom: 8px;
+        }
+        .sov-card-date svg {
+            color: var(--text-muted, #6B7280);
+            flex-shrink: 0;
+        }
+
+        /* Time */
+        .sov-card-time {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 0.8125rem;
+            color: var(--text-secondary, #374151);
+            margin-bottom: 8px;
+        }
+        .sov-card-time svg {
+            color: var(--text-muted, #6B7280);
+            flex-shrink: 0;
+        }
+        .sov-duration {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            background: rgba(34, 197, 94, 0.1);
+            color: #15803d;
+            margin-left: 4px;
+        }
+
+        /* Note */
+        .sov-card-note {
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        /* Footer */
+        .sov-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-light, #E5E7EB);
+            gap: 8px;
+        }
+        .sov-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.75rem;
+            color: var(--text-muted, #6B7280);
+        }
+        .sov-card-meta svg {
+            flex-shrink: 0;
+        }
+        .sov-card-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--primary, #145DA0);
+            flex-shrink: 0;
+        }
+        .sov-card-action svg {
+            transition: transform 0.2s ease;
+        }
+        .sov-card:hover .sov-card-action svg {
+            transform: translateX(3px);
+        }
+
+        /* ========================================== */
+        /* EMPTY STATE                                */
+        /* ========================================== */
+        .sov-empty {
+            text-align: center;
+            padding: 48px 24px;
+            background: var(--white, #FFFFFF);
+            border-radius: 16px;
+            border: 1px solid var(--border-light, #E5E7EB);
+        }
+        .sov-empty-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 16px;
+            background: var(--gray-50, #F5F7FA);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light, #9CA3AF);
+        }
+        .sov-empty-title {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-secondary, #374151);
+            margin: 0 0 6px;
+        }
+        .sov-empty-desc {
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            margin: 0 auto;
+            max-width: 280px;
+            line-height: 1.5;
+        }
+
+        /* ========================================== */
+        /* PAGINATION                                 */
+        /* ========================================== */
+        .sov-pagination {
+            margin-top: 24px;
+        }
+
+        /* ========================================== */
+        /* RESPONSIVE                                 */
+        /* ========================================== */
+        @media (min-width: 480px) {
+            .sov-stats {
+                display: flex;
+                align-items: center;
+                background: var(--white, #FFFFFF);
+                padding: 14px 20px;
+            }
+            .sov-stat {
+                flex: 1;
+                padding: 0;
+                gap: 4px;
+            }
+            .sov-stat-value {
+                font-size: 1.375rem;
+            }
+            .sov-stat-label {
+                font-size: 0.6875rem;
+                letter-spacing: 0.04em;
+            }
+            .sov-stat-divider {
+                display: block;
+                width: 1px;
+                height: 36px;
+                background: var(--border, #D1D5DB);
+                flex-shrink: 0;
+            }
+            .sov-card {
+                padding: 18px 20px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .sov-card {
+                padding: 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .sov-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+            .sov-empty {
+                grid-column: 1 / -1;
+            }
         }
     </style>
-
-    <div class="page-wrapper">
-        <div class="page-header">
-            <div class="page-header-top">
-                <h1 class="page-title">
-                    Approval Lembur
-                    <span class="role-chip">Supervisor</span>
-                </h1>
-                <span class="total-badge">Total: <strong>{{ $overtimes->total() }}</strong></span>
-            </div>
-            <p class="page-subtitle">Daftar pengajuan lembur yang membutuhkan persetujuan Anda.</p>
-        </div>
-
-        @if(session('success'))
-            <div class="alert-success">{{ session('success') }}</div>
-        @endif
-        @if(session('error'))
-            <div class="alert-danger">{{ session('error') }}</div>
-        @endif
-
-        <div class="card">
-            @forelse($overtimes as $overtime)
-                @php
-                    $statusClass = 'status-rejected';
-                    $statusLabel = $overtime->status;
-                    if ($overtime->status == \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR) { $statusClass = 'status-pending'; $statusLabel = 'Menunggu'; }
-                    elseif ($overtime->status == \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR) { $statusClass = 'status-supervisor'; $statusLabel = 'Disetujui SPV'; }
-                    elseif ($overtime->status == \App\Models\OvertimeRequest::STATUS_APPROVED_HRD) { $statusClass = 'status-approved'; $statusLabel = 'Disetujui Final'; }
-                    elseif ($overtime->status == \App\Models\OvertimeRequest::STATUS_REJECTED) { $statusClass = 'status-rejected'; $statusLabel = 'Ditolak'; }
-                    $isPending = $overtime->status == \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR;
-                @endphp
-                <div class="overtime-card {{ $isPending ? 'card-pending' : '' }}">
-                    <div class="overtime-header">
-                        <div class="employee-info">
-                            <div class="avatar">{{ substr($overtime->user->name, 0, 1) }}</div>
-                            <div>
-                                <div class="employee-name">{{ $overtime->user->name }}</div>
-                                <div class="employee-division">{{ $overtime->user->division->name ?? '-' }}</div>
-                            </div>
-                        </div>
-                        <span class="chip-status {{ $statusClass }}">{{ $statusLabel }}</span>
-                    </div>
-                    <div class="overtime-body">
-                        <div class="overtime-info">
-                            <span class="overtime-label">Tanggal</span>
-                            <span class="overtime-value">{{ $overtime->overtime_date->translatedFormat('j F Y') }}</span>
-                        </div>
-                        <div class="overtime-info">
-                            <span class="overtime-label">Jam</span>
-                            <span class="overtime-value">{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</span>
-                        </div>
-                        <div class="overtime-info">
-                            <span class="overtime-label">Durasi</span>
-                            <span class="overtime-value"><span class="badge-duration">{{ $overtime->duration_human }}</span></span>
-                        </div>
-                        <div class="overtime-info">
-                            <span class="overtime-label">Keterangan</span>
-                            <div class="overtime-desc">{{ Str::limit($overtime->description, 80) }}</div>
-                        </div>
-                    </div>
-                    <div class="overtime-footer">
-                        <a href="{{ route('supervisor.overtime-requests.show', $overtime->id) }}" class="btn-card {{ $isPending ? 'btn-card-process' : 'btn-card-detail' }}">
-                            @if($isPending)
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                                Proses
-                            @else
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                Detail
-                            @endif
-                        </a>
-                    </div>
-                </div>
-            @empty
-                <div class="empty-state">
-                    <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <p>Tidak ada pengajuan lembur yang perlu diproses saat ini.</p>
-                </div>
-            @endforelse
-        </div>
-
-        @if($overtimes->hasPages())
-            <div class="pagination-wrapper">
-                {{ $overtimes->links() }}
-            </div>
-        @endif
-    </div>
 </x-app>

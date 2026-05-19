@@ -14,14 +14,16 @@ class PayslipTemplateExport implements FromView, ShouldAutoSize
     protected $year;
     protected $ptId;
     protected $search;
+    protected $divisionId;
 
-    public function __construct($startMonth, $endMonth, $year, $ptId, $search = null)
+    public function __construct($startMonth, $endMonth, $year, $ptId, $search = null, $divisionId = null)
     {
         $this->startMonth = $startMonth;
         $this->endMonth = $endMonth;
         $this->year = $year;
         $this->ptId = $ptId;
         $this->search = $search;
+        $this->divisionId = $divisionId;
     }
 
     public function view(): View
@@ -46,6 +48,9 @@ class PayslipTemplateExport implements FromView, ShouldAutoSize
                 $query->whereHas('profile', function ($profileQuery) use ($ptId) {
                     $profileQuery->where('pt_id', $ptId);
                 });
+            })
+            ->when($this->divisionId, function ($query) {
+                $query->where('division_id', $this->divisionId);
             })
             ->with(['profile', 'position', 'division', 'payslips' => function ($q) use ($startMonth, $endMonth, $year) {
                 $q->whereBetween('period_month', [$startMonth, $endMonth])

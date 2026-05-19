@@ -1,4 +1,4 @@
-<x-app title="Approval Lembur (HR)">
+<x-app title="Rekap Lembur (HR)">
     <div class="container mx-auto px-4 py-6">
         @if(session('success'))
             <div class="alert-success">
@@ -8,8 +8,8 @@
 
         <div class="card">
             <div class="card-header-simple">
-                <h4 class="card-title-sm">Approval Lembur</h4>
-                <p class="card-subtitle-sm">Daftar pengajuan lembur yang membutuhkan persetujuan Anda.</p>
+                <h4 class="card-title-sm">Rekap Lembur</h4>
+                <p class="card-subtitle-sm">Daftar pengajuan lembur untuk pencocokan dengan data absensi.</p>
             </div>
 
             <div class="table-wrapper">
@@ -62,7 +62,7 @@
                         @empty
                             <tr>
                                 <td colspan="5" class="empty-state">
-                                    Tidak ada pengajuan lembur yang perlu disetujui.
+                                    Tidak ada data lembur.
                                 </td>
                             </tr>
                         @endforelse

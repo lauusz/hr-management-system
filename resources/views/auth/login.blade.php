@@ -14,7 +14,7 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
 
-  <title>Masuk — HRD Triguna Samudratrans</title>
+  <title>Masuk - HRD Triguna Samudratrans</title>
   <link rel="icon" href="{{ asset('images/logo-triguna-clean.png') }}" type="image/png">
 
   {{-- Plus Jakarta Sans --}}
@@ -98,7 +98,7 @@
       overflow: hidden;
     }
 
-    /* Subtle background shapes — organic, not perfect circles */
+    /* Subtle background shapes - organic, not perfect circles */
     .bg-shape {
       position: absolute;
       pointer-events: none;
@@ -172,7 +172,7 @@
       font-weight: 500;
     }
 
-    /* Login card — white, warm, grounded */
+    /* Login card - white, warm, grounded */
     .form-card {
       width: 100%;
       max-width: 340px;
@@ -187,7 +187,7 @@
       z-index: 1;
     }
 
-    /* Gold accent line — sparing, purposeful */
+    /* Gold accent line - sparing, purposeful */
     .card-accent {
       position: absolute;
       top: 0;
@@ -218,7 +218,7 @@
       line-height: 1.5;
     }
 
-    /* Error box — reserved space, does not shift layout */
+    /* Error box - reserved space, does not shift layout */
     .error-box {
       background: rgba(239, 68, 68, 0.06);
       border: 1px solid rgba(239, 68, 68, 0.15);
@@ -754,7 +754,7 @@
         opacity: 0.07;
       }
 
-      /* Subtle abstract route lines — logistics inspired */
+      /* Subtle abstract route lines - logistics inspired */
       .route-line-desktop {
         position: absolute;
         pointer-events: none;

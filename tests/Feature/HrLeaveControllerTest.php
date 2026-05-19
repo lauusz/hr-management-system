@@ -363,11 +363,13 @@ describe('HrLeaveController', function () {
         });
 
         // --- MANAGER tests ---
-        it('HR Staff CANNOT approve MANAGER CUTI even with flag true', function () {
-            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+        it('HR Staff CANNOT approve MANAGER CUTI even when HR Staff flag is true', function () {
+            $hrStaff = User::factory()->create([
+                'role' => UserRole::HR_STAFF,
+                'hr_staff_can_approve_non_cuti' => true,
+            ]);
             $manager = User::factory()->create([
                 'role' => UserRole::MANAGER,
-                'hr_staff_can_approve_non_cuti' => true,
             ]);
             $leave = LeaveRequest::factory()->forUser($manager)->create([
                 'status' => LeaveRequest::PENDING_HR,
@@ -380,11 +382,14 @@ describe('HrLeaveController', function () {
             $response->assertStatus(403);
         });
 
-        it('HR Staff CAN approve MANAGER non-CUTI when flag is true', function () {
-            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+        it('HR Staff CAN approve MANAGER non-CUTI when HR Staff flag is true', function () {
+            $hrStaff = User::factory()->create([
+                'role' => UserRole::HR_STAFF,
+                'hr_staff_can_approve_non_cuti' => true,
+            ]);
             $manager = User::factory()->create([
                 'role' => UserRole::MANAGER,
-                'hr_staff_can_approve_non_cuti' => true,
+                'hr_staff_can_approve_non_cuti' => false,
             ]);
             $leave = LeaveRequest::factory()->forUser($manager)->create([
                 'status' => LeaveRequest::PENDING_HR,
@@ -399,11 +404,14 @@ describe('HrLeaveController', function () {
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
         });
 
-        it('HR Staff CANNOT approve MANAGER non-CUTI when flag is false', function () {
-            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+        it('HR Staff CANNOT approve MANAGER non-CUTI when HR Staff flag is false', function () {
+            $hrStaff = User::factory()->create([
+                'role' => UserRole::HR_STAFF,
+                'hr_staff_can_approve_non_cuti' => false,
+            ]);
             $manager = User::factory()->create([
                 'role' => UserRole::MANAGER,
-                'hr_staff_can_approve_non_cuti' => false,
+                'hr_staff_can_approve_non_cuti' => true,
             ]);
             $leave = LeaveRequest::factory()->forUser($manager)->create([
                 'status' => LeaveRequest::PENDING_HR,
@@ -417,11 +425,13 @@ describe('HrLeaveController', function () {
         });
 
         // --- SUPERVISOR tests ---
-        it('HR Staff CANNOT approve SUPERVISOR CUTI even when flag is true', function () {
-            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+        it('HR Staff CANNOT approve SUPERVISOR CUTI even when HR Staff flag is true', function () {
+            $hrStaff = User::factory()->create([
+                'role' => UserRole::HR_STAFF,
+                'hr_staff_can_approve_non_cuti' => true,
+            ]);
             $supervisor = User::factory()->create([
                 'role' => UserRole::SUPERVISOR,
-                'hr_staff_can_approve_non_cuti' => true,
             ]);
             $leave = LeaveRequest::factory()->forUser($supervisor)->create([
                 'status' => LeaveRequest::PENDING_HR,
@@ -434,11 +444,14 @@ describe('HrLeaveController', function () {
             $response->assertStatus(403);
         });
 
-        it('HR Staff CAN approve SUPERVISOR non-CUTI when flag is true', function () {
-            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+        it('HR Staff CAN approve SUPERVISOR non-CUTI when HR Staff flag is true', function () {
+            $hrStaff = User::factory()->create([
+                'role' => UserRole::HR_STAFF,
+                'hr_staff_can_approve_non_cuti' => true,
+            ]);
             $supervisor = User::factory()->create([
                 'role' => UserRole::SUPERVISOR,
-                'hr_staff_can_approve_non_cuti' => true,
+                'hr_staff_can_approve_non_cuti' => false,
             ]);
             $leave = LeaveRequest::factory()->forUser($supervisor)->create([
                 'status' => LeaveRequest::PENDING_HR,
@@ -453,11 +466,14 @@ describe('HrLeaveController', function () {
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
         });
 
-        it('HR Staff CANNOT approve SUPERVISOR non-CUTI when flag is false', function () {
-            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+        it('HR Staff CANNOT approve SUPERVISOR non-CUTI when HR Staff flag is false', function () {
+            $hrStaff = User::factory()->create([
+                'role' => UserRole::HR_STAFF,
+                'hr_staff_can_approve_non_cuti' => false,
+            ]);
             $supervisor = User::factory()->create([
                 'role' => UserRole::SUPERVISOR,
-                'hr_staff_can_approve_non_cuti' => false,
+                'hr_staff_can_approve_non_cuti' => true,
             ]);
             $leave = LeaveRequest::factory()->forUser($supervisor)->create([
                 'status' => LeaveRequest::PENDING_HR,

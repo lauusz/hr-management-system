@@ -188,7 +188,7 @@
                         </svg>
                         <span>{{ $item->start_date->translatedFormat('j F Y') }}</span>
                         @if($item->end_date && $item->end_date->ne($item->start_date))
-                            <span class="apv-date-sep">—</span>
+                            <span class="apv-date-sep">-</span>
                             <span>{{ $item->end_date->translatedFormat('j F Y') }}</span>
                         @endif
                     </div>
@@ -212,7 +212,7 @@
                             Jam Mulai
                         @endif
                     </span>
-                    <span class="apv-time-display">{{ $startTimeLabel }}{{ $endTimeLabel ? ' — ' . $endTimeLabel : '' }}</span>
+                    <span class="apv-time-display">{{ $startTimeLabel }}{{ $endTimeLabel ? ' - ' . $endTimeLabel : '' }}</span>
                 </div>
                 @endif
 
@@ -334,7 +334,7 @@
                 <div class="apv-detail-row apv-detail-row--full">
                     <span class="apv-detail-label">Diputuskan Oleh</span>
                     <div class="apv-approver-box">
-                        <div class="apv-avatar">{{ substr($item->approver?->name ?? '—', 0, 1) }}</div>
+                        <div class="apv-avatar">{{ substr($item->approver?->name ?? '-', 0, 1) }}</div>
                         <div class="apv-approver-info">
                             <span class="apv-approver-name">{{ $item->approver?->name ?? '-' }}</span>
                             @if($item->approved_at)

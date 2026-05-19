@@ -287,7 +287,7 @@
                                         <div class="lm-employee-avatar">{{ substr($row->user->name, 0, 1) }}</div>
                                         <div class="lm-employee-info">
                                             <span class="lm-employee-name">{{ $row->user->name }}</span>
-                                            <div class="lm-employee-detail">{{ $row->user->position->name ?? '-' }} — {{ $row->user->division->name ?? '-' }}</div>
+                                            <div class="lm-employee-detail">{{ $row->user->position->name ?? '-' }} - {{ $row->user->division->name ?? '-' }}</div>
                                         </div>
                                     </div>
                                 </td>

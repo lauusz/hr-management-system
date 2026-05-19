@@ -476,11 +476,11 @@
                             $targetRole = $item->role instanceof \App\Enums\UserRole
                                 ? $item->role->value
                                 : $item->role;
-                            $isTargetSupervisorOrManager = in_array($targetRole, ['SUPERVISOR', 'MANAGER'], true);
+                            $isTargetHrStaff = $targetRole === 'HR STAFF';
                         @endphp
 
                         @if($canManageHrStaffNonCutiApproval)
-                        <div class="form-group full-width" id="hr-staff-noncuti-setting" style="{{ $isTargetSupervisorOrManager ? '' : 'display:none;' }}">
+                        <div class="form-group full-width" id="hr-staff-noncuti-setting" style="{{ $isTargetHrStaff ? '' : 'display:none;' }}">
                             <input type="hidden" name="hr_staff_can_approve_non_cuti" value="0">
                             <div class="setting-row">
                                 <label class="setting-label" for="hr_staff_can_approve_non_cuti">
@@ -491,10 +491,10 @@
                                         value="1"
                                         @checked(old('hr_staff_can_approve_non_cuti', $item->hr_staff_can_approve_non_cuti))
                                     >
-                                    <span class="setting-title">Selain Cuti bisa di-accept HR STAFF</span>
+                                    <span class="setting-title">Boleh approve izin non-CUTI Supervisor/Manager</span>
                                 </label>
                             </div>
-                            <small class="helper-text">Khusus SUPERVISOR dan MANAGER. Jika aktif, HR STAFF dapat approve/reject pengajuan selain CUTI. Pengajuan CUTI tetap hanya dapat diproses HRD.</small>
+                            <small class="helper-text">Khusus akun HR STAFF. Jika aktif, akun ini dapat approve/reject pengajuan Supervisor/Manager selain CUTI. Pengajuan CUTI tetap hanya dapat diproses HRD.</small>
                         </div>
                         @endif
 
@@ -646,7 +646,7 @@
 
             if (roleSelect && nonCutiSetting) {
                 function toggleNonCutiSetting() {
-                    if (roleSelect.value === 'SUPERVISOR' || roleSelect.value === 'MANAGER') {
+                    if (roleSelect.value === 'HR STAFF') {
                         nonCutiSetting.style.display = '';
                     } else {
                         nonCutiSetting.style.display = 'none';

@@ -20,7 +20,7 @@ class Attendance extends Model
         'early_leave_minutes',
         'overtime_minutes',
         'location_id',
-        
+
         // Data Clock In
         'clock_in_at',
         'clock_in_photo',
@@ -28,7 +28,7 @@ class Attendance extends Model
         'clock_in_lat',
         'clock_in_lng',
         'clock_in_distance_m',
-        
+
         // Data Clock Out
         'clock_out_at',
         'clock_out_photo',
@@ -36,9 +36,10 @@ class Attendance extends Model
         'clock_out_lat',
         'clock_out_lng',
         'clock_out_distance_m',
-        
+
         'status',
         'notes',
+        'completion_status',
 
         // [PENTING] Kolom Dinas Luar & Approval (Wajib ada di fillable)
         'type',              // Values: 'WFO', 'DINAS_LUAR'
@@ -46,6 +47,12 @@ class Attendance extends Model
         'rejection_note',
         'approved_by'
     ];
+
+    // --- COMPLETION STATUS CONSTANTS ---
+    public const COMPLETION_OPEN = 'OPEN';
+    public const COMPLETION_CLOSED = 'CLOSED';
+    public const COMPLETION_MISSED_CLOCK_OUT = 'MISSED_CLOCK_OUT';
+    public const COMPLETION_LATE_CLOCK_OUT = 'LATE_CLOCK_OUT';
 
     protected $casts = [
         'date'                      => 'date',
@@ -106,5 +113,16 @@ class Attendance extends Model
     public function getClockOutLabelAttribute(): string
     {
         return $this->clock_out_at ? $this->clock_out_at->format('H:i') : '-';
+    }
+
+    public function getCompletionStatusLabelAttribute(): string
+    {
+        return match ($this->completion_status) {
+            self::COMPLETION_CLOSED => 'Lengkap',
+            self::COMPLETION_OPEN => 'Berjalan',
+            self::COMPLETION_MISSED_CLOCK_OUT => 'Belum Clock Out',
+            self::COMPLETION_LATE_CLOCK_OUT => 'Clock Out Terlambat',
+            default => $this->completion_status ?? '-',
+        };
     }
 }

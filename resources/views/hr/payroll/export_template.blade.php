@@ -153,9 +153,9 @@
         <td>{{ $index + 1 }}</td>
         <td>{{ $emp->name }}</td>
         <td>{{ \Carbon\Carbon::create()->month((int) $m)->locale('id')->translatedFormat('F') }} {{ $year }}</td>
-        <td>{{ $emp->profile->nik ?? '' }}</td>
-        <td>{{ $emp->profile->tgl_bergabung ? \Carbon\Carbon::parse($emp->profile->tgl_bergabung)->format('d-m-Y') : '' }}</td>
-        <td>{{ $emp->position->name ?? $emp->profile->jabatan ?? '' }}</td>
+        <td>{{ optional($emp->profile)->nik ?? '' }}</td>
+        <td>{{ optional($emp->profile)->tgl_bergabung ? \Carbon\Carbon::parse(optional($emp->profile)->tgl_bergabung)->format('d-m-Y') : '' }}</td>
+        <td>{{ $emp->position->name ?? optional($emp->profile)->jabatan ?? '' }}</td>
         <td>{{ $emp->division->name ?? '' }}</td>
         <td>{{ optional($slip)->gaji_pokok ?? 0 }}</td>
         <td>{{ optional($slip)->tunjangan_jabatan ?? 0 }}</td>

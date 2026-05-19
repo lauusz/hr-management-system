@@ -290,7 +290,7 @@
                     name="date_range"
                     class="lrc-input lrc-input--icon"
                     value="{{ $oldRange }}"
-                    placeholder="Pilih tanggal mulai — selesai"
+                    placeholder="Pilih tanggal mulai - selesai"
                     autocomplete="off">
             </div>
             <input type="hidden" name="start_date" id="start_date" value="{{ $oldStart }}">

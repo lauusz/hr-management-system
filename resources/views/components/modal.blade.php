@@ -3,7 +3,7 @@
 $confirmMethod = strtoupper($confirmFormMethod ?? 'POST');
 $isSpoofMethod = !in_array($confirmMethod, ['GET', 'POST']);
 
-// Brand palette — sesuai design system
+// Brand palette - sesuai design system
 $btnBg = '#145DA0';
 $btnHover = '#0A3D62';
 $btnText = '#ffffff';

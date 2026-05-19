@@ -13,12 +13,14 @@
                         <span class="selected-label">data dipilih</span>
                     </span>
 
-                    <form id="payroll-export-form" action="{{ route('hr.payroll.export') }}" method="GET" style="display:inline-block;">
+                    <form id="payroll-export-form" action="{{ route('hr.payroll.export') }}" method="POST" style="display:inline-block;">
+                        @csrf
                         <input type="hidden" name="start_month" value="{{ $startMonth }}">
                         <input type="hidden" name="end_month" value="{{ $endMonth }}">
                         <input type="hidden" name="year" value="{{ $year }}">
                         <input type="hidden" name="pt_id" value="{{ $ptId }}">
                         <input type="hidden" name="search" value="{{ request('search') }}">
+                        <input type="hidden" name="division_id" value="{{ $divisionId }}">
                         <div id="selected_rows_container"></div>
                         <button type="submit" class="btn-action btn-action-outline-success">Unduh Data Excel</button>
                     </form>
@@ -28,6 +30,7 @@
                         <input type="hidden" name="month" value="{{ $startMonth }}">
                         <input type="hidden" name="year" value="{{ $year }}">
                         <input type="hidden" name="pt_id" value="{{ $ptId }}">
+                        <input type="hidden" name="division_id" value="{{ $divisionId }}">
 
                         <label for="file_upload" class="btn-action" style="cursor: pointer;">+ Import File</label>
                         <input type="file" name="file" id="file_upload" style="display: none;" onchange="this.form.submit()" accept=".xlsx,.xls,.csv,.xlsm">
@@ -85,6 +88,16 @@
                     </select>
                 </div>
 
+                <div>
+                    <label class="filter-label" for="division_id">Divisi</label>
+                    <select name="division_id" id="division_id" class="filter-control">
+                        <option value="" {{ empty($divisionId) ? 'selected' : '' }}>Semua Divisi</option>
+                        @foreach($divisions as $division)
+                            <option value="{{ $division->id }}" {{ $divisionId == $division->id ? 'selected' : '' }}>{{ $division->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="filter-button-row">
                     <button type="submit" class="btn-action btn-action-primary">Filter Data</button>
                     <a href="{{ route('hr.payroll.index') }}" class="btn-action">Clear</a>
@@ -96,6 +109,7 @@
                 <input type="hidden" name="end_month" value="{{ $endMonth }}">
                 <input type="hidden" name="year" value="{{ $year }}">
                 <input type="hidden" name="pt_id" value="{{ $ptId }}">
+                <input type="hidden" name="division_id" value="{{ $divisionId }}">
 
                 <div>
                     <label class="filter-label" for="search">Cari Nama Karyawan</label>
@@ -122,6 +136,7 @@
             <input type="hidden" name="pt_id" value="{{ $ptId }}">
             <input type="hidden" name="start_month" value="{{ $startMonth }}">
             <input type="hidden" name="end_month" value="{{ $endMonth }}">
+            <input type="hidden" name="division_id" value="{{ $divisionId }}">
             <input type="hidden" name="thr_only_mode" id="thr_only_mode_input" value="0">
 
             <div class="table-wrapper">
@@ -320,6 +335,7 @@
         <input type="hidden" name="filter_end_month" value="{{ $endMonth }}">
         <input type="hidden" name="filter_year" value="{{ $year }}">
         <input type="hidden" name="filter_pt_id" value="{{ $ptId }}">
+        <input type="hidden" name="filter_division_id" value="{{ $divisionId }}">
         <input type="hidden" name="search" value="{{ request('search') }}">
     </form>
 
@@ -330,6 +346,7 @@
         <input type="hidden" name="filter_end_month" value="{{ $endMonth }}">
         <input type="hidden" name="filter_year" value="{{ $year }}">
         <input type="hidden" name="filter_pt_id" value="{{ $ptId }}">
+        <input type="hidden" name="filter_division_id" value="{{ $divisionId }}">
         <input type="hidden" name="search" value="{{ request('search') }}">
         <div id="clear_selected_rows_container"></div>
     </form>

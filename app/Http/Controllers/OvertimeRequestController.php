@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\OvertimeRequest;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,56 +36,33 @@ class OvertimeRequestController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $user = Auth::user();
+
+        if (! $user->direct_supervisor_id) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Pengajuan lembur tidak dapat dibuat karena supervisor langsung belum diatur. Hubungi HRD.');
+        }
+
+        $validated = $request->validate([
             'overtime_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
+            'end_time' => 'required|date_format:H:i|different:start_time',
             'description' => 'required|string|max:5000',
+        ], [
+            'end_time.different' => 'Jam selesai lembur tidak boleh sama dengan jam mulai.',
         ]);
 
-        $userId = Auth::id();
-        $startTime = Carbon::parse($request->start_time);
-        $endTime = Carbon::parse($request->end_time);
-        
-        // Hitung durasi dalam menit (pastikan absolute)
-        $durationMinutes = abs($endTime->diffInMinutes($startTime));
-
-
-        $user = Auth::user();
-        $initialStatus = OvertimeRequest::STATUS_PENDING_SUPERVISOR; // Default
-
-        // LOGIC PENENTUAN STATUS AWAL
-        // 1. Employee -> Cek Supervisor
-        if ($user->isEmployee()) {
-            if (!$user->direct_supervisor_id) {
-                // Tidak punya SPV -> Langsung ke HR
-                $initialStatus = OvertimeRequest::STATUS_APPROVED_SUPERVISOR;
-            }
-        }
-        // 2. Supervisor -> Cek Manager
-        elseif ($user->isSupervisor()) {
-            if ($user->manager_id) {
-                // Punya Manager -> Approval Manager (dianggap flow SPV)
-                $initialStatus = OvertimeRequest::STATUS_PENDING_SUPERVISOR;
-                // Note: Manager akan dianggap sebagai 'Supervisor Approver' di sistem ini
-            } else {
-                // Tidak punya Manager -> Langsung ke HR
-                $initialStatus = OvertimeRequest::STATUS_APPROVED_SUPERVISOR;
-            }
-        }
-        // 3. Manager -> Langsung ke HR
-        elseif ($user->isManager()) {
-            $initialStatus = OvertimeRequest::STATUS_APPROVED_SUPERVISOR;
-        }
+        $durationMinutes = $this->calculateDurationMinutes($validated['start_time'], $validated['end_time']);
 
         OvertimeRequest::create([
-            'user_id' => $userId,
-            'overtime_date' => $request->overtime_date,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
+            'user_id' => $user->id,
+            'overtime_date' => $validated['overtime_date'],
+            'start_time' => $validated['start_time'],
+            'end_time' => $validated['end_time'],
             'duration_minutes' => $durationMinutes,
-            'description' => $request->description,
-            'status' => $initialStatus,
+            'description' => $validated['description'],
+            'status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR,
         ]);
 
         return redirect()->route('overtime-requests.index')
@@ -97,43 +73,49 @@ class OvertimeRequestController extends Controller
         $user = Auth::user();
         $isOwner = $user->id === $overtimeRequest->user_id;
 
-        // Cek apakah User adalah HRD / Manager
-        // Note: Logic isHRD() di model User perlu dicek, atau manual check role
         $roleStr = strtoupper($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role);
         $isHRD = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER']);
 
         if (!$isOwner && !$isHRD) abort(403, 'Anda tidak berhak mengubah data ini.');
 
-        // Owner hanya bisa edit jika status masih pending
         if ($isOwner && !$isHRD) {
-            if (!in_array($overtimeRequest->status, [
-                OvertimeRequest::STATUS_PENDING_SUPERVISOR, 
-                // Note: Kalau sudah approved SPV (alias Pending HR), user biasa gabisa edit
-            ])) {
-                return redirect()->back()->with('error', 'Pengajuan sudah diproses, tidak dapat diubah sendiri. Hubungi HRD.');
+            if ($overtimeRequest->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
+                return redirect()->back()->with('error', 'Pengajuan sudah diproses, tidak dapat diubah sendiri. Hubungi supervisor atau HRD untuk koreksi data.');
             }
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'overtime_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|after:start_time',
+            'end_time' => 'required|date_format:H:i|different:start_time',
             'description' => 'required|string|max:5000',
+        ], [
+            'end_time.different' => 'Jam selesai lembur tidak boleh sama dengan jam mulai.',
         ]);
 
-        $startTime = Carbon::parse($request->start_time);
-        $endTime = Carbon::parse($request->end_time);
-        $durationMinutes = abs($endTime->diffInMinutes($startTime));
+        $durationMinutes = $this->calculateDurationMinutes($validated['start_time'], $validated['end_time']);
 
         $overtimeRequest->update([
-            'overtime_date' => $request->overtime_date,
-            'start_time' => $request->start_time,
-            'end_time' => $request->end_time,
+            'overtime_date' => $validated['overtime_date'],
+            'start_time' => $validated['start_time'],
+            'end_time' => $validated['end_time'],
             'duration_minutes' => $durationMinutes,
-            'description' => $request->description,
+            'description' => $validated['description'],
         ]);
 
         return back()->with('success', 'Data lembur berhasil diperbarui.');
+    }
+
+    private function calculateDurationMinutes(string $startTime, string $endTime): int
+    {
+        $start = Carbon::createFromFormat('Y-m-d H:i', '2000-01-01 '.$startTime);
+        $end = Carbon::createFromFormat('Y-m-d H:i', '2000-01-01 '.$endTime);
+
+        if ($end->lessThan($start)) {
+            $end->addDay();
+        }
+
+        return $start->diffInMinutes($end);
     }
 
     public function destroy(OvertimeRequest $overtimeRequest)

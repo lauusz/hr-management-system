@@ -36,7 +36,7 @@
             <div class="info-avatar">{{ substr($user->name, 0, 1) }}</div>
             <div class="info-details">
                 <div class="info-name">{{ $user->name }}</div>
-                <div class="info-role">{{ $user->position->name ?? 'Tanpa Jabatan' }} — {{ $user->division->name ?? 'Tanpa Divisi' }}</div>
+                <div class="info-role">{{ $user->position->name ?? 'Tanpa Jabatan' }} - {{ $user->division->name ?? 'Tanpa Divisi' }}</div>
             </div>
             @if($user->role === \App\Enums\UserRole::MANAGER)
             <span class="badge badge-manager">MANAGER</span>

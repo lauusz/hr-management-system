@@ -23,17 +23,31 @@
         </div>
     @endif
 
-    {{-- Filter Card --}}
+    {{-- ============================================== --}}
+    {{-- FILTER CARD                                  --}}
+    {{-- ============================================== --}}
     <div class="apv-filter">
+        <div class="apv-filter-header">
+            <div class="apv-filter-header-icon">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                </svg>
+            </div>
+            <div>
+                <h4 class="apv-filter-title">Filter Data</h4>
+                <p class="apv-filter-subtitle">Cari riwayat pengajuan izin dan cuti bawahan Anda</p>
+            </div>
+        </div>
+
         <form method="GET" action="{{ route('supervisor.leave.master') }}">
             <div class="apv-filter-body">
                 <div class="apv-filter-group">
-                    <label class="apv-filter-label">Tanggal Pengajuan</label>
+                    <label class="apv-filter-label" for="submitted_range">Tanggal Pengajuan</label>
                     <input type="text" id="submitted_range" name="submitted_range" value="{{ $submittedRange ?? '' }}" placeholder="Pilih rentang tanggal" class="apv-filter-input" autocomplete="off">
                 </div>
                 <div class="apv-filter-group">
-                    <label class="apv-filter-label">Jenis Pengajuan</label>
-                    <select name="type" class="apv-filter-input">
+                    <label class="apv-filter-label" for="type">Jenis Pengajuan</label>
+                    <select name="type" id="type" class="apv-filter-input">
                         <option value="">Semua Jenis</option>
                         @foreach($typeOptions as $case)
                             @php
@@ -45,8 +59,8 @@
                     </select>
                 </div>
                 <div class="apv-filter-group">
-                    <label class="apv-filter-label">Status</label>
-                    <select name="status" class="apv-filter-input">
+                    <label class="apv-filter-label" for="status">Status</label>
+                    <select name="status" id="status" class="apv-filter-input">
                         <option value="">Semua Status</option>
                         @foreach($statusOptions as $opt)
                             @php
@@ -63,26 +77,26 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="apv-filter-group">
-                    <label class="apv-filter-label">Cari Karyawan</label>
-                    <input type="text" name="q" value="{{ $q ?? '' }}" placeholder="Ketik nama bawahan..." class="apv-filter-input">
+                <div class="apv-filter-group apv-filter-group--wide">
+                    <label class="apv-filter-label" for="q">Cari Karyawan</label>
+                    <input type="text" id="q" name="q" value="{{ $q ?? '' }}" placeholder="Ketik nama bawahan..." class="apv-filter-input">
                 </div>
-                <div class="apv-filter-actions">
-                    <button type="submit" class="apv-btn-filter">
+            </div>
+            <div class="apv-filter-actions">
+                <button type="submit" class="apv-btn-filter">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    Filter
+                </button>
+                @if(($q ?? null) || ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null))
+                    <a href="{{ route('supervisor.leave.master') }}" class="apv-btn-reset">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                         </svg>
-                        Filter
-                    </button>
-                    @if(($q ?? null) || ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null))
-                        <a href="{{ route('supervisor.leave.master') }}" class="apv-btn-reset">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                            Reset
-                        </a>
-                    @endif
-                </div>
+                        Reset
+                    </a>
+                @endif
             </div>
         </form>
     </div>
@@ -164,7 +178,7 @@
                     <div class="apv-avatar">{{ substr($row->user->name, 0, 1) }}</div>
                     <div class="apv-employee-info">
                         <span class="apv-employee-name">{{ $row->user->name }}</span>
-                        <span class="apv-employee-detail">{{ $row->user->position->name ?? '-' }} — {{ $row->user->division->name ?? '-' }}</span>
+                        <span class="apv-employee-detail">{{ $row->user->position->name ?? '-' }} - {{ $row->user->division->name ?? '-' }}</span>
                     </div>
                 </div>
 
@@ -174,7 +188,7 @@
                     </svg>
                     <span>{{ $row->start_date->translatedFormat('l, j F Y') }}</span>
                     @if($row->end_date && $row->end_date->ne($row->start_date))
-                        <span class="apv-card-date-sep">—</span>
+                        <span class="apv-card-date-sep">-</span>
                         <span>{{ $row->end_date->translatedFormat('l, j F Y') }}</span>
                     @endif
                 </div>
@@ -288,23 +302,59 @@
         .apv-filter {
             background: var(--white, #FFFFFF);
             border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 16px;
             border: 1px solid var(--border-light, #E5E7EB);
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .apv-filter-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 20px 0;
+        }
+        .apv-filter-header-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(10, 61, 98, 0.08);
+            color: var(--primary-dark, #0A3D62);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .apv-filter-title {
+            margin: 0;
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: var(--text-primary, #111827);
+            line-height: 1.25;
+        }
+        .apv-filter-subtitle {
+            margin: 2px 0 0;
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
         }
         .apv-filter-body {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 14px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 16px 20px 0;
         }
         .apv-filter-group {
+            flex: 1;
+            min-width: 160px;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 5px;
+        }
+        .apv-filter-group--wide {
+            flex: 1.5;
+            min-width: 200px;
         }
         .apv-filter-label {
-            font-size: 0.6875rem;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-muted, #6B7280);
             text-transform: uppercase;
@@ -312,11 +362,11 @@
         }
         .apv-filter-input {
             width: 100%;
-            padding: 10px 14px;
-            border: 1.5px solid var(--border-light, #E5E7EB);
+            padding: 9px 12px;
+            border: 1.5px solid var(--border, #E5E7EB);
             border-radius: 10px;
-            font-size: 13px;
-            color: var(--text-primary, #111827);
+            font-size: 13.5px;
+            color: var(--text-primary, #374151);
             background: var(--white, #FFFFFF);
             transition: all 0.2s ease;
             outline: none;
@@ -336,49 +386,50 @@
         }
         .apv-filter-actions {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             align-items: center;
+            flex-wrap: wrap;
+            padding: 16px 20px 20px;
         }
         .apv-btn-filter {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            padding: 10px 16px;
-            background: var(--primary, #145DA0);
+            padding: 10px 18px;
+            background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
             color: #fff;
             border: none;
             border-radius: 10px;
-            font-size: 13px;
+            font-size: 13.5px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
             font-family: inherit;
-            flex: 1;
+            box-shadow: 0 2px 8px rgba(10, 61, 98, 0.18);
         }
         .apv-btn-filter:hover {
-            background: var(--primary-dark, #0A3D62);
+            box-shadow: 0 4px 14px rgba(10, 61, 98, 0.28);
+            transform: translateY(-1px);
         }
         .apv-btn-reset {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            padding: 10px 14px;
-            background: var(--white, #FFFFFF);
-            color: var(--text-muted, #6B7280);
-            border: 1.5px solid var(--border-light, #E5E7EB);
+            padding: 10px 18px;
+            background: var(--gray-50, #F5F7FA);
+            color: var(--text-secondary, #374151);
+            border: 1.5px solid var(--border, #E5E7EB);
             border-radius: 10px;
-            font-size: 13px;
-            font-weight: 500;
+            font-size: 13.5px;
+            font-weight: 600;
             text-decoration: none;
             transition: all 0.2s ease;
-            flex: 1;
         }
         .apv-btn-reset:hover {
-            background: rgba(239, 68, 68, 0.04);
-            border-color: rgba(239, 68, 68, 0.2);
-            color: var(--error, #EF4444);
+            background: var(--white, #FFFFFF);
+            border-color: var(--gray-300, #D1D5DB);
         }
 
         /* ========================================== */
@@ -598,41 +649,39 @@
         /* RESPONSIVE                                 */
         /* ========================================== */
         @media (min-width: 480px) {
-            .apv-filter-body {
-                grid-template-columns: 1fr 1fr;
-            }
-            .apv-filter-group:last-child:nth-child(odd) {
-                grid-column: 1 / -1;
-            }
-            .apv-filter-actions {
-                grid-column: 1 / -1;
-            }
             .apv-card {
                 padding: 18px 20px;
             }
         }
 
         @media (min-width: 768px) {
-            .apv-filter {
-                padding: 20px;
-            }
             .apv-filter-body {
-                grid-template-columns: repeat(3, 1fr);
-            }
-            .apv-filter-group:last-child:nth-child(odd) {
-                grid-column: auto;
+                padding: 20px 24px 0;
             }
             .apv-filter-actions {
-                grid-column: 1 / -1;
-                justify-content: flex-end;
-            }
-            .apv-btn-filter,
-            .apv-btn-reset {
-                flex: none;
-                padding: 10px 20px;
+                padding: 20px 24px 24px;
             }
             .apv-card {
                 padding: 20px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .apv-filter-body {
+                flex-direction: column;
+            }
+            .apv-filter-group,
+            .apv-filter-group--wide {
+                min-width: 0;
+                flex: none;
+                width: 100%;
+            }
+            .apv-filter-actions {
+                flex-direction: column;
+            }
+            .apv-btn-filter,
+            .apv-btn-reset {
+                width: 100%;
             }
         }
 

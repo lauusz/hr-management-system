@@ -8,6 +8,7 @@ use App\Jobs\SendPayslipEmailJob;
 use App\Http\Controllers\Controller;
 use App\Models\Payslip;
 use App\Models\User;
+use App\Models\Division;
 use App\Models\Pt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -76,6 +77,7 @@ class PayslipController extends Controller
         $year = $request->input('year', now()->year);
         $ptId = $request->input('pt_id');
         $search = $request->input('search');
+        $divisionId = $request->input('division_id');
 
         // Swap if user inputs a reverse range
         if ($startMonth > $endMonth) {
@@ -84,8 +86,9 @@ class PayslipController extends Controller
             $endMonth = $temp;
         }
 
-        // Ambil list PT untuk filter
+        // Ambil list PT dan Divisi untuk filter
         $pts = Pt::all();
+        $divisions = Division::orderBy('name')->get();
 
         $payrollData = collect();
 
@@ -95,6 +98,9 @@ class PayslipController extends Controller
                 $query->whereHas('profile', function ($profileQuery) use ($ptId) {
                     $profileQuery->where('pt_id', $ptId);
                 });
+            })
+            ->when($divisionId, function ($query) use ($divisionId) {
+                $query->where('division_id', $divisionId);
             })
             ->when($search, function ($query) use ($search) {
                 $query->where('name', 'like', '%' . $search . '%');
@@ -119,7 +125,7 @@ class PayslipController extends Controller
             }
         }
 
-        return view('hr.payroll.index', compact('payrollData', 'pts', 'startMonth', 'endMonth', 'year', 'ptId'));
+        return view('hr.payroll.index', compact('payrollData', 'pts', 'startMonth', 'endMonth', 'year', 'ptId', 'divisions', 'divisionId'));
     }
 
     public function exportExcel(Request $request)
@@ -130,6 +136,7 @@ class PayslipController extends Controller
         $endMonth = $request->input('end_month', now()->month);
         $year = $request->input('year', now()->year);
         $ptId = $request->input('pt_id');
+        $divisionId = $request->input('division_id');
 
         $ptName = 'ALL_PT';
         if ($ptId) {
@@ -159,7 +166,7 @@ class PayslipController extends Controller
 
         $fileName = "{$namePrefix}{$ptName}_Slip_Gaji_{$startMonth}_to_{$endMonth}_{$year}.xlsx";
 
-        return Excel::download(new PayslipTemplateExport($startMonth, $endMonth, $year, $ptId, $search), $fileName);
+        return Excel::download(new PayslipTemplateExport($startMonth, $endMonth, $year, $ptId, $search, $divisionId), $fileName);
     }
 
     public function create(Request $request)
@@ -192,6 +199,7 @@ class PayslipController extends Controller
                 'end_month' => $month,
                 'year' => $year,
                 'pt_id' => $request->input('filter_pt_id'),
+                'division_id' => $request->input('filter_division_id'),
             ])->with('warning', 'Slip gaji untuk periode ini sudah ada. Mengalihkan ke halaman edit.');
         }
 
@@ -253,6 +261,7 @@ class PayslipController extends Controller
                 'end_month' => $request->input('filter_end_month', $request->period_month),
                 'year' => $request->input('filter_year', $request->period_year),
                 'pt_id' => $request->input('filter_pt_id'),
+                'division_id' => $request->input('filter_division_id'),
             ])->with('error', 'Slip gaji hanya dapat dibuat untuk karyawan dengan status ACTIVE.');
         }
 
@@ -268,6 +277,7 @@ class PayslipController extends Controller
             'end_month' => $request->input('filter_end_month', $request->period_month),
             'year' => $request->input('filter_year', $request->period_year),
             'pt_id' => $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null),
+            'division_id' => $request->input('filter_division_id'),
         ])->with('success', 'Slip Gaji berhasil dibuat.' . ($payslip->status === 'PUBLISHED' ? ' Email notifikasi dijadwalkan ke queue.' : ''));
     }
 
@@ -339,6 +349,7 @@ class PayslipController extends Controller
             'end_month' => $request->input('filter_end_month', $payslip->period_month),
             'year' => $request->input('filter_year', $payslip->period_year),
             'pt_id' => $request->input('filter_pt_id', $payslip->user->profile->pt_id ?? null),
+            'division_id' => $request->input('filter_division_id'),
         ])->with('success', 'Slip Gaji berhasil diperbarui.' . ($shouldSendEmail ? ' Email notifikasi dijadwalkan ke queue.' : ''));
     }
 
@@ -358,6 +369,7 @@ class PayslipController extends Controller
             'end_month' => $request->input('filter_end_month', $month),
             'year' => $request->input('filter_year', $year),
             'pt_id' => $request->input('filter_pt_id', $ptId),
+            'division_id' => $request->input('filter_division_id'),
             'search' => $request->input('search'),
         ])->with('success', "Data slip gaji {$employeeName} berhasil dihapus.");
     }
@@ -377,6 +389,7 @@ class PayslipController extends Controller
                 'end_month' => $request->input('filter_end_month', now()->month),
                 'year' => $request->input('filter_year', now()->year),
                 'pt_id' => $request->input('filter_pt_id'),
+                'division_id' => $request->input('filter_division_id'),
                 'search' => $request->input('search'),
             ])->with('error', 'Pilih minimal satu data payroll yang akan dihapus.');
         }
@@ -411,6 +424,7 @@ class PayslipController extends Controller
             'end_month' => $request->input('filter_end_month', now()->month),
             'year' => $request->input('filter_year', now()->year),
             'pt_id' => $request->input('filter_pt_id'),
+            'division_id' => $request->input('filter_division_id'),
             'search' => $request->input('search'),
         ])->with($flashType, $message);
     }
@@ -661,6 +675,7 @@ class PayslipController extends Controller
                 'end_month' => $request->input('end_month', $month),
                 'year' => $year,
                 'pt_id' => $request->input('pt_id'),
+                'division_id' => $request->input('division_id'),
             ])->with('success', $message);
         } catch (Throwable $e) {
             Log::error('Payroll bulk import failed', [
@@ -755,6 +770,7 @@ class PayslipController extends Controller
             'end_month' => $request->input('end_month', now()->month),
             'year' => $request->input('year', now()->year),
             'pt_id' => $request->input('pt_id'),
+            'division_id' => $request->input('division_id'),
             'search' => $request->input('search'),
         ])->with($sentCount > 0 ? 'success' : 'warning', implode(' ', $messages));
     }

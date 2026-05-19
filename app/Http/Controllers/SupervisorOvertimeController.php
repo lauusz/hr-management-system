@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\OvertimeRequest;
-use Illuminate\Http\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -19,9 +18,7 @@ class SupervisorOvertimeController extends Controller
 
         $query = OvertimeRequest::with(['user.profile.pt', 'user.division'])
             ->whereHas('user', function ($q) use ($me) {
-                // Filter bawahan langsung (supervisor atau manager)
-                $q->where('direct_supervisor_id', $me->id)
-                  ->orWhere('manager_id', $me->id);
+                $q->where('direct_supervisor_id', $me->id);
             })
             ->orderByDesc('created_at');
 
@@ -51,7 +48,6 @@ class SupervisorOvertimeController extends Controller
         $statusOptions = [
             OvertimeRequest::STATUS_PENDING_SUPERVISOR,
             OvertimeRequest::STATUS_APPROVED_SUPERVISOR,
-            OvertimeRequest::STATUS_APPROVED_HRD,
             OvertimeRequest::STATUS_REJECTED,
             OvertimeRequest::STATUS_CANCELLED,
         ];
@@ -69,17 +65,13 @@ class SupervisorOvertimeController extends Controller
         
         $overtimes = OvertimeRequest::where('status', OvertimeRequest::STATUS_PENDING_SUPERVISOR)
             ->whereHas('user', function ($query) use ($me) {
-                // Filter bawahan langsung (supervisor atau manager)
-                $query->where('direct_supervisor_id', $me->id)
-                      ->orWhere('manager_id', $me->id);
+                $query->where('direct_supervisor_id', $me->id);
             })
             ->with(['user.profile.pt', 'user.division'])
             ->orderByDesc('created_at')
             ->paginate(20);
 
-        // Ambil daftar bawahan langsung (supervisor atau manager)
         $subordinates = \App\Models\User::where('direct_supervisor_id', $me->id)
-            ->orWhere('manager_id', $me->id)
             ->with(['division', 'position'])
             ->orderBy('name')
             ->get();
@@ -145,8 +137,7 @@ class SupervisorOvertimeController extends Controller
     private function authorizeSupervisor(OvertimeRequest $overtime)
     {
         $me = Auth::user();
-        // Cek apakah user adalah atasan langsung (supervisor atau manager)
-        if ($overtime->user->direct_supervisor_id !== $me->id && $overtime->user->manager_id !== $me->id) {
+        if ($overtime->user->direct_supervisor_id !== $me->id) {
             abort(403, 'Akses Ditolak: Anda bukan atasan langsung karyawan ini.');
         }
     }

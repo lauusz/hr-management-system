@@ -316,7 +316,7 @@ class HREmployeeController extends Controller
             $userData['status'] = 'ACTIVE';
             $userData['password'] = Hash::make('123456');
             $userData['hr_staff_can_approve_non_cuti'] = (
-                in_array($validated['role'], [UserRole::SUPERVISOR->value, UserRole::MANAGER->value], true)
+                $validated['role'] === UserRole::HR_STAFF->value
                 && !empty($validated['hr_staff_can_approve_non_cuti'])
             );
 
@@ -469,8 +469,8 @@ class HREmployeeController extends Controller
         // Normalisasi checkbox: pastikan unchecked tersimpan sebagai false
         $validated['hr_staff_can_approve_non_cuti'] = $request->boolean('hr_staff_can_approve_non_cuti');
 
-        // Safety: field ini hanya relevan untuk SUPERVISOR dan MANAGER
-        if (! in_array($validated['role'] ?? null, [UserRole::SUPERVISOR->value, UserRole::MANAGER->value], true)) {
+        // Safety: field ini hanya relevan untuk akun HR STAFF yang diberi hak approval non-CUTI.
+        if (($validated['role'] ?? null) !== UserRole::HR_STAFF->value) {
             $validated['hr_staff_can_approve_non_cuti'] = false;
         }
 

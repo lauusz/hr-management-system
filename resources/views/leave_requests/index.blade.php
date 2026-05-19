@@ -199,7 +199,7 @@
                     </svg>
                     <span>{{ $row->start_date->translatedFormat('l, j F Y') }}</span>
                     @if($row->end_date && $row->end_date->ne($row->start_date))
-                        <span class="lr-card-date-sep">—</span>
+                        <span class="lr-card-date-sep">-</span>
                         <span>{{ $row->end_date->translatedFormat('l, j F Y') }}</span>
                     @endif
                 </div>

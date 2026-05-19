@@ -221,7 +221,7 @@
                     <div class="apv-avatar">{{ substr($lv->user->name, 0, 1) }}</div>
                     <div class="apv-employee-info">
                         <span class="apv-employee-name">{{ $lv->user->name }}</span>
-                        <span class="apv-employee-detail">{{ $lv->user->position->name ?? '-' }} — {{ $lv->user->division->name ?? '-' }}</span>
+                        <span class="apv-employee-detail">{{ $lv->user->position->name ?? '-' }} - {{ $lv->user->division->name ?? '-' }}</span>
                     </div>
                 </div>
 
@@ -231,7 +231,7 @@
                     </svg>
                     <span>{{ $start->translatedFormat('l, j F Y') }}</span>
                     @if($end->ne($start))
-                        <span class="apv-card-date-sep">—</span>
+                        <span class="apv-card-date-sep">-</span>
                         <span>{{ $end->translatedFormat('l, j F Y') }}</span>
                     @endif
                 </div>

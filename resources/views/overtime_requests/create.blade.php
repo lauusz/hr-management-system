@@ -1,76 +1,125 @@
 <x-app title="Form Pengajuan Lembur">
-    <div class="card">
-        <div class="card-header">
-            <div>
-                <h3 class="form-title">Formulir Pengajuan Lembur</h3>
-                <p class="form-subtitle">Isi data di bawah untuk mengajukan lembur.</p>
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
             </div>
-            <a href="{{ route('overtime-requests.index') }}" class="btn-back">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-                Kembali
-            </a>
+            <div>
+                <h1 class="section-title">Pengajuan Lembur</h1>
+                <p class="section-subtitle">Isi data lembur Anda di bawah ini</p>
+            </div>
         </div>
+    </x-slot>
 
-        <div class="divider"></div>
+    <a href="{{ route('overtime-requests.index') }}" class="back-btn" aria-label="Kembali ke daftar lembur">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+        </svg>
+        <span class="back-btn-text">Kembali</span>
+    </a>
 
-        <form action="{{ route('overtime-requests.store') }}" method="POST" class="form-content">
-            @csrf
-            
-            {{-- 1. TANGGAL --}}
-            <div class="form-group">
-                <label for="overtime_date">Tanggal Lembur <span class="req">*</span></label>
-                <input type="date" name="overtime_date" id="overtime_date" 
-                    class="form-control @error('overtime_date') border-red-500 @enderror"
+    @if (session('error'))
+        <div class="otc-alert otc-alert--error">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>{{ session('error') }}</span>
+        </div>
+    @endif
+
+    <form action="{{ route('overtime-requests.store') }}" method="POST">
+        @csrf
+
+        <div class="otc-step">
+            <div class="otc-step__header">
+                <span class="otc-step__num">1</span>
+                <span class="otc-step__title">Tanggal & Waktu</span>
+            </div>
+
+            <div class="otc-field">
+                <label for="overtime_date" class="otc-label">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Tanggal Lembur <span class="otc-required">*</span>
+                </label>
+                <input type="date" name="overtime_date" id="overtime_date"
+                    class="otc-input @error('overtime_date') otc-input--error @enderror"
                     value="{{ old('overtime_date') }}" required>
                 @error('overtime_date')
-                    <div class="error-msg">{{ $message }}</div>
+                    <div class="otc-error">{{ $message }}</div>
                 @enderror
             </div>
 
-            {{-- 2. JAM MULAI & SELESAI --}}
-            <div class="form-group">
-                <label>Jam Lembur <span class="req">*</span></label>
-                <div class="time-range-wrapper">
-                    <div class="time-input-box">
-                        <input type="time" name="start_time" id="start_time" 
-                            class="form-control @error('start_time') border-red-500 @enderror"
-                            value="{{ old('start_time') }}" required>
+            <div class="otc-field">
+                <label class="otc-label">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Jam Lembur <span class="otc-required">*</span>
+                </label>
+                <div class="otc-time-grid">
+                    <div>
+                        <div class="otc-input-wrap">
+                            <svg class="otc-input__icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <input type="time" name="start_time" id="start_time"
+                                class="otc-input otc-input--icon @error('start_time') otc-input--error @enderror"
+                                value="{{ old('start_time') }}" required>
+                        </div>
                         @error('start_time')
-                            <div class="error-msg">{{ $message }}</div>
+                            <div class="otc-error">{{ $message }}</div>
                         @enderror
                     </div>
-                    <span class="separator">s/d</span>
-                    <div class="time-input-box">
-                        <input type="time" name="end_time" id="end_time"
-                            class="form-control @error('end_time') border-red-500 @enderror"
-                            value="{{ old('end_time') }}" required>
+                    <div>
+                        <div class="otc-input-wrap">
+                            <svg class="otc-input__icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <input type="time" name="end_time" id="end_time"
+                                class="otc-input otc-input--icon @error('end_time') otc-input--error @enderror"
+                                value="{{ old('end_time') }}" required>
+                        </div>
                         @error('end_time')
-                            <div class="error-msg">{{ $message }}</div>
+                            <div class="otc-error">{{ $message }}</div>
                         @enderror
                     </div>
                 </div>
             </div>
+        </div>
 
-            {{-- 3. KETERANGAN --}}
-            <div class="form-group">
-                <label for="description">Keterangan Pekerjaan <span class="req">*</span></label>
-                <textarea name="description" id="description" rows="4" 
-                    class="form-control @error('description') border-red-500 @enderror"
+        <div class="otc-step">
+            <div class="otc-step__header">
+                <span class="otc-step__num">2</span>
+                <span class="otc-step__title">Keterangan</span>
+            </div>
+
+            <div class="otc-field">
+                <label for="description" class="otc-label">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                    Keterangan Pekerjaan <span class="otc-required">*</span>
+                </label>
+                <textarea name="description" id="description" rows="4"
+                    class="otc-textarea @error('description') otc-input--error @enderror"
                     placeholder="Jelaskan pekerjaan yang dilakukan..." required>{{ old('description') }}</textarea>
                 @error('description')
-                    <div class="error-msg">{{ $message }}</div>
+                    <div class="otc-error">{{ $message }}</div>
                 @enderror
             </div>
+        </div>
 
-            <div class="form-actions">
-                <a href="{{ route('overtime-requests.index') }}" class="btn-cancel">Batal</a>
-                <button type="submit" class="btn-submit" id="btn-submit">
-                    <span id="btn-text">Ajukan Lembur</span>
-                    <span id="btn-spinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                </button>
-            </div>
-        </form>
-    </div>
+        <div class="otc-submit-wrap">
+            <button type="submit" class="otc-btn-submit" id="btn-submit">
+                <span id="btn-text">Ajukan Lembur</span>
+                <span id="btn-spinner" class="otc-spinner" role="status" aria-hidden="true" style="display:none;"></span>
+            </button>
+        </div>
+    </form>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -79,136 +128,308 @@
             const btnText = document.getElementById('btn-text');
             const btnSpinner = document.getElementById('btn-spinner');
 
-            if(form) {
+            if (form) {
                 form.addEventListener('submit', function(e) {
-                    // Prevent double submission if already submitting
                     if (btnSubmit.disabled) {
                         e.preventDefault();
                         return;
                     }
-
-                    // Disable button and show spinner
                     btnSubmit.disabled = true;
                     btnText.innerText = 'Memproses...';
-                    if(btnSpinner) btnSpinner.classList.remove('d-none');
-                    
-                    // Allow form to submit normally
+                    if (btnSpinner) btnSpinner.style.display = 'inline-block';
                 });
             }
         });
     </script>
 
     <style>
-        /* Base Utils */
-        .req { color: #dc2626; font-weight: bold; margin-left: 2px; }
-        .error-msg { font-size: 12px; color: #dc2626; margin-top: 4px; }
-
-        /* Card System */
-        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #f3f4f6; overflow: hidden; max-width: 700px; margin: 0 auto; }
-        .card-header { padding: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
-        .form-title { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
-        .form-subtitle { margin: 4px 0 0; font-size: 13.5px; color: #6b7280; }
-        .divider { height: 1px; background: #f3f4f6; width: 100%; }
-        
-        /* Buttons */
-        .btn-back {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 8px 14px; border-radius: 8px; border: 1px solid #d1d5db;
-            background: #fff; color: #374151; font-size: 13px; font-weight: 500;
-            text-decoration: none; transition: all 0.2s; white-space: nowrap;
-        }
-        .btn-back:hover { background: #f9fafb; border-color: #9ca3af; }
-        
-        .btn-primary {
-            padding: 12px 24px; background: #1e4a8d; color: #fff; border: none; border-radius: 8px;
-            font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; width: 100%;
-            display: inline-flex; justify-content: center; align-items: center; gap: 8px;
-        }
-        .btn-primary:hover { background: #163a75; }
-
-        /* Form Layout */
-        .form-content { padding: 24px; }
-        .form-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px; }
-        .form-group label { font-size: 13.5px; font-weight: 600; color: #374151; }
-
-        /* Inputs */
-        .form-control {
-            padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px;
-            font-size: 14px; width: 100%; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
-            background: #fff; color: #111827; font-family: inherit;
-        }
-        .form-control:focus { border-color: #1e4a8d; box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.1); }
-        textarea.form-control { resize: vertical; min-height: 100px; line-height: 1.5; }
-
-        /* Time Range */
-        .time-range-wrapper { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .time-input-box { flex: 1; min-width: 120px; }
-        .separator { color: #6b7280; font-size: 13px; font-weight: 500; }
-
-        /* Actions */
-        .form-actions { margin-top: 32px; padding-top: 20px; border-top: 1px solid #f3f4f6; display: flex; justify-content: flex-end; }
-        .form-actions .btn-primary { width: auto; min-width: 140px; }
-
-        @media (max-width: 600px) {
-            .card-header { flex-direction: column; gap: 12px; }
-            .btn-back { align-self: flex-start; }
-            .form-content { padding: 16px; }
-            .time-range-wrapper { gap: 8px; }
-            .separator { display: none !important; }
-            .time-input-box { width: 100%; flex: none; }
-            .form-actions .btn-primary { width: 100%; }
-        }
-        .form-actions { display: flex; gap: 10px; margin-top: 10px; }
-
-        .btn-cancel {
-            flex: 1;
-            padding: 12px 24px;
-            background: #fff;
-            color: #374151;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            text-decoration: none;
-            display: inline-flex;
-            justify-content: center;
+        .section-header-inline {
+            display: flex;
             align-items: center;
-            height: 46px; /* Match height */
+            gap: 10px;
         }
-        .btn-cancel:hover { background: #f9fafb; border-color: #9ca3af; }
-
-        .btn-submit {
-            flex: 2;
-            padding: 12px 24px; 
-            background: #1e4a8d; 
-            color: #fff; 
-            border: none; 
+        .section-icon {
+            width: 32px;
+            height: 32px;
             border-radius: 8px;
-            font-size: 14px; 
-            font-weight: 600; 
-            cursor: pointer; 
-            transition: background 0.2s; 
-            width: 100%;
-            display: inline-flex; 
-            justify-content: center; 
-            align-items: center; 
-            gap: 8px;
-            height: 46px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
-        .btn-submit:hover { background: #163a75; }
-        .btn-submit:disabled { background: #93c5fd; cursor: not-allowed; }
+        .section-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+        .section-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            line-height: 1.35;
+        }
+        .icon-navy {
+            background: rgba(10, 61, 98, 0.08);
+            color: var(--primary-dark);
+        }
 
-        /* Spinner */
-        .spinner-border {
-            width: 1rem; height: 1rem;
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 36px;
+            padding: 0 12px 0 10px;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            margin-bottom: 16px;
+        }
+        .back-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--gray-50);
+        }
+        .back-btn:hover svg {
+            transform: translateX(-2px);
+        }
+        .back-btn svg {
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .back-btn-text {
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        .otc-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+        .otc-alert svg {
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .otc-alert--error {
+            background: rgba(239, 68, 68, 0.06);
+            border: 1px solid rgba(239, 68, 68, 0.18);
+            color: #b91c1c;
+        }
+
+        .otc-step {
+            background: var(--white);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .otc-step__header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .otc-step__num {
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-dark);
+            color: #fff;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .otc-step__title {
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .otc-field {
+            margin-bottom: 16px;
+        }
+        .otc-field:last-child {
+            margin-bottom: 0;
+        }
+        .otc-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .otc-required {
+            color: var(--error);
+            font-weight: 700;
+        }
+        .otc-input-wrap {
+            position: relative;
+        }
+        .otc-input__icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light);
+            pointer-events: none;
+        }
+        .otc-input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9375rem;
+            color: var(--text-primary);
+            background: var(--white);
+            transition: all 0.2s ease;
+            outline: none;
+            font-family: inherit;
+        }
+        .otc-input--icon {
+            padding-left: 42px;
+        }
+        .otc-input::placeholder {
+            color: var(--text-light);
+        }
+        .otc-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
+        }
+        .otc-input--error {
+            border-color: var(--error);
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.08);
+        }
+        .otc-input--error:focus {
+            border-color: var(--error);
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+        }
+        .otc-error {
+            font-size: 0.75rem;
+            color: var(--error);
+            margin-top: 6px;
+            font-weight: 500;
+            line-height: 1.4;
+        }
+        .otc-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.9375rem;
+            color: var(--text-primary);
+            background: var(--white);
+            transition: all 0.2s ease;
+            outline: none;
+            resize: vertical;
+            min-height: 100px;
+            line-height: 1.5;
+            font-family: inherit;
+        }
+        .otc-textarea::placeholder {
+            color: var(--text-light);
+        }
+        .otc-textarea:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
+        }
+
+        .otc-time-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        .otc-submit-wrap {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-light);
+        }
+        .otc-btn-submit {
+            flex: 2;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(10, 61, 98, 0.22);
+            font-family: inherit;
+        }
+        .otc-btn-submit:hover {
+            box-shadow: 0 6px 20px rgba(10, 61, 98, 0.32);
+            transform: translateY(-1px);
+        }
+        .otc-btn-submit:disabled {
+            background: linear-gradient(135deg, #93c5fd, #60a5fa);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .otc-spinner {
+            width: 1rem;
+            height: 1rem;
             border: 2px solid currentColor;
             border-right-color: transparent;
             border-radius: 50%;
-            animation: spinner-border .75s linear infinite;
+            animation: otc-spinner-spin .75s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
         }
-        @keyframes spinner-border {
+        @keyframes otc-spinner-spin {
             100% { transform: rotate(360deg); }
         }
-        .d-none { display: none; }
+
+        @media (max-width: 480px) {
+            .otc-time-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            .otc-submit-wrap {
+                flex-direction: column;
+            }
+            .otc-btn-submit {
+                width: 100%;
+                flex: none;
+            }
+            .otc-step {
+                padding: 16px;
+            }
+        }
     </style>
 </x-app>

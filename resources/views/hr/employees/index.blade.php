@@ -940,7 +940,7 @@
         }
 
         /* ========================================== */
-        /* DESKTOP (1024px+) — 2 COLUMN GRID          */
+        /* DESKTOP (1024px+) - 2 COLUMN GRID          */
         /* ========================================== */
         @media (min-width: 1024px) {
             .emp-list {
@@ -976,7 +976,7 @@
         }
 
         /* ========================================== */
-        /* WIDE DESKTOP — keep 2-col grid comfortable  */
+        /* WIDE DESKTOP - keep 2-col grid comfortable  */
         /* ========================================== */
         @media (min-width: 1280px) {
             .emp-list {

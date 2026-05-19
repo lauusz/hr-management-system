@@ -410,7 +410,7 @@
             padding: 16px;
         }
 
-        /* Amount — Primary Data Point */
+        /* Amount - Primary Data Point */
         .ln-amount {
             display: flex;
             flex-direction: column;
@@ -686,7 +686,7 @@
         .ln-modal-btn-close:hover { background: var(--gray-50); border-color: var(--gray-300); }
 
         /* ========================================== */
-        /* RESPONSIVE — TABLET (480px+)               */
+        /* RESPONSIVE - TABLET (480px+)               */
         /* ========================================== */
         @media (min-width: 480px) {
             .ln-cta-bar {
@@ -711,7 +711,7 @@
         }
 
         /* ========================================== */
-        /* RESPONSIVE — DESKTOP (768px+)              */
+        /* RESPONSIVE - DESKTOP (768px+)              */
         /* ========================================== */
         @media (min-width: 768px) {
             .ln-amount-value { font-size: 1.625rem; }
@@ -722,7 +722,7 @@
         }
 
         /* ========================================== */
-        /* RESPONSIVE — LARGE DESKTOP (1024px+)       */
+        /* RESPONSIVE - LARGE DESKTOP (1024px+)       */
         /* ========================================== */
         @media (min-width: 1024px) {
             .ln-list {

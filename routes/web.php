@@ -152,12 +152,10 @@ Route::middleware('auth')->group(function () {
             Route::delete('/hr/loan-requests/{id}/repayments/{repaymentId}', [HrLoanRequestController::class, 'destroyRepayment'])->name('hr.loan_requests.repayments.destroy');
         });
 
-        // Overtime Requests (HR) - Routes Manual untuk Action
+        // Overtime Requests (HR) - Read-only recap flow
         Route::get('/hr/overtime-requests/master', [HrOvertimeController::class, 'master'])->name('hr.overtime-requests.master');
         Route::get('/hr/overtime-requests', [HrOvertimeController::class, 'index'])->name('hr.overtime-requests.index');
         Route::get('/hr/overtime-requests/{overtimeRequest}', [HrOvertimeController::class, 'show'])->name('hr.overtime-requests.show');
-        Route::post('/hr/overtime-requests/{overtimeRequest}/approve', [HrOvertimeController::class, 'approve'])->name('hr.overtime-requests.approve');
-        Route::post('/hr/overtime-requests/{overtimeRequest}/reject', [HrOvertimeController::class, 'reject'])->name('hr.overtime-requests.reject');
 
         Route::get('/hr/organization', [OrganizationController::class, 'index'])->name('hr.organization');
 
@@ -189,7 +187,7 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/hr/payroll/import/preview', [PayslipController::class, 'previewImport'])->name('hr.payroll.import.preview');
         Route::post('/hr/payroll/import/store', [PayslipController::class, 'storeBulkImport'])->name('hr.payroll.import.store');
-        Route::get('/hr/payroll/export', [PayslipController::class, 'exportExcel'])->name('hr.payroll.export');
+        Route::post('/hr/payroll/export', [PayslipController::class, 'exportExcel'])->name('hr.payroll.export');
         Route::post('/hr/payroll/send-email', [PayslipController::class, 'sendSelectedEmails'])->name('hr.payroll.send-email');
         Route::delete('/hr/payroll/clear-selected', [PayslipController::class, 'destroySelected'])->name('hr.payroll.destroy-selected');
 

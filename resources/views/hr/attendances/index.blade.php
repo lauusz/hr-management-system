@@ -35,6 +35,17 @@
                 </select>
             </div>
 
+            <div class="filter-group">
+                <label>Status Kelengkapan</label>
+                <select name="completion_status" class="form-control">
+                    <option value="">Semua</option>
+                    <option value="{{ App\Models\Attendance::COMPLETION_CLOSED }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_CLOSED)>Lengkap</option>
+                    <option value="{{ App\Models\Attendance::COMPLETION_OPEN }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_OPEN)>Berjalan</option>
+                    <option value="{{ App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT)>Belum Clock Out</option>
+                    <option value="{{ App\Models\Attendance::COMPLETION_LATE_CLOCK_OUT }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_LATE_CLOCK_OUT)>Clock Out Terlambat</option>
+                </select>
+            </div>
+
             <div class="filter-group flex-grow">
                 <label>Cari Karyawan</label>
                 <div class="search-input">
@@ -48,7 +59,7 @@
 
             <div class="filter-actions">
                 <button type="submit" class="btn-primary">Filter</button>
-                @if(($q ?? null) || ($status ?? null) || ($date_start ?? null))
+                @if(($q ?? null) || ($status ?? null) || ($completion_status ?? null) || ($date_start ?? null))
                 <a href="{{ route('hr.attendances.index') }}" class="btn-reset">Reset</a>
                 @endif
             </div>
@@ -67,6 +78,7 @@
                         <th>Check Out</th>
                         <th>Terlambat</th>
                         <th>Status</th>
+                        <th>Status Kelengkapan</th>
                         <th class="text-center">Foto In</th>
                         <th class="text-center">Foto Out</th>
                         <th class="text-center">Lokasi</th>
@@ -155,6 +167,20 @@
                             @endif
                         </td>
 
+                        <td>
+                            @if($at->completion_status === App\Models\Attendance::COMPLETION_CLOSED)
+                                <span class="badge-status bg-green">Lengkap</span>
+                            @elseif($at->completion_status === App\Models\Attendance::COMPLETION_OPEN)
+                                <span class="badge-status bg-yellow">Berjalan</span>
+                            @elseif($at->completion_status === App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT)
+                                <span class="badge-status bg-red">Belum Clock Out</span>
+                            @elseif($at->completion_status === App\Models\Attendance::COMPLETION_LATE_CLOCK_OUT)
+                                <span class="badge-status bg-red">Clock Out Terlambat</span>
+                            @else
+                                <span class="badge-status bg-gray">-</span>
+                            @endif
+                        </td>
+
                         <td class="text-center">
                             @if($at->clock_in_photo)
                             <button type="button"
@@ -211,7 +237,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="10" class="empty-state">
+                        <td colspan="11" class="empty-state">
                             Tidak ada data absensi yang ditemukan.
                         </td>
                     </tr>

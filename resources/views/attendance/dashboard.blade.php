@@ -28,7 +28,7 @@
                 <p class="attendance-hero__hint">
                     @if($attendance && $attendance->clock_out_at)
                         Presensi hari ini telah selesai. Semoga harimu menyenangkan!
-                    @elseif($attendance && $attendance->clock_in_at)
+                    @elseif($activeAttendance && $activeAttendance->clock_in_at)
                         Kamu sudah clock in. Jangan lupa clock out saat pulang nanti.
                     @else
                         Jangan lupa catat kehadiranmu hari ini.
@@ -41,6 +41,47 @@
                 </svg>
             </div>
         </div>
+
+        {{-- ============================================ --}}
+        {{-- PREVIOUS INCOMPLETE WARNING                  --}}
+        {{-- ============================================ --}}
+        @if($previousIncompleteAttendance)
+        <div class="attendance-card attendance-card--warn">
+            <div class="attendance-card__header">
+                <div class="attendance-card__header-left">
+                    <div class="attendance-card__header-icon attendance-card__header-icon--warn">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                    </div>
+                    <h2 class="attendance-card__title">Absensi Sebelumnya Belum Selesai</h2>
+                </div>
+                <span class="attendance-badge attendance-badge--error">
+                    {{ $previousIncompleteAttendance->completion_status === 'MISSED_CLOCK_OUT' ? 'Terlewat' : 'Berjalan' }}
+                </span>
+            </div>
+            <div class="attendance-card__body">
+                <div class="attendance-detail-grid">
+                    <div class="attendance-detail">
+                        <span class="attendance-detail__label">Tanggal Presensi</span>
+                        <span class="attendance-detail__value">{{ $previousIncompleteAttendance->date->translatedFormat('l, d F Y') }}</span>
+                    </div>
+                    <div class="attendance-detail">
+                        <span class="attendance-detail__label">Jam Masuk</span>
+                        <span class="attendance-detail__value">{{ $previousIncompleteAttendance->clock_in_at->format('H:i') }}</span>
+                    </div>
+                    <div class="attendance-detail">
+                        <span class="attendance-detail__label">Status</span>
+                        <span class="attendance-detail__value">
+                            <span class="attendance-detail__status {{ $previousIncompleteAttendance->completion_status === 'MISSED_CLOCK_OUT' ? 'attendance-detail__status--error' : 'attendance-detail__status--warning' }}">
+                                {{ $previousIncompleteAttendance->completion_status_label }}
+                            </span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
 
         {{-- ============================================ --}}
         {{-- STATUS CARD                                  --}}
@@ -143,8 +184,18 @@
         {{-- ============================================ --}}
         {{-- PRIMARY ACTIONS                              --}}
         {{-- ============================================ --}}
+        @php
+            $hasTodayClockIn = $attendance && $attendance->clock_in_at;
+            $hasTodayClockOut = $attendance && $attendance->clock_out_at;
+            $hasActiveAttendance = (bool) $activeAttendance;
+            $canClockIn = !$hasTodayClockIn && !$hasActiveAttendance;
+            $canClockOut = $hasActiveAttendance && !$activeAttendance->clock_out_at;
+        @endphp
+
         <div class="attendance-actions">
-            <a href="{{ route('attendance.clockIn.form') }}" class="attendance-action {{ $attendance && $attendance->clock_in_at ? 'attendance-action--done' : 'attendance-action--in' }}">
+            <a href="{{ $canClockIn ? route('attendance.clockIn.form') : 'javascript:void(0)' }}"
+               class="attendance-action {{ $canClockIn ? 'attendance-action--in' : 'attendance-action--done attendance-action--locked' }}"
+               @if(!$canClockIn) aria-disabled="true" tabindex="-1" @endif>
                 <div class="attendance-action__icon">
                     <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
@@ -153,8 +204,10 @@
                 <div class="attendance-action__text">
                     <span class="attendance-action__title">Clock In</span>
                     <span class="attendance-action__desc">
-                        @if($attendance && $attendance->clock_in_at)
+                        @if($hasTodayClockIn)
                             Sudah tercatat {{ $attendance->clock_in_at->format('H:i') }}
+                        @elseif($hasActiveAttendance)
+                            Sudah tercatat {{ $activeAttendance->clock_in_at->format('H:i') }}
                         @else
                             Catat jam masuk kerja
                         @endif
@@ -167,8 +220,9 @@
                 </div>
             </a>
 
-            <a href="{{ route('attendance.clockOut.form') }}"
-               class="attendance-action {{ (!$attendance || !$attendance->clock_in_at || $attendance->clock_out_at) ? 'attendance-action--disabled' : 'attendance-action--out' }}">
+            <a href="{{ $canClockOut ? route('attendance.clockOut.form') : 'javascript:void(0)' }}"
+               class="attendance-action {{ $canClockOut ? 'attendance-action--out' : 'attendance-action--disabled' }}"
+               @if(!$canClockOut) aria-disabled="true" tabindex="-1" @endif>
                 <div class="attendance-action__icon">
                     <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -177,10 +231,10 @@
                 <div class="attendance-action__text">
                     <span class="attendance-action__title">Clock Out</span>
                     <span class="attendance-action__desc">
-                        @if(!$attendance || !$attendance->clock_in_at)
-                            Tersedia setelah clock in
-                        @elseif($attendance->clock_out_at)
+                        @if($hasTodayClockOut)
                             Sudah tercatat {{ $attendance->clock_out_at->format('H:i') }}
+                        @elseif(!$hasActiveAttendance)
+                            Tersedia setelah clock in
                         @else
                             Catat jam pulang kerja
                         @endif
@@ -408,6 +462,16 @@
 
         .attendance-card--subtle {
             background: linear-gradient(180deg, var(--gray-100, #F8FAFC) 0%, var(--white, #fff) 100%);
+        }
+
+        .attendance-card--warn {
+            border-color: rgba(245, 158, 11, 0.35);
+            background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);
+        }
+
+        .attendance-card__header-icon--warn {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--warning, #F59E0B);
         }
 
         .attendance-card__header {
@@ -680,7 +744,7 @@
             transition: transform 0.2s ease;
         }
 
-        /* Clock In — Active */
+        /* Clock In - Active */
         .attendance-action--in {
             background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
             color: #fff;
@@ -710,7 +774,7 @@
             transform: translateX(2px);
         }
 
-        /* Clock In — Done */
+        /* Clock In - Done */
         .attendance-action--done {
             background: var(--white, #fff);
             border-color: var(--border, #E5E7EB);
@@ -736,7 +800,7 @@
             box-shadow: 0 4px 12px rgba(34, 197, 94, 0.08);
         }
 
-        /* Clock Out — Active */
+        /* Clock Out - Active */
         .attendance-action--out {
             background: var(--white, #fff);
             border-color: var(--border, #E5E7EB);
@@ -769,7 +833,7 @@
             transform: translateX(2px);
         }
 
-        /* Clock Out — Disabled */
+        /* Clock Out - Disabled */
         .attendance-action--disabled {
             background: var(--gray-50, #F5F7FA);
             border-color: var(--border, #E5E7EB);
@@ -793,6 +857,11 @@
 
         .attendance-action--disabled .attendance-action__arrow {
             color: var(--gray-300, #D1D5DB);
+        }
+
+        .attendance-action--locked {
+            pointer-events: none;
+            cursor: default;
         }
 
         /* ============================================= */

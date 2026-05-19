@@ -23,6 +23,18 @@
             <span>Kembali</span>
         </a>
 
+        @if($attendance && $attendance->date->toDateString() !== now()->toDateString())
+        <div class="cross-day-banner">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>
+                Anda menutup presensi <strong>{{ $attendance->date->translatedFormat('l, d F Y') }}</strong>.
+                Pastikan jam pulang sesuai shift malam Anda.
+            </span>
+        </div>
+        @endif
+
         {{-- Status strip: camera + GPS --}}
         <div class="capture-strip">
             <div class="capture-pill capture-pill--warn" id="cameraPill">
@@ -136,7 +148,7 @@
         .icon-navy  { background: rgba(10, 61, 98, 0.08);  color: var(--primary-dark, #0A3D62); }
 
         /* ============================================= */
-        /* CAPTURE SHELL — mobile one-screen layout      */
+        /* CAPTURE SHELL - mobile one-screen layout      */
         /* ============================================= */
         .capture-shell {
             display: flex;
@@ -177,6 +189,31 @@
         }
         .capture-back:hover svg {
             transform: translateX(-2px);
+        }
+
+        /* ============================================= */
+        /* CROSS-DAY BANNER                              */
+        /* ============================================= */
+        .cross-day-banner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: #fffbeb;
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 10px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: #92400e;
+            line-height: 1.4;
+        }
+        .cross-day-banner svg {
+            flex-shrink: 0;
+            color: var(--warning, #F59E0B);
+        }
+        .cross-day-banner strong {
+            font-weight: 700;
+            color: #78350f;
         }
 
         /* ============================================= */
@@ -474,7 +511,7 @@
     </style>
 
     <script>
-        // DOM Elements — IDs preserved from original
+        // DOM Elements - IDs preserved from original
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const imgPreview = document.getElementById('capturePreview');
@@ -658,13 +695,34 @@
             formData.append('lng', userLng);
             formData.append('photo', imageBlob, 'clock-out.jpg');
 
+            function firstErrorMessage(data, fallback) {
+                if (data?.message) return data.message;
+                if (data?.errors) {
+                    const firstKey = Object.keys(data.errors)[0];
+                    if (firstKey && data.errors[firstKey]?.length) {
+                        return data.errors[firstKey][0];
+                    }
+                }
+                return fallback;
+            }
+
             try {
                 const response = await fetch('{{ url("/attendance/clock-out") }}', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
-                const data = await response.json();
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = { message: 'Terjadi kesalahan pada server.' };
+                }
 
                 if (response.ok) {
                     const modal = document.getElementById('clockout-success');
@@ -675,7 +733,7 @@
                         btn.onclick = () => window.location.href = '{{ url("/attendance") }}';
                     });
                 } else {
-                    alert(data.message || 'Gagal melakukan clock-out.');
+                    alert(firstErrorMessage(data, 'Gagal melakukan clock-out.'));
                     btnSubmit.disabled = false;
                     btnSubmit.innerHTML = originalText;
                     btnRetake.disabled = false;

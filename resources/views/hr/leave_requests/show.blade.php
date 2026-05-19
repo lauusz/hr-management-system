@@ -100,7 +100,12 @@
         $applicantRole = strtoupper((string) $applicantRoleVal);
         $actorRoleVal = $user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role;
         $actorRole = strtoupper((string) $actorRoleVal);
-        $needsHrdOnly = in_array($applicantRole, ['MANAGER', 'HRD', 'HR STAFF'], true);
+        $isApplicantSupervisorOrManager = in_array($applicantRole, ['SUPERVISOR', 'MANAGER'], true);
+        $needsHrdOnly = in_array($applicantRole, ['HRD', 'HR STAFF'], true)
+            || ($isApplicantSupervisorOrManager && $isTypeCuti);
+        $needsHrStaffNonCutiPermission = $isApplicantSupervisorOrManager
+            && ! $isTypeCuti
+            && ! (bool) ($user->hr_staff_can_approve_non_cuti ?? false);
         $isHrdMaster = $actorRole === 'HRD';
     @endphp
 
@@ -242,7 +247,7 @@
                         </svg>
                         <span>{{ $start->translatedFormat('l, j F Y') }}</span>
                         @if($end->ne($start))
-                            <span class="apv-date-sep">—</span>
+                            <span class="apv-date-sep">-</span>
                             <span>{{ $end->translatedFormat('l, j F Y') }}</span>
                         @endif
                     </div>
@@ -256,7 +261,7 @@
                         @elseif($typeValue === 'IZIN_PULANG_AWAL') Jam Pulang Awal
                         @else Jam Mulai @endif
                     </span>
-                    <span class="apv-time-display">{{ $startTimeLabel }}{{ $endTimeLabel ? ' — ' . $endTimeLabel : '' }}</span>
+                    <span class="apv-time-display">{{ $startTimeLabel }}{{ $endTimeLabel ? ' - ' . $endTimeLabel : '' }}</span>
                 </div>
                 @endif
 
@@ -275,7 +280,7 @@
                     </svg>
                     <div>
                         <span class="apv-warning-title">Pengajuan Mendadak</span>
-                        <span class="apv-warning-text">H-{{ $shortNoticeDaysDiff }} (kurang dari H-7) — Termasuk Potong Uang Makan</span>
+                        <span class="apv-warning-text">H-{{ $shortNoticeDaysDiff }} (kurang dari H-7) - Termasuk Potong Uang Makan</span>
                     </div>
                 </div>
                 @endif
@@ -381,7 +386,7 @@
                 <div class="apv-detail-row apv-detail-row--full">
                     <span class="apv-detail-label">Diputuskan Oleh</span>
                     <div class="apv-approver-box">
-                        <div class="apv-avatar">{{ substr($item->approver?->name ?? '—', 0, 1) }}</div>
+                        <div class="apv-avatar">{{ substr($item->approver?->name ?? '-', 0, 1) }}</div>
                         <div class="apv-approver-info">
                             <span class="apv-approver-name">{{ $item->approver?->name ?? '-' }}</span>
                             @if($item->approved_at)
@@ -520,6 +525,13 @@
                         </svg>
                         Pengajuan dari {{ $item->user->role }} hanya dapat disetujui oleh HRD.
                     </div>
+                @elseif($isHrStaff && $item->status === \App\Models\LeaveRequest::PENDING_HR && $needsHrStaffNonCutiPermission && !$isHrdMaster)
+                    <div class="apv-status-notice apv-status-notice--info">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Akun HR STAFF ini belum diberi akses approve/reject pengajuan non-CUTI dari Supervisor atau Manager.
+                    </div>
                 @endif
             @elseif(!$isRejectedOrBatal)
                 {{-- Non-HR edit & batal --}}
@@ -581,6 +593,13 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
                         Pengajuan dari {{ $item->user->role }} hanya dapat disetujui oleh HRD.
+                    </div>
+                @elseif($isHrStaff && $item->status === \App\Models\LeaveRequest::PENDING_HR && $needsHrStaffNonCutiPermission && !$isHrdMaster)
+                    <div class="apv-status-notice apv-status-notice--info">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Akun HR STAFF ini belum diberi akses approve/reject pengajuan non-CUTI dari Supervisor atau Manager.
                     </div>
                 @endif
             @else

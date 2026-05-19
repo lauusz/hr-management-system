@@ -198,6 +198,42 @@
             </div>
         </div>
 
+        @if($previousIncompleteAttendance)
+        <div class="card" style="border-color: rgba(245, 158, 11, 0.35); background: linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);">
+            <div class="card-header" style="border-bottom-color: #fde68a;">
+                <h3 class="card-title" style="color: #92400e;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline-block; vertical-align:text-bottom; margin-right:6px; color:#f59e0b;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                    Absensi Sebelumnya Belum Selesai
+                </h3>
+                <span class="badge-status {{ $previousIncompleteAttendance->completion_status === 'MISSED_CLOCK_OUT' ? 'bg-red' : 'bg-yellow' }}">
+                    {{ $previousIncompleteAttendance->completion_status_label }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="status-detail-box">
+                    <div class="detail-row">
+                        <span class="detail-label">Tanggal Presensi</span>
+                        <span class="detail-value">{{ $previousIncompleteAttendance->date->translatedFormat('l, d F Y') }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Jam Masuk</span>
+                        <span class="detail-value">{{ $previousIncompleteAttendance->clock_in_at->format('H:i') }}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status</span>
+                        <span class="detail-value">
+                            <span class="badge-status {{ $previousIncompleteAttendance->completion_status === 'MISSED_CLOCK_OUT' ? 'bg-red' : 'bg-yellow' }}">
+                                {{ $previousIncompleteAttendance->completion_status_label }}
+                            </span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Status Pengajuan</h3>
@@ -251,28 +287,68 @@
             </div>
         </div>
 
+        @php
+            $canRemoteIn = !$activeAttendance && !($todayAttendance && $todayAttendance->clock_in_at);
+            $canRemoteOut = $activeRemoteAttendance && !$activeRemoteAttendance->clock_out_at;
+        @endphp
+
+        @if($activeAttendance && !$activeRemoteAttendance)
+        <div class="card" style="border-color: rgba(59, 130, 246, 0.35); background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);">
+            <div class="card-header" style="border-bottom-color: #bfdbfe;">
+                <h3 class="card-title" style="color: #1e40af; font-size: 0.95rem;">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display:inline-block; vertical-align:text-bottom; margin-right:6px; color:#3b82f6;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Sedang Aktif: Presensi WFO
+                </h3>
+            </div>
+            <div class="card-body" style="padding: 14px 20px;">
+                <p style="margin:0; font-size:0.85rem; color:#374151;">
+                    Anda sedang dalam sesi presensi WFO.
+                    Selesaikan clock out WFO terlebih dahulu sebelum memulai dinas luar.
+                </p>
+            </div>
+        </div>
+        @endif
+
         <div class="action-grid">
-            <button type="button" 
-                class="btn-clock btn-in {{ $todayAttendance ? 'disabled' : '' }}" 
-                onclick="{{ !$todayAttendance ? "openModal('in')" : '' }}">
+            <button type="button"
+                class="btn-clock btn-in {{ $canRemoteIn ? '' : 'disabled' }}"
+                onclick="{{ $canRemoteIn ? "openModal('in')" : '' }}">
                 <div class="icon-circle">
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
                 </div>
                 <div class="btn-text">
                     <span class="btn-title">Mulai Dinas</span>
-                    <span class="btn-desc">Catat jam & lokasi</span>
+                    <span class="btn-desc">
+                        @if($todayAttendance && $todayAttendance->clock_in_at)
+                            Sudah tercatat {{ \Carbon\Carbon::parse($todayAttendance->clock_in_at)->format('H:i') }}
+                        @elseif($activeAttendance)
+                            Selesaikan presensi WFO terlebih dahulu
+                        @else
+                            Catat jam & lokasi
+                        @endif
+                    </span>
                 </div>
             </button>
 
-            <button type="button" 
-                class="btn-clock btn-out {{ (!$todayAttendance || $todayAttendance->clock_out_at) ? 'disabled' : '' }}"
-                onclick="{{ ($todayAttendance && !$todayAttendance->clock_out_at) ? "openModal('out')" : '' }}">
+            <button type="button"
+                class="btn-clock btn-out {{ $canRemoteOut ? '' : 'disabled' }}"
+                onclick="{{ $canRemoteOut ? "openModal('out')" : '' }}">
                 <div class="icon-circle">
                     <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 </div>
                 <div class="btn-text">
                     <span class="btn-title">Selesai Tugas</span>
-                    <span class="btn-desc">Lapor selesai kerja</span>
+                    <span class="btn-desc">
+                        @if($activeRemoteAttendance && $activeRemoteAttendance->clock_out_at)
+                            Sudah tercatat
+                        @elseif(!$activeRemoteAttendance)
+                            Tersedia setelah mulai dinas
+                        @else
+                            Lapor selesai kerja
+                        @endif
+                    </span>
                 </div>
             </button>
         </div>
@@ -624,7 +700,7 @@
                         btn.onclick = () => window.location.reload();
                     });
                 } else {
-                    alert(data.error || "Terjadi kesalahan.");
+                    alert(data.message || data.error || "Terjadi kesalahan.");
                     btnSubmit.disabled = false;
                     btnSubmit.innerText = btnOriginal;
                     btnRetake.disabled = false;

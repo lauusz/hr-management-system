@@ -28,7 +28,7 @@ class ApprovalController extends Controller
     // =====================================================================
 
     /**
-     * Inbox Approval — PENDING_SUPERVISOR berdasarkan hierarki dan role user login.
+     * Inbox Approval - PENDING_SUPERVISOR berdasarkan hierarki dan role user login.
      *
      * - Supervisor: lihat bawahan langsung (direct_supervisor_id = me)
      * - Manager   : lihat bawahan tanpa SPV (manager_id = me AND ds IS NULL)
@@ -85,7 +85,7 @@ class ApprovalController extends Controller
     }
 
     /**
-     * [SUPERVISOR ONLY] List bawahan — same Divisi & PT, PENDING_SUPERVISOR.
+     * [SUPERVISOR ONLY] List bawahan - same Divisi & PT, PENDING_SUPERVISOR.
      * Supervisor tidak bisa melihat bawahan di divisi/PT berbeda.
      */
     public function indexBySupervisor(Request $request)
@@ -111,7 +111,7 @@ class ApprovalController extends Controller
     }
 
     /**
-     * Master Data Cuti Bawahan (Rekap — semua status).
+     * Master Data Cuti Bawahan (Rekap - semua status).
      */
     public function master(Request $request)
     {
@@ -173,7 +173,7 @@ class ApprovalController extends Controller
     // =====================================================================
 
     /**
-     * Detail Pengajuan — untuk Supervisor/Manager/HRD.
+     * Detail Pengajuan - untuk Supervisor/Manager/HRD.
      */
     public function show(LeaveRequest $leave)
     {
@@ -195,11 +195,11 @@ class ApprovalController extends Controller
     }
 
     // =====================================================================
-    // ACK — Supervisor ketahui & teruskan ke HRD
+    // ACK - Supervisor ketahui & teruskan ke HRD
     // =====================================================================
 
     /**
-     * [Supervisor/Manager] ACK — Mengetahui & teruskan ke HRD.
+     * [Supervisor/Manager] ACK - Mengetahui & teruskan ke HRD.
      * Hanya untuk status PENDING_SUPERVISOR.
      */
     public function ack(Request $request, LeaveRequest $leave)
@@ -260,7 +260,7 @@ class ApprovalController extends Controller
     // =====================================================================
 
     /**
-     * [Supervisor/Manager] Reject — dengan audit trail di notes.
+     * [Supervisor/Manager] Reject - dengan audit trail di notes.
      */
     public function reject(LeaveRequest $leave)
     {
@@ -293,7 +293,7 @@ class ApprovalController extends Controller
     // =====================================================================
 
     /**
-     * [Supervisor/Manager] Approve — HRD applicant langsung APPROVED,
+     * [Supervisor/Manager] Approve - HRD applicant langsung APPROVED,
      * staff lain → PENDING_HR.
      */
     public function approve(Request $request, LeaveRequest $leave)
@@ -361,7 +361,7 @@ class ApprovalController extends Controller
     }
 
     /**
-     * Update Data oleh Supervisor — reset status ke PENDING_HR.
+     * Update Data oleh Supervisor - reset status ke PENDING_HR.
      */
     public function update(Request $request, LeaveRequest $leave)
     {
@@ -429,7 +429,7 @@ class ApprovalController extends Controller
     }
 
     /**
-     * [AJUKAN PEMBATALAN] — Langsung BATAL, tanpa perlu persetujuan HRD.
+     * [AJUKAN PEMBATALAN] - Langsung BATAL, tanpa perlu persetujuan HRD.
      */
     public function destroy(LeaveRequest $leave)
     {

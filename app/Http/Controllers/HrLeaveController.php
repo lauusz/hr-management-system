@@ -750,7 +750,8 @@ class HrLeaveController extends Controller
             return false;
         }
 
-        // SUPERVISOR / MANAGER applicant: CUTI = HRD only; non-CUTI = HR STAFF boleh jika flag aktif
+        // SUPERVISOR / MANAGER applicant: CUTI = HRD only;
+        // non-CUTI = HR STAFF boleh jika akun HR STAFF tersebut diberi izin khusus.
         if (in_array($applicantRole, ['SUPERVISOR', 'MANAGER'], true)) {
             $leaveTypeValue = $leave->type instanceof LeaveType
                 ? $leave->type->value
@@ -763,7 +764,7 @@ class HrLeaveController extends Controller
             }
 
             if ($actorRole === 'HR STAFF') {
-                return ! $isCuti && (bool) $leave->user->hr_staff_can_approve_non_cuti;
+                return ! $isCuti && $actor->allowsHrStaffNonCutiApproval();
             }
 
             return false;

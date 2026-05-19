@@ -337,6 +337,33 @@
                             </select>
                         </div>
 
+                        @php
+                            $viewerRole = auth()->user()?->role instanceof \App\Enums\UserRole
+                                ? auth()->user()->role->value
+                                : auth()->user()?->role;
+                            $canManageHrStaffNonCutiApproval = in_array($viewerRole, ['HRD', 'HR STAFF'], true);
+                            $isTargetHrStaff = old('role') === 'HR STAFF';
+                        @endphp
+
+                        @if($canManageHrStaffNonCutiApproval)
+                        <div class="form-group full-width" id="hr-staff-noncuti-setting" style="{{ $isTargetHrStaff ? '' : 'display:none;' }}">
+                            <input type="hidden" name="hr_staff_can_approve_non_cuti" value="0">
+                            <div class="setting-row">
+                                <label class="setting-label" for="hr_staff_can_approve_non_cuti">
+                                    <input
+                                        id="hr_staff_can_approve_non_cuti"
+                                        type="checkbox"
+                                        name="hr_staff_can_approve_non_cuti"
+                                        value="1"
+                                        @checked(old('hr_staff_can_approve_non_cuti'))
+                                    >
+                                    <span class="setting-title">Boleh approve izin non-CUTI Supervisor/Manager</span>
+                                </label>
+                            </div>
+                            <small class="helper-text">Khusus akun HR STAFF. Jika aktif, akun ini dapat approve/reject pengajuan Supervisor/Manager selain CUTI. Pengajuan CUTI tetap hanya dapat diproses HRD.</small>
+                        </div>
+                        @endif
+
                         <div class="form-group">
                             <label for="manager_id">Manager (Approver)</label>
                             <select id="manager_id" name="manager_id" class="form-control">
@@ -401,6 +428,30 @@
 
         </form>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var roleSelect = document.getElementById('role');
+            var nonCutiSetting = document.getElementById('hr-staff-noncuti-setting');
+            var nonCutiCheckbox = document.getElementById('hr_staff_can_approve_non_cuti');
+
+            if (roleSelect && nonCutiSetting) {
+                function toggleNonCutiSetting() {
+                    if (roleSelect.value === 'HR STAFF') {
+                        nonCutiSetting.style.display = '';
+                    } else {
+                        nonCutiSetting.style.display = 'none';
+                        if (nonCutiCheckbox) {
+                            nonCutiCheckbox.checked = false;
+                        }
+                    }
+                }
+
+                toggleNonCutiSetting();
+                roleSelect.addEventListener('change', toggleNonCutiSetting);
+            }
+        });
+    </script>
 
     <style>
         :root {
@@ -629,6 +680,44 @@
         .helper-text {
             font-size: 0.72rem;
             color: var(--edit-text-muted);
+            line-height: 1.4;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--edit-bg);
+            border: 1.5px solid var(--edit-border);
+            border-radius: var(--edit-radius-md);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .setting-row:focus-within {
+            border-color: var(--edit-primary);
+            box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.08);
+        }
+        .setting-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            width: 100%;
+            margin: 0;
+            font-weight: normal;
+        }
+        .setting-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--edit-primary);
+            cursor: pointer;
+            flex-shrink: 0;
+            margin: 0;
+        }
+        .setting-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--edit-text-secondary);
             line-height: 1.4;
         }
 

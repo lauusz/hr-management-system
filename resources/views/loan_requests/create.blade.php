@@ -290,7 +290,7 @@
 
     <style>
         /* ============================================= */
-        /* LOAN CREATE PAGE — Scoped Styles              */
+        /* LOAN CREATE PAGE - Scoped Styles              */
         /* ============================================= */
         .loan-create-page {
             display: flex;
@@ -962,7 +962,7 @@
         }
 
         /* ============================================= */
-        /* RESPONSIVE — Tablet & Desktop                 */
+        /* RESPONSIVE - Tablet & Desktop                 */
         /* ============================================= */
         @media (min-width: 768px) {
             .loan-create-page {

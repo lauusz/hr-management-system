@@ -433,7 +433,7 @@
                                         @if($doc->effective_date)
                                         <span class="doc-list-sep">•</span>
                                         <span>{{ $doc->effective_date->format('d/m/Y') }}</span>
-                                        @if($doc->expired_date) — {{ $doc->expired_date->format('d/m/Y') }} @endif
+                                        @if($doc->expired_date) - {{ $doc->expired_date->format('d/m/Y') }} @endif
                                         @endif
                                     </div>
                                 </div>

@@ -136,7 +136,7 @@
         .icon-navy  { background: rgba(10, 61, 98, 0.08);  color: var(--primary-dark, #0A3D62); }
 
         /* ============================================= */
-        /* CAPTURE SHELL — mobile one-screen layout      */
+        /* CAPTURE SHELL - mobile one-screen layout      */
         /* ============================================= */
         .capture-shell {
             display: flex;
@@ -474,7 +474,7 @@
     </style>
 
     <script>
-        // DOM Elements — IDs preserved from original
+        // DOM Elements - IDs preserved from original
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const imgPreview = document.getElementById('capturePreview');
@@ -658,13 +658,34 @@
             formData.append('lng', userLng);
             formData.append('photo', imageBlob, 'clock-in.jpg');
 
+            function firstErrorMessage(data, fallback) {
+                if (data?.message) return data.message;
+                if (data?.errors) {
+                    const firstKey = Object.keys(data.errors)[0];
+                    if (firstKey && data.errors[firstKey]?.length) {
+                        return data.errors[firstKey][0];
+                    }
+                }
+                return fallback;
+            }
+
             try {
                 const response = await fetch('{{ url("/attendance/clock-in") }}', {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
 
-                const data = await response.json();
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch {
+                    data = { message: 'Terjadi kesalahan pada server.' };
+                }
 
                 if (response.ok) {
                     const modal = document.getElementById('attendance-success');
@@ -675,7 +696,7 @@
                         btn.onclick = () => window.location.href = '{{ url("/attendance") }}';
                     });
                 } else {
-                    alert(data.message || 'Gagal melakukan presensi.');
+                    alert(firstErrorMessage(data, 'Gagal melakukan presensi.'));
                     btnSubmit.disabled = false;
                     btnSubmit.innerHTML = originalText;
                     btnRetake.disabled = false;

@@ -203,7 +203,7 @@
                     <div class="ln-avatar">{{ substr($loan->snapshot_name, 0, 1) }}</div>
                     <div class="ln-employee-info">
                         <span class="ln-employee-name">{{ $loan->snapshot_name }}</span>
-                        <span class="ln-employee-detail">{{ $loan->snapshot_position ?? '-' }} — {{ $loan->snapshot_company ?? '-' }}</span>
+                        <span class="ln-employee-detail">{{ $loan->snapshot_position ?? '-' }} - {{ $loan->snapshot_company ?? '-' }}</span>
                     </div>
                 </div>
 
@@ -297,7 +297,7 @@
                                         <div class="ln-table-avatar">{{ substr($loan->snapshot_name, 0, 1) }}</div>
                                         <div class="ln-table-user-info">
                                             <span class="ln-table-user-name">{{ $loan->snapshot_name }}</span>
-                                            <span class="ln-table-user-detail">{{ $loan->snapshot_position ?? '-' }} — {{ $loan->snapshot_company ?? '-' }}</span>
+                                            <span class="ln-table-user-detail">{{ $loan->snapshot_position ?? '-' }} - {{ $loan->snapshot_company ?? '-' }}</span>
                                         </div>
                                     </div>
                                 </td>

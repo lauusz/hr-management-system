@@ -90,11 +90,37 @@ class OvertimeRequest extends Model
     {
         return match ($this->status) {
             self::STATUS_PENDING_SUPERVISOR => 'Menunggu Supervisor',
-            self::STATUS_APPROVED_SUPERVISOR => 'Disetujui Supervisor',
-            self::STATUS_APPROVED_HRD => 'Disetujui HRD',
+            self::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
+            self::STATUS_APPROVED_HRD => 'Disetujui',
             self::STATUS_REJECTED => 'Ditolak',
             self::STATUS_CANCELLED => 'Dibatalkan',
             default => 'Unknown',
+        };
+    }
+
+    /**
+     * Status label khusus tampilan HRD (read-only recap flow).
+     */
+    public function getHrdStatusLabelAttribute()
+    {
+        return match ($this->status) {
+            self::STATUS_PENDING_SUPERVISOR => 'Menunggu Supervisor',
+            self::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
+            self::STATUS_APPROVED_HRD => 'Disetujui',
+            self::STATUS_REJECTED => 'Ditolak',
+            self::STATUS_CANCELLED => 'Dibatalkan',
+            default => 'Unknown',
+        };
+    }
+
+    public function getHrdStatusColorAttribute()
+    {
+        return match ($this->status) {
+            self::STATUS_PENDING_SUPERVISOR => 'warning',
+            self::STATUS_APPROVED_SUPERVISOR => 'success',
+            self::STATUS_APPROVED_HRD => 'success',
+            self::STATUS_REJECTED => 'danger',
+            default => 'secondary',
         };
     }
 

@@ -23,7 +23,7 @@ class User extends Authenticatable
         'role', 
         'can_manage_payroll', // <--- [BARU] Hak akses kelola slip gaji 
         'leave_balance',        // <--- [BARU] Tambahkan ini agar sisa cuti bisa di-update
-        'hr_staff_can_approve_non_cuti', // <--- [BARU] HR STAFF boleh approve non-CUTI untuk MANAGER
+        'hr_staff_can_approve_non_cuti', // HR STAFF boleh approve non-CUTI milik Supervisor/Manager
         'division_id',
         'position_id',
         'direct_supervisor_id', 

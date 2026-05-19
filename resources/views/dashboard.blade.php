@@ -75,7 +75,7 @@
     </div>
 
     {{-- ============================================ --}}
-    {{-- PRIMARY QUICK ACTIONS — 2-Column Grid        --}}
+    {{-- PRIMARY QUICK ACTIONS - 2-Column Grid        --}}
     {{-- ============================================ --}}
     <section class="dash-section dash-section--primary">
       <div class="section-header">
@@ -203,7 +203,7 @@
     </section>
 
     {{-- ============================================ --}}
-    {{-- ROLE ACCESS — Collapsible on mobile          --}}
+    {{-- ROLE ACCESS - Collapsible on mobile          --}}
     {{-- ============================================ --}}
     @if(auth()->user()->isHR() || auth()->user()->isSupervisor() || auth()->user()->isManager())
     <section class="dash-section dash-section--secondary">
@@ -284,7 +284,7 @@
             </div>
           </a>
 
-          <a class="action-card action-card--muted" href="{{ route('hr.overtime-requests.index') }}">
+          <a class="action-card action-card--muted" href="{{ route('hr.overtime-requests.master') }}">
             <div class="action-card__top">
               <div class="action-card__icon icon-orange">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -299,8 +299,8 @@
               </div>
             </div>
             <div class="action-card__body">
-              <span class="action-card__name">Approval Lembur</span>
-              <span class="action-card__desc">Verifikasi lembur</span>
+              <span class="action-card__name">Rekap Lembur</span>
+              <span class="action-card__desc">Pencocokan absensi lembur</span>
             </div>
           </a>
 
@@ -512,7 +512,7 @@
     }
 
     /* ============================================= */
-    /* HERO — Compact, clean, personal               */
+    /* HERO - Compact, clean, personal               */
     /* ============================================= */
     .hero {
       position: relative;
@@ -585,7 +585,7 @@
     }
 
     /* ============================================= */
-    /* SUMMARY BAR — 2 compact chips                 */
+    /* SUMMARY BAR - 2 compact chips                 */
     /* ============================================= */
     .summary-bar {
       display: grid;
@@ -723,7 +723,7 @@
     }
 
     /* ============================================= */
-    /* ACTION GRID — Primary 2-col on mobile         */
+    /* ACTION GRID - Primary 2-col on mobile         */
     /* ============================================= */
     .action-grid {
       display: grid;
@@ -738,7 +738,7 @@
     }
 
     /* ============================================= */
-    /* ACTION CARD — Unified component               */
+    /* ACTION CARD - Unified component               */
     /* ============================================= */
     .action-card {
       display: flex;
@@ -850,7 +850,7 @@
     }
 
     /* ============================================= */
-    /* SETTINGS GRID — Smaller cards                 */
+    /* SETTINGS GRID - Smaller cards                 */
     /* ============================================= */
     .settings-grid {
       gap: 6px;
@@ -881,7 +881,7 @@
     }
 
     /* ============================================= */
-    /* ROLE GRID — Collapsible on mobile             */
+    /* ROLE GRID - Collapsible on mobile             */
     /* ============================================= */
     .role-grid {
       display: grid;
@@ -898,7 +898,7 @@
     }
 
     /* ============================================= */
-    /* EXPAND BUTTON — Explicit, clear               */
+    /* EXPAND BUTTON - Explicit, clear               */
     /* ============================================= */
     .expand-btn {
       display: flex;
@@ -1108,7 +1108,7 @@
         font-size: 0.75rem;
       }
 
-      /* Role Grid — always expanded on tablet+ */
+      /* Role Grid - always expanded on tablet+ */
       .role-grid {
         grid-template-columns: repeat(3, 1fr);
         gap: 12px;
