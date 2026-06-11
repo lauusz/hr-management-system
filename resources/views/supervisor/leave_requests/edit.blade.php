@@ -73,7 +73,7 @@
                             $specialLeaveList = [
                                 ['id' => 'CUTI_MELAHIRKAN', 'label' => 'Cuti Melahirkan', 'days' => 90],
                                 ['id' => 'ISTRI_MELAHIRKAN', 'label' => 'Istri Melahirkan', 'days' => 2],
-                                ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 4],
+                                ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 3],
                                 ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Menantu/Istri/Suami/Anak)', 'days' => 2],
                                 ['id' => 'DEATH_EXTENDED', 'label' => 'Kematian (Adik/Kakak/Ipar)', 'days' => 2],
                                 ['id' => 'DEATH_HOUSE', 'label' => 'Kematian Anggota Rumah', 'days' => 1],
@@ -148,12 +148,12 @@
                 <div class="apv-form-group">
                     <label for="photoInput" class="apv-form-label">Update Bukti Pendukung <span class="apv-optional">(Opsional)</span></label>
                     <div class="apv-file-input-wrapper">
-                        <input type="file" name="photo" id="photoInput" class="apv-form-control-file" accept="image/*,.pdf">
+                        <input type="file" name="photo" id="photoInput" class="apv-form-control-file" accept="image/*,.pdf" data-max-file-size="8388608" data-max-file-label="8 MB">
                     </div>
                     @if($leave->photo)
                         <div class="apv-current-file">
                             <span class="apv-current-file-label">File saat ini:</span>
-                            <a href="{{ asset('storage/leave_photos/' . $leave->photo) }}" target="_blank">Lihat File</a>
+                            <a href="{{ route('leave-requests.supporting-file', $leave) }}" target="_blank">Lihat File</a>
                         </div>
                     @endif
                     <div id="photoPreviewContainer" class="apv-preview-container">

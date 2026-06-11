@@ -1,0 +1,45 @@
+UPDATE SERVER
+
+File aplikasi:
+- app/Services/Image/ImageCompressor.php
+- app/Http/Controllers/LeaveRequestController.php
+- app/Http/Controllers/HrLeaveController.php
+- app/Http/Controllers/ApprovalController.php
+- resources/views/layouts/app.blade.php
+- resources/views/leave_requests/create.blade.php
+- resources/views/leave_requests/show.blade.php
+- resources/views/hr/leave_requests/create_manual.blade.php
+- resources/views/hr/leave_requests/show.blade.php
+- resources/views/supervisor/leave_requests/show.blade.php
+- resources/views/supervisor/leave_requests/edit.blade.php
+- routes/web.php
+- scripts/optimize.bat
+- scripts/check_heic.php
+- scripts/queue_worker.bat
+- scripts/register_queue_worker.ps1
+- public/phpinfo-temp.php
+
+Konfigurasi server:
+- Install/aktifkan ImageMagick dengan dukungan HEIC/HEIF (libheif).
+- Install/aktifkan PHP Imagick sesuai versi PHP, x64/x86, dan TS/NTS.
+- Tambahkan `extension=php_imagick.dll` pada php.ini.
+- Pastikan DLL ImageMagick tersedia di Windows PATH.
+- Atur `upload_max_filesize=8M`.
+- Atur `post_max_size=10M` untuk overhead multipart; limit file aplikasi tetap 8 MB.
+- Restart IIS/Application Pool.
+- Tambahkan `PHPINFO_TOKEN=token-acak-yang-kuat` pada `.env` sementara.
+- Setelah pengecekan selesai, hapus `public/phpinfo-temp.php` dan `PHPINFO_TOKEN` dari `.env`.
+
+Queue worker:
+- Jalankan `scripts/optimize.bat` sekali dengan Run as Administrator.
+- Script akan membuat Scheduled Task `HRD System Queue Worker`.
+- Worker otomatis aktif saat Windows startup.
+- Log worker tersedia di `storage/logs/queue-worker.log`.
+- Jangan gunakan `queue:flush`; failed jobs tidak lagi dihapus oleh optimize.
+
+Verifikasi:
+- Jalankan `php -m | findstr imagick`.
+- Jalankan `php -r "print_r(Imagick::queryFormats('HEI*'));"`.
+- Pastikan hasil menampilkan HEIC atau HEIF.
+- Upload satu file HEIC dan pastikan tersimpan sebagai JPG.
+- Pastikan Scheduled Task `HRD System Queue Worker` berstatus Running.

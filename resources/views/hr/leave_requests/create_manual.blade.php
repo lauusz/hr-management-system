@@ -212,7 +212,7 @@
                     <div class="form-group">
                         <label for="manual_photo_input">Bukti Pendukung</label>
                         <div class="file-input-wrapper">
-                            <input type="file" name="photo" id="manual_photo_input" class="form-input-file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx">
+                            <input type="file" name="photo" id="manual_photo_input" class="form-input-file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB">
                         </div>
                         <small class="form-hint">Format: Gambar atau dokumen pendukung jika tersedia.</small>
                         <div id="manual-photo-preview-container" class="preview-container">

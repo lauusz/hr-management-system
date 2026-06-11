@@ -179,7 +179,7 @@
                 @if($typeValue === 'CUTI_KHUSUS' && $item->special_leave_category)
                     @php
                         $catMap = [
-                            'NIKAH_KARYAWAN'   => 'Menikah (4 Hari)',
+                            'NIKAH_KARYAWAN'   => 'Menikah (3 Hari)',
                             'ISTRI_MELAHIRKAN' => 'Istri Melahirkan (2 Hari)',
                             'ISTRI_KEGUGURAN'  => 'Istri Keguguran (2 Hari)',
                             'KHITANAN_ANAK'    => 'Khitanan Anak (2 Hari)',
@@ -395,13 +395,13 @@
         {{-- ========================================== --}}
         @php
             $url = $item->photo
-                ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
+                ? route('leave-requests.supporting-file', $item)
                 : null;
 
             $docUrl = null;
             $isImageDoc = false;
             if ($item->photo) {
-                $docUrl = asset('storage/leave_photos/' . ltrim($item->photo, '/'));
+                $docUrl = $url;
                 $docExt = strtolower(pathinfo($item->photo, PATHINFO_EXTENSION));
                 $isImageDoc = in_array($docExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
             }
@@ -436,12 +436,18 @@
                 </div>
                 @else
                 <a href="{{ $docUrl }}" target="_blank" class="lrs-photo-card" style="text-decoration:none;">
-                    <img src="{{ $url }}" alt="Bukti Izin" loading="lazy">
+                    <div class="lrs-file-preview">
+                        <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8m-4-6l6 6m-6-6v6h6"/>
+                        </svg>
+                        <strong>{{ strtoupper($docExt) }}</strong>
+                        <span>{{ $item->photo }}</span>
+                    </div>
                     <div class="lrs-photo-overlay">
                         <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                         </svg>
-                        <span>Buka File</span>
+                        <span>Buka / Unduh File</span>
                     </div>
                 </a>
                 @endif
@@ -462,7 +468,7 @@
                     <form method="POST" action="{{ route('leave-requests.upload-photo', $item) }}" enctype="multipart/form-data" class="lrs-upload-form">
                         @csrf
                         <div class="lrs-file-input-wrap">
-                            <input type="file" name="photo" id="followupPhotoInput" class="lrs-file-input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" required>
+                            <input type="file" name="photo" id="followupPhotoInput" class="lrs-file-input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB" required>
                             <label for="followupPhotoInput" class="lrs-file-label">
                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
@@ -1279,6 +1285,28 @@
             min-height: 160px;
             object-fit: cover;
             background: var(--gray-100);
+        }
+        .lrs-file-preview {
+            min-height: 160px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: var(--gray-100);
+            color: var(--gray-500);
+            text-align: center;
+        }
+        .lrs-file-preview strong {
+            color: var(--primary);
+            font-size: 13px;
+        }
+        .lrs-file-preview span {
+            max-width: 100%;
+            color: var(--gray-600);
+            font-size: 12px;
+            overflow-wrap: anywhere;
         }
         .lrs-photo-overlay {
             position: absolute;

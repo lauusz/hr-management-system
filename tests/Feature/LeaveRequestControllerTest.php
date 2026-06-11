@@ -21,6 +21,44 @@ pest()->extend(Tests\TestCase::class)
     ->in('Feature');
 
 describe('LeaveRequestController', function () {
+    describe('supporting file', function () {
+        it('streams an HEIC attachment through Laravel for the owner', function () {
+            Storage::fake('public');
+
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'photo' => 'evidence.heic',
+            ]);
+
+            Storage::disk('public')->put('leave_photos/evidence.heic', 'heic-content');
+
+            actingAs($employee, 'web');
+
+            $response = $this->get(route('leave-requests.supporting-file', $leave));
+
+            $response->assertOk()
+                ->assertHeader('content-type', 'image/heic')
+                ->assertStreamedContent('heic-content');
+        });
+
+        it('forbids unrelated users from opening an attachment', function () {
+            Storage::fake('public');
+
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $otherEmployee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'photo' => 'evidence.heic',
+            ]);
+
+            Storage::disk('public')->put('leave_photos/evidence.heic', 'heic-content');
+
+            actingAs($otherEmployee, 'web');
+
+            $this->get(route('leave-requests.supporting-file', $leave))
+                ->assertForbidden();
+        });
+    });
+
     // =====================================================================
     // INDEX
     // =====================================================================

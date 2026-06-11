@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -1200,6 +1201,20 @@
     }
 
     if (sidebarToggle) sidebarToggle.addEventListener('click', toggleDesktopSidebar);
+
+    document.addEventListener('change', function(event) {
+      const input = event.target.closest('input[type="file"][data-max-file-size]');
+      if (!input || !input.files || input.files.length === 0) return;
+
+      const file = input.files[0];
+      const maxBytes = Number(input.dataset.maxFileSize || 0);
+      const maxLabel = input.dataset.maxFileLabel || '8 MB';
+
+      if (maxBytes > 0 && file.size > maxBytes) {
+        alert(`Ukuran file "${file.name}" melebihi batas maksimal ${maxLabel}. Silakan pilih file yang lebih kecil.`);
+        input.value = '';
+      }
+    }, true);
 
     // Modal Logic
     document.addEventListener('DOMContentLoaded', function() {

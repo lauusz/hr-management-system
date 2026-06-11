@@ -425,29 +425,43 @@ describe('HrLeaveController', function () {
         });
 
         // --- SUPERVISOR tests ---
-        it('HR Staff CANNOT approve SUPERVISOR CUTI even when HR Staff flag is true', function () {
+        it('Manager acknowledgment allows HR Staff to approve SUPERVISOR CUTI without special flag', function () {
+            $manager = User::factory()->create([
+                'role' => UserRole::MANAGER,
+            ]);
             $hrStaff = User::factory()->create([
                 'role' => UserRole::HR_STAFF,
-                'hr_staff_can_approve_non_cuti' => true,
+                'hr_staff_can_approve_non_cuti' => false,
             ]);
             $supervisor = User::factory()->create([
                 'role' => UserRole::SUPERVISOR,
+                'direct_supervisor_id' => null,
+                'manager_id' => $manager->id,
             ]);
             $leave = LeaveRequest::factory()->forUser($supervisor)->create([
-                'status' => LeaveRequest::PENDING_HR,
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
                 'type'   => LeaveType::CUTI,
             ]);
 
+            actingAs($manager, 'web');
+            $this->post(route('approval.ack', $leave->id));
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($leave->supervisor_ack_at)->not->toBeNull();
+
             actingAs($hrStaff, 'web');
 
-            $response = $this->post(route('hr.leave.approve', $leave->id));
-            $response->assertStatus(403);
+            $this->post(route('hr.leave.approve', $leave->id));
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
         });
 
-        it('HR Staff CAN approve SUPERVISOR non-CUTI when HR Staff flag is true', function () {
+        it('HR Staff CAN approve SUPERVISOR non-CUTI without special flag', function () {
             $hrStaff = User::factory()->create([
                 'role' => UserRole::HR_STAFF,
-                'hr_staff_can_approve_non_cuti' => true,
+                'hr_staff_can_approve_non_cuti' => false,
             ]);
             $supervisor = User::factory()->create([
                 'role' => UserRole::SUPERVISOR,
@@ -466,7 +480,7 @@ describe('HrLeaveController', function () {
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
         });
 
-        it('HR Staff CANNOT approve SUPERVISOR non-CUTI when HR Staff flag is false', function () {
+        it('HR Staff CAN reject SUPERVISOR leave after Manager acknowledgment', function () {
             $hrStaff = User::factory()->create([
                 'role' => UserRole::HR_STAFF,
                 'hr_staff_can_approve_non_cuti' => false,
@@ -482,8 +496,12 @@ describe('HrLeaveController', function () {
 
             actingAs($hrStaff, 'web');
 
-            $response = $this->post(route('hr.leave.approve', $leave->id));
-            $response->assertStatus(403);
+            $this->post(route('hr.leave.reject', $leave->id), [
+                'notes_hrd' => 'Pengajuan belum sesuai kebijakan.',
+            ]);
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_REJECTED);
         });
 
         it('HRD can still approve MANAGER and SUPERVISOR CUTI', function () {

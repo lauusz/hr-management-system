@@ -39,7 +39,7 @@
             }
         } catch (\Throwable $e) { $shiftEndDisplay = null; }
         $specialLeaveList = [
-            ['id'=>'NIKAH_KARYAWAN','label'=>'Menikah','days'=>4],
+            ['id'=>'NIKAH_KARYAWAN','label'=>'Menikah','days'=>3],
             ['id'=>'ISTRI_MELAHIRKAN','label'=>'Istri Melahirkan','days'=>2],
             ['id'=>'ISTRI_KEGUGURAN','label'=>'Istri Keguguran','days'=>2],
             ['id'=>'KHITANAN_ANAK','label'=>'Khitanan Anak','days'=>2],
@@ -371,7 +371,7 @@
                     Bukti Pendukung <span id="photo-req-indicator" class="lrc-required" style="display:none">*</span>
                 </label>
                 <div class="lrc-upload" id="uploadBox">
-                    <input type="file" name="photo" id="photoInput" class="lrc-upload__input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx">
+                    <input type="file" name="photo" id="photoInput" class="lrc-upload__input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB">
                     <div class="lrc-upload__content">
                         <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
@@ -1516,16 +1516,22 @@
                     if (hasDuplicate) { e.preventDefault(); return false; }
                     if (!formIzin.checkValidity()) return;
                     e.preventDefault();
+                    const checkedType = document.querySelector('input[name="type"]:checked');
+                    const type = checkedType ? checkedType.value : '';
                     const startDate = document.getElementById('start_date').value;
                     const endDate = document.getElementById('end_date').value;
+                    if (!type) {
+                        alert('Silakan pilih jenis pengajuan terlebih dahulu');
+                        return;
+                    }
                     if (!startDate || !endDate) {
                         alert('Silakan isi tanggal pengajuan terlebih dahulu');
                         return;
                     }
-                    checkDuplicate(startDate, endDate);
+                    checkDuplicate(type, startDate, endDate);
                 });
             }
-            function checkDuplicate(startDate, endDate) {
+            function checkDuplicate(type, startDate, endDate) {
                 if (btnSubmit) {
                     btnSubmit.disabled = true;
                     originalBtnText = btnSubmit.innerHTML;
@@ -1542,7 +1548,7 @@
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
                         },
-                        body: JSON.stringify({ start_date: startDate, end_date: endDate })
+                        body: JSON.stringify({ type: type, start_date: startDate, end_date: endDate })
                     })
                     .then(response => response.json())
                     .then(data => {
@@ -1567,9 +1573,9 @@
                 if (duplicateMessage) {
                     const strong = duplicateMessage.querySelector('strong');
                     if (strong) {
-                        strong.textContent = message || 'Anda sudah memiliki pengajuan pada periode tanggal yang sama.';
+                        strong.textContent = message || 'Anda sudah memiliki pengajuan dengan jenis yang sama pada periode tanggal tersebut.';
                     } else {
-                        duplicateMessage.textContent = message || 'Anda sudah memiliki pengajuan pada periode tanggal yang sama.';
+                        duplicateMessage.textContent = message || 'Anda sudah memiliki pengajuan dengan jenis yang sama pada periode tanggal tersebut.';
                     }
                 }
                 let html = '<ul style="margin: 0; padding-left: 16px; font-size: 13px;">';

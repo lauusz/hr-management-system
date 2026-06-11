@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class LeaveRequestController extends Controller
 {
@@ -159,6 +160,9 @@ class LeaveRequestController extends Controller
             'substitute_pic' => ['nullable', 'string', 'max:255', Rule::requiredIf(fn() => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
             'substitute_phone' => ['nullable', 'string', 'max:50', Rule::requiredIf(fn() => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
             'special_leave_detail' => ['nullable', 'string', Rule::requiredIf(fn() => $request->type === LeaveType::CUTI_KHUSUS->value)],
+        ], [
+            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
         ]);
 
         $type = $validated['type'];
@@ -166,6 +170,7 @@ class LeaveRequestController extends Controller
         // Cek overlap tanggal dengan pengajuan aktif lainnya
         $duplicates = $this->findOverlappingLeaveRequests(
             $userId,
+            $type,
             $validated['start_date'],
             $validated['end_date']
         );
@@ -333,6 +338,39 @@ class LeaveRequestController extends Controller
         return view('leave_requests.show', ['item' => $leave_request->load('user', 'approver')]);
     }
 
+    public function supportingFile(LeaveRequest $leave_request): StreamedResponse
+    {
+        $user = Auth::user();
+        $leave_request->loadMissing('user');
+
+        $canView = $leave_request->user_id === $user->id
+            || $user->isHR()
+            || (int) $leave_request->user->direct_supervisor_id === (int) $user->id
+            || (int) $leave_request->user->manager_id === (int) $user->id;
+
+        abort_unless($canView, 403, 'Anda tidak berhak melihat bukti pendukung ini.');
+        abort_unless($leave_request->photo, 404, 'Bukti pendukung tidak tersedia.');
+
+        $filename = basename(str_replace('\\', '/', $leave_request->photo));
+        $path = 'leave_photos/' . $filename;
+        $disk = Storage::disk('public');
+
+        abort_unless($disk->exists($path), 404, 'File bukti pendukung tidak ditemukan.');
+
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        $mimeType = match ($extension) {
+            'heic' => 'image/heic',
+            'heif' => 'image/heif',
+            default => $disk->mimeType($path) ?: 'application/octet-stream',
+        };
+
+        return $disk->response($path, $filename, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'private, max-age=3600',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     public function uploadPhoto(Request $request, LeaveRequest $leave_request)
     {
         $user = Auth::user();
@@ -346,13 +384,17 @@ class LeaveRequestController extends Controller
 
         $validated = $request->validate([
             'photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+        ], [
+            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
         ]);
+
+        $fullPath = $this->imageCompressor->compressAndStore($validated['photo'], 'photo', 'leave_photos', 'leave_');
 
         if ($leave_request->photo) {
             Storage::disk('public')->delete('leave_photos/' . $leave_request->photo);
         }
 
-        $fullPath = $this->imageCompressor->compressAndStore($validated['photo'], 'photo', 'leave_photos', 'leave_');
         $leave_request->update(['photo' => basename($fullPath)]);
 
         return back()->with('success', 'Bukti pendukung berhasil diunggah.');
@@ -384,6 +426,9 @@ class LeaveRequestController extends Controller
             'substitute_phone' => ['nullable', 'string', 'max:50'],
             'special_leave_detail' => ['nullable', 'string'],
             'photo'      => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+        ], [
+            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
         ]);
 
         if ($validated['type'] === LeaveType::CUTI_KHUSUS->value) {
@@ -407,6 +452,7 @@ class LeaveRequestController extends Controller
         // Cek overlap tanggal dengan pengajuan aktif lainnya (kecuali dirinya sendiri)
         $duplicates = $this->findOverlappingLeaveRequests(
             $leaveRequest->user_id,
+            $validated['type'],
             $validated['start_date'],
             $validated['end_date'],
             $leaveRequest->id
@@ -420,8 +466,12 @@ class LeaveRequestController extends Controller
         }
 
         if ($request->hasFile('photo')) {
-            if ($leaveRequest->photo) Storage::disk('public')->delete('leave_photos/' . $leaveRequest->photo);
             $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
+
+            if ($leaveRequest->photo) {
+                Storage::disk('public')->delete('leave_photos/' . $leaveRequest->photo);
+            }
+
             $validated['photo'] = basename($fullPath);
         }
 
@@ -472,12 +522,14 @@ class LeaveRequestController extends Controller
     // --- Private Helpers ---
     private function findOverlappingLeaveRequests(
         int $userId,
+        string $type,
         string $startDate,
         string $endDate,
         ?int $excludeLeaveId = null
     ): \Illuminate\Database\Eloquent\Collection {
         return LeaveRequest::query()
             ->where('user_id', $userId)
+            ->where('type', $type)
             ->when($excludeLeaveId, fn ($query) => $query->whereKeyNot($excludeLeaveId))
             ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
             ->where(function ($query) use ($startDate, $endDate) {
@@ -507,7 +559,7 @@ class LeaveRequestController extends Controller
             ? $start
             : "{$start} - {$end}";
 
-        return "Tanggal yang dipilih bertabrakan dengan pengajuan {$typeLabel} tanggal {$dateText}.";
+        return "Sudah ada pengajuan {$typeLabel} pada tanggal {$dateText}. Pengajuan dengan jenis yang sama tidak bisa dibuat di tanggal yang sama.";
     }
 
     private function getRoleString($user)
@@ -549,7 +601,7 @@ class LeaveRequestController extends Controller
         if ($type === LeaveType::CUTI_KHUSUS->value) {
             $category = $validated['special_leave_detail'] ?? null;
             $limits = [
-                'NIKAH_KARYAWAN' => 4,
+                'NIKAH_KARYAWAN' => 3,
                 'ISTRI_MELAHIRKAN' => 2,
                 'ISTRI_KEGUGURAN' => 2,
                 'KHITANAN_ANAK' => 2,
@@ -599,18 +651,19 @@ class LeaveRequestController extends Controller
     public function checkDuplicate(Request $request)
     {
         $userId = Auth::id();
+        $type = $request->input('type');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
         // Validasi input
-        if (!$startDate || !$endDate) {
+        if (!$type || !in_array($type, LeaveType::values(), true) || !$startDate || !$endDate) {
             return response()->json([
                 'has_duplicate' => false,
-                'message' => 'Tanggal tidak valid'
+                'message' => 'Jenis pengajuan atau tanggal tidak valid'
             ]);
         }
 
-        $duplicates = $this->findOverlappingLeaveRequests($userId, $startDate, $endDate);
+        $duplicates = $this->findOverlappingLeaveRequests($userId, $type, $startDate, $endDate);
 
         if ($duplicates->isNotEmpty()) {
             $duplicateData = $duplicates->map(function ($dup) {

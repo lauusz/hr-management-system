@@ -385,6 +385,9 @@ class ApprovalController extends Controller
             ],
             'substitute_pic'   => ['nullable', 'string', 'max:255'],
             'substitute_phone' => ['nullable', 'string', 'max:50'],
+        ], [
+            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
         ]);
 
         $currentNotes = $leave->notes;
@@ -413,12 +416,14 @@ class ApprovalController extends Controller
         }
 
         if ($request->hasFile('photo')) {
-            if ($leave->photo) {
-                Storage::disk('public')->delete('leave_photos/' . $leave->photo);
-            }
             $fullPath = $this->imageCompressor->compressAndStore(
                 $request->file('photo'), 'photo', 'leave_photos', 'leave_'
             );
+
+            if ($leave->photo) {
+                Storage::disk('public')->delete('leave_photos/' . $leave->photo);
+            }
+
             $dataToUpdate['photo'] = basename($fullPath);
         }
 
@@ -517,8 +522,13 @@ class ApprovalController extends Controller
      */
     private function deleteDuplicateLeaveRequests(LeaveRequest $approvedLeave)
     {
+        $approvedType = $approvedLeave->type instanceof LeaveType
+            ? $approvedLeave->type->value
+            : (string) $approvedLeave->type;
+
         $duplicates = LeaveRequest::where('user_id', $approvedLeave->user_id)
             ->where('id', '!=', $approvedLeave->id)
+            ->where('type', $approvedType)
             ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR])
             ->where(function ($query) use ($approvedLeave) {
                 $query->whereBetween('start_date', [$approvedLeave->start_date, $approvedLeave->end_date])

@@ -239,7 +239,13 @@
                 </div>
 
                 <div class="emp-card-actions">
-                    <select class="emp-shift-select @if($emp->employeeShift?->shift_id) has-shift @endif" data-user-id="{{ $emp->id }}" onchange="updateShift(this)">
+                    <select
+                        class="emp-shift-select @if($emp->employeeShift?->shift_id) has-shift @endif"
+                        data-user-id="{{ $emp->id }}"
+                        data-shift-url="{{ route('hr.employees.shift.inline', $emp->id) }}"
+                        data-previous-value="{{ $emp->employeeShift?->shift_id ?? '' }}"
+                        onchange="updateShift(this)"
+                    >
                         <option value="">- Shift -</option>
                         @foreach($shifts as $shift)
                         <option value="{{ $shift->id }}" @selected($emp->employeeShift?->shift_id == $shift->id)>{{ $shift->name }}</option>
@@ -1005,30 +1011,38 @@
     function updateShift(select) {
         const userId = select.dataset.userId;
         const shiftId = select.value;
+        const shiftUrl = select.dataset.shiftUrl;
+        const previousValue = select.dataset.previousValue || '';
 
         select.disabled = true;
 
-        fetch(`/hr/employees/${userId}/shift-inline`, {
+        fetch(shiftUrl, {
             method: 'PATCH',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || document.querySelector('input[name=_token]')?.value,
                 'Content-Type': 'application/json',
+                'Accept': 'application/json',
             },
             body: JSON.stringify({ shift_id: shiftId })
         })
-        .then(res => res.json())
+        .then(async res => {
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.success) {
+                throw new Error(data.message || 'Gagal menyimpan shift');
+            }
+            return data;
+        })
         .then(data => {
-            if (data.success) {
-                if (shiftId) {
-                    select.classList.add('has-shift');
-                } else {
-                    select.classList.remove('has-shift');
-                }
+            select.dataset.previousValue = shiftId;
+            if (shiftId) {
+                select.classList.add('has-shift');
+            } else {
+                select.classList.remove('has-shift');
             }
         })
         .catch(err => {
-            alert('Gagal menyimpan shift');
-            location.reload();
+            alert(err.message || 'Gagal menyimpan shift');
+            select.value = previousValue;
         })
         .finally(() => {
             select.disabled = false;

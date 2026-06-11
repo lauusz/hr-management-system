@@ -37,6 +37,8 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('leave-requests', LeaveRequestController::class)
         ->only(['index', 'create', 'store', 'show', 'update', 'destroy']);
+    Route::get('/leave-requests/{leave_request}/supporting-file', [LeaveRequestController::class, 'supportingFile'])
+        ->name('leave-requests.supporting-file');
     Route::post('/leave-requests/{leave_request}/upload-photo', [LeaveRequestController::class, 'uploadPhoto'])
         ->name('leave-requests.upload-photo');
     

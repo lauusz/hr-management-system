@@ -5,129 +5,219 @@ namespace App\Services\Image;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class ImageCompressor
 {
+    private const COMPRESSIBLE_IMAGE_EXTENSIONS = [
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'heic',
+        'heif',
+    ];
+
+    private const HEIC_EXTENSIONS = ['heic', 'heif'];
+
+    private const MAX_SIDE = 1280;
+
+    private const JPEG_QUALITY = 75;
+
     /**
-     * FUNGSI UTAMA: Kompresi Gambar ala WhatsApp.
-     * Digunakan oleh AttendanceController (dan kode baru lainnya).
-     * * @param UploadedFile $file File dari request
-     * @param string $type 'photo' (Resize & Compress) atau 'document' (Original)
-     * @param string $folderName Nama folder tujuan (contoh: 'attendance_photos', 'leave_photos')
-     * @param string $prefix Prefix nama file (contoh: 'att_', 'leave_')
-     * @return string Path lengkap file yang disimpan (contoh: 'attendance_photos/att_123.jpg')
+     * Simpan dokumen secara original atau normalisasi foto menjadi JPEG.
      */
     public function compressAndStore(
-        UploadedFile $file, 
-        string $type = 'photo', 
+        UploadedFile $file,
+        string $type = 'photo',
         string $folderName = 'uploads',
         string $prefix = 'img_'
-    ): string
-    {
-        $ext = strtolower($file->getClientOriginalExtension());
-        $disk = Storage::disk('public');
-        $gdLoaded = extension_loaded('gd');
-
-        // Logic: Compress hanya jika GD ada, tipe 'photo', dan ekstensi gambar valid
-        $shouldCompress = ($type === 'photo' 
-            && $gdLoaded 
-            && in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true));
+    ): string {
+        $extension = strtolower($file->getClientOriginalExtension());
+        $shouldCompress = $type === 'photo'
+            && in_array($extension, self::COMPRESSIBLE_IMAGE_EXTENSIONS, true);
 
         Log::info("ImageCompressor: Processing file for {$folderName}", [
             'type' => $type,
-            'compress' => $shouldCompress
+            'extension' => $extension,
+            'compress' => $shouldCompress,
         ]);
 
-        if ($shouldCompress) {
-            try {
-                $sourcePath = $file->getPathname();
-                $info = getimagesize($sourcePath);
-                if ($info === false) throw new \RuntimeException('Invalid image.');
-
-                $width = $info[0];
-                $height = $info[1];
-
-                // --- SETTINGAN ALA WHATSAPP (1280px) ---
-                $maxSide = 1280; 
-
-                // Hitung skala resize (hanya downscale, jangan upscale)
-                if ($width > $maxSide || $height > $maxSide) {
-                    $scale = min($maxSide / max($width, 1), $maxSide / max($height, 1), 1);
-                    $newWidth = (int) round($width * $scale);
-                    $newHeight = (int) round($height * $scale);
-                } else {
-                    $newWidth = $width;
-                    $newHeight = $height;
-                }
-
-                switch ($ext) {
-                    case 'jpg': case 'jpeg': $srcImage = imagecreatefromjpeg($sourcePath); break;
-                    case 'png': $srcImage = imagecreatefrompng($sourcePath); break;
-                    case 'webp': 
-                        if (!function_exists('imagecreatefromwebp')) throw new \RuntimeException('WEBP not supported.');
-                        $srcImage = imagecreatefromwebp($sourcePath); break;
-                    default: $srcImage = null;
-                }
-
-                if (!$srcImage) throw new \RuntimeException('Failed to create resource.');
-
-                $dstImage = imagecreatetruecolor($newWidth, $newHeight);
-
-                // Handle transparency (PNG/WebP) -> Ubah jadi background putih sebelum convert JPG
-                if ($ext === 'png' || $ext === 'webp') {
-                    $white = imagecolorallocate($dstImage, 255, 255, 255);
-                    imagefilledrectangle($dstImage, 0, 0, $newWidth, $newHeight, $white);
-                }
-
-                imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-
-                // Generate nama file baru (JPG)
-                $filename = $prefix . uniqid('', true) . '.jpg';
-
-                ob_start();
-                // Quality 75 (Standard WA: Hemat tapi tajam)
-                imagejpeg($dstImage, null, 75); 
-                $contents = ob_get_clean();
-
-                imagedestroy($srcImage);
-                imagedestroy($dstImage);
-
-                if ($contents === false) throw new \RuntimeException('Failed to encode JPEG.');
-
-                // Simpan hasil kompresi
-                $fullPath = $folderName . '/' . $filename;
-                $disk->put($fullPath, $contents);
-
-                return $fullPath;
-
-            } catch (\Throwable $e) {
-                Log::warning('ImageCompressor failed, fallback to original', ['msg' => $e->getMessage()]);
-            }
+        if (! $shouldCompress) {
+            return $file->store($folderName, 'public');
         }
 
-        // --- FALLBACK / DOCUMENT MODE ---
-        // Simpan file asli tanpa ubah apa-apa
-        $storedPath = $file->store($folderName, 'public');
-        return $storedPath; // Mengembalikan path lengkap
+        try {
+            $contents = in_array($extension, self::HEIC_EXTENSIONS, true)
+                ? $this->compressHeicToJpeg($file->getPathname())
+                : $this->compressRasterToJpeg($file->getPathname(), $extension);
+
+            $fullPath = $folderName.'/'.$prefix.uniqid('', true).'.jpg';
+
+            if (! Storage::disk('public')->put($fullPath, $contents)) {
+                throw new \RuntimeException('Gagal menyimpan hasil kompresi gambar.');
+            }
+
+            return $fullPath;
+        } catch (ValidationException $exception) {
+            throw $exception;
+        } catch (\Throwable $exception) {
+            Log::warning('ImageCompressor gagal memproses gambar.', [
+                'extension' => $extension,
+                'message' => $exception->getMessage(),
+            ]);
+
+            throw ValidationException::withMessages([
+                'photo' => 'Foto gagal diproses. Gunakan file gambar yang valid atau ubah ke JPG terlebih dahulu.',
+            ]);
+        }
+    }
+
+    private function compressRasterToJpeg(string $sourcePath, string $extension): string
+    {
+        if (! extension_loaded('gd')) {
+            throw new \RuntimeException('Ekstensi GD belum aktif.');
+        }
+
+        $info = getimagesize($sourcePath);
+
+        if ($info === false) {
+            throw new \RuntimeException('File bukan gambar yang valid.');
+        }
+
+        [$width, $height] = $info;
+        [$newWidth, $newHeight] = $this->calculateDimensions($width, $height);
+
+        $sourceImage = match ($extension) {
+            'jpg', 'jpeg' => imagecreatefromjpeg($sourcePath),
+            'png' => imagecreatefrompng($sourcePath),
+            'webp' => function_exists('imagecreatefromwebp')
+                ? imagecreatefromwebp($sourcePath)
+                : false,
+            default => false,
+        };
+
+        if (! $sourceImage) {
+            throw new \RuntimeException('Format gambar tidak didukung GD.');
+        }
+
+        $destinationImage = imagecreatetruecolor($newWidth, $newHeight);
+        $white = imagecolorallocate($destinationImage, 255, 255, 255);
+        imagefilledrectangle($destinationImage, 0, 0, $newWidth, $newHeight, $white);
+
+        imagecopyresampled(
+            $destinationImage,
+            $sourceImage,
+            0,
+            0,
+            0,
+            0,
+            $newWidth,
+            $newHeight,
+            $width,
+            $height
+        );
+
+        ob_start();
+        imagejpeg($destinationImage, null, self::JPEG_QUALITY);
+        $contents = ob_get_clean();
+
+        imagedestroy($sourceImage);
+        imagedestroy($destinationImage);
+
+        if ($contents === false) {
+            throw new \RuntimeException('Gagal menghasilkan file JPEG.');
+        }
+
+        return $contents;
+    }
+
+    private function compressHeicToJpeg(string $sourcePath): string
+    {
+        if (! $this->supportsHeicConversion()) {
+            throw ValidationException::withMessages([
+                'photo' => 'File HEIC belum dapat diproses karena server belum memiliki Imagick dengan dukungan HEIC/HEIF.',
+            ]);
+        }
+
+        $source = new \Imagick;
+
+        try {
+            $source->readImage($sourcePath);
+            $source->setIteratorIndex(0);
+            $image = $source->getImage();
+
+            if (method_exists($image, 'autoOrientImage')) {
+                $image->autoOrientImage();
+            }
+
+            [$newWidth, $newHeight] = $this->calculateDimensions(
+                $image->getImageWidth(),
+                $image->getImageHeight()
+            );
+
+            $image->thumbnailImage($newWidth, $newHeight, true);
+            $image->setImageBackgroundColor('white');
+            $image->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
+            $image->stripImage();
+            $image->setImageFormat('jpeg');
+            $image->setImageCompression(\Imagick::COMPRESSION_JPEG);
+            $image->setImageCompressionQuality(self::JPEG_QUALITY);
+
+            $contents = $image->getImageBlob();
+            $image->clear();
+            $image->destroy();
+
+            if ($contents === '') {
+                throw new \RuntimeException('Gagal menghasilkan JPEG dari HEIC.');
+            }
+
+            return $contents;
+        } finally {
+            $source->clear();
+            $source->destroy();
+        }
+    }
+
+    protected function supportsHeicConversion(): bool
+    {
+        if (! class_exists(\Imagick::class)) {
+            return false;
+        }
+
+        $formats = array_map('strtoupper', \Imagick::queryFormats('HEI*'));
+
+        return in_array('HEIC', $formats, true) || in_array('HEIF', $formats, true);
     }
 
     /**
-     * WRAPPER UNTUK LEAVE REQUEST (Backward Compatibility).
-     * Agar LeaveRequestController yang lama TIDAK ERROR.
-     * * @param UploadedFile $file
-     * @param bool $compress (Mapping: true -> 'photo', false -> 'document')
-     * @return string Hanya mengembalikan nama file (basename), bukan full path.
+     * @return array{int, int}
+     */
+    private function calculateDimensions(int $width, int $height): array
+    {
+        if ($width <= self::MAX_SIDE && $height <= self::MAX_SIDE) {
+            return [$width, $height];
+        }
+
+        $scale = min(
+            self::MAX_SIDE / max($width, 1),
+            self::MAX_SIDE / max($height, 1)
+        );
+
+        return [
+            max(1, (int) round($width * $scale)),
+            max(1, (int) round($height * $scale)),
+        ];
+    }
+
+    /**
+     * Wrapper kompatibilitas untuk leave request lama.
      */
     public function storeLeaveSupportingFile(UploadedFile $file, bool $compress = false): string
     {
-        // 1. Map parameter lama (boolean) ke parameter baru (string)
         $type = $compress ? 'photo' : 'document';
-        
-        // 2. Panggil fungsi utama yang baru
         $fullPath = $this->compressAndStore($file, $type, 'leave_photos', 'leave_');
 
-        // 3. Karena Controller Cuti hanya menyimpan nama file di database (bukan path), 
-        // kita ambil basename-nya saja.
         return basename($fullPath);
     }
 }

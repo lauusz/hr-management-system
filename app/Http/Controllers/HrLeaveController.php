@@ -300,7 +300,7 @@ class HrLeaveController extends Controller
         $specialLeaveList = [
             ['id' => 'CUTI_MELAHIRKAN', 'label' => 'Cuti Melahirkan', 'days' => 90],
             ['id' => 'ISTRI_MELAHIRKAN', 'label' => 'Istri Melahirkan', 'days' => 2],
-            ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 4],
+            ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 3],
             ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Menantu/Istri/Suami/Anak)', 'days' => 2],
             ['id' => 'DEATH_EXTENDED', 'label' => 'Kematian (Adik/Kakak/Ipar)', 'days' => 2],
             ['id' => 'DEATH_HOUSE', 'label' => 'Kematian Anggota Rumah', 'days' => 1],
@@ -355,6 +355,9 @@ class HrLeaveController extends Controller
             'substitute_phone' => ['nullable', 'string', 'max:50'],
             'special_leave_detail' => ['nullable', 'string', 'max:50'],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+        ], [
+            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
         ]);
 
         $employee = User::query()->findOrFail($validated['user_id']);
@@ -364,6 +367,22 @@ class HrLeaveController extends Controller
             : now();
 
         $type = $validated['type'];
+        if (!in_array($status, [LeaveRequest::STATUS_REJECTED, 'BATAL'], true)) {
+            $duplicates = $this->findOverlappingLeaveRequests(
+                $employee->id,
+                $type,
+                $validated['start_date'],
+                $validated['end_date']
+            );
+
+            if ($duplicates->isNotEmpty()) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->with('error', $this->formatOverlapMessage($duplicates));
+            }
+        }
+
         $isTimeBased = in_array($type, [
             LeaveType::IZIN_TELAT->value,
             LeaveType::IZIN_TENGAH_KERJA->value,
@@ -486,7 +505,10 @@ class HrLeaveController extends Controller
             $rules['status'] = ['nullable', Rule::in($statusOptions)];
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+        ]);
 
         $type = $validated['type'];
 
@@ -503,6 +525,24 @@ class HrLeaveController extends Controller
             LeaveType::IZIN_PULANG_AWAL->value,
             LeaveType::IZIN->value,
         ], true);
+
+        $newStatus = $validated['status'] ?? $leave->status;
+        if (!in_array($newStatus, [LeaveRequest::STATUS_REJECTED, 'BATAL'], true)) {
+            $duplicates = $this->findOverlappingLeaveRequests(
+                $leave->user_id,
+                $type,
+                $validated['start_date'],
+                $validated['end_date'],
+                $leave->id
+            );
+
+            if ($duplicates->isNotEmpty()) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->with('error', $this->formatOverlapMessage($duplicates));
+            }
+        }
 
         // Build notes
         $currentNotes = $leave->notes;
@@ -526,15 +566,16 @@ class HrLeaveController extends Controller
 
         // Handle photo upload
         if ($request->hasFile('photo')) {
+            $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
+
             if ($leave->photo) {
                 Storage::disk('public')->delete('leave_photos/' . $leave->photo);
             }
-            $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
+
             $updateData['photo'] = basename($fullPath);
         }
 
         // Handle status change by HRD/HR_STAFF
-        $newStatus = $validated['status'] ?? $leave->status;
         $oldStatus = $leave->status;
         $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : $leave->type;
         $isCutiType = $leaveTypeValue === LeaveType::CUTI->value;
@@ -750,9 +791,15 @@ class HrLeaveController extends Controller
             return false;
         }
 
-        // SUPERVISOR / MANAGER applicant: CUTI = HRD only;
+        // Pengajuan SUPERVISOR yang sudah diketahui Manager dapat diproses
+        // oleh HRD maupun HR STAFF untuk semua tipe pengajuan.
+        if ($applicantRole === 'SUPERVISOR') {
+            return in_array($actorRole, ['HRD', 'HR STAFF'], true);
+        }
+
+        // Pengajuan MANAGER: CUTI = HRD only;
         // non-CUTI = HR STAFF boleh jika akun HR STAFF tersebut diberi izin khusus.
-        if (in_array($applicantRole, ['SUPERVISOR', 'MANAGER'], true)) {
+        if ($applicantRole === 'MANAGER') {
             $leaveTypeValue = $leave->type instanceof LeaveType
                 ? $leave->type->value
                 : (string) $leave->type;
@@ -839,14 +886,58 @@ class HrLeaveController extends Controller
         }
     }
 
+    private function findOverlappingLeaveRequests(
+        int $userId,
+        string $type,
+        string $startDate,
+        string $endDate,
+        ?int $excludeLeaveId = null
+    ): \Illuminate\Database\Eloquent\Collection {
+        return LeaveRequest::query()
+            ->where('user_id', $userId)
+            ->where('type', $type)
+            ->when($excludeLeaveId, fn ($query) => $query->whereKeyNot($excludeLeaveId))
+            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->where('start_date', '<=', $endDate)
+                    ->where('end_date', '>=', $startDate);
+            })
+            ->orderBy('start_date')
+            ->get(['id', 'type', 'start_date', 'end_date', 'status', 'created_at']);
+    }
+
+    private function formatOverlapMessage($duplicates): string
+    {
+        $first = $duplicates->first();
+
+        if (!$first) {
+            return 'Sudah ada pengajuan dengan jenis yang sama pada tanggal yang dipilih.';
+        }
+
+        $typeLabel = $first->type instanceof LeaveType
+            ? $first->type->label()
+            : (LeaveType::tryFrom((string) $first->type)?->label() ?? (string) $first->type);
+
+        $start = Carbon::parse($first->start_date)->locale('id')->translatedFormat('j F Y');
+        $end = Carbon::parse($first->end_date)->locale('id')->translatedFormat('j F Y');
+        $dateText = $start === $end ? $start : "{$start} - {$end}";
+
+        return "Sudah ada pengajuan {$typeLabel} pada tanggal {$dateText}. Pengajuan dengan jenis yang sama tidak bisa dibuat di tanggal yang sama.";
+    }
+
     /**
      * [HELPER] Hapus pengajuan duplikat yang masih pending di tanggal yang sama
      */
     private function deleteDuplicateLeaveRequests(LeaveRequest $approvedLeave)
     {
         // Cari pengajuan lain dari user yang sama, di tanggal yang overlap, masih pending
+        $approvedType = $approvedLeave->type instanceof LeaveType
+            ? $approvedLeave->type->value
+            : (string) $approvedLeave->type;
+
         $duplicates = LeaveRequest::where('user_id', $approvedLeave->user_id)
             ->where('id', '!=', $approvedLeave->id)
+            ->where('type', $approvedType)
             ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR])
             ->where(function ($query) use ($approvedLeave) {
                 // Cek overlap tanggal: start_date atau end_date berada dalam range

@@ -69,13 +69,13 @@
 
         // Photo URL
         $photoUrl = $item->photo
-            ? asset('storage/leave_photos/' . ltrim($item->photo, '/'))
+            ? route('leave-requests.supporting-file', $item)
             : null;
 
         $docUrl = null;
         $isImageDoc = false;
         if ($item->photo) {
-            $docUrl = asset('storage/leave_photos/' . ltrim($item->photo, '/'));
+            $docUrl = $photoUrl;
             $docExt = strtolower(pathinfo($item->photo, PATHINFO_EXTENSION));
             $isImageDoc = in_array($docExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
         }
@@ -100,10 +100,9 @@
         $applicantRole = strtoupper((string) $applicantRoleVal);
         $actorRoleVal = $user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role;
         $actorRole = strtoupper((string) $actorRoleVal);
-        $isApplicantSupervisorOrManager = in_array($applicantRole, ['SUPERVISOR', 'MANAGER'], true);
         $needsHrdOnly = in_array($applicantRole, ['HRD', 'HR STAFF'], true)
-            || ($isApplicantSupervisorOrManager && $isTypeCuti);
-        $needsHrStaffNonCutiPermission = $isApplicantSupervisorOrManager
+            || ($applicantRole === 'MANAGER' && $isTypeCuti);
+        $needsHrStaffNonCutiPermission = $applicantRole === 'MANAGER'
             && ! $isTypeCuti
             && ! (bool) ($user->hr_staff_can_approve_non_cuti ?? false);
         $isHrdMaster = $actorRole === 'HRD';
@@ -218,7 +217,7 @@
                 @if($typeValue === 'CUTI_KHUSUS' && $item->special_leave_category)
                     @php
                         $catMap = [
-                            'NIKAH_KARYAWAN'   => 'Menikah (4 Hari)',
+                            'NIKAH_KARYAWAN'   => 'Menikah (3 Hari)',
                             'ISTRI_MELAHIRKAN' => 'Istri Melahirkan (2 Hari)',
                             'ISTRI_KEGUGURAN'  => 'Istri Keguguran (2 Hari)',
                             'KHITANAN_ANAK'    => 'Khitanan Anak (2 Hari)',
@@ -342,12 +341,18 @@
                     </div>
                     @else
                     <a href="{{ $docUrl }}" target="_blank" class="apv-photo-preview" style="text-decoration:none;">
-                        <img src="{{ $photoUrl }}" alt="Bukti Izin">
+                        <div class="apv-file-preview">
+                            <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8m-4-6l6 6m-6-6v6h6"/>
+                            </svg>
+                            <strong>{{ strtoupper($docExt) }}</strong>
+                            <span>{{ $item->photo }}</span>
+                        </div>
                         <div class="apv-photo-overlay">
                             <svg width="20" height="20" fill="none" stroke="#fff" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                             </svg>
-                            <span>Buka File</span>
+                            <span>Buka / Unduh File</span>
                         </div>
                     </a>
                     @endif
@@ -530,7 +535,7 @@
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        Akun HR STAFF ini belum diberi akses approve/reject pengajuan non-CUTI dari Supervisor atau Manager.
+                        Akun HR STAFF ini belum diberi akses approve/reject pengajuan non-CUTI dari Manager.
                     </div>
                 @endif
             @elseif(!$isRejectedOrBatal)
@@ -599,7 +604,7 @@
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
-                        Akun HR STAFF ini belum diberi akses approve/reject pengajuan non-CUTI dari Supervisor atau Manager.
+                        Akun HR STAFF ini belum diberi akses approve/reject pengajuan non-CUTI dari Manager.
                     </div>
                 @endif
             @else
@@ -802,7 +807,7 @@
                         <span>Lampiran</span>
                     </div>
                     <div class="edit-upload-area">
-                        <input type="file" name="photo" id="edit_photo" class="edit-upload-input" accept="image/*,.pdf">
+                        <input type="file" name="photo" id="edit_photo" class="edit-upload-input" accept="image/*,.pdf" data-max-file-size="8388608" data-max-file-label="8 MB">
                         <label for="edit_photo" class="edit-upload-label">
                             <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                             <span>Klik untuk upload atau drag file ke sini</span>
@@ -1705,6 +1710,28 @@
             display: block;
             max-height: 300px;
             object-fit: cover;
+        }
+        .apv-file-preview {
+            min-height: 180px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: var(--gray-100, #F8FAFC);
+            color: var(--text-muted, #6B7280);
+            text-align: center;
+        }
+        .apv-file-preview strong {
+            color: var(--primary, #145DA0);
+            font-size: 0.8rem;
+        }
+        .apv-file-preview span {
+            max-width: 100%;
+            color: var(--text-secondary, #374151);
+            font-size: 0.75rem;
+            overflow-wrap: anywhere;
         }
         .apv-photo-overlay {
             position: absolute;
