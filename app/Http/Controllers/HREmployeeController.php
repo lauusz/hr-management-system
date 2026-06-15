@@ -17,9 +17,12 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Services\LeaveBalanceService;
 
 class HREmployeeController extends Controller
 {
+    public function __construct(protected LeaveBalanceService $leaveBalanceService) {}
+
     public function index(Request $request)
     {
         $search = $request->get('q');
@@ -479,17 +482,16 @@ class HREmployeeController extends Controller
             // -------------------------------------------------------------
             // [LOGIC PINTAR] DETEKSI EDIT MANUAL
             // -------------------------------------------------------------
-            // Kita cek dulu: Apakah HRD mengubah angka 'leave_balance' di form?
-            // Caranya: Bandingkan saldo lama di DB vs saldo baru dari Form.
+            // Jika HRD mengirim field 'leave_balance' (non-null), selalu lewatkan
+            // ke service adjustment. Keputusan no-op vs actual change ditentukan
+            // oleh service dalam transaction dengan row user ter-lock.
+            // Jangan membandingkan saldo lama dari route model (stale) untuk
+            // memutuskan apakah adjustment perlu dijalankan.
 
-            $oldBalance = (float) $employee->leave_balance;
-            $newBalance = isset($validated['leave_balance']) ? (float) $validated['leave_balance'] : $oldBalance;
-
-            // Jika angkanya beda, berarti ini adalah EDIT MANUAL (Prioritas Tertinggi)
-            $isManualEdit = $oldBalance !== $newBalance;
+            $isManualEdit = array_key_exists('leave_balance', $validated) && $validated['leave_balance'] !== null;
 
             // -------------------------------------------------------------
-            // 1. UPDATE USER DATA (Termasuk leave_balance baru)
+            // 1. UPDATE USER DATA (Tanpa leave_balance; saldo diubah via service)
             // -------------------------------------------------------------
             $userData = Arr::only($validated, [
                 'name',
@@ -502,7 +504,6 @@ class HREmployeeController extends Controller
                 'division_id',
                 'position_id',
                 'email',
-                'leave_balance', // Ini akan menyimpan angka manual HRD
                 'hr_staff_can_approve_non_cuti',
             ]);
 
@@ -553,6 +554,19 @@ class HREmployeeController extends Controller
             } else {
                 $profileData['user_id'] = $employee->id;
                 EmployeeProfile::create($profileData);
+            }
+
+            // -------------------------------------------------------------
+            // 3. UPDATE SALDO CUTI VIA SERVICE (Dual-write ledger)
+            // -------------------------------------------------------------
+            if ($isManualEdit) {
+                $this->leaveBalanceService->adjustBalanceToTarget(
+                    $employee,
+                    (float) $validated['leave_balance'],
+                    "Penyesuaian saldo cuti manual untuk {$employee->name}",
+                    null,
+                    auth()->id(),
+                );
             }
 
             return redirect()->route('hr.employees.index')

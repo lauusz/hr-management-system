@@ -4,6 +4,7 @@ use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
 use App\Models\User;
+use App\Services\LeaveBalanceService;
 use Carbon\Carbon;
 
 Artisan::command('inspire', function () {
@@ -26,15 +27,18 @@ Artisan::command('leave:update-balances', function () {
     }
 
     $resetCount = 0;
+    $service = app(LeaveBalanceService::class);
 
     // Proses per 100 user agar hemat memori
-    User::with('profile')->chunk(100, function ($users) use ($today, &$resetCount) {
+    User::with('profile')->chunk(100, function ($users) use ($today, &$resetCount, $service) {
         foreach ($users as $user) {
             // Skip jika tidak ada data tanggal bergabung
-            if (!$user->profile || !$user->profile->tgl_bergabung) continue;
+            if (! $user->profile || ! $user->profile->tgl_bergabung) {
+                continue;
+            }
 
             $joinDate = Carbon::parse($user->profile->tgl_bergabung);
-            
+
             // Hitung masa kerja dalam tahun
             $yearsWorked = $joinDate->diffInYears($today);
 
@@ -42,12 +46,20 @@ Artisan::command('leave:update-balances', function () {
             // 1. Hari ini adalah 1 Januari (Sudah dicek di atas)
             // 2. Masa kerja sudah >= 1 Tahun
             if ($yearsWorked >= 1) {
-                
-                // Reset saldo jadi 12
-                $user->update(['leave_balance' => 12]);
-                
-                $this->info("🔄 [TAHUN BARU] {$user->name}: Saldo di-reset jadi 12.");
-                $resetCount++;
+                $resetKey = "ANNUAL_RESET:USER:{$user->id}:YEAR:{$today->year}";
+
+                $adjusted = $service->adjustBalanceToTarget(
+                    $user,
+                    12,
+                    "Reset saldo cuti tahun {$today->year}",
+                    $resetKey,
+                    null,
+                );
+
+                if ($adjusted > 0) {
+                    $this->info("🔄 [TAHUN BARU] {$user->name}: Saldo di-reset jadi 12.");
+                    $resetCount++;
+                }
             }
         }
     });

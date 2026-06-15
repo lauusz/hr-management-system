@@ -7,10 +7,9 @@ use App\Enums\UserRole;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Services\LeaveBalanceService;
-use Carbon\Carbon;
 
 describe('Half-Day Saturday Leave Calculation', function () {
-    $service = new LeaveBalanceService();
+    $service = new LeaveBalanceService;
 
     // =====================================================================
     // TEST: 5-Day Work Week (HRD, MANAGER) - Saturday Skipped
@@ -177,7 +176,7 @@ describe('Half-Day Saturday Leave Calculation', function () {
 });
 
 describe('LeaveBalanceService Integration with LeaveRequest', function () {
-    $service = new LeaveBalanceService();
+    $service = new LeaveBalanceService;
 
     it('calculates effective days for leave request correctly for HRD', function () use ($service) {
         $user = new User(['role' => UserRole::HRD, 'leave_balance' => 12]);
@@ -228,10 +227,10 @@ describe('LeaveBalanceService Integration with LeaveRequest', function () {
 });
 
 describe('Leave Balance Deduction and Refund', function () {
-    $service = new LeaveBalanceService();
+    $service = new LeaveBalanceService;
 
     beforeEach(function () {
-        $this->email = 'test-halfday-' . uniqid() . '@example.com';
+        $this->email = 'test-halfday-'.uniqid().'@example.com';
         $this->user = User::unguarded(function () {
             return User::create([
                 'name' => 'Test Employee',
@@ -244,9 +243,9 @@ describe('Leave Balance Deduction and Refund', function () {
     });
 
     it('deducts 2.5 days for employee leaving friday to monday', function () {
-        $service = new LeaveBalanceService();
+        $service = new LeaveBalanceService;
         $leave = LeaveRequest::unguarded(function () {
-            return LeaveRequest::make([
+            return LeaveRequest::create([
                 'type' => LeaveType::CUTI,
                 'start_date' => '2026-03-27',
                 'end_date' => '2026-03-30',
@@ -263,11 +262,11 @@ describe('Leave Balance Deduction and Refund', function () {
     });
 
     it('refunds 2.5 days when leave is cancelled', function () {
-        $service = new LeaveBalanceService();
+        $service = new LeaveBalanceService;
 
         // First deduct
         $leave = LeaveRequest::unguarded(function () {
-            return LeaveRequest::make([
+            return LeaveRequest::create([
                 'type' => LeaveType::CUTI,
                 'start_date' => '2026-03-27',
                 'end_date' => '2026-03-30',
@@ -288,9 +287,9 @@ describe('Leave Balance Deduction and Refund', function () {
     });
 
     it('does not deduct for non-CUTI leave types', function () {
-        $service = new LeaveBalanceService();
+        $service = new LeaveBalanceService;
         $leave = LeaveRequest::unguarded(function () {
-            return LeaveRequest::make([
+            return LeaveRequest::create([
                 'type' => LeaveType::SAKIT,
                 'start_date' => '2026-03-27',
                 'end_date' => '2026-03-30',
@@ -306,11 +305,11 @@ describe('Leave Balance Deduction and Refund', function () {
     });
 
     it('throws exception when balance is insufficient', function () {
-        $service = new LeaveBalanceService();
+        $service = new LeaveBalanceService;
         $this->user->update(['leave_balance' => 1]);
 
         $leave = LeaveRequest::unguarded(function () {
-            return LeaveRequest::make([
+            return LeaveRequest::create([
                 'type' => LeaveType::CUTI,
                 'start_date' => '2026-03-27',
                 'end_date' => '2026-03-30',
@@ -326,7 +325,7 @@ describe('Leave Balance Deduction and Refund', function () {
 });
 
 describe('isFiveDayWorkWeekForUser', function () {
-    $service = new LeaveBalanceService();
+    $service = new LeaveBalanceService;
 
     it('returns true for HRD', function () use ($service) {
         $user = new User(['role' => UserRole::HRD, 'leave_balance' => 12]);

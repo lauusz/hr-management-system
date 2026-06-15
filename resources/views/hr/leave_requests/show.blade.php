@@ -93,7 +93,7 @@
         // Action logic
         $user = auth()->user();
         $isHrStaff = $user->isHR();
-        $canHrEdit = $isHrStaff && $item->status !== 'BATAL';
+        $canHrEdit = $isHrStaff && in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true);
         $isRejectedOrBatal = in_array($item->status, [\App\Models\LeaveRequest::STATUS_REJECTED, 'BATAL'], true);
 
         $applicantRoleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
@@ -657,37 +657,6 @@
             @method('PUT')
 
             <div class="edit-modal-content">
-                @if($isHrStaff)
-                <div class="edit-section edit-section--status">
-                    <div class="edit-section-header">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Status Pengajuan</span>
-                    </div>
-                    @php
-                        $statusConfig = [
-                            \App\Models\LeaveRequest::PENDING_SUPERVISOR => ['label' => 'Menunggu Atasan', 'color' => '#f59e0b', 'bg' => '#fef3c7'],
-                            \App\Models\LeaveRequest::PENDING_HR => ['label' => 'Menunggu HRD', 'color' => '#0891b2', 'bg' => '#cffafe'],
-                            \App\Models\LeaveRequest::STATUS_APPROVED => ['label' => 'Disetujui', 'color' => '#16a34a', 'bg' => '#dcfce7'],
-                            \App\Models\LeaveRequest::STATUS_REJECTED => ['label' => 'Ditolak', 'color' => '#dc2626', 'bg' => '#fee2e2'],
-                            'BATAL' => ['label' => 'Dibatalkan', 'color' => '#6b7280', 'bg' => '#f3f4f6'],
-                        ];
-                        $currentStatusConfig = $statusConfig[$item->status] ?? ['label' => $item->status, 'color' => '#6b7280', 'bg' => '#f3f4f6'];
-                    @endphp
-                    <div class="edit-status-selector">
-                        <select name="status" id="edit_status" class="edit-status-select">
-                            @foreach($statusConfig as $statusVal => $config)
-                                <option value="{{ $statusVal }}" @selected($item->status === $statusVal) data-color="{{ $config['color'] }}" data-bg="{{ $config['bg'] }}">
-                                    {{ $config['label'] }}
-                                </option>
-                            @endforeach
-                        </select>
-                        <div class="edit-status-indicator" id="status_indicator" style="background: {{ $currentStatusConfig['bg'] }}; color: {{ $currentStatusConfig['color'] }};">
-                            {{ $currentStatusConfig['label'] }}
-                        </div>
-                    </div>
-                </div>
-                @endif
-
                 <div class="edit-section">
                     <div class="edit-section-header">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -1190,18 +1159,6 @@
                 if (typeSelect.value === 'CUTI_KHUSUS') {
                     specialWrapper.style.display = 'block';
                 }
-            }
-
-            // Edit modal: status selector color update
-            const statusSelect = document.getElementById('edit_status');
-            const statusIndicator = document.getElementById('status_indicator');
-            if (statusSelect && statusIndicator) {
-                statusSelect.addEventListener('change', function() {
-                    const selected = this.options[this.selectedIndex];
-                    statusIndicator.style.background = selected.dataset.bg;
-                    statusIndicator.style.color = selected.dataset.color;
-                    statusIndicator.textContent = selected.text;
-                });
             }
 
             // Edit modal: file upload preview
@@ -2107,15 +2064,6 @@
             border-bottom: 1px solid var(--border-light, #E5E7EB);
         }
         .edit-section-header svg { color: var(--text-muted, #6B7280); }
-        .edit-section--status {
-            background: linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, var(--white) 100%);
-            border-color: rgba(245, 158, 11, 0.25);
-        }
-        .edit-section--status .edit-section-header {
-            color: #92400e;
-            border-bottom-color: rgba(245, 158, 11, 0.2);
-        }
-        .edit-section--status .edit-section-header svg { color: #d97706; }
         .edit-section--warning {
             background: rgba(245, 158, 11, 0.04);
             border-color: rgba(245, 158, 11, 0.2);
@@ -2124,36 +2072,6 @@
         .edit-section--warning .edit-section-header svg { color: #d97706; }
         .edit-section--upload { background: var(--gray-50, #F5F7FA); }
         .edit-section--notes .edit-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-
-        .edit-status-selector {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .edit-status-select {
-            flex: 1;
-            padding: 10px 14px;
-            border: 2px solid rgba(245, 158, 11, 0.4);
-            border-radius: 10px;
-            font-size: 14px;
-            font-weight: 500;
-            background: var(--white);
-            cursor: pointer;
-            font-family: inherit;
-            color: var(--text-primary);
-        }
-        .edit-status-select:focus {
-            outline: none;
-            border-color: var(--warning, #F59E0B);
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
-        }
-        .edit-status-indicator {
-            padding: 8px 14px;
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 600;
-            white-space: nowrap;
-        }
 
         .edit-form-group { margin-bottom: 14px; }
         .edit-form-group:last-child { margin-bottom: 0; }
@@ -2369,7 +2287,6 @@
         @media (max-width: 640px) {
             .edit-form-row { grid-template-columns: 1fr; }
             .edit-section--notes .edit-form-row { grid-template-columns: 1fr; }
-            .edit-status-selector { flex-direction: column; align-items: stretch; }
             .apv-action-primary-row .apv-action-btn { min-height: 48px; }
         }
     </style>

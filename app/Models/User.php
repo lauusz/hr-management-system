@@ -20,14 +20,14 @@ class User extends Authenticatable
         'username',
         'password',
         'phone',
-        'role', 
-        'can_manage_payroll', // <--- [BARU] Hak akses kelola slip gaji 
+        'role',
+        'can_manage_payroll', // <--- [BARU] Hak akses kelola slip gaji
         'leave_balance',        // <--- [BARU] Tambahkan ini agar sisa cuti bisa di-update
         'hr_staff_can_approve_non_cuti', // HR STAFF boleh approve non-CUTI milik Supervisor/Manager
         'division_id',
         'position_id',
-        'direct_supervisor_id', 
-        'manager_id',           
+        'direct_supervisor_id',
+        'manager_id',
         'shift_id',
         'status',
         'last_login_at',
@@ -42,8 +42,8 @@ class User extends Authenticatable
     {
         return [
             'last_login_at' => 'datetime',
-            'password'      => 'hashed',
-            'role'          => UserRole::class,
+            'password' => 'hashed',
+            'role' => UserRole::class,
             'can_manage_payroll' => 'boolean',
             'hr_staff_can_approve_non_cuti' => 'boolean',
             'leave_balance' => 'decimal:1',
@@ -74,7 +74,7 @@ class User extends Authenticatable
     {
         return in_array($this->role, [
             UserRole::HRD,
-            UserRole::HR_STAFF
+            UserRole::HR_STAFF,
         ]);
     }
 
@@ -112,7 +112,7 @@ class User extends Authenticatable
     {
         return in_array($this->role, [
             UserRole::MANAGER,
-            UserRole::SUPERVISOR
+            UserRole::SUPERVISOR,
         ]);
     }
 
@@ -146,12 +146,12 @@ class User extends Authenticatable
     public function pt()
     {
         return $this->hasOneThrough(
-            Pt::class,              
-            EmployeeProfile::class, 
-            'user_id',              
-            'id',                   
-            'id',                   
-            'pt_id'                 
+            Pt::class,
+            EmployeeProfile::class,
+            'user_id',
+            'id',
+            'id',
+            'pt_id'
         );
     }
 
@@ -198,5 +198,10 @@ class User extends Authenticatable
     public function payslips()
     {
         return $this->hasMany(Payslip::class, 'user_id');
+    }
+
+    public function leaveBalanceTransactions()
+    {
+        return $this->hasMany(LeaveBalanceTransaction::class);
     }
 }

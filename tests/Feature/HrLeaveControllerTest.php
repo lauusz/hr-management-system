@@ -2,17 +2,18 @@
 
 use App\Enums\LeaveType;
 use App\Enums\UserRole;
-use App\Models\Division;
 use App\Models\EmployeeProfile;
+use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
 use App\Models\Pt;
 use App\Models\User;
-use Carbon\Carbon;
-// ⚠️ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
-// karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
-
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+
+use function Pest\Laravel\actingAs;
+
+// âš ï¸ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
+// karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
 
 pest()->extend(Tests\TestCase::class)
     ->in('Feature');
@@ -216,8 +217,8 @@ describe('HrLeaveController', function () {
             $emp1 = User::factory()->create();
             $emp2 = User::factory()->create();
 
-            EmployeeProfile::factory()->forUser($emp1)->create(['pt_id' => $pt1->id]);
-            EmployeeProfile::factory()->forUser($emp2)->create(['pt_id' => $pt2->id]);
+            EmployeeProfile::create(['user_id' => $emp1->id, 'pt_id' => $pt1->id, 'kategori' => 'KONTRAK']);
+            EmployeeProfile::create(['user_id' => $emp2->id, 'pt_id' => $pt2->id, 'kategori' => 'KONTRAK']);
 
             LeaveRequest::factory()->forUser($emp1)->create();
             LeaveRequest::factory()->forUser($emp2)->create();
@@ -279,7 +280,7 @@ describe('HrLeaveController', function () {
             $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
             $leave = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::IZIN,
+                'type' => LeaveType::IZIN->value,
             ]);
 
             actingAs($hrd, 'web');
@@ -299,12 +300,12 @@ describe('HrLeaveController', function () {
                 'role' => UserRole::EMPLOYEE,
                 'leave_balance' => 12,
             ]);
-            EmployeeProfile::factory()->forUser($employee)->joinedYearsAgo(2)->create();
+            EmployeeProfile::create(['user_id' => $employee->id, 'tgl_bergabung' => now()->subYears(2)->toDateString(), 'kategori' => 'KONTRAK']);
             $leave = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::CUTI,
+                'type' => LeaveType::CUTI->value,
                 'start_date' => now()->addDays(5)->toDateString(),
-                'end_date'   => now()->addDays(6)->toDateString(),
+                'end_date' => now()->addDays(6)->toDateString(),
             ]);
 
             actingAs($hrd, 'web');
@@ -321,7 +322,7 @@ describe('HrLeaveController', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $leave = LeaveRequest::factory()->forUser($hrd)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::IZIN,
+                'type' => LeaveType::IZIN->value,
             ]);
 
             actingAs($hrd, 'web');
@@ -336,7 +337,7 @@ describe('HrLeaveController', function () {
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::CUTI,
+                'type' => LeaveType::CUTI->value,
             ]);
 
             actingAs($hrStaff, 'web');
@@ -351,7 +352,7 @@ describe('HrLeaveController', function () {
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::IZIN,
+                'type' => LeaveType::IZIN->value,
             ]);
 
             actingAs($hrStaff, 'web');
@@ -373,7 +374,7 @@ describe('HrLeaveController', function () {
             ]);
             $leave = LeaveRequest::factory()->forUser($manager)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::CUTI,
+                'type' => LeaveType::CUTI->value,
             ]);
 
             actingAs($hrStaff, 'web');
@@ -393,7 +394,7 @@ describe('HrLeaveController', function () {
             ]);
             $leave = LeaveRequest::factory()->forUser($manager)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::SAKIT,
+                'type' => LeaveType::SAKIT->value,
             ]);
 
             actingAs($hrStaff, 'web');
@@ -415,7 +416,7 @@ describe('HrLeaveController', function () {
             ]);
             $leave = LeaveRequest::factory()->forUser($manager)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::IZIN,
+                'type' => LeaveType::IZIN->value,
             ]);
 
             actingAs($hrStaff, 'web');
@@ -440,7 +441,7 @@ describe('HrLeaveController', function () {
             ]);
             $leave = LeaveRequest::factory()->forUser($supervisor)->create([
                 'status' => LeaveRequest::PENDING_SUPERVISOR,
-                'type'   => LeaveType::CUTI,
+                'type' => LeaveType::CUTI->value,
             ]);
 
             actingAs($manager, 'web');
@@ -469,7 +470,7 @@ describe('HrLeaveController', function () {
             ]);
             $leave = LeaveRequest::factory()->forUser($supervisor)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::IZIN,
+                'type' => LeaveType::IZIN->value,
             ]);
 
             actingAs($hrStaff, 'web');
@@ -491,7 +492,7 @@ describe('HrLeaveController', function () {
             ]);
             $leave = LeaveRequest::factory()->forUser($supervisor)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::SAKIT,
+                'type' => LeaveType::SAKIT->value,
             ]);
 
             actingAs($hrStaff, 'web');
@@ -516,11 +517,11 @@ describe('HrLeaveController', function () {
             ]);
             $leaveManager = LeaveRequest::factory()->forUser($manager)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::CUTI,
+                'type' => LeaveType::CUTI->value,
             ]);
             $leaveSupervisor = LeaveRequest::factory()->forUser($supervisor)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::CUTI,
+                'type' => LeaveType::CUTI->value,
             ]);
 
             actingAs($hrd, 'web');
@@ -540,11 +541,11 @@ describe('HrLeaveController', function () {
             $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
             $leaveEmployeeCuti = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::CUTI_KHUSUS,
+                'type' => LeaveType::CUTI_KHUSUS->value,
             ]);
             $leaveEmployeeIzin = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::IZIN,
+                'type' => LeaveType::IZIN->value,
             ]);
 
             actingAs($hrStaff, 'web');
@@ -616,6 +617,43 @@ describe('HrLeaveController', function () {
 
             $response->assertStatus(403);
         });
+
+        it('final HR approval of CUTI sent twice only deducts balance once', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-06-15',
+                'end_date' => '2026-06-16',
+            ]);
+
+            $this->actingAs($hrd, 'web');
+
+            // Request pertama: approve & potong saldo
+            $response1 = $this->post(route('hr.leave.approve', $leave->id));
+            $response1->assertRedirect();
+            $leave->refresh();
+            $employee->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and((float) $employee->leave_balance)->toBe(10.0);
+
+            // Request kedua (kalah race): tidak boleh memotong saldo lagi
+            $this->post(route('hr.leave.approve', $leave->id));
+            $leave->refresh();
+            $employee->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and((float) $employee->leave_balance)->toBe(10.0)
+                ->and(LeaveBalanceTransaction::where('user_id', $employee->id)
+                    ->where('transaction_type', LeaveBalanceTransaction::OPENING_BALANCE)
+                    ->count())->toBe(1)
+                ->and(LeaveBalanceTransaction::where('user_id', $employee->id)
+                    ->where('transaction_type', LeaveBalanceTransaction::DEDUCT)
+                    ->count())->toBe(1);
+        });
     });
 
     // =====================================================================
@@ -627,7 +665,7 @@ describe('HrLeaveController', function () {
             $employee = User::factory()->create(['leave_balance' => 12]);
             $leave = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
-                'type'   => LeaveType::CUTI,
+                'type' => LeaveType::CUTI->value,
             ]);
 
             actingAs($hrd, 'web');
@@ -702,6 +740,57 @@ describe('HrLeaveController', function () {
 
             $response->assertStatus(403);
         });
+
+        it('stale leave model inside reject does not overwrite APPROVED status', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['leave_balance' => 12]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-06-15',
+                'end_date' => '2026-06-16',
+            ]);
+
+            // Race: instance $leave masih PENDING_HR, tapi DB sudah APPROVED & saldo dipotong.
+            LeaveRequest::where('id', $leave->id)->update(['status' => LeaveRequest::STATUS_APPROVED]);
+
+            actingAs($hrd, 'web');
+
+            $controller = app(\App\Http\Controllers\HrLeaveController::class);
+            $request = new \Illuminate\Http\Request(['notes_hrd' => 'Ditolak karena alasan']);
+            $response = $controller->reject($request, $leave);
+
+            expect($response)->toBeInstanceOf(\Illuminate\Http\RedirectResponse::class)
+                ->and($response->getTargetUrl())->toBe(route('hr.leave.index'))
+                ->and(session('error'))->toBe('Status pengajuan sudah berubah.');
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
+        });
+
+        it('rejecting PENDING_HR CUTI does not change balance or ledger', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['leave_balance' => 12]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-06-15',
+                'end_date' => '2026-06-16',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->post(route('hr.leave.reject', $leave->id), [
+                'notes_hrd' => 'Ditolak karena alasan',
+            ]);
+
+            $response->assertRedirect(route('hr.leave.index'));
+            $leave->refresh();
+            $employee->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_REJECTED)
+                ->and((float) $employee->leave_balance)->toBe(12.0)
+                ->and(LeaveBalanceTransaction::where('user_id', $employee->id)->count())->toBe(0);
+        });
     });
 
     // =====================================================================
@@ -738,12 +827,12 @@ describe('HrLeaveController', function () {
             actingAs($hrd, 'web');
 
             $response = $this->post(route('hr.leave.manual.store'), [
-                'user_id'    => $employee->id,
-                'type'       => LeaveType::IZIN,
+                'user_id' => $employee->id,
+                'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(1)->toDateString(),
-                'end_date'   => now()->addDays(1)->toDateString(),
-                'reason'     => 'Manual entry by HR',
-                'status'     => LeaveRequest::STATUS_APPROVED,
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Manual entry by HR',
+                'status' => LeaveRequest::STATUS_APPROVED,
             ]);
 
             $response->assertRedirect(route('hr.leave.master'));
@@ -760,12 +849,12 @@ describe('HrLeaveController', function () {
             actingAs($hrd, 'web');
 
             $this->post(route('hr.leave.manual.store'), [
-                'user_id'    => $employee->id,
-                'type'       => LeaveType::IZIN,
+                'user_id' => $employee->id,
+                'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(1)->toDateString(),
-                'end_date'   => now()->addDays(1)->toDateString(),
-                'reason'     => 'Manual',
-                'status'     => LeaveRequest::STATUS_APPROVED,
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Manual',
+                'status' => LeaveRequest::STATUS_APPROVED,
             ]);
 
             $leave = LeaveRequest::where('user_id', $employee->id)->first();
@@ -779,16 +868,129 @@ describe('HrLeaveController', function () {
             actingAs($hrd, 'web');
 
             $this->post(route('hr.leave.manual.store'), [
-                'user_id'    => $employee->id,
-                'type'       => LeaveType::IZIN,
+                'user_id' => $employee->id,
+                'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(1)->toDateString(),
-                'end_date'   => now()->addDays(1)->toDateString(),
-                'reason'     => 'Manual',
-                'status'     => LeaveRequest::PENDING_SUPERVISOR,
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Manual',
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
             ]);
 
             $leave = LeaveRequest::where('user_id', $employee->id)->first();
             expect($leave->supervisor_ack_at)->toBeNull();
+        });
+
+        it('manual APPROVED CUTI deducts balance and writes ledger', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->post(route('hr.leave.manual.store'), [
+                'user_id' => $employee->id,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-06-15',
+                'end_date' => '2026-06-16',
+                'reason' => 'Manual CUTI',
+                'status' => LeaveRequest::STATUS_APPROVED,
+            ]);
+
+            $response->assertRedirect(route('hr.leave.master'));
+
+            $leave = LeaveRequest::where('user_id', $employee->id)->first();
+            $employee->refresh();
+            expect($leave)->toBeTruthy()
+                ->and($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and((float) $employee->leave_balance)->toBe(10.0);
+
+            $deduct = LeaveBalanceTransaction::where('transaction_type', LeaveBalanceTransaction::DEDUCT)
+                ->where('leave_request_id', $leave->id)
+                ->first();
+            expect($deduct)->not->toBeNull()
+                ->and((float) $deduct->amount)->toBe(2.0);
+        });
+
+        it('manual APPROVED non-CUTI does not deduct balance', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('hr.leave.manual.store'), [
+                'user_id' => $employee->id,
+                'type' => LeaveType::SAKIT->value,
+                'start_date' => '2026-06-15',
+                'end_date' => '2026-06-16',
+                'reason' => 'Manual SAKIT',
+                'status' => LeaveRequest::STATUS_APPROVED,
+            ]);
+
+            $leave = LeaveRequest::where('user_id', $employee->id)->first();
+            $employee->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and((float) $employee->leave_balance)->toBe(12.0)
+                ->and(LeaveBalanceTransaction::where('leave_request_id', $leave->id)->count())->toBe(0);
+        });
+
+        it('manual APPROVED CUTI with insufficient balance rolls back leave and ledger', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 1,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->post(route('hr.leave.manual.store'), [
+                'user_id' => $employee->id,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-06-15',
+                'end_date' => '2026-06-16',
+                'reason' => 'Manual CUTI insufficient',
+                'status' => LeaveRequest::STATUS_APPROVED,
+            ]);
+
+            $response->assertRedirect()
+                ->assertSessionHas('error');
+
+            $employee->refresh();
+            expect((float) $employee->leave_balance)->toBe(1.0)
+                ->and(LeaveRequest::where('user_id', $employee->id)->count())->toBe(0)
+                ->and(LeaveBalanceTransaction::where('user_id', $employee->id)->count())->toBe(0);
+        });
+
+        it('manual APPROVED CUTI with insufficient balance cleans up uploaded photo', function () {
+            Storage::fake('public');
+
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 1,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->post(route('hr.leave.manual.store'), [
+                'user_id' => $employee->id,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-06-15',
+                'end_date' => '2026-06-16',
+                'reason' => 'Manual CUTI insufficient with photo',
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'photo' => UploadedFile::fake()->image('bukti.jpg'),
+            ]);
+
+            $response->assertRedirect()
+                ->assertSessionHas('error');
+
+            $files = Storage::disk('public')->allFiles('leave_photos');
+            expect($files)->toBeEmpty();
         });
 
         it('validates required user_id', function () {
@@ -797,9 +999,9 @@ describe('HrLeaveController', function () {
             actingAs($hrd, 'web');
 
             $response = $this->post(route('hr.leave.manual.store'), [
-                'type'       => LeaveType::IZIN,
+                'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(1)->toDateString(),
-                'end_date'   => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
             ]);
 
             $response->assertSessionHasErrors(['user_id']);
@@ -812,10 +1014,10 @@ describe('HrLeaveController', function () {
             actingAs($hrd, 'web');
 
             $response = $this->post(route('hr.leave.manual.store'), [
-                'user_id'    => $employee->id,
-                'type'       => LeaveType::IZIN,
+                'user_id' => $employee->id,
+                'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(5)->toDateString(),
-                'end_date'   => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
             ]);
 
             $response->assertSessionHasErrors(['end_date']);
@@ -826,76 +1028,128 @@ describe('HrLeaveController', function () {
     // UPDATE
     // =====================================================================
     describe('update', function () {
-        it('HRD can update leave request', function () {
+        it('HRD can update pending leave request metadata', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
                 'reason' => 'Original reason',
             ]);
 
             actingAs($hrd, 'web');
 
             $response = $this->put(route('hr.leave.update', $leave->id), [
-                'type'       => LeaveType::IZIN,
+                'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(2)->toDateString(),
-                'end_date'   => now()->addDays(2)->toDateString(),
-                'reason'     => 'Updated reason',
+                'end_date' => now()->addDays(2)->toDateString(),
+                'reason' => 'Updated reason',
             ]);
 
             $response->assertRedirect();
             $leave->refresh();
-            expect($leave->reason)->toBe('Updated reason');
+            expect($leave->reason)->toBe('Updated reason')
+                ->and($leave->status)->toBe(LeaveRequest::PENDING_HR);
         });
 
-        it('HRD can change status during update', function () {
+        it('HR Staff cannot self-approve through update', function () {
+            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+            $leave = LeaveRequest::factory()->forUser($hrStaff)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+            ]);
+
+            actingAs($hrStaff, 'web');
+
+            $response = $this->put(route('hr.leave.update', $leave->id), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(2)->toDateString(),
+                'end_date' => now()->addDays(2)->toDateString(),
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'reason' => 'Trying to self-approve',
+            ]);
+
+            $response->assertRedirect();
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($leave->approved_by)->toBeNull()
+                ->and($leave->approved_at)->toBeNull();
+        });
+
+        it('status PENDING_HR does not become APPROVED through update payload', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
             ]);
 
             actingAs($hrd, 'web');
 
             $this->put(route('hr.leave.update', $leave->id), [
-                'type'       => LeaveType::IZIN,
+                'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(2)->toDateString(),
-                'end_date'   => now()->addDays(2)->toDateString(),
-                'status'     => LeaveRequest::STATUS_APPROVED,
+                'end_date' => now()->addDays(2)->toDateString(),
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'approved_by' => $hrd->id,
+                'approved_at' => now()->toDateTimeString(),
             ]);
 
             $leave->refresh();
-            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($leave->approved_by)->toBeNull()
+                ->and($leave->approved_at)->toBeNull();
         });
 
-        it('status change from APPROVED to REJECTED triggers refund', function () {
+        it('balance does not change when update payload sends status APPROVED', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
-            $employee = User::factory()->create(['leave_balance' => 10]);
-            EmployeeProfile::factory()->forUser($employee)->joinedYearsAgo(2)->create();
-            $leave = LeaveRequest::factory()->forUser($employee)->create([
-                'status'     => LeaveRequest::STATUS_APPROVED,
-                'type'       => LeaveType::CUTI,
-                'start_date' => now()->addDays(5)->toDateString(),
-                'end_date'   => now()->addDays(6)->toDateString(),
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
             ]);
-
-            // Deduct first (simulate approval)
-            $service = new \App\Services\LeaveBalanceService();
-            $service->deductLeaveBalanceForLeave($leave);
-            $employee->refresh();
+            EmployeeProfile::create(['user_id' => $employee->id, 'tgl_bergabung' => now()->subYears(2)->toDateString(), 'kategori' => 'KONTRAK']);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => now()->addDays(5)->toDateString(),
+                'end_date' => now()->addDays(6)->toDateString(),
+            ]);
 
             actingAs($hrd, 'web');
 
             $this->put(route('hr.leave.update', $leave->id), [
-                'type'       => LeaveType::CUTI,
+                'type' => LeaveType::CUTI->value,
                 'start_date' => now()->addDays(5)->toDateString(),
-                'end_date'   => now()->addDays(6)->toDateString(),
-                'status'     => LeaveRequest::STATUS_REJECTED,
+                'end_date' => now()->addDays(6)->toDateString(),
+                'status' => LeaveRequest::STATUS_APPROVED,
             ]);
 
             $leave->refresh();
             $employee->refresh();
-            expect($leave->status)->toBe(LeaveRequest::STATUS_REJECTED)
-                ->and($employee->leave_balance)->toBe(12); // Refunded back
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and((float) $employee->leave_balance)->toBe(12.0);
+        });
+
+        it('cannot update APPROVED leave request', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'reason' => 'Original reason',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->put(route('hr.leave.update', $leave->id), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(2)->toDateString(),
+                'end_date' => now()->addDays(2)->toDateString(),
+                'reason' => 'Updated reason',
+            ]);
+
+            $response->assertRedirect();
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->reason)->toBe('Original reason');
         });
     });
 

@@ -30,7 +30,7 @@ class LeaveRequest extends Model
         'approved_by',
         'approved_at',
         'supervisor_ack_at',
-        
+
         // Data PIC Pengganti
         'substitute_pic',
         'substitute_phone',
@@ -52,8 +52,11 @@ class LeaveRequest extends Model
     ];
 
     public const PENDING_SUPERVISOR = 'PENDING_SUPERVISOR';
+
     public const PENDING_HR = 'PENDING_HR';
+
     public const STATUS_APPROVED = 'APPROVED';
+
     public const STATUS_REJECTED = 'REJECTED';
 
     public const STATUS_OPTIONS = [
@@ -70,7 +73,7 @@ class LeaveRequest extends Model
         // Custom Label untuk HRD yang sudah diapprove
         if ($this->status === self::STATUS_APPROVED && $this->user) {
             $roleVal = $this->user->role instanceof \App\Enums\UserRole ? $this->user->role->value : $this->user->role;
-            if (in_array(strtoupper((string)$roleVal), ['HRD', 'HR MANAGER'])) {
+            if (in_array(strtoupper((string) $roleVal), ['HRD', 'HR MANAGER'])) {
                 return 'Disetujui';
             }
         }
@@ -110,5 +113,10 @@ class LeaveRequest extends Model
     public function scopePendingHr($q)
     {
         return $q->where('status', self::PENDING_HR);
+    }
+
+    public function leaveBalanceTransactions()
+    {
+        return $this->hasMany(LeaveBalanceTransaction::class);
     }
 }
