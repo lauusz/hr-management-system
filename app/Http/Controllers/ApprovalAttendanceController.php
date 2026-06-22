@@ -22,10 +22,17 @@ class ApprovalAttendanceController extends Controller
 
     public function approve(Request $request, Attendance $attendance)
     {
+        $user = Auth::user();
+        abort_unless($user && $user->isHR(), 403, 'Anda tidak berhak menyetujui absensi ini.');
+
+        if ($attendance->approval_status !== 'PENDING') {
+            return back()->with('error', 'Absensi ini tidak dalam status pending.');
+        }
+
         $attendance->update([
             'approval_status' => 'APPROVED',
-            'approved_by'     => Auth::id(),
-            'status'          => 'HADIR', 
+            'approved_by'     => $user->id,
+            'status'          => 'HADIR',
         ]);
 
         return back()->with('success', 'Absensi berhasil disetujui.');
@@ -33,6 +40,13 @@ class ApprovalAttendanceController extends Controller
 
     public function reject(Request $request, Attendance $attendance)
     {
+        $user = Auth::user();
+        abort_unless($user && $user->isHR(), 403, 'Anda tidak berhak menolak absensi ini.');
+
+        if ($attendance->approval_status !== 'PENDING') {
+            return back()->with('error', 'Absensi ini tidak dalam status pending.');
+        }
+
         $request->validate([
             'rejection_note' => 'required|string|max:255',
         ]);
@@ -40,8 +54,8 @@ class ApprovalAttendanceController extends Controller
         $attendance->update([
             'approval_status' => 'REJECTED',
             'rejection_note'  => $request->rejection_note,
-            'approved_by'     => Auth::id(),
-            'status'          => 'REJECTED', 
+            'approved_by'     => $user->id,
+            'status'          => 'REJECTED',
         ]);
 
         return back()->with('success', 'Absensi ditolak.');

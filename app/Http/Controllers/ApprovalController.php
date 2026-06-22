@@ -8,10 +8,11 @@ use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
 use App\Services\LeaveBalanceService;
+use App\Services\LeaveRequestDuplicateCleanupService;
+use App\Services\LeaveRequestStateMachine;
 use App\Services\LeaveRequestWorkflowService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
@@ -20,6 +21,9 @@ class ApprovalController extends Controller
     public function __construct(
         protected ImageCompressor $imageCompressor,
         protected LeaveBalanceService $leaveBalanceService,
+        protected LeaveRequestStateMachine $stateMachine,
+        protected LeaveRequestWorkflowService $workflowService,
+        protected LeaveRequestDuplicateCleanupService $duplicateCleanupService,
     ) {}
 
     // =====================================================================
@@ -221,33 +225,27 @@ class ApprovalController extends Controller
 
         // [ADJUSTMENT] HRD Applicant: ACK = Final Approval (langsung APPROVED, tidak ke HR inbox)
         if ($isHRD) {
-            $approved = DB::transaction(function () use ($leave, $me, $request) {
-                // Kunci row LeaveRequest dan cek ulang status di dalam transaction
-                // untuk mencegah double approval / double deduction.
-                $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leave->id);
+            $approved = $this->stateMachine->perform(
+                $leave,
+                LeaveRequestStateMachine::APPROVE,
+                function (LeaveRequest $lockedLeave) use ($me, $request) {
+                    $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
 
-                if ($lockedLeave->status !== LeaveRequest::PENDING_SUPERVISOR) {
-                    return false;
+                    $systemNote = '[System] Disetujui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
+
+                    return [
+                        'supervisor_ack_at' => now(),
+                        'approved_by' => $me->id,
+                        'approved_at' => now(),
+                        'notes' => ($request->notes ? $request->notes."\n" : '').$systemNote,
+                    ];
+                },
+                [],
+                LeaveRequest::PENDING_SUPERVISOR,
+                function (LeaveRequest $lockedLeave) {
+                    $this->duplicateCleanupService->deleteDuplicatePendingLeaveRequests($lockedLeave);
                 }
-
-                $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
-
-                $currentNotes = $lockedLeave->notes;
-                $systemNote = '[System] Disetujui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
-                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
-
-                $lockedLeave->update([
-                    'status' => LeaveRequest::STATUS_APPROVED,
-                    'supervisor_ack_at' => now(),
-                    'approved_by' => $me->id,
-                    'approved_at' => now(),
-                    'notes' => ($request->notes ? $request->notes."\n" : '').$systemNote,
-                ]);
-
-                $this->deleteDuplicateLeaveRequests($lockedLeave);
-
-                return true;
-            });
+            );
 
             if (! $approved) {
                 return redirect()->route('approval.index')->with('error', 'Status pengajuan sudah berubah.');
@@ -256,29 +254,22 @@ class ApprovalController extends Controller
             return redirect()->route('approval.index')->with('success', 'Pengajuan HRD telah disetujui sepenuhnya.');
         }
 
-        $acknowledged = DB::transaction(function () use ($leave, $me) {
-            // Kunci row LeaveRequest dan cek ulang status di dalam transaction
-            // untuk mencegah race condition dengan ack/approve/reject lain.
-            $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leave->id);
+        $acknowledged = $this->stateMachine->perform(
+            $leave,
+            LeaveRequestStateMachine::FORWARD_TO_HR,
+            function (LeaveRequest $lockedLeave) use ($me) {
+                $currentNotes = $lockedLeave->notes;
+                $systemNote = '[System] Diketahui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
 
-            if ($lockedLeave->status !== LeaveRequest::PENDING_SUPERVISOR) {
-                return false;
+                return [
+                    'supervisor_ack_at' => now(),
+                    'approved_by' => $me->id,
+                    'approved_at' => now(),
+                    'notes' => $newNotes,
+                ];
             }
-
-            $currentNotes = $lockedLeave->notes;
-            $systemNote = '[System] Diketahui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
-            $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
-
-            $lockedLeave->update([
-                'status' => LeaveRequest::PENDING_HR,
-                'supervisor_ack_at' => now(),
-                'approved_by' => $me->id,
-                'approved_at' => now(),
-                'notes' => $newNotes,
-            ]);
-
-            return true;
-        });
+        );
 
         if (! $acknowledged) {
             return redirect()->route('approval.index')->with('error', 'Status pengajuan sudah berubah.');
@@ -306,30 +297,23 @@ class ApprovalController extends Controller
             return redirect()->route('approval.index')->with('error', 'Status pengajuan sudah berubah.');
         }
 
-        $rejected = DB::transaction(function () use ($leave, $me) {
-            // Kunci row LeaveRequest dan cek ulang status di dalam transaction
-            // untuk mencegah race condition dengan ack/approve lain,
-            // khususnya agar APPROVED HRD applicant tidak ditimpa REJECTED
-            // setelah saldo dipotong.
-            $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leave->id);
+        $rejected = $this->stateMachine->perform(
+            $leave,
+            LeaveRequestStateMachine::REJECT,
+            function (LeaveRequest $lockedLeave) use ($me) {
+                $currentNotes = $lockedLeave->notes;
+                $systemNote = '[System] Ditolak oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
 
-            if ($lockedLeave->status !== LeaveRequest::PENDING_SUPERVISOR) {
-                return false;
-            }
-
-            $currentNotes = $lockedLeave->notes;
-            $systemNote = '[System] Ditolak oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
-            $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
-
-            $lockedLeave->update([
-                'status' => LeaveRequest::STATUS_REJECTED,
-                'approved_by' => $me->id,
-                'approved_at' => now(),
-                'notes' => $newNotes,
-            ]);
-
-            return true;
-        });
+                return [
+                    'approved_by' => $me->id,
+                    'approved_at' => now(),
+                    'notes' => $newNotes,
+                ];
+            },
+            [],
+            LeaveRequest::PENDING_SUPERVISOR
+        );
 
         if (! $rejected) {
             return redirect()->route('approval.index')->with('error', 'Status pengajuan sudah berubah.');
@@ -362,28 +346,24 @@ class ApprovalController extends Controller
         $isHRD = in_array(strtoupper($applicantRole), ['HRD', 'HR MANAGER']);
 
         if ($isHRD) {
-            $approved = DB::transaction(function () use ($leave, $me, $request) {
-                // Kunci row LeaveRequest dan cek ulang status di dalam transaction
-                // untuk mencegah double approval / double deduction.
-                $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leave->id);
+            $approved = $this->stateMachine->perform(
+                $leave,
+                LeaveRequestStateMachine::APPROVE,
+                function (LeaveRequest $lockedLeave) use ($me, $request) {
+                    $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
 
-                if ($lockedLeave->status !== LeaveRequest::PENDING_SUPERVISOR) {
-                    return false;
+                    return [
+                        'approved_by' => $me->id,
+                        'approved_at' => now(),
+                        'notes' => ($request->notes ? $request->notes."\n" : '')."[System] Disetujui oleh {$me->name}",
+                    ];
+                },
+                [],
+                LeaveRequest::PENDING_SUPERVISOR,
+                function (LeaveRequest $lockedLeave) {
+                    $this->duplicateCleanupService->deleteDuplicatePendingLeaveRequests($lockedLeave);
                 }
-
-                $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
-
-                $lockedLeave->update([
-                    'status' => LeaveRequest::STATUS_APPROVED,
-                    'approved_by' => $me->id,
-                    'approved_at' => now(),
-                    'notes' => ($request->notes ? $request->notes."\n" : '')."[System] Disetujui oleh {$me->name}",
-                ]);
-
-                $this->deleteDuplicateLeaveRequests($lockedLeave);
-
-                return true;
-            });
+            );
 
             if (! $approved) {
                 return redirect()->route('approval.index')->with('error', 'Status pengajuan sudah berubah.');
@@ -392,28 +372,21 @@ class ApprovalController extends Controller
             return redirect()->route('approval.index')->with('success', 'Pengajuan HRD telah disetujui sepenuhnya (Auto-Approved).');
         }
 
-        $approved = DB::transaction(function () use ($leave, $me, $request) {
-            // Kunci row LeaveRequest dan cek ulang status di dalam transaction
-            // untuk mencegah race condition dengan ack/approve/reject lain.
-            $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leave->id);
+        $approved = $this->stateMachine->perform(
+            $leave,
+            LeaveRequestStateMachine::FORWARD_TO_HR,
+            function (LeaveRequest $lockedLeave) use ($me, $request) {
+                $currentNotes = $lockedLeave->notes;
+                $systemNote = '[System] Disetujui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
 
-            if ($lockedLeave->status !== LeaveRequest::PENDING_SUPERVISOR) {
-                return false;
+                return [
+                    'approved_by' => $me->id,
+                    'approved_at' => now(),
+                    'notes' => ($request->notes ? $request->notes."\n" : '').$systemNote,
+                ];
             }
-
-            $currentNotes = $lockedLeave->notes;
-            $systemNote = '[System] Disetujui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
-            $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
-
-            $lockedLeave->update([
-                'status' => LeaveRequest::PENDING_HR,
-                'approved_by' => $me->id,
-                'approved_at' => now(),
-                'notes' => ($request->notes ? $request->notes."\n" : '').$systemNote,
-            ]);
-
-            return true;
-        });
+        );
 
         if (! $approved) {
             return redirect()->route('approval.index')->with('error', 'Status pengajuan sudah berubah.');
@@ -480,56 +453,49 @@ class ApprovalController extends Controller
             'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
         ]);
 
-        $updated = DB::transaction(function () use ($leave, $me, $request, $validated) {
-            // Kunci row LeaveRequest dan cek ulang status di dalam transaction
-            // untuk mencegah race condition saat revisi data.
-            $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leave->id);
+        $updated = $this->stateMachine->perform(
+            $leave,
+            LeaveRequestStateMachine::REVISE_FOR_HR,
+            function (LeaveRequest $lockedLeave) use ($me, $request, $validated) {
+                $currentNotes = $lockedLeave->notes;
+                $systemNote = '[System] Data direvisi oleh Supervisor ('.$me->name.') pada '.now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
 
-            if (! in_array($lockedLeave->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
-                return false;
-            }
+                $dataToUpdate = [
+                    'type' => $validated['type'],
+                    'start_date' => $validated['start_date'],
+                    'end_date' => $validated['end_date'],
+                    'start_time' => $validated['start_time'] ?? null,
+                    'end_time' => $validated['end_time'] ?? null,
+                    'reason' => $validated['reason'],
+                    'notes' => $newNotes,
+                    'substitute_pic' => $validated['substitute_pic'] ?? $lockedLeave->substitute_pic,
+                    'substitute_phone' => $validated['substitute_phone'] ?? $lockedLeave->substitute_phone,
+                    'approved_by' => $me->id,
+                    'approved_at' => now(),
+                ];
 
-            $currentNotes = $lockedLeave->notes;
-            $systemNote = '[System] Data direvisi oleh Supervisor ('.$me->name.') pada '.now()->format('d M Y H:i');
-            $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
-
-            $dataToUpdate = [
-                'type' => $validated['type'],
-                'start_date' => $validated['start_date'],
-                'end_date' => $validated['end_date'],
-                'start_time' => $validated['start_time'] ?? null,
-                'end_time' => $validated['end_time'] ?? null,
-                'reason' => $validated['reason'],
-                'notes' => $newNotes,
-                'substitute_pic' => $validated['substitute_pic'] ?? $lockedLeave->substitute_pic,
-                'substitute_phone' => $validated['substitute_phone'] ?? $lockedLeave->substitute_phone,
-                'status' => LeaveRequest::PENDING_HR,
-                'approved_by' => $me->id,
-                'approved_at' => now(),
-            ];
-
-            if ($validated['type'] === LeaveType::CUTI_KHUSUS->value) {
-                $dataToUpdate['special_leave_category'] = $validated['special_leave_detail'];
-            } else {
-                $dataToUpdate['special_leave_category'] = null;
-            }
-
-            if ($request->hasFile('photo')) {
-                $fullPath = $this->imageCompressor->compressAndStore(
-                    $request->file('photo'), 'photo', 'leave_photos', 'leave_'
-                );
-
-                if ($lockedLeave->photo) {
-                    Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
+                if ($validated['type'] === LeaveType::CUTI_KHUSUS->value) {
+                    $dataToUpdate['special_leave_category'] = $validated['special_leave_detail'];
+                } else {
+                    $dataToUpdate['special_leave_category'] = null;
                 }
 
-                $dataToUpdate['photo'] = basename($fullPath);
+                if ($request->hasFile('photo')) {
+                    $fullPath = $this->imageCompressor->compressAndStore(
+                        $request->file('photo'), 'photo', 'leave_photos', 'leave_'
+                    );
+
+                    if ($lockedLeave->photo) {
+                        Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
+                    }
+
+                    $dataToUpdate['photo'] = basename($fullPath);
+                }
+
+                return $dataToUpdate;
             }
-
-            $lockedLeave->update($dataToUpdate);
-
-            return true;
-        });
+        );
 
         if (! $updated) {
             return redirect()->back()->with('error', 'Pengajuan sudah berubah status, tidak dapat direvisi.');
@@ -552,11 +518,15 @@ class ApprovalController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
-        if (! in_array($leave->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR, LeaveRequest::STATUS_APPROVED], true)) {
-            return redirect()->route('approval.index')->with('error', 'Pengajuan ini tidak dapat dibatalkan.');
+        // Supervisor/Atasan hanya dapat membatalkan pengajuan yang masih
+        // menunggu acknowledgment-nya. Pengajuan PENDING_HR atau APPROVED
+        // harus dibatalkan melalui workflow HR agar saldo cuti tetap konsisten.
+        if ($leave->status !== LeaveRequest::PENDING_SUPERVISOR) {
+            return redirect()->route('approval.index')
+                ->with('error', 'Pengajuan ini tidak dapat dibatalkan oleh atasan. Hubungi HR untuk pembatalan.');
         }
 
-        $cancelled = app(LeaveRequestWorkflowService::class)->cancelLeaveRequest($leave, $me);
+        $cancelled = $this->workflowService->cancelLeaveRequest($leave, $me);
 
         if (! $cancelled) {
             return redirect()->route('approval.index')->with('error', 'Pengajuan ini tidak dapat dibatalkan.');
@@ -624,33 +594,5 @@ class ApprovalController extends Controller
         }
 
         return false;
-    }
-
-    /**
-     * Hapus pengajuan duplikat (overlap tanggal) yang masih pending.
-     */
-    private function deleteDuplicateLeaveRequests(LeaveRequest $approvedLeave)
-    {
-        $approvedType = $approvedLeave->type instanceof LeaveType
-            ? $approvedLeave->type->value
-            : (string) $approvedLeave->type;
-
-        $duplicates = LeaveRequest::where('user_id', $approvedLeave->user_id)
-            ->where('id', '!=', $approvedLeave->id)
-            ->where('type', $approvedType)
-            ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR])
-            ->where(function ($query) use ($approvedLeave) {
-                $query->whereBetween('start_date', [$approvedLeave->start_date, $approvedLeave->end_date])
-                    ->orWhereBetween('end_date', [$approvedLeave->start_date, $approvedLeave->end_date])
-                    ->orWhere(function ($q) use ($approvedLeave) {
-                        $q->where('start_date', '<=', $approvedLeave->start_date)
-                            ->where('end_date', '>=', $approvedLeave->end_date);
-                    });
-            })
-            ->get();
-
-        foreach ($duplicates as $duplicate) {
-            $duplicate->delete();
-        }
     }
 }

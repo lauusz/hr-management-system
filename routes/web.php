@@ -18,6 +18,7 @@ use App\Http\Controllers\HREmployeeController;
 use App\Http\Controllers\PtController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\HR\OrganizationController;
+use App\Http\Controllers\HR\OfficeHolidayController;
 use App\Http\Controllers\EmployeeLoanRequestController;
 use App\Http\Controllers\HrLoanRequestController;
 use App\Http\Controllers\SupervisorDataController;
@@ -35,8 +36,11 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', fn() => view('dashboard'))->name('dashboard');
 
+    Route::get('/leave-requests/search-substitute', [LeaveRequestController::class, 'searchSubstitute'])
+        ->name('leave-requests.search-substitute');
+
     Route::resource('leave-requests', LeaveRequestController::class)
-        ->only(['index', 'create', 'store', 'show', 'update', 'destroy']);
+        ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
     Route::get('/leave-requests/{leave_request}/supporting-file', [LeaveRequestController::class, 'supportingFile'])
         ->name('leave-requests.supporting-file');
     Route::post('/leave-requests/{leave_request}/upload-photo', [LeaveRequestController::class, 'uploadPhoto'])
@@ -44,6 +48,8 @@ Route::middleware('auth')->group(function () {
     
     // [BARU] Endpoint untuk cek duplikat pengajuan
     Route::post('/leave-requests/check-duplicate', [LeaveRequestController::class, 'checkDuplicate'])->name('leave-requests.checkDuplicate');
+    Route::post('/leave-requests/calculate-effective-days', [LeaveRequestController::class, 'calculateEffectiveDays'])
+        ->name('leave-requests.calculate-effective-days');
 
     Route::resource('overtime-requests', OvertimeRequestController::class)
         ->only(['index', 'create', 'store', 'update', 'destroy']);
@@ -90,6 +96,12 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/shifts/{shift}/edit', [ShiftController::class, 'edit'])->name('hr.shifts.edit');
         Route::put('/hr/shifts/{shift}', [ShiftController::class, 'update'])->name('hr.shifts.update');
         Route::delete('/hr/shifts/{shift}', [ShiftController::class, 'destroy'])->name('hr.shifts.destroy');
+
+        Route::get('/hr/office-holidays', [OfficeHolidayController::class, 'index'])->name('hr.office-holidays.index');
+        Route::post('/hr/office-holidays', [OfficeHolidayController::class, 'store'])->name('hr.office-holidays.store');
+        Route::get('/hr/office-holidays/{officeHoliday}/edit', [OfficeHolidayController::class, 'edit'])->name('hr.office-holidays.edit');
+        Route::put('/hr/office-holidays/{officeHoliday}', [OfficeHolidayController::class, 'update'])->name('hr.office-holidays.update');
+        Route::delete('/hr/office-holidays/{officeHoliday}', [OfficeHolidayController::class, 'destroy'])->name('hr.office-holidays.destroy');
 
         // --- EMPLOYEE MANAGEMENT ---
         Route::get('/hr/employees', [HREmployeeController::class, 'index'])->name('hr.employees.index');

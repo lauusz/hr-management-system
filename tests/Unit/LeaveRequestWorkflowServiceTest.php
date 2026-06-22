@@ -8,6 +8,7 @@ use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Services\LeaveBalanceService;
+use App\Services\LeaveRequestStateMachine;
 use App\Services\LeaveRequestWorkflowService;
 
 beforeEach(function () {
@@ -15,7 +16,7 @@ beforeEach(function () {
 });
 
 it('cancels pending leave without touching balance ledger', function () {
-    $service = new LeaveRequestWorkflowService(new LeaveBalanceService);
+    $service = new LeaveRequestWorkflowService(new LeaveBalanceService, new LeaveRequestStateMachine);
 
     $employee = User::factory()->create([
         'role' => UserRole::EMPLOYEE,
@@ -37,7 +38,7 @@ it('cancels pending leave without touching balance ledger', function () {
 
 it('cancels approved CUTI and refunds exact deduct ledger amount', function () {
     $balanceService = new LeaveBalanceService;
-    $service = new LeaveRequestWorkflowService($balanceService);
+    $service = new LeaveRequestWorkflowService($balanceService, new LeaveRequestStateMachine);
 
     $employee = User::factory()->create([
         'role' => UserRole::EMPLOYEE,
@@ -72,7 +73,7 @@ it('cancels approved CUTI and refunds exact deduct ledger amount', function () {
 
 it('cancels approved SAKIT with explicit deduct and refunds exact ledger amount', function () {
     $balanceService = new LeaveBalanceService;
-    $service = new LeaveRequestWorkflowService($balanceService);
+    $service = new LeaveRequestWorkflowService($balanceService, new LeaveRequestStateMachine);
 
     $employee = User::factory()->create([
         'role' => UserRole::EMPLOYEE,
@@ -107,7 +108,7 @@ it('cancels approved SAKIT with explicit deduct and refunds exact ledger amount'
 
 it('does not double refund on duplicate cancel', function () {
     $balanceService = new LeaveBalanceService;
-    $service = new LeaveRequestWorkflowService($balanceService);
+    $service = new LeaveRequestWorkflowService($balanceService, new LeaveRequestStateMachine);
 
     $employee = User::factory()->create([
         'role' => UserRole::EMPLOYEE,
@@ -134,8 +135,42 @@ it('does not double refund on duplicate cancel', function () {
             ->count())->toBe(1);
 });
 
+it('does not cancel or refund APPROVED leave when restricted allowed source statuses exclude APPROVED', function () {
+    $balanceService = new LeaveBalanceService;
+    $service = new LeaveRequestWorkflowService($balanceService, new LeaveRequestStateMachine);
+
+    $employee = User::factory()->create([
+        'role' => UserRole::EMPLOYEE,
+        'leave_balance' => 12,
+    ]);
+
+    $leave = LeaveRequest::factory()->forUser($employee)->create([
+        'status' => LeaveRequest::STATUS_APPROVED,
+        'type' => LeaveType::CUTI,
+        'start_date' => '2026-06-15',
+        'end_date' => '2026-06-16',
+    ]);
+
+    $balanceService->deductLeaveBalanceForLeave($leave);
+    expect((float) $employee->fresh()->leave_balance)->toBe(10.0);
+
+    $result = $service->cancelLeaveRequest(
+        $leave,
+        $employee,
+        null,
+        [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR]
+    );
+
+    expect($result)->toBeFalse()
+        ->and($leave->fresh()->status)->toBe(LeaveRequest::STATUS_APPROVED)
+        ->and((float) $employee->fresh()->leave_balance)->toBe(10.0)
+        ->and(LeaveBalanceTransaction::where('transaction_type', LeaveBalanceTransaction::REFUND)
+            ->where('leave_request_id', $leave->id)
+            ->count())->toBe(0);
+});
+
 it('does not cancel rejected leave', function () {
-    $service = new LeaveRequestWorkflowService(new LeaveBalanceService);
+    $service = new LeaveRequestWorkflowService(new LeaveBalanceService, new LeaveRequestStateMachine);
 
     $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
     $leave = LeaveRequest::factory()->forUser($employee)->create([
@@ -149,7 +184,7 @@ it('does not cancel rejected leave', function () {
 });
 
 it('does not cancel already cancelled leave', function () {
-    $service = new LeaveRequestWorkflowService(new LeaveBalanceService);
+    $service = new LeaveRequestWorkflowService(new LeaveBalanceService, new LeaveRequestStateMachine);
 
     $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
     $leave = LeaveRequest::factory()->forUser($employee)->create([
@@ -163,7 +198,7 @@ it('does not cancel already cancelled leave', function () {
 });
 
 it('throws when cancelling unsaved leave request', function () {
-    $service = new LeaveRequestWorkflowService(new LeaveBalanceService);
+    $service = new LeaveRequestWorkflowService(new LeaveBalanceService, new LeaveRequestStateMachine);
     $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
     $leave = new LeaveRequest(['status' => LeaveRequest::PENDING_SUPERVISOR]);
 

@@ -5,10 +5,12 @@ namespace App\Services;
 use App\Enums\LeaveType;
 use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
+use App\Models\OfficeHoliday;
 use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -21,36 +23,115 @@ class LeaveBalanceService
         return in_array($this->getRoleString($user), self::FIVE_DAY_WORK_WEEK_ROLES, true);
     }
 
-    public function calculateEffectiveDaysForUser(User $user, Carbon|string $startDate, Carbon|string $endDate): float
-    {
+    public function calculateEffectiveDaysForUser(
+        User $user,
+        Carbon|string $startDate,
+        Carbon|string $endDate,
+        bool $includeOfficeHolidays = true,
+    ): float {
+        return $this->calculateEffectiveDayBreakdownForUser(
+            $user,
+            $startDate,
+            $endDate,
+            $includeOfficeHolidays,
+        )['total'];
+    }
+
+    /**
+     * @return array{
+     *     total: float,
+     *     weekday_days: float,
+     *     saturday_days: float,
+     *     holiday_days: float,
+     *     holidays: array<int, array{date: string, name: string, type: string, weight: float}>
+     * }
+     */
+    public function calculateEffectiveDayBreakdownForUser(
+        User $user,
+        Carbon|string $startDate,
+        Carbon|string $endDate,
+        bool $includeOfficeHolidays = true,
+    ): array {
         $start = $startDate instanceof Carbon ? $startDate->copy() : Carbon::parse($startDate);
         $end = $endDate instanceof Carbon ? $endDate->copy() : Carbon::parse($endDate);
+        $start->startOfDay();
+        $end->startOfDay();
+
+        $emptyBreakdown = [
+            'total' => 0.0,
+            'weekday_days' => 0.0,
+            'saturday_days' => 0.0,
+            'holiday_days' => 0.0,
+            'holidays' => [],
+        ];
+
+        if ($start->gt($end)) {
+            return $emptyBreakdown;
+        }
+
         $period = CarbonPeriod::create($start, $end);
         $isFiveDayWorkWeek = $this->isFiveDayWorkWeekForUser($user);
 
-        $days = 0.0;
+        $officeHolidays = collect();
+        if ($includeOfficeHolidays && Schema::hasTable('office_holidays')) {
+            $officeHolidays = OfficeHoliday::query()
+                ->where('is_active', true)
+                ->whereDate('holiday_date', '>=', $start->toDateString())
+                ->whereDate('holiday_date', '<=', $end->toDateString())
+                ->get()
+                ->keyBy(fn (OfficeHoliday $holiday): string => $holiday->holiday_date->toDateString());
+        }
+
+        $weekdayDays = 0.0;
+        $saturdayDays = 0.0;
+        $holidayDays = 0.0;
+        $holidays = [];
 
         foreach ($period as $date) {
+            $dayWeight = 1.0;
+
             if ($isFiveDayWorkWeek) {
-                // MANAGER (5-day): skip Saturday AND Sunday
                 if ($date->isSaturday() || $date->isSunday()) {
                     continue;
                 }
-                $days += 1;
             } else {
-                // Non-MANAGER (6-day): skip Sunday only, Saturday = 0.5
                 if ($date->isSunday()) {
                     continue;
                 }
+
                 if ($date->isSaturday()) {
-                    $days += 0.5;
-                } else {
-                    $days += 1;
+                    $dayWeight = 0.5;
                 }
+            }
+
+            /** @var OfficeHoliday|null $officeHoliday */
+            $officeHoliday = $officeHolidays->get($date->toDateString());
+            if ($officeHoliday && ! $officeHoliday->deducts_leave) {
+                $holidayDays += $dayWeight;
+                $holidays[] = [
+                    'date' => $date->toDateString(),
+                    'name' => $officeHoliday->name,
+                    'type' => $officeHoliday->type,
+                    'weight' => $dayWeight,
+                ];
+
+                continue;
+            }
+
+            if ($date->isSaturday()) {
+                $saturdayDays += $dayWeight;
+            } else {
+                $weekdayDays += $dayWeight;
             }
         }
 
-        return $days;
+        return [
+            'total' => $weekdayDays + $saturdayDays,
+            'weekday_days' => $weekdayDays,
+            'saturday_days' => $saturdayDays,
+            'holiday_days' => $holidayDays,
+            'holidays' => $holidays,
+        ];
     }
 
     public function calculateEffectiveDaysForLeave(LeaveRequest $leave): float
@@ -94,6 +175,11 @@ class LeaveBalanceService
             }
 
             $daysToDeduct = $amount ?? $this->calculateEffectiveDaysForUser($lockedUser, $leave->start_date, $leave->end_date);
+
+            if ($daysToDeduct <= 0) {
+                return 0.0;
+            }
+
             $currentBalance = (float) $lockedUser->leave_balance;
 
             if ($currentBalance < $daysToDeduct) {
@@ -150,7 +236,14 @@ class LeaveBalanceService
                     return 0;
                 }
 
-                $daysToRefund = $amount ?? $this->calculateEffectiveDaysForUser($lockedUser, $leave->start_date, $leave->end_date);
+                // Data legacy tidak memiliki snapshot/ledger. Jangan terapkan kalender
+                // kantor baru secara retroaktif pada nominal refund historis.
+                $daysToRefund = $amount ?? $this->calculateEffectiveDaysForUser(
+                    $lockedUser,
+                    $leave->start_date,
+                    $leave->end_date,
+                    false,
+                );
             }
 
             if ($daysToRefund <= 0) {

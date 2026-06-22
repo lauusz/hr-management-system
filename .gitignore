@@ -6,6 +6,8 @@
 .phpactor.json
 .phpunit.result.cache
 *.sql
+*.sqlite
+*.txt
 /.fleet
 /.idea
 /.nova
@@ -25,4 +27,8 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 *.md
+
+# Superpowers subagent helper scripts
+.kimi/skills/superpowers-subagent-development/scripts/*.ps1
+
 settings.local.json

@@ -33,7 +33,9 @@ return new class extends Migration
             $table->text('alamat_domisili')->nullable();
             $table->string('email', 150)->nullable();
             $table->string('jabatan', 150)->nullable();
-            $table->date('tanggal_masuk')->nullable();
+            $table->string('kategori', 50)->nullable()->comment('Kategori karyawan: TETAP, KONTRAK, MAGANG');
+            $table->date('tanggal_masuk')->nullable()->comment('Legacy join date field, kept for compatibility');
+            $table->date('tgl_bergabung')->nullable()->comment('Canonical join date field used by the application');
             $table->date('tanggal_peringatan')->nullable()->comment('Tanggal surat peringatan');
             $table->date('tanggal_keluar')->nullable()->comment('Tanggal keluar/resign');
             $table->string('alasan_keluar')->nullable();

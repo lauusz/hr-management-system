@@ -57,11 +57,12 @@
         // Leave balance
         $balance = $item->user->leave_balance ?? 0;
 
-        // Duration
+        // Duration (hari kerja efektif sesuai role karyawan)
         $start = $item->start_date;
         $end = $item->end_date ?? $start;
-        $days = $start->diffInDays($end) + 1;
-        $durationLabel = $days == 1 ? '1 hari' : $days . ' hari';
+        $days = app(\App\Services\LeaveBalanceService::class)->calculateEffectiveDaysForLeave($item);
+        $formattedDays = rtrim(rtrim(number_format($days, 1), '0'), '.');
+        $durationLabel = $formattedDays == 1 ? '1 hari' : $formattedDays . ' hari';
 
         // Time labels
         $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
@@ -1829,11 +1830,11 @@
         }
         .apv-action-btn--danger:hover { background: rgba(239, 68, 68, 0.15); }
         .apv-action-btn--outline-danger {
-            background: var(--white, #FFFFFF);
+            background: rgba(239, 68, 68, 0.06);
             color: var(--error, #EF4444);
-            border: 1.5px solid rgba(239, 68, 68, 0.3);
+            border: 1.5px solid rgba(239, 68, 68, 0.4);
         }
-        .apv-action-btn--outline-danger:hover { background: rgba(239, 68, 68, 0.06); }
+        .apv-action-btn--outline-danger:hover { background: rgba(239, 68, 68, 0.12); }
 
         .apv-status-notice {
             display: flex;
@@ -2247,22 +2248,33 @@
                 flex-wrap: wrap;
                 justify-content: space-between;
                 align-items: center;
+                gap: 12px;
             }
             .apv-action-secondary {
                 justify-content: flex-start;
+                gap: 12px;
             }
             .apv-action-secondary .apv-action-btn {
                 flex: none;
+                padding: 12px 24px;
+                font-size: 14px;
             }
             .apv-action-primary-row {
                 flex-direction: row;
                 flex: 1;
                 justify-content: flex-end;
                 order: 0;
+                gap: 12px;
             }
             .apv-action-primary-row .apv-action-btn {
                 width: auto;
                 flex: none;
+                padding: 12px 24px;
+                font-size: 14px;
+            }
+            .apv-action-btn {
+                padding: 12px 24px;
+                font-size: 14px;
             }
         }
 
@@ -2271,7 +2283,7 @@
                 left: calc(var(--sidebar-width) + 12px);
                 right: 0;
                 bottom: 16px;
-                padding: 0 32px;
+                padding: 0 16px;
             }
             .app.sidebar-collapsed .apv-action-bar {
                 left: 0;
@@ -2280,14 +2292,15 @@
                 border: 1px solid var(--border-light, #E5E7EB);
                 border-radius: 18px;
                 box-shadow: 0 -4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
-                padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+                padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
+                max-width: 800px;
+                margin: 0 auto;
             }
         }
 
         @media (max-width: 640px) {
             .edit-form-row { grid-template-columns: 1fr; }
             .edit-section--notes .edit-form-row { grid-template-columns: 1fr; }
-            .apv-action-primary-row .apv-action-btn { min-height: 48px; }
         }
     </style>
 

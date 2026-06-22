@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Models\LeaveRequest;
 use App\Models\User;
-use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * Service reusable untuk workflow LeaveRequest.
@@ -17,6 +15,7 @@ class LeaveRequestWorkflowService
 {
     public function __construct(
         protected LeaveBalanceService $leaveBalanceService,
+        protected LeaveRequestStateMachine $stateMachine,
     ) {}
 
     /**
@@ -33,48 +32,32 @@ class LeaveRequestWorkflowService
      *
      * Status terminal (REJECTED/BATAL) atau duplikat cancel tidak mengubah apa pun.
      *
+     * @param  string|array<string>|null  $allowedSourceStatuses  Batasan status sumber yang diizinkan;
+     *                                                            null berarti gunakan matrix CANCEL bawaan state machine.
      * @return bool True jika pembatalan berhasil, false jika tidak ada perubahan.
      *
-     * @throws RuntimeException Jika LeaveRequest belum tersimpan.
+     * @throws \RuntimeException Jika LeaveRequest belum tersimpan.
      */
-    public function cancelLeaveRequest(LeaveRequest $leave, User $actor, ?string $reason = null): bool
+    public function cancelLeaveRequest(LeaveRequest $leave, User $actor, ?string $reason = null, string|array|null $allowedSourceStatuses = null): bool
     {
-        if (! $leave->exists || ! $leave->id) {
-            throw new RuntimeException('Pengajuan cuti belum tersimpan.');
-        }
+        return $this->stateMachine->perform(
+            $leave,
+            LeaveRequestStateMachine::CANCEL,
+            function (LeaveRequest $lockedLeave) use ($actor, $reason) {
+                // Refund hanya jika pengajuan pernah di-approve.
+                if ($lockedLeave->status === LeaveRequest::STATUS_APPROVED) {
+                    $this->leaveBalanceService->refundLeaveBalanceForLeave($lockedLeave);
+                }
 
-        return DB::transaction(function () use ($leave, $actor, $reason) {
-            $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leave->id);
+                $currentNotes = $lockedLeave->notes;
+                $systemNote = $this->buildCancelSystemNote($actor, $reason);
+                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
 
-            // Status terminal atau duplikat: tidak mengubah apa pun.
-            if ($lockedLeave->status === 'BATAL' || $lockedLeave->status === LeaveRequest::STATUS_REJECTED) {
-                return false;
-            }
-
-            if (! in_array($lockedLeave->status, [
-                LeaveRequest::PENDING_SUPERVISOR,
-                LeaveRequest::PENDING_HR,
-                LeaveRequest::STATUS_APPROVED,
-            ], true)) {
-                return false;
-            }
-
-            // Jika APPROVED, kembalikan saldo (refund service menangani filter tipe).
-            if ($lockedLeave->status === LeaveRequest::STATUS_APPROVED) {
-                $this->leaveBalanceService->refundLeaveBalanceForLeave($lockedLeave);
-            }
-
-            $currentNotes = $lockedLeave->notes;
-            $systemNote = $this->buildCancelSystemNote($actor, $reason);
-            $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
-
-            $lockedLeave->update([
-                'status' => 'BATAL',
-                'notes' => $newNotes,
-            ]);
-
-            return true;
-        });
+                return ['notes' => $newNotes];
+            },
+            [],
+            $allowedSourceStatuses,
+        );
     }
 
     private function buildCancelSystemNote(User $actor, ?string $reason): string

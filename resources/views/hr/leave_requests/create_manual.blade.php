@@ -356,7 +356,8 @@
             }
 
             function isFiveDayWorkWeek() {
-                return selectedEmployeeRole() === 'MANAGER';
+                const role = selectedEmployeeRole();
+                return role === 'MANAGER' || role === 'HRD';
             }
 
             function parseYmdAsDate(value) {

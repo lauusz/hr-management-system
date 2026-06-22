@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -98,34 +99,22 @@ return new class extends Migration
 
     private function tableExists(string $table): bool
     {
-        $result = DB::selectOne(
-            'SELECT COUNT(*) AS total FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?',
-            [$table]
-        );
-
-        return (int) ($result->total ?? 0) > 0;
+        return Schema::hasTable($table);
     }
 
     private function indexExists(string $table, string $indexName): bool
     {
-        $result = DB::selectOne(
-            'SELECT COUNT(*) AS total FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?',
-            [$table, $indexName]
-        );
-
-        return (int) ($result->total ?? 0) > 0;
+        return Schema::hasIndex($table, $indexName);
     }
 
     private function columnsExist(string $table, array $columns): bool
     {
-        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
-        $bindings = array_merge([$table], $columns);
+        foreach ($columns as $column) {
+            if (! Schema::hasColumn($table, $column)) {
+                return false;
+            }
+        }
 
-        $result = DB::selectOne(
-            "SELECT COUNT(*) AS total FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ? AND column_name IN ({$placeholders})",
-            $bindings
-        );
-
-        return (int) ($result->total ?? 0) === count($columns);
+        return true;
     }
 };

@@ -183,11 +183,12 @@
                     $timeAgo = $created->translatedFormat('j F');
                 }
 
-                // Duration
+                // Duration (hari kerja efektif sesuai role karyawan)
                 $start = $lv->start_date;
                 $end = $lv->end_date ?? $start;
-                $days = $start->diffInDays($end) + 1;
-                $durationLabel = $days == 1 ? '1 hari' : $days . ' hari';
+                $days = app(\App\Services\LeaveBalanceService::class)->calculateEffectiveDaysForLeave($lv);
+                $formattedDays = rtrim(rtrim(number_format($days, 1), '0'), '.');
+                $durationLabel = $formattedDays == 1 ? '1 hari' : $formattedDays . ' hari';
 
                 // Action label based on status
                 $actionLabel = 'Detail';

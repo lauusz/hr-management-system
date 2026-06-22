@@ -1,59 +1,60 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# HRD System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplikasi web manajemen sumber daya manusia berbasis **Laravel 12.36.1** untuk kebutuhan internal perusahaan logistik.
 
-## About Laravel
+## Fitur Utama
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Absensi**: Clock in/out WFO & remote dengan foto dan lokasi GPS.
+- **Cuti & Izin**: Pengajuan multi-level approval (supervisor/manager → HRD/HR STAFF).
+- **Lembur**: Pengajuan dan approval lembur.
+- **Pinjaman/Kasbon**: Pengajuan pinjaman karyawan dengan pencatatan cicilan.
+- **Payroll**: Manajemen payslip, import/export Excel, PDF, dan pengiriman email via queue.
+- **Master Data**: Divisi, jabatan, shift, lokasi kerja, PT, karyawan, supervisor, dokumen.
+- **Robot**: Scheduler harian untuk update saldo cuti dan backup database.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Tech Stack
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Layer | Technology |
+|-------|-----------|
+| Backend | Laravel 12.36.1 (PHP ^8.2) |
+| Frontend | Vite 7.1.12, Tailwind CSS 4.1.16 |
+| Database | MySQL (dev/prod), SQLite (testing) |
+| Queue / Cache / Session | database driver |
+| PDF | barryvdh/laravel-dompdf |
+| Excel | maatwebsite/excel |
+| Testing | Pest PHP 3.x |
+| Code Style | Laravel Pint |
 
-## Learning Laravel
+## Development
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```bash
+# Setup awal
+composer run setup
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+# Jalankan development server (Laravel + queue + Vite)
+composer run dev
 
-## Laravel Sponsors
+# Build production
+npm run build
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Jalankan test
+composer run test
 
-### Premium Partners
+# Format code
+./vendor/bin/pint
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Dokumentasi & Audit
 
-## Contributing
+Dokumentasi teknis, audit report, dan panduan perbaikan terpusat di:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+- [`AGENTS.md`](AGENTS.md) — Panduan umum untuk AI coding agent.
+- [`KIMI.md`](KIMI.md) — Entry point khusus Kimi (urutan baca file, aturan UI/UX).
+- [`memory.md`](memory.md) — Referensi UI/UX dan design tokens yang sudah fix.
+- [`DESIGN.md`](DESIGN.md) — Spesifikasi lengkap design system.
+- [`.kimi/HISTORY.md`](.kimi/HISTORY.md) — Status terkini, progress, bug queue, dan rencana perbaikan.
+- [`PROJECT_AUDIT_AND_DOCUMENTATION.md`](PROJECT_AUDIT_AND_DOCUMENTATION.md) — Struktur database, flow modul, dan seluruh audit report.
 
-## Code of Conduct
+## Lisensi
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Internal use only.

@@ -5,36 +5,36 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\EmployeeShift;
 use App\Services\Image\ImageCompressor;
+use Carbon\Carbon;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
-    public function __construct(protected ImageCompressor $imageCompressor)
-    {
-    }
+    public function __construct(protected ImageCompressor $imageCompressor) {}
 
     // --- DASHBOARD ---
     public function dashboard()
     {
-        $user  = Auth::user();
+        $user = Auth::user();
         $today = now()->toDateString();
-        $now   = now();
+        $now = now();
 
         // Tandai attendance lama yang stale agar tampilan akurat
         $this->markStaleOpenAttendances($user, $now);
 
         $attendance = Attendance::with(['shift', 'location', 'employeeShift'])
             ->where('user_id', $user->id)
-            ->where('date', $today)
+            ->whereDate('date', $today)
             ->first();
 
         $activeAttendance = $this->findOpenAttendance($user);
 
         $previousIncompleteAttendance = Attendance::where('user_id', $user->id)
-            ->where('date', '<', $today)
+            ->whereDate('date', '<', $today)
             ->whereNotNull('clock_in_at')
             ->whereNull('clock_out_at')
             ->whereIn('completion_status', [Attendance::COMPLETION_OPEN, Attendance::COMPLETION_MISSED_CLOCK_OUT])
@@ -75,14 +75,14 @@ class AttendanceController extends Controller
         $this->markStaleOpenAttendances($user, $now);
 
         $todayAttendance = Attendance::where('user_id', $user->id)
-            ->where('date', $today)
+            ->whereDate('date', $today)
             ->first();
 
         $activeAttendance = $this->findOpenAttendance($user);
         $activeRemoteAttendance = $activeAttendance && $activeAttendance->type === 'DINAS_LUAR' ? $activeAttendance : null;
 
         $previousIncompleteAttendance = Attendance::where('user_id', $user->id)
-            ->where('date', '<', $today)
+            ->whereDate('date', '<', $today)
             ->whereNotNull('clock_in_at')
             ->whereNull('clock_out_at')
             ->whereIn('completion_status', [Attendance::COMPLETION_OPEN, Attendance::COMPLETION_MISSED_CLOCK_OUT])
@@ -116,8 +116,8 @@ class AttendanceController extends Controller
         // 1. Validasi Input (di luar try/catch agar validation error tidak jadi 500)
         $request->validate([
             'photo' => ['required', 'image', 'max:8192'],
-            'lat'   => ['required', 'numeric'],
-            'lng'   => ['required', 'numeric'],
+            'lat' => ['required', 'numeric'],
+            'lng' => ['required', 'numeric'],
             'notes' => $isRemote ? ['required', 'string'] : ['nullable', 'string'],
         ]);
 
@@ -131,7 +131,7 @@ class AttendanceController extends Controller
                 ->where('user_id', $user->id)
                 ->first();
 
-            if (!$employeeShift || !$employeeShift->shift) {
+            if (! $employeeShift || ! $employeeShift->shift) {
                 return response()->json(['message' => 'Jadwal shift belum diatur. Hubungi HR.'], 400);
             }
 
@@ -139,7 +139,7 @@ class AttendanceController extends Controller
             $dayOfWeek = Carbon::parse($today)->dayOfWeekIso;
             $pattern = $employeeShift->shift->patternDays()->where('day_of_week', $dayOfWeek)->first();
 
-            if (!$pattern) {
+            if (! $pattern) {
                 return response()->json(['message' => 'Tidak ada jadwal shift hari ini.'], 400);
             }
             if ($pattern->is_holiday) {
@@ -148,8 +148,8 @@ class AttendanceController extends Controller
 
             // 4. Setup Jam Kerja
             // Gabungkan Tanggal Hari Ini + Jam dari Pattern
-            $shiftStart = Carbon::parse($today . ' ' . $pattern->start_time);
-            $shiftEnd   = Carbon::parse($today . ' ' . $pattern->end_time);
+            $shiftStart = Carbon::parse($today.' '.$pattern->start_time);
+            $shiftEnd = Carbon::parse($today.' '.$pattern->end_time);
 
             // Handle Shift Lintas Hari
             if ($shiftEnd->lessThanOrEqualTo($shiftStart)) {
@@ -163,20 +163,20 @@ class AttendanceController extends Controller
             $activePrevious = $this->findActivePreviousOpenAttendance($user, $now);
             if ($activePrevious) {
                 return response()->json([
-                    'message' => 'Masih ada sesi presensi sebelumnya yang berjalan. Silakan clock-out terlebih dahulu.'
+                    'message' => 'Masih ada sesi presensi sebelumnya yang berjalan. Silakan clock-out terlebih dahulu.',
                 ], 400);
             }
 
-            // 7. Cek Double Absen (berdasarkan tanggal presensi, bukan status)
-            $existing = Attendance::where('user_id', $user->id)->where('date', $today)->first();
+            // 7. Cek Double Absen (fast path tanpa lock)
+            $existing = Attendance::where('user_id', $user->id)->whereDate('date', $today)->first();
             if ($existing && $existing->clock_in_at) {
                 return response()->json(['message' => 'Anda sudah melakukan clock-in hari ini.'], 400);
             }
 
             // 8. Validasi Radius (Hanya untuk WFO)
             $distance = 0;
-            if (!$isRemote) {
-                if (!$employeeShift->location) {
+            if (! $isRemote) {
+                if (! $employeeShift->location) {
                     return response()->json(['message' => 'Lokasi kantor belum diatur.'], 400);
                 }
                 $loc = $employeeShift->location;
@@ -205,37 +205,71 @@ class AttendanceController extends Controller
                 $request->file('photo'), 'photo', $folder, $prefix
             );
 
-            // 11. Simpan ke Database
-            $attendance = Attendance::updateOrCreate(
-                ['user_id' => $user->id, 'date' => $today],
-                [
-                    'shift_id'            => $employeeShift->shift_id,
-                    'employee_shift_id'   => $employeeShift->id,
-                    'normal_start_time'   => $shiftStart,
-                    'normal_end_time'     => $shiftEnd,
-                    'location_id'         => $isRemote ? null : $employeeShift->location_id,
-                    'clock_in_at'         => $now,
-                    'clock_in_photo'      => $photoPath,
-                    'clock_in_lat'        => $request->lat,
-                    'clock_in_lng'        => $request->lng,
-                    'clock_in_distance_m' => $distance,
-                    'late_minutes'        => $lateMinutes,
-                    'status'              => $status,
-                    'type'                => $isRemote ? 'DINAS_LUAR' : 'WFO',
-                    'approval_status'     => $isRemote ? 'PENDING' : 'APPROVED',
-                    'notes'               => $request->notes ?? null,
-                    'completion_status'   => Attendance::COMPLETION_OPEN,
-                ]
-            );
+            // 11. Simpan ke Database dalam transaction + lock untuk hindari race condition
+            try {
+                $attendance = DB::transaction(function () use (
+                    $user,
+                    $today,
+                    $employeeShift,
+                    $shiftStart,
+                    $shiftEnd,
+                    $isRemote,
+                    $distance,
+                    $lateMinutes,
+                    $status,
+                    $photoPath,
+                    $request,
+                    $now
+                ) {
+                    $existingLocked = Attendance::where('user_id', $user->id)
+                        ->whereDate('date', $today)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($existingLocked && $existingLocked->clock_in_at) {
+                        throw new \RuntimeException('ALREADY_CLOCKED_IN');
+                    }
+
+                    return Attendance::create([
+                        'user_id' => $user->id,
+                        'date' => $today,
+                        'shift_id' => $employeeShift->shift_id,
+                        'employee_shift_id' => $employeeShift->id,
+                        'normal_start_time' => $shiftStart,
+                        'normal_end_time' => $shiftEnd,
+                        'location_id' => $isRemote ? null : $employeeShift->location_id,
+                        'clock_in_at' => $now,
+                        'clock_in_photo' => $photoPath,
+                        'clock_in_lat' => $request->lat,
+                        'clock_in_lng' => $request->lng,
+                        'clock_in_distance_m' => $distance,
+                        'late_minutes' => $lateMinutes,
+                        'status' => $status,
+                        'type' => $isRemote ? 'DINAS_LUAR' : 'WFO',
+                        'approval_status' => $isRemote ? 'PENDING' : 'APPROVED',
+                        'notes' => $request->notes ?? null,
+                        'completion_status' => Attendance::COMPLETION_OPEN,
+                    ]);
+                });
+            } catch (\RuntimeException $e) {
+                if ($e->getMessage() === 'ALREADY_CLOCKED_IN') {
+                    return response()->json(['message' => 'Anda sudah melakukan clock-in hari ini.'], 400);
+                }
+
+                throw $e;
+            } catch (UniqueConstraintViolationException $e) {
+                return response()->json(['message' => 'Anda sudah melakukan clock-in hari ini.'], 400);
+            }
 
             return response()->json([
                 'message' => 'Clock In Berhasil.',
-                'data' => $attendance
+                'data' => $attendance,
             ]);
 
         } catch (\Exception $e) {
-            Log::error("ClockIn Error: " . $e->getMessage());
-            return response()->json(['message' => 'Terjadi kesalahan server: ' . $e->getMessage()], 500);
+            Log::error('ClockIn Error: '.$e->getMessage());
+
+            return response()->json(['message' => 'Terjadi kesalahan server: '.$e->getMessage()], 500);
         }
     }
 
@@ -247,8 +281,8 @@ class AttendanceController extends Controller
         // 1. Validasi Input (di luar try/catch agar validation error tidak jadi 500)
         $request->validate([
             'photo' => ['required', 'image', 'max:8192'],
-            'lat'   => ['required', 'numeric'],
-            'lng'   => ['required', 'numeric'],
+            'lat' => ['required', 'numeric'],
+            'lng' => ['required', 'numeric'],
         ]);
 
         try {
@@ -258,8 +292,13 @@ class AttendanceController extends Controller
             // 2. Cari Absensi Aktif
             $attendance = $this->findOpenAttendance($user);
 
-            if (!$attendance) {
+            if (! $attendance) {
                 return response()->json(['message' => 'Tidak ada sesi absensi aktif untuk di-close.'], 400);
+            }
+
+            // [GUARD] Cegah menimpa clock out yang sudah ada
+            if ($attendance->clock_out_at !== null) {
+                return response()->json(['message' => 'Anda sudah melakukan clock-out.'], 400);
             }
 
             // 3. Deteksi Tipe Absensi
@@ -267,7 +306,7 @@ class AttendanceController extends Controller
 
             // 4. Validasi Radius (Hanya Jika WFO)
             $distance = 0;
-            if (!$isDinasLuar) {
+            if (! $isDinasLuar) {
                 $empShift = EmployeeShift::with('location')->where('user_id', $user->id)->first();
 
                 if ($empShift && $empShift->location) {
@@ -290,15 +329,15 @@ class AttendanceController extends Controller
 
             if ($now->lt($normalEnd)) {
                 // Pulang Cepat
-                $earlyLeaveMinutes = (int) $normalEnd->diffInMinutes($now);
+                $earlyLeaveMinutes = (int) abs($normalEnd->diffInMinutes($now));
             } elseif ($now->gt($normalEnd)) {
                 // Lembur
-                $overtimeMinutes = (int) $now->diffInMinutes($normalEnd);
+                $overtimeMinutes = (int) abs($now->diffInMinutes($normalEnd));
             }
 
             // [SAFEGUARD] Pastikan tidak ada nilai negatif masuk database
             $earlyLeaveMinutes = max(0, $earlyLeaveMinutes);
-            $overtimeMinutes   = max(0, $overtimeMinutes);
+            $overtimeMinutes = max(0, $overtimeMinutes);
 
             // 6. Tentukan Completion Status
             $toleranceHours = 4;
@@ -324,24 +363,25 @@ class AttendanceController extends Controller
 
             // 8. Update Database
             $attendance->update([
-                'clock_out_at'         => $now,
-                'clock_out_lat'        => $request->lat,
-                'clock_out_lng'        => $request->lng,
+                'clock_out_at' => $now,
+                'clock_out_lat' => $request->lat,
+                'clock_out_lng' => $request->lng,
                 'clock_out_distance_m' => $distance,
-                'clock_out_photo'      => $photoPath,
-                'early_leave_minutes'  => $earlyLeaveMinutes,
-                'overtime_minutes'     => $overtimeMinutes,
-                'completion_status'    => $completionStatus,
+                'clock_out_photo' => $photoPath,
+                'early_leave_minutes' => $earlyLeaveMinutes,
+                'overtime_minutes' => $overtimeMinutes,
+                'completion_status' => $completionStatus,
             ]);
 
             return response()->json([
                 'message' => 'Clock Out Berhasil.',
-                'data' => $attendance
+                'data' => $attendance,
             ]);
 
         } catch (\Exception $e) {
-            Log::error("ClockOut Error User {$user->id}: " . $e->getMessage());
-            return response()->json(['message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()], 500);
+            Log::error("ClockOut Error User {$user->id}: ".$e->getMessage());
+
+            return response()->json(['message' => 'Terjadi kesalahan sistem: '.$e->getMessage()], 500);
         }
     }
 
@@ -354,7 +394,7 @@ class AttendanceController extends Controller
     private function markStaleOpenAttendances($user, Carbon $now): void
     {
         $staleAttendances = Attendance::where('user_id', $user->id)
-            ->where('date', '<', $now->toDateString())
+            ->whereDate('date', '<', $now->toDateString())
             ->whereNotNull('clock_in_at')
             ->whereNull('clock_out_at')
             ->where('completion_status', Attendance::COMPLETION_OPEN)
@@ -376,7 +416,7 @@ class AttendanceController extends Controller
 
         // 1. Cek Hari Ini (OPEN)
         $attendance = Attendance::where('user_id', $user->id)
-            ->where('date', $today)
+            ->whereDate('date', $today)
             ->whereNotNull('clock_in_at')
             ->whereNull('clock_out_at')
             ->where('completion_status', Attendance::COMPLETION_OPEN)
@@ -409,7 +449,7 @@ class AttendanceController extends Controller
             $timeStr = Carbon::parse($attendance->normal_start_time)->format('H:i:s');
         }
 
-        return Carbon::parse($dateStr . ' ' . $timeStr);
+        return Carbon::parse($dateStr.' '.$timeStr);
     }
 
     /**
@@ -428,7 +468,7 @@ class AttendanceController extends Controller
             $timeStr = Carbon::parse($attendance->normal_end_time)->format('H:i:s');
         }
 
-        $normalEnd = Carbon::parse($dateStr . ' ' . $timeStr);
+        $normalEnd = Carbon::parse($dateStr.' '.$timeStr);
         $normalStart = $this->getNormalStartAt($attendance);
 
         if ($normalEnd->lessThanOrEqualTo($normalStart)) {
@@ -444,6 +484,7 @@ class AttendanceController extends Controller
     private function getOpenAttendanceCutoff(Attendance $attendance): Carbon
     {
         $reasonableHoursAfterEnd = 12;
+
         return $this->getNormalEndAt($attendance)->copy()->addHours($reasonableHoursAfterEnd);
     }
 
@@ -455,7 +496,7 @@ class AttendanceController extends Controller
         $today = $now->toDateString();
 
         $previousOpen = Attendance::where('user_id', $user->id)
-            ->where('date', '<', $today)
+            ->whereDate('date', '<', $today)
             ->whereNotNull('clock_in_at')
             ->whereNull('clock_out_at')
             ->where('completion_status', Attendance::COMPLETION_OPEN)

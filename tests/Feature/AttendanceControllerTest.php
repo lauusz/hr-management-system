@@ -1,6 +1,5 @@
 <?php
 
-use App\Enums\UserRole;
 use App\Models\Attendance;
 use App\Models\AttendanceLocation;
 use App\Models\EmployeeShift;
@@ -14,16 +13,18 @@ use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
+use function Pest\Laravel\actingAs;
+
 pest()->extend(Tests\TestCase::class)
     ->in('Feature');
 
 describe('AttendanceController', function () {
 
     // Helper: create full shift setup for user
-    function createShiftSetup(User $user, AttendanceLocation $location = null, array $shiftTimes = null): EmployeeShift
+    function createShiftSetup(User $user, ?AttendanceLocation $location = null, ?array $shiftTimes = null): EmployeeShift
     {
         $location = $location ?? AttendanceLocation::factory()->create([
-            'latitude'  => -6.200000,
+            'latitude' => -6.200000,
             'longitude' => 106.816666,
             'radius_meters' => 100,
         ]);
@@ -42,17 +43,17 @@ describe('AttendanceController', function () {
 
         foreach ($days as $dayOfWeek => $times) {
             ShiftDay::factory()->create([
-                'shift_id'    => $shift->id,
+                'shift_id' => $shift->id,
                 'day_of_week' => $dayOfWeek,
-                'start_time'  => $times['start'],
-                'end_time'    => $times['end'],
-                'is_holiday'  => false,
+                'start_time' => $times['start'],
+                'end_time' => $times['end'],
+                'is_holiday' => false,
             ]);
         }
 
         return EmployeeShift::factory()->create([
-            'user_id'     => $user->id,
-            'shift_id'    => $shift->id,
+            'user_id' => $user->id,
+            'shift_id' => $shift->id,
             'location_id' => $location->id,
         ]);
     }
@@ -88,7 +89,7 @@ describe('AttendanceController', function () {
             Storage::fake('public');
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -99,8 +100,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(200);
@@ -116,7 +117,7 @@ describe('AttendanceController', function () {
             Storage::fake('public');
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -127,19 +128,19 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
-                'lat'   => -6.205000, // ~555m away
-                'lng'   => 106.816666,
+                'lat' => -6.205000, // ~556m away
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(400);
-            $response->assertJsonFragment(['message' => "Anda berada di luar radius kantor (555 m)."]);
+            $response->assertJsonFragment(['message' => 'Anda berada di luar radius kantor (556 m).']);
         });
 
         it('prevents double clock in on same day', function () {
             Storage::fake('public');
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -152,8 +153,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(400);
@@ -169,8 +170,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(400);
@@ -179,19 +180,21 @@ describe('AttendanceController', function () {
 
         it('rejects clock in on unassigned day of week (no shift pattern)', function () {
             Storage::fake('public');
+            Carbon::setTestNow(Carbon::parse('2026-04-19 10:00:00')); // Sunday, not Monday
+
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create();
             $shift = Shift::factory()->create(['is_active' => true]);
             // Only Monday is set
             ShiftDay::factory()->create([
-                'shift_id'    => $shift->id,
+                'shift_id' => $shift->id,
                 'day_of_week' => 1, // Monday
-                'is_holiday'  => false,
+                'is_holiday' => false,
             ]);
 
             EmployeeShift::factory()->create([
-                'user_id'     => $user->id,
-                'shift_id'    => $shift->id,
+                'user_id' => $user->id,
+                'shift_id' => $shift->id,
                 'location_id' => $location->id,
             ]);
 
@@ -199,12 +202,14 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(400);
             $response->assertJson(['message' => 'Tidak ada jadwal shift hari ini.']);
+
+            Carbon::setTestNow();
         });
 
         it('marks as TERLAMBAT when clocking in after shift start', function () {
@@ -213,7 +218,7 @@ describe('AttendanceController', function () {
 
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -223,8 +228,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(200);
@@ -242,7 +247,7 @@ describe('AttendanceController', function () {
 
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -252,8 +257,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(200);
@@ -270,7 +275,7 @@ describe('AttendanceController', function () {
 
             actingAs($user, 'web');
 
-            $response = $this->post(route('attendance.clockIn'), [
+            $response = $this->postJson(route('attendance.clockIn'), [
                 'lat' => -6.200000,
                 'lng' => 106.816666,
             ]);
@@ -284,7 +289,7 @@ describe('AttendanceController', function () {
 
             actingAs($user, 'web');
 
-            $response = $this->post(route('attendance.clockIn'), [
+            $response = $this->postJson(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg'),
             ]);
 
@@ -300,22 +305,22 @@ describe('AttendanceController', function () {
             Storage::fake('public');
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
             createShiftSetup($user, $location);
 
             $attendance = Attendance::factory()->forUser($user)->today()->clockedIn()->create([
-                'normal_end_time' => Carbon::parse(now()->toDateString() . ' 17:00:00'),
+                'normal_end_time' => Carbon::parse(now()->toDateString().' 17:00:00'),
             ]);
 
             actingAs($user, 'web');
 
             $response = $this->post(route('attendance.clockOut'), [
                 'photo' => UploadedFile::fake()->image('clockout.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(200);
@@ -325,11 +330,48 @@ describe('AttendanceController', function () {
             expect($attendance->clock_out_at)->toBeTruthy();
         });
 
+        it('prevents double clock out on same attendance', function () {
+            Storage::fake('public');
+            $user = User::factory()->create();
+            $location = AttendanceLocation::factory()->create([
+                'latitude' => -6.200000,
+                'longitude' => 106.816666,
+                'radius_meters' => 100,
+            ]);
+            createShiftSetup($user, $location);
+
+            $attendance = Attendance::factory()->forUser($user)->today()->clockedIn()->create([
+                'normal_end_time' => Carbon::parse(now()->toDateString().' 17:00:00'),
+            ]);
+
+            actingAs($user, 'web');
+
+            // First clock out
+            $this->post(route('attendance.clockOut'), [
+                'photo' => UploadedFile::fake()->image('clockout.jpg', 800, 600),
+                'lat' => -6.200000,
+                'lng' => 106.816666,
+            ])->assertStatus(200);
+
+            // Second clock out should be rejected
+            $response = $this->post(route('attendance.clockOut'), [
+                'photo' => UploadedFile::fake()->image('clockout2.jpg', 800, 600),
+                'lat' => -6.200000,
+                'lng' => 106.816666,
+            ]);
+
+            $response->assertStatus(400);
+            $response->assertJson(['message' => 'Tidak ada sesi absensi aktif untuk di-close.']);
+
+            $attendance->refresh();
+            expect($attendance->completion_status)->toBe(Attendance::COMPLETION_CLOSED);
+        });
+
         it('rejects clock out when outside radius', function () {
             Storage::fake('public');
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -341,12 +383,12 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockOut'), [
                 'photo' => UploadedFile::fake()->image('clockout.jpg', 800, 600),
-                'lat'   => -6.205000, // Far away
-                'lng'   => 106.816666,
+                'lat' => -6.205000, // Far away
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(400);
-            $response->assertJsonFragment(['message' => "Anda harus berada di kantor untuk Clock Out (555 m)."]);
+            $response->assertJsonFragment(['message' => 'Anda harus berada di kantor untuk Clock Out (556 m).']);
         });
 
         it('returns error when no active attendance to clock out', function () {
@@ -357,8 +399,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockOut'), [
                 'photo' => UploadedFile::fake()->image('clockout.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(400);
@@ -371,7 +413,7 @@ describe('AttendanceController', function () {
 
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -385,8 +427,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockOut'), [
                 'photo' => UploadedFile::fake()->image('clockout.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(200);
@@ -403,7 +445,7 @@ describe('AttendanceController', function () {
 
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -417,8 +459,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockOut'), [
                 'photo' => UploadedFile::fake()->image('clockout.jpg', 800, 600),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(200);
@@ -438,7 +480,7 @@ describe('AttendanceController', function () {
             Storage::fake('public');
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -449,8 +491,8 @@ describe('AttendanceController', function () {
             // Clock in from random location (far from office)
             $response = $this->post(route('remote-attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('remote_in.jpg', 800, 600),
-                'lat'   => -7.500000, // Very far - no radius check
-                'lng'   => 110.000000,
+                'lat' => -7.500000, // Very far - no radius check
+                'lng' => 110.000000,
                 'notes' => 'Client site visit',
             ]);
 
@@ -470,10 +512,10 @@ describe('AttendanceController', function () {
 
             actingAs($user, 'web');
 
-            $response = $this->post(route('remote-attendance.clockIn'), [
+            $response = $this->postJson(route('remote-attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('remote_in.jpg', 800, 600),
-                'lat'   => -7.500000,
-                'lng'   => 110.000000,
+                'lat' => -7.500000,
+                'lng' => 110.000000,
                 // no notes
             ]);
 
@@ -510,8 +552,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('remote-attendance.clockOut'), [
                 'photo' => UploadedFile::fake()->image('remote_out.jpg', 800, 600),
-                'lat'   => -7.500000,
-                'lng'   => 110.000000,
+                'lat' => -7.500000,
+                'lng' => 110.000000,
             ]);
 
             $response->assertStatus(200);
@@ -528,7 +570,7 @@ describe('AttendanceController', function () {
             Storage::fake('public');
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -539,8 +581,8 @@ describe('AttendanceController', function () {
             // Calculate approximate distance: ~89m (within 100m)
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
-                'lat'   => -6.200800, // ~89m away
-                'lng'   => 106.816666,
+                'lat' => -6.200800, // ~89m away
+                'lng' => 106.816666,
             ]);
 
             // Should succeed if within 100m
@@ -553,7 +595,7 @@ describe('AttendanceController', function () {
             Storage::fake('public');
             $user = User::factory()->create();
             $location = AttendanceLocation::factory()->create([
-                'latitude'  => -6.200000,
+                'latitude' => -6.200000,
                 'longitude' => 106.816666,
                 'radius_meters' => 100,
             ]);
@@ -563,8 +605,8 @@ describe('AttendanceController', function () {
 
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
-                'lat'   => -6.200100,
-                'lng'   => 106.816666,
+                'lat' => -6.200100,
+                'lng' => 106.816666,
             ]);
 
             $response->assertStatus(200);
@@ -591,8 +633,8 @@ describe('AttendanceController', function () {
             Storage::fake('public');
             $response = $this->post(route('attendance.clockIn'), [
                 'photo' => UploadedFile::fake()->image('clockin.jpg'),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertRedirect('/login');
@@ -602,8 +644,8 @@ describe('AttendanceController', function () {
             Storage::fake('public');
             $response = $this->post(route('attendance.clockOut'), [
                 'photo' => UploadedFile::fake()->image('clockout.jpg'),
-                'lat'   => -6.200000,
-                'lng'   => 106.816666,
+                'lat' => -6.200000,
+                'lng' => 106.816666,
             ]);
 
             $response->assertRedirect('/login');

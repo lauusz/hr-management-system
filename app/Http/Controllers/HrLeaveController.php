@@ -9,6 +9,8 @@ use App\Models\Pt;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
 use App\Services\LeaveBalanceService;
+use App\Services\LeaveRequestDuplicateCleanupService;
+use App\Services\LeaveRequestStateMachine;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -23,6 +25,8 @@ class HrLeaveController extends Controller
     public function __construct(
         protected LeaveBalanceService $leaveBalanceService,
         protected ImageCompressor $imageCompressor,
+        protected LeaveRequestStateMachine $stateMachine,
+        protected LeaveRequestDuplicateCleanupService $duplicateCleanupService,
     ) {}
 
     /**
@@ -554,38 +558,75 @@ class HrLeaveController extends Controller
                 ->with('error', $this->formatOverlapMessage($duplicates));
         }
 
-        // Build notes
-        $currentNotes = $leave->notes;
-        $systemNote = '[System] Diedit oleh HR ('.auth()->user()->name.') pada '.now()->format('d M Y H:i');
-        $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
+        try {
+            $updated = $this->stateMachine->perform(
+                $leave,
+                LeaveRequestStateMachine::EDIT_PENDING,
+                function (LeaveRequest $lockedLeave) use ($request, $validated, $type, $isTimeBased, $specialLeaveCategory) {
+                    // [P0-03] Validasi saldo CUTI secara atomik di dalam transaction.
+                    // User di-lock agar saldo yang dibaca adalah nilai terkini dan
+                    // tidak terjadi race condition saat edit CUTI pending.
+                    if ($type === LeaveType::CUTI->value) {
+                        $lockedUser = User::lockForUpdate()->findOrFail($lockedLeave->user_id);
+                        $daysRequested = $this->leaveBalanceService->calculateEffectiveDaysForUser(
+                            $lockedUser,
+                            $validated['start_date'],
+                            $validated['end_date'],
+                        );
 
-        $updateData = [
-            'type' => $type,
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'],
-            'start_time' => $isTimeBased ? ($validated['start_time'] ?? null) : null,
-            'end_time' => ($type === LeaveType::IZIN_TENGAH_KERJA->value) ? ($validated['end_time'] ?? null) : null,
-            'reason' => $validated['reason'] ?? $leave->reason,
-            'notes' => $newNotes,
-            'notes_hrd' => array_key_exists('notes_hrd', $validated) ? $validated['notes_hrd'] : $leave->notes_hrd,
-            'substitute_pic' => $validated['substitute_pic'] ?? $leave->substitute_pic,
-            'substitute_phone' => $validated['substitute_phone'] ?? $leave->substitute_phone,
-            'special_leave_category' => $specialLeaveCategory,
-            'deduct_um' => $request->filled('deduct_um_edit'),
-        ];
+                        if ((float) $lockedUser->leave_balance < $daysRequested) {
+                            throw new \RuntimeException(
+                                "Sisa cuti tidak mencukupi. (Sisa: {$lockedUser->leave_balance} hari, Pengajuan Efektif: {$daysRequested} hari)."
+                            );
+                        }
+                    }
 
-        // Handle photo upload
-        if ($request->hasFile('photo')) {
-            $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
+                    // Build notes
+                    $currentNotes = $lockedLeave->notes;
+                    $systemNote = '[System] Diedit oleh HR ('.auth()->user()->name.') pada '.now()->format('d M Y H:i');
+                    $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
 
-            if ($leave->photo) {
-                Storage::disk('public')->delete('leave_photos/'.$leave->photo);
+                    $updateData = [
+                        'type' => $type,
+                        'start_date' => $validated['start_date'],
+                        'end_date' => $validated['end_date'],
+                        'start_time' => $isTimeBased ? ($validated['start_time'] ?? null) : null,
+                        'end_time' => ($type === LeaveType::IZIN_TENGAH_KERJA->value) ? ($validated['end_time'] ?? null) : null,
+                        'reason' => $validated['reason'] ?? $lockedLeave->reason,
+                        'notes' => $newNotes,
+                        'notes_hrd' => array_key_exists('notes_hrd', $validated) ? $validated['notes_hrd'] : $lockedLeave->notes_hrd,
+                        'substitute_pic' => $validated['substitute_pic'] ?? $lockedLeave->substitute_pic,
+                        'substitute_phone' => $validated['substitute_phone'] ?? $lockedLeave->substitute_phone,
+                        'special_leave_category' => $specialLeaveCategory,
+                        'deduct_um' => $request->filled('deduct_um_edit'),
+                    ];
+
+                    // Handle photo upload
+                    if ($request->hasFile('photo')) {
+                        $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
+
+                        if ($lockedLeave->photo) {
+                            Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
+                        }
+
+                        $updateData['photo'] = basename($fullPath);
+                    }
+
+                    return $updateData;
+                }
+            );
+
+            if (! $updated) {
+                return redirect()
+                    ->back()
+                    ->with('error', 'Pengajuan sudah diproses, tidak dapat diperbarui.');
             }
-
-            $updateData['photo'] = basename($fullPath);
+        } catch (\RuntimeException $e) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
         }
-
-        $leave->update($updateData);
 
         return redirect()->route('hr.leave.show', $leave->id)->with('success', 'Data pengajuan berhasil diperbarui.');
     }
@@ -622,62 +663,63 @@ class HrLeaveController extends Controller
 
         // PENDING_HR → HRD/HR Staff final approve
         try {
-            DB::transaction(function () use ($request, $leave, $actor) {
-                // Kunci row LeaveRequest dan cek ulang status di dalam transaction
-                // untuk mencegah double approval / double deduction.
-                $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leave->id);
+            $approved = $this->stateMachine->perform(
+                $leave,
+                LeaveRequestStateMachine::APPROVE,
+                function (LeaveRequest $lockedLeave) use ($request, $actor) {
+                    // LOGIKA APPROVE
+                    $leaveTypeValue = $lockedLeave->type instanceof LeaveType ? $lockedLeave->type->value : (string) $lockedLeave->type;
 
-                if ($lockedLeave->status !== LeaveRequest::PENDING_HR) {
-                    throw new \RuntimeException('Status pengajuan sudah berubah.');
+                    // SAKIT: potong cuti jika checkbox dicentang
+                    $shouldDeductSakit = $request->filled('deduct_leave_sakit');
+                    $deductAmountSakit = $shouldDeductSakit ? (float) $request->input('deduct_amount_sakit') : null;
+
+                    // IZIN: potong cuti jika checkbox dicentang
+                    $shouldDeductIzin = $request->filled('deduct_leave_izin');
+                    $deductAmountIzin = $shouldDeductIzin ? (float) $request->input('deduct_amount_izin') : null;
+
+                    // SAKIT/IZIN: potong UM jika checkbox dicentang (tanpa cuti)
+                    $shouldDeductUM = $request->filled('deduct_um');
+
+                    // Potong cuti (CUTI: otomatis berdasarkan hari kerja efektif)
+                    if ($leaveTypeValue === LeaveType::CUTI->value) {
+                        $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
+                    }
+
+                    // Potong cuti (SAKIT)
+                    if ($shouldDeductSakit) {
+                        $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $deductAmountSakit);
+                    }
+
+                    // Potong cuti (IZIN)
+                    if ($shouldDeductIzin) {
+                        $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $deductAmountIzin);
+                    }
+
+                    // Audit trail di notes
+                    $currentNotes = $lockedLeave->notes;
+                    $systemNote = '[System] Disetujui oleh HR ('.$actor->name.') pada '.now()->format('d M Y H:i');
+                    $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
+
+                    return [
+                        'approved_by' => $actor->id,
+                        'approved_at' => now(),
+                        'notes' => $newNotes,
+                        'notes_hrd' => $request->notes_hrd,
+                        'deduct_um' => $shouldDeductUM ? true : ($lockedLeave->deduct_um ?? false),
+                    ];
+                },
+                [],
+                LeaveRequest::PENDING_HR,
+                function (LeaveRequest $lockedLeave) {
+                    // [AUTO DELETE DUPLIKAT] Hapus pengajuan duplikat yang masih pending
+                    $this->duplicateCleanupService->deleteDuplicatePendingLeaveRequests($lockedLeave);
                 }
+            );
 
-                // LOGIKA APPROVE
-                $leaveTypeValue = $lockedLeave->type instanceof LeaveType ? $lockedLeave->type->value : (string) $lockedLeave->type;
-
-                // SAKIT: potong cuti jika checkbox dicentang
-                $shouldDeductSakit = $request->filled('deduct_leave_sakit');
-                $deductAmountSakit = $shouldDeductSakit ? (float) $request->input('deduct_amount_sakit') : null;
-
-                // IZIN: potong cuti jika checkbox dicentang
-                $shouldDeductIzin = $request->filled('deduct_leave_izin');
-                $deductAmountIzin = $shouldDeductIzin ? (float) $request->input('deduct_amount_izin') : null;
-
-                // SAKIT/IZIN: potong UM jika checkbox dicentang (tanpa cuti)
-                $shouldDeductUM = $request->filled('deduct_um');
-
-                // Potong cuti (CUTI: otomatis berdasarkan hari kerja efektif)
-                if ($leaveTypeValue === LeaveType::CUTI->value) {
-                    $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
-                }
-
-                // Potong cuti (SAKIT)
-                if ($shouldDeductSakit) {
-                    $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $deductAmountSakit);
-                }
-
-                // Potong cuti (IZIN)
-                if ($shouldDeductIzin) {
-                    $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $deductAmountIzin);
-                }
-
-                // Audit trail di notes
-                $currentNotes = $lockedLeave->notes;
-                $systemNote = '[System] Disetujui oleh HR ('.$actor->name.') pada '.now()->format('d M Y H:i');
-                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
-
-                // Update status pengajuan jadi APPROVED
-                $lockedLeave->update([
-                    'status' => LeaveRequest::STATUS_APPROVED,
-                    'approved_by' => $actor->id,
-                    'approved_at' => now(),
-                    'notes' => $newNotes,
-                    'notes_hrd' => $request->notes_hrd,
-                    'deduct_um' => $shouldDeductUM ? true : ($lockedLeave->deduct_um ?? false),
-                ]);
-
-                // [AUTO DELETE DUPLIKAT] Hapus pengajuan duplikat yang masih pending
-                $this->deleteDuplicateLeaveRequests($lockedLeave);
-            });
+            if (! $approved) {
+                return redirect()->route('hr.leave.index')->with('error', 'Status pengajuan sudah berubah.');
+            }
 
             // Pesan sukses
             // Jika ini Cancel Request, pesannya "Pembatalan Disetujui"
@@ -709,33 +751,25 @@ class HrLeaveController extends Controller
 
         abort_unless($this->canHrActOnLeave(auth()->user(), $leave), 403, 'Anda tidak memiliki izin untuk menolak pengajuan ini.');
 
-        $rejected = DB::transaction(function () use ($request, $leave) {
-            // Kunci row LeaveRequest dan cek ulang status di dalam transaction
-            // untuk mencegah race condition dengan approve/reject lain.
-            // Endpoint ini hanya menerima PENDING_HR, sehingga tidak ada refund
-            // saldo yang perlu dilakukan.
-            $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leave->id);
+        $rejected = $this->stateMachine->perform(
+            $leave,
+            LeaveRequestStateMachine::REJECT,
+            function (LeaveRequest $lockedLeave) use ($request) {
+                // Audit trail di notes
+                $currentNotes = $lockedLeave->notes;
+                $systemNote = '[System] Ditolak oleh HR ('.auth()->user()->name.') pada '.now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
 
-            if ($lockedLeave->status !== LeaveRequest::PENDING_HR) {
-                return false;
-            }
-
-            // Audit trail di notes
-            $currentNotes = $lockedLeave->notes;
-            $systemNote = '[System] Ditolak oleh HR ('.auth()->user()->name.') pada '.now()->format('d M Y H:i');
-            $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
-
-            // Update status menjadi REJECTED
-            $lockedLeave->update([
-                'status' => LeaveRequest::STATUS_REJECTED,
-                'approved_by' => auth()->id(),
-                'approved_at' => now(),
-                'notes' => $newNotes,
-                'notes_hrd' => $request->notes_hrd,
-            ]);
-
-            return true;
-        });
+                return [
+                    'approved_by' => auth()->id(),
+                    'approved_at' => now(),
+                    'notes' => $newNotes,
+                    'notes_hrd' => $request->notes_hrd,
+                ];
+            },
+            [],
+            LeaveRequest::PENDING_HR
+        );
 
         if (! $rejected) {
             return redirect()->route('hr.leave.index')->with('error', 'Status pengajuan sudah berubah.');
@@ -808,17 +842,8 @@ class HrLeaveController extends Controller
             return $actorRole === 'HRD';
         }
 
-        // EMPLOYEE applicant: CUTI hanya boleh di-approve oleh HRD;
-        // non-CUTI boleh di-approve oleh HRD maupun HR STAFF.
+        // EMPLOYEE applicant: CUTI dan non-CUTI boleh di-approve oleh HRD maupun HR STAFF.
         if ($applicantRole === 'EMPLOYEE') {
-            $leaveTypeValue = $leave->type instanceof LeaveType
-                ? $leave->type->value
-                : (string) $leave->type;
-
-            if ($leaveTypeValue === LeaveType::CUTI->value) {
-                return $actorRole === 'HRD';
-            }
-
             return in_array($actorRole, ['HRD', 'HR STAFF'], true);
         }
 
@@ -917,37 +942,5 @@ class HrLeaveController extends Controller
         $dateText = $start === $end ? $start : "{$start} - {$end}";
 
         return "Sudah ada pengajuan {$typeLabel} pada tanggal {$dateText}. Pengajuan dengan jenis yang sama tidak bisa dibuat di tanggal yang sama.";
-    }
-
-    /**
-     * [HELPER] Hapus pengajuan duplikat yang masih pending di tanggal yang sama
-     */
-    private function deleteDuplicateLeaveRequests(LeaveRequest $approvedLeave)
-    {
-        // Cari pengajuan lain dari user yang sama, di tanggal yang overlap, masih pending
-        $approvedType = $approvedLeave->type instanceof LeaveType
-            ? $approvedLeave->type->value
-            : (string) $approvedLeave->type;
-
-        $duplicates = LeaveRequest::where('user_id', $approvedLeave->user_id)
-            ->where('id', '!=', $approvedLeave->id)
-            ->where('type', $approvedType)
-            ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR])
-            ->where(function ($query) use ($approvedLeave) {
-                // Cek overlap tanggal: start_date atau end_date berada dalam range
-                $query->whereBetween('start_date', [$approvedLeave->start_date, $approvedLeave->end_date])
-                    ->orWhereBetween('end_date', [$approvedLeave->start_date, $approvedLeave->end_date])
-                    ->orWhere(function ($q) use ($approvedLeave) {
-                        // Atau pengajuan duplikat yang range-nya "meliputi" pengajuan approved
-                        $q->where('start_date', '<=', $approvedLeave->start_date)
-                            ->where('end_date', '>=', $approvedLeave->end_date);
-                    });
-            })
-            ->get();
-
-        // Delete semua duplikat yang ditemukan
-        foreach ($duplicates as $duplicate) {
-            $duplicate->delete();
-        }
     }
 }

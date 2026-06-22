@@ -24,7 +24,7 @@
             $underOneYear = $start->diffInYears($end) < 1;
         }
         $roleStr = strtoupper($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role);
-        $fiveDayRoles = ['MANAGER'];
+        $fiveDayRoles = ['HRD', 'MANAGER'];
         $isFiveDayWorkWeek = in_array($roleStr, $fiveDayRoles);
         $oldStart = old('start_date');
         $oldEnd = old('end_date');
@@ -85,6 +85,15 @@
         </svg>
         <span class="back-btn-text">Kembali</span>
     </a>
+
+    @if (session('error'))
+        <div class="lrc-alert lrc-alert--error">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>{{ session('error') }}</span>
+        </div>
+    @endif
 
     @if ($errors->any())
         <div class="lrc-alert lrc-alert--error">
@@ -279,7 +288,7 @@
         <div class="lrc-step">
             <div class="lrc-step__header">
                 <span class="lrc-step__num">2</span>
-                <span class="lrc-step__title">Periode Izin</span>
+                <span class="lrc-step__title" id="period-title">Periode Izin</span>
             </div>
             <div class="lrc-input-wrap">
                 <svg class="lrc-input__icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -337,14 +346,24 @@
                 <span class="lrc-step__num">3</span>
                 <span class="lrc-step__title">PIC Pengganti</span>
             </div>
-            <div class="lrc-field">
+            <div class="lrc-field lrc-field--autocomplete">
                 <label for="substitute_pic" class="lrc-label">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
                     Nama PIC Pengganti <span class="lrc-required">*</span>
                 </label>
-                <input type="text" name="substitute_pic" id="substitute_pic" class="lrc-input" placeholder="Nama rekan pengganti" value="{{ old('substitute_pic') }}">
+                <div class="lrc-autocomplete-wrap">
+                    <input type="text"
+                        name="substitute_pic"
+                        id="substitute_pic"
+                        class="lrc-input"
+                        placeholder="Ketik nama rekan pengganti"
+                        value="{{ old('substitute_pic') }}"
+                        autocomplete="off"
+                        data-search-url="{{ route('leave-requests.search-substitute') }}">
+                    <ul id="pic-suggestions" class="pic-suggestions" role="listbox" aria-label="Saran PIC pengganti"></ul>
+                </div>
             </div>
             <div class="lrc-field">
                 <label for="substitute_phone" class="lrc-label">
@@ -382,6 +401,7 @@
                 </div>
                 <div id="photoPreviewContainer" class="lrc-preview" style="display:none;">
                     <img id="photoPreview" src="#" alt="Preview">
+                    <div id="photoFileInfo" class="lrc-file-info"></div>
                     <button type="button" class="lrc-preview__remove" id="removePreview" aria-label="Hapus preview">
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -424,6 +444,18 @@
             <p id="duplicate-message" style="margin: 0 0 12px 0;"><strong>Anda sudah memiliki pengajuan pada periode tanggal yang sama.</strong></p>
             <div id="duplicate-list" style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 4px; margin-bottom: 12px;"></div>
             <p style="margin: 0; font-size: 13px; color: #6b7280;">Hubungi HRD untuk menghapus pengajuan duplikat.</p>
+        </div>
+    </x-modal>
+
+    <x-modal id="leave-balance-warning-modal" title="Saldo Cuti Tidak Mencukupi" variant="warning" type="info" cancelLabel="Ubah Tanggal">
+        <div class="balance-modal-content">
+            <p>Periode yang dipilih membutuhkan cuti lebih banyak daripada saldo Anda.</p>
+            <div class="balance-modal-summary">
+                <div><span>Cuti digunakan</span><strong id="balance-modal-days">0 hari</strong></div>
+                <div><span>Saldo tersedia</span><strong id="balance-modal-available">0 hari</strong></div>
+                <div class="balance-modal-shortage"><span>Kekurangan</span><strong id="balance-modal-shortage">0 hari</strong></div>
+            </div>
+            <p class="balance-modal-help">Silakan ubah tanggal pengajuan agar total cuti tidak melebihi saldo yang tersedia.</p>
         </div>
     </x-modal>
 
@@ -875,7 +907,8 @@
         }
         .lrc-duration {
             display: flex;
-            align-items: center;
+            flex-direction: column;
+            align-items: flex-start;
             gap: 8px;
             margin-top: 10px;
             padding: 10px 14px;
@@ -886,6 +919,21 @@
             font-size: 0.875rem;
             font-weight: 600;
         }
+        .lrc-duration.is-loading { color: var(--text-muted); background: var(--gray-50); border-color: var(--border); }
+        .lrc-duration.is-error { color: #B91C1C; background: #FEF2F2; border-color: #FECACA; }
+        .lrc-duration__main { display:flex; align-items:center; gap:8px; }
+        .lrc-duration__details { color: var(--text-secondary); font-size:.75rem; font-weight:500; line-height:1.5; }
+        .lrc-duration__holidays { color: var(--primary-dark); font-size:.75rem; font-weight:600; line-height:1.5; }
+        .lrc-duration__shortage { color:#B91C1C; font-size:.75rem; font-weight:700; }
+        .balance-modal-content p { margin:0; color:#374151; }
+        .balance-modal-summary { margin:14px 0; border:1px solid #E5E7EB; border-radius:12px; overflow:hidden; }
+        .balance-modal-summary > div { display:flex; justify-content:space-between; gap:16px; padding:10px 12px; border-bottom:1px solid #E5E7EB; }
+        .balance-modal-summary > div:last-child { border-bottom:0; }
+        .balance-modal-summary span { color:#6B7280; font-size:.8125rem; }
+        .balance-modal-summary strong { color:#111827; font-size:.8125rem; }
+        .balance-modal-summary .balance-modal-shortage { background:#FEF2F2; }
+        .balance-modal-summary .balance-modal-shortage strong { color:#B91C1C; }
+        .balance-modal-help { font-size:.75rem; color:#6B7280 !important; }
         .lrc-warnings {
             margin-top: 8px;
             display: flex;
@@ -997,6 +1045,26 @@
             display: block;
             margin: 0 auto;
         }
+        .lrc-file-info {
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: #F8FAFC;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .lrc-file-info__name {
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+        .lrc-file-info__size {
+            color: var(--text-muted);
+        }
         .lrc-preview__remove {
             position: absolute;
             top: 6px;
@@ -1052,6 +1120,46 @@
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+        }
+        .lrc-field--autocomplete { position: relative; }
+        .lrc-autocomplete-wrap { position: relative; }
+        .pic-suggestions {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background: var(--white, #fff);
+            border: 1.5px solid var(--border, #E5E7EB);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            max-height: 240px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            list-style: none;
+            margin: 0;
+            padding: 6px;
+        }
+        .pic-suggestions.is-open { display: block; }
+        .pic-suggestion-item {
+            padding: 11px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9375rem;
+            color: var(--text-primary, #111827);
+            transition: all 0.15s ease;
+        }
+        .pic-suggestion-item:hover,
+        .pic-suggestion-item.is-selected {
+            background: var(--gray-50, #F5F7FA);
+            color: var(--primary, #145DA0);
+        }
+        .pic-suggestion-empty,
+        .pic-suggestion-loading {
+            padding: 12px;
+            color: var(--text-muted, #6B7280);
+            font-size: 0.875rem;
+            text-align: center;
         }
 
         @media (min-width: 640px) {
@@ -1331,20 +1439,43 @@
             const input = document.getElementById('photoInput');
             const previewContainer = document.getElementById('photoPreviewContainer');
             const previewImg = document.getElementById('photoPreview');
+            const fileInfo = document.getElementById('photoFileInfo');
             const removeBtn = document.getElementById('removePreview');
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
+
+            function renderFileInfo(file) {
+                if (!fileInfo || !file) return;
+                fileInfo.innerHTML = '<span class="lrc-file-info__name">' + file.name + '</span>' +
+                    '<span class="lrc-file-info__size">Ukuran: ' + formatFileSize(file.size) + '</span>';
+            }
+
             if (input) {
                 input.addEventListener('change', function() {
                     const file = this.files[0];
-                    if (file && file.type && file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            previewImg.src = e.target.result;
+                    if (file) {
+                        renderFileInfo(file);
+                        if (file.type && file.type.startsWith('image/')) {
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                previewImg.src = e.target.result;
+                                previewContainer.style.display = 'block';
+                            };
+                            reader.readAsDataURL(file);
+                        } else {
+                            previewImg.src = '';
                             previewContainer.style.display = 'block';
-                        };
-                        reader.readAsDataURL(file);
+                        }
                     } else {
                         previewContainer.style.display = 'none';
                         previewImg.src = '';
+                        if (fileInfo) fileInfo.innerHTML = '';
                     }
                 });
             }
@@ -1353,6 +1484,7 @@
                     input.value = '';
                     previewImg.src = '#';
                     previewContainer.style.display = 'none';
+                    if (fileInfo) fileInfo.innerHTML = '';
                 });
             }
         });
@@ -1363,14 +1495,18 @@
         document.addEventListener('DOMContentLoaded', function() {
             (function() {
                 const CUTI_VALUE = @json(\App\Enums\LeaveType::CUTI->value);
-                const IS_FIVE_DAY_WORKWEEK = @json($isFiveDayWorkWeek);
+                const CALCULATE_URL = @json(route('leave-requests.calculate-effective-days'));
                 const startInput = document.getElementById('start_date');
+                const endInput = document.getElementById('end_date');
                 const ruleEl = document.getElementById('cuti-rule');
                 const warnEl = document.getElementById('h7-warning');
                 const tenureWarnEl = document.getElementById('tenure-warning');
                 const durationDisplay = document.getElementById('duration-display');
+                const periodTitle = document.getElementById('period-title');
                 const typeRadios = document.querySelectorAll('input[name="type"]');
                 const isUnderOneYear = tenureWarnEl ? tenureWarnEl.getAttribute('data-under-one-year') === '1' : false;
+                let requestSequence = 0;
+
                 function parseYMD(ymd) {
                     if (!ymd) return null;
                     const parts = ymd.split('-').map(Number);
@@ -1397,22 +1533,100 @@
                     return r ? r.value : null;
                 }
                 function isCutiSelected() { return getSelectedType() === CUTI_VALUE; }
-                function calculateWorkingDays(startStr, endStr) {
-                    if (!startStr || !endStr) return 0;
-                    let startDate = parseYMD(startStr);
-                    let endDate = parseYMD(endStr);
-                    if (!startDate || !endDate || startDate > endDate) return 0;
-                    let count = 0;
-                    let cur = new Date(startDate);
-                    while (cur <= endDate) {
-                        const day = cur.getDay();
-                        if (day === 0) { }
-                        else if (day === 6 && IS_FIVE_DAY_WORKWEEK) { }
-                        else { count++; }
-                        cur.setDate(cur.getDate() + 1);
-                    }
-                    return count;
+
+                function formatDays(value) {
+                    const number = Number(value || 0);
+                    return Number.isInteger(number) ? String(number) : number.toFixed(1).replace(/\.0$/, '');
                 }
+
+                function escapeHtml(value) {
+                    const div = document.createElement('div');
+                    div.textContent = value == null ? '' : String(value);
+                    return div.innerHTML;
+                }
+
+                function hideDuration() {
+                    durationDisplay.style.display = 'none';
+                    durationDisplay.classList.remove('is-loading', 'is-error');
+                    durationDisplay.innerHTML = '';
+                    window.leaveCalculationState.data = null;
+                }
+
+                function renderCalculation(data) {
+                    const breakdown = data.breakdown || {};
+                    const holidays = Array.isArray(breakdown.holidays) ? breakdown.holidays : [];
+                    const holidayText = holidays.map(function(holiday) {
+                        const date = parseYMD(holiday.date);
+                        const dateLabel = date ? formatID(date) : holiday.date;
+                        return escapeHtml(dateLabel + ' — ' + holiday.name);
+                    }).join('<br>');
+
+                    durationDisplay.style.display = 'flex';
+                    durationDisplay.classList.remove('is-loading');
+                    durationDisplay.classList.toggle('is-error', Boolean(data.exceeds_balance));
+                    durationDisplay.innerHTML = `
+                        <div class="lrc-duration__main">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            <strong>Cuti digunakan: ${formatDays(data.days)} hari</strong>
+                        </div>
+                        <div class="lrc-duration__details">
+                            Hari biasa ${formatDays(breakdown.weekday_days)} · Sabtu ${formatDays(breakdown.saturday_days)} · Libur kantor ${formatDays(breakdown.holiday_days)}
+                        </div>
+                        ${holidayText ? `<div class="lrc-duration__holidays">Tidak dipotong:<br>${holidayText}</div>` : ''}
+                        <div class="lrc-duration__details">Saldo tersedia: ${formatDays(data.leave_balance)} hari</div>
+                        ${data.exceeds_balance ? `<div class="lrc-duration__shortage">Kekurangan ${formatDays(data.shortage)} hari. Periode perlu diubah.</div>` : ''}
+                    `;
+                }
+
+                async function updateDurationDisplay() {
+                    const startVal = startInput ? startInput.value : '';
+                    const endVal = endInput ? endInput.value : '';
+                    const currentSequence = ++requestSequence;
+
+                    if (!isCutiSelected() || !startVal || !endVal) {
+                        hideDuration();
+                        return null;
+                    }
+
+                    durationDisplay.style.display = 'flex';
+                    durationDisplay.classList.add('is-loading');
+                    durationDisplay.classList.remove('is-error');
+                    durationDisplay.textContent = 'Menghitung cuti efektif...';
+
+                    try {
+                        const response = await fetch(CALCULATE_URL, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                            },
+                            body: JSON.stringify({ start_date: startVal, end_date: endVal }),
+                        });
+                        const data = await response.json();
+
+                        if (currentSequence !== requestSequence) return null;
+                        if (!response.ok || data.error) throw new Error(data.error || 'Perhitungan gagal.');
+
+                        window.leaveCalculationState.data = data;
+                        renderCalculation(data);
+                        return data;
+                    } catch (error) {
+                        if (currentSequence !== requestSequence) return null;
+                        window.leaveCalculationState.data = null;
+                        durationDisplay.style.display = 'flex';
+                        durationDisplay.classList.remove('is-loading');
+                        durationDisplay.classList.add('is-error');
+                        durationDisplay.textContent = 'Total cuti belum dapat dihitung. Validasi akan dilakukan saat pengajuan dikirim.';
+                        return null;
+                    }
+                }
+
+                window.leaveCalculationState = {
+                    data: null,
+                    refresh: updateDurationDisplay,
+                };
+
                 function updateTenureWarning() {
                     if (!tenureWarnEl) return;
                     if (isCutiSelected() && isUnderOneYear) {
@@ -1425,6 +1639,7 @@
                 }
                 function renderRuleVisibility() {
                     if (!ruleEl || !warnEl) return;
+                    if (periodTitle) periodTitle.textContent = isCutiSelected() ? 'Periode Cuti' : 'Periode Izin';
                     updateDurationDisplay();
                     if (isCutiSelected()) {
                         ruleEl.style.display = 'block';
@@ -1436,20 +1651,6 @@
                         warnEl.style.display = 'none';
                         updateTenureWarning();
                     }
-                }
-                function updateDurationDisplay() {
-                    const startVal = document.getElementById('start_date').value;
-                    const endVal = document.getElementById('end_date').value;
-                    if (!startVal || !endVal) {
-                        durationDisplay.style.display = 'none';
-                        return;
-                    }
-                    const days = calculateWorkingDays(startVal, endVal);
-                    durationDisplay.style.display = 'flex';
-                    durationDisplay.innerHTML = `
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        <strong>Estimasi: ${days} Hari Kerja</strong>
-                    `;
                 }
                 function updateWarning() {
                     if (!isCutiSelected()) { warnEl.style.display = 'none'; return; }
@@ -1466,8 +1667,12 @@
                 }
                 if (startInput) {
                     startInput.addEventListener('input', updateWarning);
-                    startInput.addEventListener('change', updateWarning);
+                    startInput.addEventListener('change', function() {
+                        updateWarning();
+                        updateDurationDisplay();
+                    });
                 }
+                if (endInput) endInput.addEventListener('change', updateDurationDisplay);
                 typeRadios.forEach(function(r) { r.addEventListener('change', renderRuleVisibility); });
                 renderRuleVisibility();
                 updateTenureWarning();
@@ -1509,6 +1714,7 @@
             const duplicateModal = document.getElementById('duplicate-warning-modal');
             const duplicateList = document.getElementById('duplicate-list');
             const duplicateMessage = document.getElementById('duplicate-message');
+            const balanceModal = document.getElementById('leave-balance-warning-modal');
             let hasDuplicate = false;
             let originalBtnText = null;
             if (formIzin) {
@@ -1528,9 +1734,42 @@
                         alert('Silakan isi tanggal pengajuan terlebih dahulu');
                         return;
                     }
-                    checkDuplicate(type, startDate, endDate);
+                    const calculationPromise = type === 'CUTI' && window.leaveCalculationState
+                        ? window.leaveCalculationState.refresh()
+                        : Promise.resolve(null);
+
+                    calculationPromise.then(function(calculation) {
+                        if (type === 'CUTI' && calculation && calculation.exceeds_balance) {
+                            showBalanceWarning(calculation);
+                            return;
+                        }
+
+                        checkDuplicate(type, startDate, endDate);
+                    }).catch(function() {
+                        checkDuplicate(type, startDate, endDate);
+                    });
                 });
             }
+
+            function formatDays(value) {
+                const number = Number(value || 0);
+                return Number.isInteger(number) ? String(number) : number.toFixed(1).replace(/\.0$/, '');
+            }
+
+            function showBalanceWarning(calculation) {
+                if (!balanceModal) return;
+
+                const daysEl = document.getElementById('balance-modal-days');
+                const availableEl = document.getElementById('balance-modal-available');
+                const shortageEl = document.getElementById('balance-modal-shortage');
+                if (daysEl) daysEl.textContent = formatDays(calculation.days) + ' hari';
+                if (availableEl) availableEl.textContent = formatDays(calculation.leave_balance) + ' hari';
+                if (shortageEl) shortageEl.textContent = formatDays(calculation.shortage) + ' hari';
+
+                balanceModal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+
             function checkDuplicate(type, startDate, endDate) {
                 if (btnSubmit) {
                     btnSubmit.disabled = true;
@@ -1739,6 +1978,146 @@
                 });
             });
             updateSpecTrigger();
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            (function() {
+                const nameInput = document.getElementById('substitute_pic');
+                const phoneInput = document.getElementById('substitute_phone');
+                const list = document.getElementById('pic-suggestions');
+                if (!nameInput || !list) return;
+
+                const searchUrl = nameInput.getAttribute('data-search-url');
+                let debounceTimer = null;
+                let activeIndex = -1;
+                let abortController = null;
+
+                function closeList() {
+                    list.innerHTML = '';
+                    list.classList.remove('is-open');
+                    activeIndex = -1;
+                    if (abortController) {
+                        abortController.abort();
+                        abortController = null;
+                    }
+                }
+
+                function renderUsers(users) {
+                    list.innerHTML = '';
+                    activeIndex = -1;
+
+                    if (!users || users.length === 0) {
+                        list.innerHTML = '<li class="pic-suggestion-empty">Tidak ada hasil</li>';
+                        list.classList.add('is-open');
+                        return;
+                    }
+
+                    users.forEach(function(user, idx) {
+                        const li = document.createElement('li');
+                        li.className = 'pic-suggestion-item';
+                        li.setAttribute('role', 'option');
+                        li.setAttribute('data-index', idx);
+                        li.setAttribute('data-name', user.name || '');
+                        li.setAttribute('data-phone', user.phone || '');
+                        li.textContent = user.name || '';
+
+                        li.addEventListener('click', function() {
+                            nameInput.value = this.getAttribute('data-name');
+                            if (phoneInput) {
+                                phoneInput.value = this.getAttribute('data-phone');
+                            }
+                            closeList();
+                            if (phoneInput) phoneInput.focus();
+                        });
+
+                        list.appendChild(li);
+                    });
+
+                    list.classList.add('is-open');
+                }
+
+                function fetchSuggestions(query) {
+                    if (!searchUrl) return;
+
+                    if (abortController) {
+                        abortController.abort();
+                    }
+                    abortController = new AbortController();
+
+                    list.innerHTML = '<li class="pic-suggestion-loading">Mencari...</li>';
+                    list.classList.add('is-open');
+
+                    fetch(searchUrl + '?q=' + encodeURIComponent(query) + '&status=ACTIVE', {
+                        signal: abortController.signal,
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    })
+                    .then(function(response) { return response.json(); })
+                    .then(function(data) { renderUsers(data); })
+                    .catch(function(err) {
+                        if (err.name === 'AbortError') return;
+                        closeList();
+                    });
+                }
+
+                function updateActiveItems() {
+                    const items = list.querySelectorAll('.pic-suggestion-item');
+                    items.forEach(function(el, idx) {
+                        el.classList.toggle('is-selected', idx === activeIndex);
+                    });
+                    const activeEl = items[activeIndex];
+                    if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+                }
+
+                nameInput.addEventListener('input', function() {
+                    const query = this.value.trim();
+                    clearTimeout(debounceTimer);
+
+                    if (query.length < 1) {
+                        closeList();
+                        return;
+                    }
+
+                    debounceTimer = setTimeout(function() {
+                        fetchSuggestions(query);
+                    }, 300);
+                });
+
+                nameInput.addEventListener('keydown', function(e) {
+                    if (!list.classList.contains('is-open')) return;
+                    const items = list.querySelectorAll('.pic-suggestion-item');
+                    const total = items.length;
+                    if (!total) return;
+
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        activeIndex = (activeIndex + 1) % total;
+                        updateActiveItems();
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        activeIndex = (activeIndex - 1 + total) % total;
+                        updateActiveItems();
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (activeIndex >= 0 && items[activeIndex]) {
+                            items[activeIndex].click();
+                        }
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        closeList();
+                    }
+                });
+
+                document.addEventListener('click', function(e) {
+                    if (!nameInput.contains(e.target) && !list.contains(e.target)) {
+                        closeList();
+                    }
+                });
+            })();
         });
     </script>
     @endpush

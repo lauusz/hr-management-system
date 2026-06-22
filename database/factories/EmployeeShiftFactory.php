@@ -15,24 +15,25 @@ class EmployeeShiftFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id'     => User::factory(),
-            'shift_id'    => Shift::factory(),
+            'user_id' => User::factory(),
+            'shift_id' => Shift::factory(),
             'location_id' => AttendanceLocation::factory(),
+            'effective_date' => now()->toDateString(),
         ];
     }
 
     public function forUser(User $user): static
     {
-        return $this->state(fn() => ['user_id' => $user->id]);
+        return $this->state(fn () => ['user_id' => $user->id]);
     }
 
     public function forShift(Shift $shift): static
     {
-        return $this->state(fn() => ['shift_id' => $shift->id]);
+        return $this->state(fn () => ['shift_id' => $shift->id]);
     }
 
     public function atLocation(AttendanceLocation $location): static
     {
-        return $this->state(fn() => ['location_id' => $location->id]);
+        return $this->state(fn () => ['location_id' => $location->id]);
     }
 }

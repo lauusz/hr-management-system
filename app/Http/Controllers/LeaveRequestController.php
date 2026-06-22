@@ -10,11 +10,12 @@ use App\Models\ShiftDay;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
 use App\Services\LeaveBalanceService;
+use App\Services\LeaveRequestStateMachine;
 use App\Services\LeaveRequestWorkflowService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
@@ -26,6 +27,8 @@ class LeaveRequestController extends Controller
     public function __construct(
         protected ImageCompressor $imageCompressor,
         protected LeaveBalanceService $leaveBalanceService,
+        protected LeaveRequestStateMachine $stateMachine,
+        protected LeaveRequestWorkflowService $workflowService,
     ) {}
 
     public function index(Request $request)
@@ -47,6 +50,19 @@ class LeaveRequestController extends Controller
         $typeFilter = $request->query('type');
         if ($typeFilter && in_array($typeFilter, LeaveType::values(), true)) {
             $query->where('type', $typeFilter);
+        }
+
+        // Filter Form (Status)
+        $statusFilter = $request->query('status');
+        $validStatuses = [
+            LeaveRequest::PENDING_SUPERVISOR,
+            LeaveRequest::PENDING_HR,
+            LeaveRequest::STATUS_APPROVED,
+            LeaveRequest::STATUS_REJECTED,
+            'BATAL',
+        ];
+        if ($statusFilter && in_array($statusFilter, $validStatuses, true)) {
+            $query->where('status', $statusFilter);
         }
 
         // Filter Form (Range Tanggal)
@@ -72,8 +88,16 @@ class LeaveRequestController extends Controller
             }
         }
 
+        // Statistik dihitung dari seluruh data user (sebelum paginasi) agar akurat.
+        $statsQuery = clone $query;
+        $totalCount = (clone $statsQuery)->count();
+        $approvedCount = (clone $statsQuery)->where('status', LeaveRequest::STATUS_APPROVED)->count();
+        $pendingCount = (clone $statsQuery)->whereIn('status', [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR])->count();
+        $rejectedCount = (clone $statsQuery)->where('status', LeaveRequest::STATUS_REJECTED)->count();
+
         $items = $query->paginate(20)->appends([
             'type' => $typeFilter,
+            'status' => $statusFilter,
             'submitted_range' => $submittedRange,
         ]);
 
@@ -81,7 +105,21 @@ class LeaveRequestController extends Controller
             'items' => $items,
             'typeFilter' => $typeFilter,
             'typeOptions' => LeaveType::cases(),
+            'statusFilter' => $statusFilter,
+            'statusOptions' => [
+                LeaveRequest::PENDING_SUPERVISOR => 'Menunggu Atasan',
+                LeaveRequest::PENDING_HR => 'Menunggu HRD',
+                LeaveRequest::STATUS_APPROVED => 'Disetujui',
+                LeaveRequest::STATUS_REJECTED => 'Ditolak',
+                'BATAL' => 'Dibatalkan',
+            ],
             'submittedRange' => $submittedRange,
+            'stats' => [
+                'total' => $totalCount,
+                'approved' => $approvedCount,
+                'pending' => $pendingCount,
+                'rejected' => $rejectedCount,
+            ],
         ]);
     }
 
@@ -130,6 +168,38 @@ class LeaveRequestController extends Controller
             'canOffSpv' => $canOffSpv,
             'offSpvInfo' => $offInfo,
             'managers' => $approvers,
+        ]);
+    }
+
+    public function edit(LeaveRequest $leave_request)
+    {
+        $user = Auth::user();
+
+        abort_unless(
+            $leave_request->user_id === $user->id || $user->isHR(),
+            403,
+            'Anda tidak berhak mengubah data pengajuan ini.'
+        );
+
+        if (! in_array($leave_request->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
+            return redirect()->route('leave-requests.index')
+                ->with('error', 'Pengajuan sudah diproses, tidak dapat diubah.');
+        }
+
+        $canOffSpv = $this->isSpvUser($user);
+        $offInfo = null;
+        if ($canOffSpv) {
+            $month = now()->startOfMonth();
+            $limit = $this->offSpvMonthlyLimitByMonth($month);
+            $approvedCount = $this->offSpvApprovedCountInMonth($user->id, $month);
+            $remaining = max(0, $limit - $approvedCount);
+            $offInfo = ['limit' => $limit, 'approved' => $approvedCount, 'remaining' => $remaining, 'month' => $month->format('Y-m')];
+        }
+
+        return view('leave_requests.edit', [
+            'item' => $leave_request,
+            'canOffSpv' => $canOffSpv,
+            'offSpvInfo' => $offInfo,
         ]);
     }
 
@@ -391,9 +461,9 @@ class LeaveRequestController extends Controller
     {
         $user = Auth::user();
         $isOwner = $user->id === $leave_request->user_id;
-        $roleStr = $this->getRoleString($user);
-        $isHRD = in_array($roleStr, ['HRD', 'HR STAFF'], true);
+        $isHRD = $user->isHR();
 
+        // [P0-01] Upload bukti hanya untuk pemilik atau HR.
         if (! $isOwner && ! $isHRD) {
             abort(403, 'Anda tidak berhak mengunggah bukti untuk pengajuan ini.');
         }
@@ -411,11 +481,23 @@ class LeaveRequestController extends Controller
 
         $fullPath = $this->imageCompressor->compressAndStore($validated['photo'], 'photo', 'leave_photos', 'leave_');
 
-        if ($leave_request->photo) {
-            Storage::disk('public')->delete('leave_photos/'.$leave_request->photo);
-        }
+        $updated = $this->stateMachine->perform(
+            $leave_request,
+            LeaveRequestStateMachine::EDIT_PENDING,
+            function (LeaveRequest $lockedLeave) use ($fullPath) {
+                if ($lockedLeave->photo) {
+                    Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
+                }
 
-        $leave_request->update(['photo' => basename($fullPath)]);
+                return ['photo' => basename($fullPath)];
+            }
+        );
+
+        if (! $updated) {
+            Storage::disk('public')->delete($fullPath);
+
+            return back()->with('error', 'Pengajuan sudah diproses, bukti pendukung tidak dapat diunggah.');
+        }
 
         return back()->with('success', 'Bukti pendukung berhasil diunggah.');
     }
@@ -424,9 +506,10 @@ class LeaveRequestController extends Controller
     {
         $user = Auth::user();
         $isOwner = $user->id === $leaveRequest->user_id;
-        $roleStr = $this->getRoleString($user);
-        $isHRD = in_array($roleStr, ['HRD', 'HR STAFF'], true);
+        $isHRD = $user->isHR();
 
+        // [P0-01] Endpoint umum hanya boleh diakses pemilik atau HR.
+        // MANAGER/Supervisor tidak boleh mengubah pengajuan user lain di sini.
         if (! $isOwner && ! $isHRD) {
             abort(403, 'Anda tidak berhak mengubah data ini.');
         }
@@ -442,11 +525,15 @@ class LeaveRequestController extends Controller
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
-            'reason' => ['nullable', 'string', 'max:5000'],
-            'substitute_pic' => ['nullable', 'string', 'max:255'],
-            'substitute_phone' => ['nullable', 'string', 'max:50'],
-            'special_leave_detail' => ['nullable', 'string'],
+            'reason' => ['required', 'string', 'max:5000'],
+            'substitute_pic' => ['nullable', 'string', 'max:255', Rule::requiredIf(fn () => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
+            'substitute_phone' => ['nullable', 'string', 'max:50', Rule::requiredIf(fn () => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
+            'special_leave_detail' => ['nullable', 'string', Rule::requiredIf(fn () => $request->type === LeaveType::CUTI_KHUSUS->value)],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'accuracy_m' => ['nullable', 'numeric', 'min:0', 'max:5000'],
+            'location_captured_at' => ['nullable', 'date'],
         ], [
             'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
             'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
@@ -459,13 +546,84 @@ class LeaveRequestController extends Controller
         }
         unset($validated['special_leave_detail']);
 
-        $isTimeBased = in_array($validated['type'], [
+        $type = $validated['type'];
+        $isIzinTelat = $type === LeaveType::IZIN_TELAT->value;
+        $isIzinTengahKerja = $type === LeaveType::IZIN_TENGAH_KERJA->value;
+        $isIzinPulangAwal = $type === LeaveType::IZIN_PULANG_AWAL->value;
+        $isTimeBased = in_array($type, [
             LeaveType::IZIN_TELAT->value,
             LeaveType::IZIN_TENGAH_KERJA->value,
             LeaveType::IZIN_PULANG_AWAL->value,
             LeaveType::IZIN->value,
         ], true);
         if (! $isTimeBased) {
+            $validated['start_time'] = null;
+            $validated['end_time'] = null;
+        }
+
+        $rawStartTime = $request->input('start_time');
+        $rawEndTime = $request->input('end_time');
+
+        if ($isIzinTelat && ! $rawStartTime) {
+            return redirect()->back()->withInput()->with('error', 'Estimasi jam tiba wajib diisi.');
+        }
+        if ($isIzinTengahKerja && (! $rawStartTime || ! $rawEndTime)) {
+            return redirect()->back()->withInput()->with('error', 'Jam mulai/selesai wajib diisi.');
+        }
+        if ($isIzinPulangAwal && ! $rawStartTime) {
+            return redirect()->back()->withInput()->with('error', 'Jam pulang wajib diisi.');
+        }
+
+        $applicant = $leaveRequest->user ?? $user;
+
+        // [VALIDASI] SALDO CUTI & MASA KERJA saat edit menjadi CUTI
+        if ($type === LeaveType::CUTI->value) {
+            $joinDate = $applicant->profile?->tgl_bergabung ? Carbon::parse($applicant->profile->tgl_bergabung) : null;
+            if ($joinDate && $joinDate->diffInYears(now()) < 1) {
+                return redirect()->back()->withInput()->with('error', 'Maaf, masa kerja pemohon belum 1 tahun. Belum berhak mengajukan Cuti Tahunan.');
+            }
+
+            $daysRequested = $this->leaveBalanceService->calculateEffectiveDaysForUser(
+                $applicant,
+                $validated['start_date'],
+                $validated['end_date'],
+            );
+
+            if ($applicant->leave_balance < $daysRequested) {
+                return redirect()->back()->withInput()->with('error', "Sisa cuti tidak mencukupi. (Sisa: {$applicant->leave_balance} hari, Pengajuan Efektif: {$daysRequested} hari).");
+            }
+        }
+
+        // [VALIDASI] OFF_SPV
+        $isOffSpv = $type === LeaveType::OFF_SPV->value;
+        if ($isOffSpv) {
+            if (! $this->isSpvUser($applicant)) {
+                return redirect()->back()->withInput()->with('error', 'Tipe OFF hanya untuk Supervisor.');
+            }
+
+            if (Carbon::parse($validated['start_date'])->format('Y-m') !== now()->format('Y-m')) {
+                return redirect()->back()->withInput()->with('error', 'Pengajuan OFF SPV hanya dapat dilakukan untuk bulan ini (tidak bisa untuk bulan depan).');
+            }
+
+            $monthRef = Carbon::parse($validated['start_date'])->startOfMonth();
+            $limit = $this->offSpvMonthlyLimitByMonth($monthRef);
+            $approvedCount = $this->offSpvApprovedCountInMonth($applicant->id, $monthRef);
+            if (($limit - $approvedCount) <= 0) {
+                return redirect()->back()->withInput()->with('error', 'Kuota OFF Supervisor habis.');
+            }
+
+            $startDate = Carbon::parse($validated['start_date']);
+            $weekStart = $startDate->copy()->startOfWeek(Carbon::MONDAY);
+            $weekEnd = $weekStart->copy()->addDays(6);
+            $alreadyInWeek = LeaveRequest::query()->where('user_id', $applicant->id)->where('type', LeaveType::OFF_SPV->value)
+                ->whereBetween('start_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+                ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
+                ->when($leaveRequest->id, fn ($q) => $q->whereKeyNot($leaveRequest->id))
+                ->exists();
+            if ($alreadyInWeek) {
+                return redirect()->back()->withInput()->with('error', 'Pengajuan OFF SPV maksimal 1x seminggu.');
+            }
+            $validated['end_date'] = $validated['start_date'];
             $validated['start_time'] = null;
             $validated['end_time'] = null;
         }
@@ -494,33 +652,44 @@ class LeaveRequestController extends Controller
             $validated['photo'] = basename($uploadedPhotoPath);
         }
 
-        $updated = DB::transaction(function () use ($request, $leaveRequest, $user, $validated) {
-            // Kunci row LeaveRequest dan cek ulang status di dalam transaction
-            // untuk mencegah race condition saat metadata diubah.
-            $lockedLeave = LeaveRequest::lockForUpdate()->findOrFail($leaveRequest->id);
-
-            if (! in_array($lockedLeave->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
-                return false;
-            }
-
-            if ($request->hasFile('photo')) {
-                if ($lockedLeave->photo) {
-                    Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
+        $updated = $this->stateMachine->perform(
+            $leaveRequest,
+            LeaveRequestStateMachine::EDIT_PENDING,
+            function (LeaveRequest $lockedLeave) use ($request, $user, $validated) {
+                if ($request->hasFile('photo')) {
+                    if ($lockedLeave->photo) {
+                        Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
+                    }
                 }
+
+                $dataToUpdate = $validated;
+
+                // [FIX] Jangan menimpa seluruh notes. Pertahankan catatan audit
+                // (misal: system note dari edit HR) dan hanya refresh bagian
+                // warning otomatis agar tidak stale.
+                $existingNotes = $lockedLeave->notes ?? '';
+                $preservedLines = collect(explode("\n", $existingNotes))
+                    ->filter(fn ($line) => ! str_contains($line, 'melebihi batas maksimal') && ! str_contains($line, 'Dihitung Potong Uang Makan'))
+                    ->values()
+                    ->all();
+                $preservedNotes = implode("\n", $preservedLines);
+
+                $newWarnings = $this->buildLeaveNotesAsText($lockedLeave->user ?? $user, $validated['type'], [
+                    ...$validated,
+                    'start_date' => $validated['start_date'],
+                    'end_date' => $validated['end_date'],
+                    'special_leave_detail' => $validated['special_leave_category'] ?? null,
+                ]);
+
+                if ($newWarnings !== null && $newWarnings !== '') {
+                    $dataToUpdate['notes'] = $preservedNotes !== '' ? $preservedNotes."\n".$newWarnings : $newWarnings;
+                } else {
+                    $dataToUpdate['notes'] = $preservedNotes !== '' ? $preservedNotes : null;
+                }
+
+                return $dataToUpdate;
             }
-
-            $dataToUpdate = $validated;
-            $dataToUpdate['notes'] = $this->buildLeaveNotesAsText($lockedLeave->user ?? $user, $validated['type'], [
-                ...$validated,
-                'start_date' => $validated['start_date'],
-                'end_date' => $validated['end_date'],
-                'special_leave_detail' => $validated['special_leave_category'] ?? null,
-            ]);
-
-            $lockedLeave->update($dataToUpdate);
-
-            return true;
-        });
+        );
 
         if (! $updated) {
             if ($uploadedPhotoPath !== null) {
@@ -530,21 +699,21 @@ class LeaveRequestController extends Controller
             return redirect()->back()->with('error', 'Pengajuan sudah diproses, tidak dapat diubah.');
         }
 
-        return back()->with('success', 'Data pengajuan berhasil diperbarui sepenuhnya.');
+        return redirect()->route('leave-requests.index')->with('success', 'Data pengajuan berhasil diperbarui sepenuhnya.');
     }
 
     public function destroy(LeaveRequest $leaveRequest)
     {
         $user = Auth::user();
-        $isOwner = $user->id === $leaveRequest->user_id;
-        $roleStr = $this->getRoleString($user);
-        $isHRD = in_array($roleStr, ['HRD', 'HR STAFF'], true);
 
         abort_unless(
-            $isOwner || $isHRD,
+            Gate::allows('delete', $leaveRequest),
             403,
             'Anda tidak berhak membatalkan pengajuan ini.'
         );
+
+        $isOwner = $user->id === $leaveRequest->user_id;
+        $isHRD = $user->isHR();
 
         // HR dapat membatalkan pengajuan pending atau APPROVED, termasuk miliknya sendiri.
         if ($isHRD) {
@@ -558,7 +727,11 @@ class LeaveRequestController extends Controller
             }
         }
 
-        $cancelled = app(LeaveRequestWorkflowService::class)->cancelLeaveRequest($leaveRequest, $user);
+        $allowedSourceStatuses = $isHRD
+            ? null
+            : [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR];
+
+        $cancelled = $this->workflowService->cancelLeaveRequest($leaveRequest, $user, null, $allowedSourceStatuses);
 
         if (! $cancelled) {
             return redirect()->back()->with('error', 'Pengajuan ini tidak dapat dibatalkan.');
@@ -709,6 +882,76 @@ class LeaveRequestController extends Controller
     }
 
     /**
+     * [AJAX] Hitung hari kerja efektif berdasarkan role user.
+     */
+    public function calculateEffectiveDays(Request $request)
+    {
+        $user = Auth::user();
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+
+        if (! $startDate || ! $endDate) {
+            return response()->json([
+                'days' => 0,
+                'label' => '0 hari',
+            ]);
+        }
+
+        try {
+            $breakdown = $this->leaveBalanceService->calculateEffectiveDayBreakdownForUser(
+                $user,
+                $startDate,
+                $endDate
+            );
+            $days = $breakdown['total'];
+            $leaveBalance = (float) $user->leave_balance;
+            $shortage = max(0, $days - $leaveBalance);
+            $formatted = rtrim(rtrim(number_format($days, 1), '0'), '.');
+            $label = $formatted == 1 ? '1 hari kerja' : $formatted.' hari kerja';
+
+            return response()->json([
+                'days' => $days,
+                'label' => $label,
+                'breakdown' => $breakdown,
+                'leave_balance' => $leaveBalance,
+                'shortage' => $shortage,
+                'exceeds_balance' => $shortage > 0,
+                'is_five_day' => in_array($this->getRoleString($user), ['HRD', 'MANAGER'], true),
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'days' => 0,
+                'label' => '0 hari',
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * [AJAX] Cari rekan aktif untuk PIC pengganti.
+     * Menampilkan nama lengkap saja; saat dipilih otomatis mengisi nama + telepon.
+     */
+    public function searchSubstitute(Request $request)
+    {
+        $query = trim((string) $request->query('q'));
+
+        if ($query === '') {
+            return response()->json([]);
+        }
+
+        $status = $request->query('status', User::STATUS_ACTIVE);
+
+        $users = User::where('status', $status)
+            ->where('id', '!=', Auth::id())
+            ->where('name', 'like', '%'.$query.'%')
+            ->orderBy('name')
+            ->limit(10)
+            ->get(['id', 'name', 'phone']);
+
+        return response()->json($users);
+    }
+
+    /**
      * [AJAX] Cek pengajuan duplikat (tanggal overlap)
      */
     public function checkDuplicate(Request $request)
@@ -717,6 +960,7 @@ class LeaveRequestController extends Controller
         $type = $request->input('type');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        $excludeId = $request->input('exclude_id');
 
         // Validasi input
         if (! $type || ! in_array($type, LeaveType::values(), true) || ! $startDate || ! $endDate) {
@@ -726,7 +970,13 @@ class LeaveRequestController extends Controller
             ]);
         }
 
-        $duplicates = $this->findOverlappingLeaveRequests($userId, $type, $startDate, $endDate);
+        $duplicates = $this->findOverlappingLeaveRequests(
+            $userId,
+            $type,
+            $startDate,
+            $endDate,
+            $excludeId ? (int) $excludeId : null
+        );
 
         if ($duplicates->isNotEmpty()) {
             $duplicateData = $duplicates->map(function ($dup) {

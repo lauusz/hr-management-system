@@ -2,14 +2,13 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-
-use App\Models\User;
-use App\Models\EmployeeProfile;
 use App\Models\Division;
+use App\Models\EmployeeProfile;
 use App\Models\Position;
+use App\Models\Pt;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Seeder;
 
 class ImportEmployeesFromCsvSeeder extends Seeder
 {
@@ -19,7 +18,7 @@ class ImportEmployeesFromCsvSeeder extends Seeder
     public function run(): void
     {
         $path = database_path('seeders/data-karyawan.csv');
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             return;
         }
 
@@ -31,6 +30,7 @@ class ImportEmployeesFromCsvSeeder extends Seeder
         $header = fgetcsv($handle, 0, ';');
         if ($header === false) {
             fclose($handle);
+
             return;
         }
 
@@ -44,7 +44,7 @@ class ImportEmployeesFromCsvSeeder extends Seeder
             }
 
             $data = array_combine($header, $row);
-            if (!$data) {
+            if (! $data) {
                 continue;
             }
 
@@ -85,15 +85,15 @@ class ImportEmployeesFromCsvSeeder extends Seeder
                 ? $rawEmail
                 : null;
 
-            $rawPhone = preg_replace('/\D+/', '', (string)($data['mobile_phone'] ?? ''));
+            $rawPhone = preg_replace('/\D+/', '', (string) ($data['mobile_phone'] ?? ''));
             if ($rawPhone === '') {
                 $phone = null;
             } else {
                 if (str_starts_with($rawPhone, '62')) {
-                    $rawPhone = '0' . substr($rawPhone, 2);
+                    $rawPhone = '0'.substr($rawPhone, 2);
                 }
                 if (str_starts_with($rawPhone, '8')) {
-                    $rawPhone = '0' . $rawPhone;
+                    $rawPhone = '0'.$rawPhone;
                 }
                 $phone = $rawPhone;
             }
@@ -126,7 +126,7 @@ class ImportEmployeesFromCsvSeeder extends Seeder
 
             EmployeeProfile::create([
                 'user_id' => $user->id,
-                'pt' => trim($data['PT'] ?? ''),
+                'pt_id' => $this->resolvePtId($data['PT'] ?? null),
                 'kategori' => $kategori,
                 'nik' => trim($data['NIK'] ?? ''),
                 'email' => $email,
@@ -168,13 +168,28 @@ class ImportEmployeesFromCsvSeeder extends Seeder
         fclose($handle);
     }
 
-    protected function parseTanggalLahir($value): ?string
+    protected function resolvePtId(?string $ptName): ?int
     {
-        if (!$value) {
+        $name = trim((string) $ptName);
+        if ($name === '') {
             return null;
         }
 
-        $s = trim((string)$value);
+        $pt = Pt::firstOrCreate(
+            ['name' => $name],
+            ['created_at' => now(), 'updated_at' => now()]
+        );
+
+        return $pt->id;
+    }
+
+    protected function parseTanggalLahir($value): ?string
+    {
+        if (! $value) {
+            return null;
+        }
+
+        $s = trim((string) $value);
 
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
             return $s;
@@ -202,7 +217,7 @@ class ImportEmployeesFromCsvSeeder extends Seeder
             $year = $parts[2];
             $month = $bulan[$monthName] ?? null;
             if ($month) {
-                return $year . '-' . $month . '-' . $day;
+                return $year.'-'.$month.'-'.$day;
             }
         }
 
@@ -215,14 +230,14 @@ class ImportEmployeesFromCsvSeeder extends Seeder
             return null;
         }
 
-        $s = trim((string)$value);
+        $s = trim((string) $value);
 
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $s)) {
             return $s;
         }
 
         if (is_numeric($s)) {
-            $serial = (int)$s;
+            $serial = (int) $s;
             if ($serial > 20000) {
                 $timestamp = ($serial - 25569) * 86400;
                 try {

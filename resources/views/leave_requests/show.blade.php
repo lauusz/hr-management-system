@@ -519,19 +519,34 @@
         {{-- ========================================== --}}
         {{-- CANCEL ACTION                                --}}
         {{-- ========================================== --}}
-        @if(in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR]))
-            @can('delete', $item)
-                <div class="lrs-section lrs-cancel">
-                    <div class="lrs-cancel-inner">
+        @php
+            $canEditOwn = auth()->id() === $item->user_id
+                && in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true);
+            $canCancel = Gate::allows('delete', $item)
+                && in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true);
+        @endphp
+
+        @if($canEditOwn || $canCancel)
+            <div class="lrs-section lrs-cancel">
+                <div class="lrs-cancel-inner">
+                    @if($canEditOwn)
+                        <a href="{{ route('leave-requests.edit', $item) }}" class="lrs-btn-edit">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Edit Pengajuan
+                        </a>
+                    @endif
+                    @if($canCancel)
                         <button type="button" data-modal-target="modal-delete" class="lrs-btn-cancel">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                             Batalkan Pengajuan
                         </button>
-                    </div>
+                    @endif
                 </div>
-            @endcan
+            </div>
         @endif
     </div>
 
@@ -1505,6 +1520,8 @@
         .lrs-cancel-inner {
             display: flex;
             justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
         .lrs-btn-cancel {
             display: inline-flex;
@@ -1522,6 +1539,7 @@
             transition: all 0.2s;
             font-family: inherit;
             width: 100%;
+            text-decoration: none;
         }
         @media (min-width: 480px) {
             .lrs-btn-cancel { width: auto; }
@@ -1529,6 +1547,32 @@
         .lrs-btn-cancel:hover {
             background: #fef2f2;
             border-color: #fca5a5;
+            transform: translateY(-1px);
+        }
+        .lrs-btn-edit {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            background: var(--white);
+            border: 1.5px solid #bfdbfe;
+            color: #2563eb;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            width: 100%;
+            text-decoration: none;
+        }
+        @media (min-width: 480px) {
+            .lrs-btn-edit { width: auto; }
+        }
+        .lrs-btn-edit:hover {
+            background: #eff6ff;
+            border-color: #93c5fd;
             transform: translateY(-1px);
         }
 

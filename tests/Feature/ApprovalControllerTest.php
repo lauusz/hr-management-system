@@ -624,13 +624,10 @@ describe('ApprovalController', function () {
             $response->assertSessionHasErrors(['type']);
         });
 
-        test('supervisor can cancel APPROVED CUTI and refunds exact DEDUCT amount', function () {
-            $division = Division::factory()->create();
-            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
+        test('HRD can cancel APPROVED CUTI and refunds exact DEDUCT amount', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create([
                 'role' => UserRole::EMPLOYEE,
-                'division_id' => $division->id,
-                'direct_supervisor_id' => $supervisor->id,
                 'leave_balance' => 12,
             ]);
 
@@ -646,11 +643,11 @@ describe('ApprovalController', function () {
             $employee->refresh();
             expect((float) $employee->leave_balance)->toBe(10.0);
 
-            actingAs($supervisor, 'web');
+            actingAs($hrd, 'web');
 
-            $response = $this->delete(route('approval.destroy', $leave));
+            $response = $this->delete(route('leave-requests.destroy', $leave));
 
-            $response->assertRedirect(route('approval.index'));
+            $response->assertRedirect(route('hr.leave.index'));
             $leave->refresh();
             $employee->refresh();
             expect($leave->status)->toBe('BATAL')
@@ -663,13 +660,10 @@ describe('ApprovalController', function () {
                 ->and((float) $refund->amount)->toBe(2.0);
         });
 
-        test('supervisor can cancel APPROVED SAKIT with explicit DEDUCT refund exact', function () {
-            $division = Division::factory()->create();
-            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
+        test('HRD can cancel APPROVED SAKIT with explicit DEDUCT refund exact', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create([
                 'role' => UserRole::EMPLOYEE,
-                'division_id' => $division->id,
-                'direct_supervisor_id' => $supervisor->id,
                 'leave_balance' => 12,
             ]);
 
@@ -684,9 +678,9 @@ describe('ApprovalController', function () {
             $employee->refresh();
             expect((float) $employee->leave_balance)->toBe(9.0);
 
-            actingAs($supervisor, 'web');
+            actingAs($hrd, 'web');
 
-            $this->delete(route('approval.destroy', $leave));
+            $this->delete(route('leave-requests.destroy', $leave));
 
             $leave->refresh();
             $employee->refresh();
@@ -700,13 +694,10 @@ describe('ApprovalController', function () {
                 ->and((float) $refund->amount)->toBe(3.0);
         });
 
-        test('duplicate supervisor cancel does not double refund', function () {
-            $division = Division::factory()->create();
-            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
+        test('duplicate HRD cancel does not double refund', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create([
                 'role' => UserRole::EMPLOYEE,
-                'division_id' => $division->id,
-                'direct_supervisor_id' => $supervisor->id,
                 'leave_balance' => 12,
             ]);
 
@@ -719,10 +710,10 @@ describe('ApprovalController', function () {
 
             app(LeaveBalanceService::class)->deductLeaveBalanceForLeave($leave);
 
-            actingAs($supervisor, 'web');
+            actingAs($hrd, 'web');
 
-            $this->delete(route('approval.destroy', $leave));
-            $this->delete(route('approval.destroy', $leave));
+            $this->delete(route('leave-requests.destroy', $leave));
+            $this->delete(route('leave-requests.destroy', $leave));
 
             $employee->refresh();
             expect((float) $employee->leave_balance)->toBe(12.0)
@@ -1045,6 +1036,46 @@ describe('ApprovalController', function () {
             expect($leave->status)->toBe(LeaveRequest::PENDING_HR);
         });
 
+        test('supervisor auto-approve HRD applicant deletes duplicate pending overlaps', function () {
+            $division = Division::factory()->create();
+            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
+            $hrdEmployee = User::factory()->create([
+                'role' => UserRole::HRD,
+                'division_id' => $division->id,
+                'direct_supervisor_id' => $supervisor->id,
+            ]);
+
+            $leave = LeaveRequest::factory()->forUser($hrdEmployee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-10',
+                'end_date' => '2026-06-12',
+            ]);
+
+            $duplicate = LeaveRequest::factory()->forUser($hrdEmployee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-11',
+                'end_date' => '2026-06-13',
+            ]);
+
+            $nonOverlap = LeaveRequest::factory()->forUser($hrdEmployee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-13',
+                'end_date' => '2026-06-15',
+            ]);
+
+            actingAs($supervisor, 'web');
+
+            $this->post(route('approval.approve', $leave));
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and(LeaveRequest::find($duplicate->id))->toBeNull()
+                ->and(LeaveRequest::find($nonOverlap->id))->not->toBeNull();
+        });
+
         test('General Manager final approve HRD applicant CUTI sent twice only deducts once', function () {
             $division = Division::factory()->create();
             $generalManager = User::factory()->create(['role' => UserRole::MANAGER, 'division_id' => $division->id]);
@@ -1250,6 +1281,94 @@ describe('ApprovalController', function () {
 
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
+        });
+
+        test('stale PENDING_SUPERVISOR instance rejects PENDING_HR row without mutation', function () {
+            $division = Division::factory()->create();
+            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'division_id' => $division->id,
+                'direct_supervisor_id' => $supervisor->id,
+            ]);
+
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'notes' => 'Original notes',
+            ]);
+
+            // Race: instance $leave masih PENDING_SUPERVISOR, tapi DB sudah PENDING_HR.
+            LeaveRequest::where('id', $leave->id)->update(['status' => LeaveRequest::PENDING_HR]);
+
+            $this->actingAs($supervisor, 'web');
+
+            $controller = app(\App\Http\Controllers\ApprovalController::class);
+            $response = $controller->reject($leave);
+
+            expect($response)->toBeInstanceOf(\Illuminate\Http\RedirectResponse::class)
+                ->and($response->getTargetUrl())->toBe(route('approval.index'))
+                ->and(session('error'))->toBe('Status pengajuan sudah berubah.');
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($leave->notes)->toBe('Original notes')
+                ->and($leave->approved_by)->toBeNull()
+                ->and($leave->approved_at)->toBeNull();
+        });
+
+        // [P0-02] Supervisor tidak boleh membatalkan pengajuan setelah approval.
+        test('supervisor cannot cancel APPROVED subordinate leave', function () {
+            $division = Division::factory()->create();
+            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'division_id' => $division->id,
+                'direct_supervisor_id' => $supervisor->id,
+                'leave_balance' => 12,
+            ]);
+
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-06-15',
+                'end_date' => '2026-06-16',
+            ]);
+
+            app(LeaveBalanceService::class)->deductLeaveBalanceForLeave($leave);
+
+            actingAs($supervisor, 'web');
+
+            $response = $this->delete(route('approval.destroy', $leave));
+
+            $response->assertRedirect(route('approval.index'));
+            $response->assertSessionHas('error');
+            $leave->refresh();
+            $employee->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and((float) $employee->leave_balance)->toBe(10.0);
+        });
+
+        test('supervisor cannot cancel PENDING_HR subordinate leave', function () {
+            $division = Division::factory()->create();
+            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'division_id' => $division->id,
+                'direct_supervisor_id' => $supervisor->id,
+            ]);
+
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+
+            actingAs($supervisor, 'web');
+
+            $response = $this->delete(route('approval.destroy', $leave));
+
+            $response->assertRedirect(route('approval.index'));
+            $response->assertSessionHas('error');
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR);
         });
     });
 });

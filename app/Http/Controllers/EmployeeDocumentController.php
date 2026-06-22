@@ -39,6 +39,8 @@ class EmployeeDocumentController extends Controller
 
     public function destroy(EmployeeDocument $employeeDocument)
     {
+        abort_unless(Auth::user()?->isHR(), 403, 'Anda tidak berhak menghapus dokumen karyawan.');
+
         if ($employeeDocument->file_path && Storage::disk('public')->exists($employeeDocument->file_path)) {
             Storage::disk('public')->delete($employeeDocument->file_path);
         }

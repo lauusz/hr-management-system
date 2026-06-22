@@ -12,62 +12,95 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 // =================================================================
-// 1. 👑 ROBOT PENGHITUNG CUTI (RESET TAHUN BARU SAJA)
+// 1. ROBOT PENGHITUNG CUTI
 // =================================================================
 
 Artisan::command('leave:update-balances', function () {
-    $today = Carbon::now();
-    $this->info("🤖 Robot Cuti Berjalan pada: " . $today->format('Y-m-d'));
+    $today = Carbon::now()->startOfDay();
+    $isNewYear = $today->format('m-d') === '01-01';
+    $this->info('🤖 Robot Cuti Berjalan pada: '.$today->format('Y-m-d'));
 
-    // Cek apakah hari ini tanggal 1 Januari?
-    // Jika BUKAN 1 Januari, langsung berhenti (Hemat Resource)
-    if ($today->format('m-d') !== '01-01') {
-        $this->info("📅 Hari ini bukan 1 Januari. Tidak ada reset saldo.");
-        return;
+    // Di luar 1 Januari, reset tahunan dilewati tetapi anniversary
+    // pertama tetap diperiksa.
+    if (! $isNewYear) {
+        $this->info('📅 Hari ini bukan 1 Januari. Tidak ada reset saldo.');
     }
 
     $resetCount = 0;
+    $firstYearGrantCount = 0;
     $service = app(LeaveBalanceService::class);
 
     // Proses per 100 user agar hemat memori
-    User::with('profile')->chunk(100, function ($users) use ($today, &$resetCount, $service) {
-        foreach ($users as $user) {
-            // Skip jika tidak ada data tanggal bergabung
-            if (! $user->profile || ! $user->profile->tgl_bergabung) {
-                continue;
-            }
+    User::query()
+        ->active()
+        ->with('profile')
+        ->chunkById(100, function ($users) use (
+            $today,
+            $isNewYear,
+            &$resetCount,
+            &$firstYearGrantCount,
+            $service
+        ) {
+            foreach ($users as $user) {
+                // Skip jika tidak ada data tanggal bergabung
+                if (! $user->profile || ! $user->profile->tgl_bergabung) {
+                    continue;
+                }
 
-            $joinDate = Carbon::parse($user->profile->tgl_bergabung);
+                $joinDate = Carbon::parse($user->profile->tgl_bergabung)->startOfDay();
+                if ($joinDate->gt($today)) {
+                    continue;
+                }
 
-            // Hitung masa kerja dalam tahun
-            $yearsWorked = $joinDate->diffInYears($today);
+                $firstAnniversary = $joinDate->copy()->addYearNoOverflow();
 
-            // SYARAT RESET:
-            // 1. Hari ini adalah 1 Januari (Sudah dicek di atas)
-            // 2. Masa kerja sudah >= 1 Tahun
-            if ($yearsWorked >= 1) {
-                $resetKey = "ANNUAL_RESET:USER:{$user->id}:YEAR:{$today->year}";
+                // Hak cuti pertama diberikan tepat saat genap satu tahun.
+                // Kebijakan prorata: 12 dikurangi nomor bulan anniversary.
+                if ($firstAnniversary->isSameDay($today)) {
+                    $targetBalance = max(0, 12 - (int) $firstAnniversary->month);
+                    $grantKey = "FIRST_YEAR_PRORATA:USER:{$user->id}:ANNIVERSARY:{$firstAnniversary->year}";
 
-                $adjusted = $service->adjustBalanceToTarget(
-                    $user,
-                    12,
-                    "Reset saldo cuti tahun {$today->year}",
-                    $resetKey,
-                    null,
-                );
+                    $service->adjustBalanceToTarget(
+                        $user,
+                        $targetBalance,
+                        "Hak cuti pertama prorata tahun {$firstAnniversary->year}",
+                        $grantKey,
+                        null,
+                    );
 
-                if ($adjusted > 0) {
-                    $this->info("🔄 [TAHUN BARU] {$user->name}: Saldo di-reset jadi 12.");
-                    $resetCount++;
+                    $this->info("{$user->name}: hak cuti pertama ditetapkan menjadi {$targetBalance} hari.");
+                    $firstYearGrantCount++;
+
+                    // Pada 1 Januari, hak cuti pertama tidak boleh langsung ditimpa
+                    // oleh reset tahunan 12 hari.
+                    continue;
+                }
+
+                // Reset tahunan hanya untuk karyawan yang sudah melewati anniversary
+                // pertama sebelum 1 Januari tahun berjalan.
+                if ($isNewYear && $firstAnniversary->lt($today)) {
+                    $resetKey = "ANNUAL_RESET:USER:{$user->id}:YEAR:{$today->year}";
+
+                    $adjusted = $service->adjustBalanceToTarget(
+                        $user,
+                        12,
+                        "Reset saldo cuti tahun {$today->year}",
+                        $resetKey,
+                        null,
+                    );
+
+                    if ($adjusted > 0) {
+                        $this->info("🔄 [TAHUN BARU] {$user->name}: Saldo di-reset jadi 12.");
+                        $resetCount++;
+                    }
                 }
             }
-        }
-    });
+        });
 
     $this->info("🏁 Selesai. Total User Reset: {$resetCount}");
 
-})->purpose('Update saldo cuti (Khusus Reset Tahunan 1 Januari)');
-
+    $this->info("Total hak cuti pertama diproses: {$firstYearGrantCount}");
+})->purpose('Berikan hak cuti pertama prorata dan reset saldo cuti tahunan');
 
 // =================================================================
 // 2. 🛡️ ROBOT AUTO BACKUP (MODE OVERWRITE - HEMAT STORAGE)
@@ -83,7 +116,7 @@ Artisan::command('db:backup', function () {
 
     // Folder & File Backup
     $folderPath = storage_path('app/backups');
-    $fileName   = 'backup-latest.sql'; 
+    $fileName   = 'backup-latest.sql';
     $fullPath   = $folderPath . DIRECTORY_SEPARATOR . $fileName;
 
     if (!file_exists($folderPath)) {
@@ -121,7 +154,7 @@ Artisan::command('db:backup', function () {
 // JADWAL GLOBAL (SCHEDULER)
 // =================================================================
 
-// 1. Robot Cuti: Cek setiap hari jam 00:01 (Tapi cuma kerja pas 1 Jan)
+// 1. Robot Cuti: cek anniversary setiap hari dan reset tahunan pada 1 Januari.
 Schedule::command('leave:update-balances')
         ->dailyAt('00:01')
         ->timezone('Asia/Jakarta');

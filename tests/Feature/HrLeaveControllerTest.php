@@ -318,6 +318,41 @@ describe('HrLeaveController', function () {
                 ->and($employee->leave_balance)->toBeLessThan(12);
         });
 
+        it('HRD final approve deletes duplicate pending overlaps', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-10',
+                'end_date' => '2026-06-12',
+            ]);
+
+            $duplicate = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-11',
+                'end_date' => '2026-06-13',
+            ]);
+
+            $differentType = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-06-11',
+                'end_date' => '2026-06-12',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('hr.leave.approve', $leave->id));
+
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and(LeaveRequest::find($duplicate->id))->toBeNull()
+                ->and(LeaveRequest::find($differentType->id))->not->toBeNull();
+        });
+
         it('HRD cannot approve own leave request', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $leave = LeaveRequest::factory()->forUser($hrd)->create([
@@ -332,7 +367,7 @@ describe('HrLeaveController', function () {
             $response->assertSessionHas('error', 'Etika Profesi: Anda tidak dapat menyetujui pengajuan Anda sendiri.');
         });
 
-        it('HR Staff cannot approve PENDING_HR CUTI (only HRD)', function () {
+        it('HR Staff can approve PENDING_HR CUTI for employee', function () {
             $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
@@ -342,9 +377,10 @@ describe('HrLeaveController', function () {
 
             actingAs($hrStaff, 'web');
 
-            $response = $this->post(route('hr.leave.approve', $leave->id));
+            $this->post(route('hr.leave.approve', $leave->id));
 
-            $response->assertStatus(403);
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
         });
 
         it('HR Staff CAN approve non-CUTI PENDING_HR', function () {
@@ -653,6 +689,39 @@ describe('HrLeaveController', function () {
                 ->and(LeaveBalanceTransaction::where('user_id', $employee->id)
                     ->where('transaction_type', LeaveBalanceTransaction::DEDUCT)
                     ->count())->toBe(1);
+        });
+
+        it('stale PENDING_HR instance does not approve when DB moved back to PENDING_SUPERVISOR', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-06-15',
+                'end_date' => '2026-06-16',
+            ]);
+
+            // Race: instance $leave masih PENDING_HR, tapi DB sudah PENDING_SUPERVISOR.
+            LeaveRequest::where('id', $leave->id)->update(['status' => LeaveRequest::PENDING_SUPERVISOR]);
+
+            $this->actingAs($hrd, 'web');
+
+            $controller = app(\App\Http\Controllers\HrLeaveController::class);
+            $request = new \Illuminate\Http\Request;
+            $response = $controller->approve($request, $leave);
+
+            expect($response)->toBeInstanceOf(\Illuminate\Http\RedirectResponse::class)
+                ->and($response->getTargetUrl())->toBe(route('hr.leave.index'))
+                ->and(session('error'))->toBe('Status pengajuan sudah berubah.');
+
+            $leave->refresh();
+            $employee->refresh();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_SUPERVISOR)
+                ->and((float) $employee->leave_balance)->toBe(12.0)
+                ->and(LeaveBalanceTransaction::where('user_id', $employee->id)->count())->toBe(0);
         });
     });
 
@@ -1150,6 +1219,67 @@ describe('HrLeaveController', function () {
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
                 ->and($leave->reason)->toBe('Original reason');
+        });
+
+        // [P0-03] HR update CUTI pending harus validasi saldo secara atomik.
+        it('rejects HR update when CUTI balance insufficient', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 1,
+            ]);
+            EmployeeProfile::create(['user_id' => $employee->id, 'tgl_bergabung' => now()->subYears(2)->toDateString(), 'kategori' => 'KONTRAK']);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => now()->addDays(5)->toDateString(),
+                'end_date' => now()->addDays(5)->toDateString(),
+                'reason' => 'Original reason',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->put(route('hr.leave.update', $leave->id), [
+                'type' => LeaveType::CUTI->value,
+                'start_date' => now()->addDays(5)->toDateString(),
+                'end_date' => now()->addDays(10)->toDateString(),
+                'reason' => 'Extended reason',
+            ]);
+
+            $response->assertSessionHas('error');
+            $leave->refresh();
+            expect($leave->reason)->toBe('Original reason')
+                ->and($leave->start_date->format('Y-m-d'))->toBe(now()->addDays(5)->toDateString());
+        });
+
+        it('allows HR update when CUTI balance sufficient', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+            ]);
+            EmployeeProfile::create(['user_id' => $employee->id, 'tgl_bergabung' => now()->subYears(2)->toDateString(), 'kategori' => 'KONTRAK']);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => now()->addDays(5)->toDateString(),
+                'end_date' => now()->addDays(5)->toDateString(),
+                'reason' => 'Original reason',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->put(route('hr.leave.update', $leave->id), [
+                'type' => LeaveType::CUTI->value,
+                'start_date' => now()->addDays(5)->toDateString(),
+                'end_date' => now()->addDays(6)->toDateString(),
+                'reason' => 'Extended reason',
+            ]);
+
+            $response->assertSessionHas('success');
+            $leave->refresh();
+            expect($leave->reason)->toBe('Extended reason')
+                ->and($leave->end_date->format('Y-m-d'))->toBe(now()->addDays(6)->toDateString());
         });
     });
 

@@ -76,6 +76,18 @@
                     </select>
                 </div>
 
+                <div class="lr-filter-group">
+                    <label class="lr-filter-label">Status</label>
+                    <select name="status" class="lr-filter-input">
+                        <option value="">Semua Status</option>
+                        @foreach($statusOptions as $val => $lbl)
+                            <option value="{{ $val }}" @selected($statusFilter === $val)>
+                                {{ $lbl }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="lr-filter-actions">
                     <button type="submit" class="lr-btn-filter">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,7 +96,7 @@
                         Filter
                     </button>
 
-                    @if(($submittedRange ?? null) || ($typeFilter ?? null))
+                    @if(($submittedRange ?? null) || ($typeFilter ?? null) || ($statusFilter ?? null))
                     <a href="{{ route('leave-requests.index') }}" class="lr-btn-reset">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -102,22 +114,22 @@
     {{-- ============================================== --}}
     <div class="lr-stats">
         <div class="lr-stat">
-            <div class="lr-stat-value">{{ $items->total() }}</div>
+            <div class="lr-stat-value">{{ $stats['total'] ?? $items->total() }}</div>
             <div class="lr-stat-label">Total</div>
         </div>
         <div class="lr-stat-divider"></div>
         <div class="lr-stat">
-            <div class="lr-stat-value lr-stat-value--success">{{ $items->where('status', \App\Models\LeaveRequest::STATUS_APPROVED)->count() }}</div>
+            <div class="lr-stat-value lr-stat-value--success">{{ $stats['approved'] ?? 0 }}</div>
             <div class="lr-stat-label">Disetujui</div>
         </div>
         <div class="lr-stat-divider"></div>
         <div class="lr-stat">
-            <div class="lr-stat-value lr-stat-value--warning">{{ $items->whereIn('status', [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR])->count() }}</div>
+            <div class="lr-stat-value lr-stat-value--warning">{{ $stats['pending'] ?? 0 }}</div>
             <div class="lr-stat-label">Menunggu</div>
         </div>
         <div class="lr-stat-divider"></div>
         <div class="lr-stat">
-            <div class="lr-stat-value lr-stat-value--error">{{ $items->where('status', \App\Models\LeaveRequest::STATUS_REJECTED)->count() }}</div>
+            <div class="lr-stat-value lr-stat-value--error">{{ $stats['rejected'] ?? 0 }}</div>
             <div class="lr-stat-label">Ditolak</div>
         </div>
     </div>
@@ -171,44 +183,45 @@
                     $typeClass = 'lr-type--izin';
                 }
             @endphp
+            <div class="lr-card">
+                <a href="{{ route('leave-requests.show', $row) }}" class="lr-card-main">
+                    <div class="lr-card-top">
+                        <span class="lr-type {{ $typeClass }}">
+                            @if($row->type->value === \App\Enums\LeaveType::CUTI->value)
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            @elseif($row->type->value === \App\Enums\LeaveType::CUTI_KHUSUS->value)
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            @elseif($row->type->value === \App\Enums\LeaveType::SAKIT->value)
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                            @else
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            @endif
+                            {{ $typeLabel }}
+                        </span>
 
-            <a href="{{ route('leave-requests.show', $row) }}" class="lr-card">
-                <div class="lr-card-top">
-                    <span class="lr-type {{ $typeClass }}">
-                        @if($row->type->value === \App\Enums\LeaveType::CUTI->value)
-                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        @elseif($row->type->value === \App\Enums\LeaveType::CUTI_KHUSUS->value)
-                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                        @elseif($row->type->value === \App\Enums\LeaveType::SAKIT->value)
-                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
-                        @else
-                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        @endif
-                        {{ $typeLabel }}
-                    </span>
-
-                    <span class="lr-badge {{ $badgeClass }}">
-                        {!! $statusIcon !!}
-                        {{ $statusLabel }}
-                    </span>
-                </div>
-
-                <div class="lr-card-date">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <span>{{ $row->start_date->translatedFormat('l, j F Y') }}</span>
-                    @if($row->end_date && $row->end_date->ne($row->start_date))
-                        <span class="lr-card-date-sep">-</span>
-                        <span>{{ $row->end_date->translatedFormat('l, j F Y') }}</span>
-                    @endif
-                </div>
-
-                @if($row->reason)
-                    <div class="lr-card-note">
-                        {{ Str::limit($row->reason, 100) }}
+                        <span class="lr-badge {{ $badgeClass }}">
+                            {!! $statusIcon !!}
+                            {{ $statusLabel }}
+                        </span>
                     </div>
-                @endif
+
+                    <div class="lr-card-date">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>{{ $row->start_date->translatedFormat('l, j F Y') }}</span>
+                        @if($row->end_date && $row->end_date->ne($row->start_date))
+                            <span class="lr-card-date-sep">-</span>
+                            <span>{{ $row->end_date->translatedFormat('l, j F Y') }}</span>
+                        @endif
+                    </div>
+
+                    @if($row->reason)
+                        <div class="lr-card-note">
+                            {{ Str::limit($row->reason, 100) }}
+                        </div>
+                    @endif
+                </a>
 
                 <div class="lr-card-footer">
                     <div class="lr-card-meta">
@@ -217,14 +230,8 @@
                         </svg>
                         <span>{{ $row->created_at->translatedFormat('l, j F Y') }} · {{ $row->created_at->format('H:i') }}</span>
                     </div>
-                    <div class="lr-card-action">
-                        <span>Detail</span>
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </div>
                 </div>
-            </a>
+            </div>
         @empty
             <div class="lr-empty">
                 <div class="lr-empty-icon">
@@ -581,20 +588,10 @@
         .lr-card-meta svg {
             flex-shrink: 0;
         }
-        .lr-card-action {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.8125rem;
-            font-weight: 600;
-            color: var(--primary);
-            flex-shrink: 0;
-        }
-        .lr-card-action svg {
-            transition: transform 0.2s ease;
-        }
-        .lr-card:hover .lr-card-action svg {
-            transform: translateX(3px);
+        .lr-card-main {
+            display: block;
+            text-decoration: none;
+            color: inherit;
         }
 
         /* ========================================== */
