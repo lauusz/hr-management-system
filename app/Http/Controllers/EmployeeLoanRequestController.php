@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\LoanRequest;
+use App\Services\Image\ImageCompressor;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class EmployeeLoanRequestController extends Controller
 {
+    public function __construct(protected ImageCompressor $imageCompressor) {}
+
     public function index()
     {
         $loans = LoanRequest::where('user_id', Auth::id())
@@ -47,7 +52,7 @@ class EmployeeLoanRequestController extends Controller
             'notes' => ['nullable', 'string'],
             'disbursement_date' => ['nullable', 'date'],
             'payment_method' => ['required', 'in:TUNAI,CICILAN,POTONG_GAJI'],
-            'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt', 'max:8192'],
+            'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif,pdf,doc,docx,xls,xlsx,txt', 'max:8192'],
         ]);
 
         $user = Auth::user()->load([
@@ -61,7 +66,7 @@ class EmployeeLoanRequestController extends Controller
 
         $documentPath = null;
         if ($request->hasFile('document')) {
-            $documentPath = $request->file('document')->store('loan_documents', 'public');
+            $documentPath = $this->storeLoanDocument($request->file('document'));
         }
 
         LoanRequest::create([
@@ -111,5 +116,24 @@ class EmployeeLoanRequestController extends Controller
         $loan->update(['status' => 'CANCELED']);
 
         return redirect()->route('employee.loan_requests.index')->with('success', 'Pengajuan hutang berhasil dibatalkan.');
+    }
+
+    private function storeLoanDocument(UploadedFile $file): string
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif', 'bmp', 'tif', 'tiff', 'avif'], true)) {
+            return $file->store('loan_documents', 'public');
+        }
+
+        try {
+            return $this->imageCompressor->compressAndStore($file, 'photo', 'loan_documents', 'loan_');
+        } catch (ValidationException $exception) {
+            if (! in_array($extension, ['heic', 'heif'], true)) {
+                throw $exception;
+            }
+
+            return $file->store('loan_documents', 'public');
+        }
     }
 }

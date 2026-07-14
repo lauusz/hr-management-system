@@ -205,7 +205,7 @@
                             type="file"
                             name="document"
                             class="file-input"
-                            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                            accept="image/*,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.txt"
                             onchange="handleFileSelect(this)">
                         <div class="file-upload-content" id="file-upload-content">
                             <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">

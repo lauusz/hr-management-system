@@ -4,24 +4,29 @@ namespace App\Http\Controllers;
 
 use App\Models\EmployeeDocument;
 use App\Models\User;
+use App\Services\Image\ImageCompressor;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class EmployeeDocumentController extends Controller
 {
+    public function __construct(protected ImageCompressor $imageCompressor) {}
+
     public function store(Request $request, User $user)
     {
         $validated = $request->validate([
-            'type' => ['required', 'string', 'in:' . implode(',', EmployeeDocument::types())],
+            'type' => ['required', 'string', 'in:'.implode(',', EmployeeDocument::types())],
             'title' => ['nullable', 'string', 'max:255'],
-            'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx', 'max:5120'],
+            'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif,doc,docx', 'max:5120'],
             'effective_date' => ['nullable', 'date'],
             'expired_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
 
-        $path = $request->file('file')->store('employee_documents', 'public');
+        $path = $this->storeDocumentFile($request->file('file'));
 
         EmployeeDocument::create([
             'user_id' => $user->id,
@@ -39,7 +44,9 @@ class EmployeeDocumentController extends Controller
 
     public function destroy(EmployeeDocument $employeeDocument)
     {
-        abort_unless(Auth::user()?->isHR(), 403, 'Anda tidak berhak menghapus dokumen karyawan.');
+        if (! Auth::user()?->isHR()) {
+            return redirect()->back()->with('error', 'Anda tidak berhak menghapus dokumen karyawan.');
+        }
 
         if ($employeeDocument->file_path && Storage::disk('public')->exists($employeeDocument->file_path)) {
             Storage::disk('public')->delete($employeeDocument->file_path);
@@ -50,4 +57,22 @@ class EmployeeDocumentController extends Controller
         return back()->with('success', 'Dokumen karyawan berhasil dihapus.');
     }
 
+    private function storeDocumentFile(UploadedFile $file): string
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif', 'bmp', 'tif', 'tiff', 'avif'], true)) {
+            return $file->store('employee_documents', 'public');
+        }
+
+        try {
+            return $this->imageCompressor->compressAndStore($file, 'photo', 'employee_documents', 'employee_doc_');
+        } catch (ValidationException $exception) {
+            if (! in_array($extension, ['heic', 'heif'], true)) {
+                throw $exception;
+            }
+
+            return $file->store('employee_documents', 'public');
+        }
+    }
 }

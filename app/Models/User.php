@@ -70,6 +70,19 @@ class User extends Authenticatable
         return $this->isHrManager() || $this->can_manage_payroll;
     }
 
+    public function hasAccessRole(string $role): bool
+    {
+        $primaryRole = $this->role instanceof UserRole ? $this->role->value : (string) $this->role;
+
+        return $primaryRole === $role
+            || $this->accessRoles()->where('role', $role)->exists();
+    }
+
+    public function canManageAtk(): bool
+    {
+        return $this->hasAccessRole(UserRole::ADMIN_ATK->value);
+    }
+
     public function isHR(): bool
     {
         return in_array($this->role, [
@@ -203,5 +216,10 @@ class User extends Authenticatable
     public function leaveBalanceTransactions()
     {
         return $this->hasMany(LeaveBalanceTransaction::class);
+    }
+
+    public function accessRoles()
+    {
+        return $this->hasMany(UserAccessRole::class);
     }
 }

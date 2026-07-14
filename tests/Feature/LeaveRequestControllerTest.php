@@ -11,10 +11,10 @@ use Carbon\Carbon;
 // âš ï¸ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
 // karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
 
-use Illuminate\Http\UploadedFile;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
@@ -58,7 +58,8 @@ describe('LeaveRequestController', function () {
             actingAs($otherEmployee, 'web');
 
             $this->get(route('leave-requests.supporting-file', $leave))
-                ->assertForbidden();
+                ->assertRedirect()
+                ->assertSessionHas('error');
         });
 
         it('allows manager as applicant manager_id to open attachment', function () {
@@ -214,7 +215,8 @@ describe('LeaveRequestController', function () {
             actingAs($other, 'web');
 
             $this->get(route('leave-requests.edit', $leave))
-                ->assertForbidden();
+                ->assertRedirect()
+                ->assertSessionHas('error');
         });
     });
 
@@ -419,6 +421,33 @@ describe('LeaveRequestController', function () {
             $response = $this->post(route('leave-requests.store'), []);
 
             $response->assertSessionHasErrors(['type', 'start_date', 'end_date', 'reason']);
+            expect(session('errors')->first('reason'))->toBe('Alasan wajib diisi.');
+        });
+
+        it('deletes uploaded file when creating leave request fails', function () {
+            Storage::fake('public');
+
+            $user = User::factory()->create();
+            LeaveRequest::creating(fn () => throw new RuntimeException('Simulasi gagal menyimpan pengajuan.'));
+
+            actingAs($user, 'web');
+            $this->withoutExceptionHandling();
+
+            try {
+                $this->post(route('leave-requests.store'), [
+                    'type' => LeaveType::IZIN->value,
+                    'start_date' => now()->addDay()->toDateString(),
+                    'end_date' => now()->addDay()->toDateString(),
+                    'reason' => 'Keperluan mendesak',
+                    'photo' => UploadedFile::fake()->create('bukti.pdf', 100, 'application/pdf'),
+                ]);
+            } catch (RuntimeException $exception) {
+                expect($exception->getMessage())->toBe('Simulasi gagal menyimpan pengajuan.');
+            } finally {
+                LeaveRequest::flushEventListeners();
+            }
+
+            expect(Storage::disk('public')->allFiles('leave_photos'))->toBeEmpty();
         });
 
         it('rejects invalid leave type', function () {
@@ -644,7 +673,8 @@ describe('LeaveRequestController', function () {
 
             $response = $this->get(route('leave-requests.show', $leave->id));
 
-            $response->assertStatus(403);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
         });
     });
 
@@ -812,7 +842,8 @@ describe('LeaveRequestController', function () {
                 'reason' => 'Updated by manager',
             ]);
 
-            $response->assertStatus(403);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
             $leave->refresh();
             expect($leave->reason)->toBe('Original reason');
         });
@@ -1060,7 +1091,8 @@ describe('LeaveRequestController', function () {
 
             $response = $this->delete(route('leave-requests.destroy', $leave->id));
 
-            $response->assertStatus(403);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
 
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::PENDING_HR);
@@ -1080,7 +1112,8 @@ describe('LeaveRequestController', function () {
 
             $response = $this->delete(route('leave-requests.destroy', $leave->id));
 
-            $response->assertStatus(403);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
 
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::PENDING_HR);
@@ -1204,7 +1237,8 @@ describe('LeaveRequestController', function () {
                 'photo' => $file,
             ]);
 
-            $response->assertStatus(403);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
             $leave->refresh();
             expect($leave->photo)->toBeNull();
         });

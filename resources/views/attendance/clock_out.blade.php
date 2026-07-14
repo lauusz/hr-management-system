@@ -733,14 +733,14 @@
                         btn.onclick = () => window.location.href = '{{ url("/attendance") }}';
                     });
                 } else {
-                    alert(firstErrorMessage(data, 'Gagal melakukan clock-out.'));
+                    window.showToast(firstErrorMessage(data, 'Gagal melakukan clock-out.'), 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.innerHTML = originalText;
                     btnRetake.disabled = false;
                 }
             } catch (error) {
                 console.error(error);
-                alert('Terjadi kesalahan koneksi.');
+                window.showToast('Terjadi kesalahan koneksi.', 'warning');
                 btnSubmit.disabled = false;
                 btnSubmit.innerHTML = originalText;
                 btnRetake.disabled = false;

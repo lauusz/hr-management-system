@@ -27,6 +27,8 @@ class LeaveRequestStateMachine
 
     public const EDIT_PENDING = 'EDIT_PENDING';
 
+    public const EDIT_APPROVED_DATE = 'EDIT_APPROVED_DATE';
+
     private const TRANSITIONS = [
         self::FORWARD_TO_HR => [
             LeaveRequest::PENDING_SUPERVISOR => LeaveRequest::PENDING_HR,
@@ -40,9 +42,9 @@ class LeaveRequestStateMachine
             LeaveRequest::PENDING_HR => LeaveRequest::STATUS_REJECTED,
         ],
         self::CANCEL => [
-            LeaveRequest::PENDING_SUPERVISOR => 'BATAL',
-            LeaveRequest::PENDING_HR => 'BATAL',
-            LeaveRequest::STATUS_APPROVED => 'BATAL',
+            LeaveRequest::PENDING_SUPERVISOR => LeaveRequest::STATUS_CANCELLED,
+            LeaveRequest::PENDING_HR => LeaveRequest::STATUS_CANCELLED,
+            LeaveRequest::STATUS_APPROVED => LeaveRequest::STATUS_CANCELLED,
         ],
         self::REVISE_FOR_HR => [
             LeaveRequest::PENDING_SUPERVISOR => LeaveRequest::PENDING_HR,
@@ -51,6 +53,9 @@ class LeaveRequestStateMachine
         self::EDIT_PENDING => [
             LeaveRequest::PENDING_SUPERVISOR => LeaveRequest::PENDING_SUPERVISOR,
             LeaveRequest::PENDING_HR => LeaveRequest::PENDING_HR,
+        ],
+        self::EDIT_APPROVED_DATE => [
+            LeaveRequest::STATUS_APPROVED => LeaveRequest::STATUS_APPROVED,
         ],
     ];
 

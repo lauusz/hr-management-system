@@ -659,7 +659,7 @@
 
             // Double check notes if Step 1
             if (currentType === 'in' && !notesInput.value.trim()) {
-                alert("Harap isi Keterangan/Keperluan Dinas!");
+                window.showToast("Harap isi Keterangan/Keperluan Dinas!", "warning");
                 goToStep(1);
                 return;
             }
@@ -700,13 +700,13 @@
                         btn.onclick = () => window.location.reload();
                     });
                 } else {
-                    alert(data.message || data.error || "Terjadi kesalahan.");
+                    window.showToast(data.message || data.error || "Terjadi kesalahan.", "error");
                     btnSubmit.disabled = false;
                     btnSubmit.innerText = btnOriginal;
                     btnRetake.disabled = false;
                 }
             } catch (err) {
-                alert("Gagal koneksi ke server.");
+                window.showToast("Gagal koneksi ke server.", "error");
                 btnSubmit.disabled = false;
                 btnSubmit.innerText = btnOriginal;
                 btnRetake.disabled = false;

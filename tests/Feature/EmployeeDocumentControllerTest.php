@@ -100,4 +100,24 @@ describe('EmployeeDocumentController', function () {
             'created_by' => $hrd->id,
         ]);
     });
+
+    it('compresses image employee documents', function () {
+        Storage::fake('public');
+
+        $hrd = User::factory()->create(['role' => UserRole::HRD]);
+        $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+        actingAs($hrd, 'web');
+
+        $this->post(route('hr.employees.documents.store', $employee), [
+            'type' => EmployeeDocument::TYPE_SK,
+            'title' => 'Scan SK',
+            'file' => UploadedFile::fake()->image('scan.png', 2000, 1000),
+        ])->assertSessionHas('success');
+
+        $document = EmployeeDocument::where('title', 'Scan SK')->firstOrFail();
+
+        expect($document->file_path)->toEndWith('.jpg');
+        Storage::disk('public')->assertExists($document->file_path);
+    });
 });

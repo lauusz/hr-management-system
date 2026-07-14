@@ -1,9 +1,13 @@
 <?php
 
 use App\Enums\LeaveType;
+use App\Enums\UserRole;
 use App\Models\LeaveRequest;
 use App\Models\User;
-use App\Enums\UserRole;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+
+uses(Tests\TestCase::class);
+uses(DatabaseTransactions::class);
 
 describe('LeaveRequest Model', function () {
 
@@ -24,6 +28,10 @@ describe('LeaveRequest Model', function () {
 
     it('has correct STATUS_REJECTED constant', function () {
         expect(LeaveRequest::STATUS_REJECTED)->toBe('REJECTED');
+    });
+
+    it('has correct STATUS_CANCELLED constant', function () {
+        expect(LeaveRequest::STATUS_CANCELLED)->toBe('BATAL');
     });
 
     it('STATUS_OPTIONS contains all expected statuses', function () {
@@ -61,8 +69,8 @@ describe('LeaveRequest Model', function () {
         expect($leave->type_label)->toBe('Sakit');
     });
 
-    it('type_label returns Tidak ditemukan for invalid type', function () {
-        $leave = LeaveRequest::factory()->make(['type' => 'INVALID_TYPE']);
+    it('type_label returns Tidak diketahui when type is missing', function () {
+        $leave = new LeaveRequest;
 
         expect($leave->type_label)->toBe('Tidak diketahui');
     });
@@ -73,8 +81,7 @@ describe('LeaveRequest Model', function () {
     it('setTypeAttribute uppercases string values', function () {
         $leave = LeaveRequest::factory()->make(['type' => 'cuti']);
 
-        // After mutator runs, type should be uppercased when stored
-        expect($leave->type)->toBe('CUTI');
+        expect($leave->getAttributes()['type'])->toBe('CUTI');
     });
 
     it('setTypeAttribute passes through enum values', function () {

@@ -59,7 +59,7 @@ class LeaveRequestController extends Controller
             LeaveRequest::PENDING_HR,
             LeaveRequest::STATUS_APPROVED,
             LeaveRequest::STATUS_REJECTED,
-            'BATAL',
+            LeaveRequest::STATUS_CANCELLED,
         ];
         if ($statusFilter && in_array($statusFilter, $validStatuses, true)) {
             $query->where('status', $statusFilter);
@@ -84,7 +84,7 @@ class LeaveRequestController extends Controller
                     }
                     $query->whereBetween('created_at', [$from, $to]);
                 }
-            } catch (\Exception $e) {
+            } catch (\Exception) {
             }
         }
 
@@ -111,7 +111,7 @@ class LeaveRequestController extends Controller
                 LeaveRequest::PENDING_HR => 'Menunggu HRD',
                 LeaveRequest::STATUS_APPROVED => 'Disetujui',
                 LeaveRequest::STATUS_REJECTED => 'Ditolak',
-                'BATAL' => 'Dibatalkan',
+                LeaveRequest::STATUS_CANCELLED => 'Dibatalkan',
             ],
             'submittedRange' => $submittedRange,
             'stats' => [
@@ -140,7 +140,7 @@ class LeaveRequestController extends Controller
             if ($shiftDay && $shiftDay->end_time) {
                 try {
                     $shiftEndTime = Carbon::parse($shiftDay->end_time)->format('H:i');
-                } catch (\Throwable $e) {
+                } catch (\Throwable) {
                 }
             }
         }
@@ -175,11 +175,9 @@ class LeaveRequestController extends Controller
     {
         $user = Auth::user();
 
-        abort_unless(
-            $leave_request->user_id === $user->id || $user->isHR(),
-            403,
-            'Anda tidak berhak mengubah data pengajuan ini.'
-        );
+        if (! ($leave_request->user_id === $user->id || $user->isHR())) {
+            return redirect()->back()->with('error', 'Anda tidak berhak mengubah data pengajuan ini.');
+        }
 
         if (! in_array($leave_request->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
             return redirect()->route('leave-requests.index')
@@ -297,7 +295,7 @@ class LeaveRequestController extends Controller
             $weekStart = $startDate->copy()->startOfWeek(Carbon::MONDAY);
             $weekEnd = $weekStart->copy()->addDays(6);
             $alreadyInWeek = LeaveRequest::query()->where('user_id', $userId)->where('type', LeaveType::OFF_SPV->value)
-                ->whereBetween('start_date', [$weekStart->toDateString(), $weekEnd->toDateString()])->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])->exists();
+                ->whereBetween('start_date', [$weekStart->toDateString(), $weekEnd->toDateString()])->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED])->exists();
             if ($alreadyInWeek) {
                 return redirect()->back()->withInput()->with('error', 'Pengajuan OFF SPV maksimal 1x seminggu.');
             }
@@ -323,6 +321,7 @@ class LeaveRequestController extends Controller
             return redirect()->back()->withInput()->with('error', 'Jam pulang wajib diisi.');
         }
 
+        $fullPath = null;
         $photoBasename = null;
         if ($request->hasFile('photo')) {
             $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
@@ -385,25 +384,33 @@ class LeaveRequestController extends Controller
                 $initialStatus = LeaveRequest::PENDING_HR;
         }
 
-        LeaveRequest::create([
-            'user_id' => $userId,
-            'type' => $type,
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'],
-            'start_time' => ($isIzinTengahKerja || $isIzinPulangAwal || $isIzinTelat) ? $rawStartTime : null,
-            'end_time' => $isIzinTengahKerja ? $rawEndTime : null,
-            'reason' => $validated['reason'],
-            'photo' => $photoBasename,
-            'status' => $initialStatus,
-            'notes' => $notes,
-            'latitude' => $validated['latitude'] ?? null,
-            'longitude' => $validated['longitude'] ?? null,
-            'accuracy_m' => $validated['accuracy_m'] ?? null,
-            'location_captured_at' => $validated['location_captured_at'] ?? null,
-            'substitute_pic' => $validated['substitute_pic'] ?? null,
-            'substitute_phone' => $validated['substitute_phone'] ?? null,
-            'special_leave_category' => $validated['special_leave_detail'] ?? null,
-        ]);
+        try {
+            LeaveRequest::create([
+                'user_id' => $userId,
+                'type' => $type,
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'start_time' => ($isIzinTengahKerja || $isIzinPulangAwal || $isIzinTelat) ? $rawStartTime : null,
+                'end_time' => $isIzinTengahKerja ? $rawEndTime : null,
+                'reason' => $validated['reason'],
+                'photo' => $photoBasename,
+                'status' => $initialStatus,
+                'notes' => $notes,
+                'latitude' => $validated['latitude'] ?? null,
+                'longitude' => $validated['longitude'] ?? null,
+                'accuracy_m' => $validated['accuracy_m'] ?? null,
+                'location_captured_at' => $validated['location_captured_at'] ?? null,
+                'substitute_pic' => $validated['substitute_pic'] ?? null,
+                'substitute_phone' => $validated['substitute_phone'] ?? null,
+                'special_leave_category' => $validated['special_leave_detail'] ?? null,
+            ]);
+        } catch (\Throwable $exception) {
+            if ($fullPath !== null) {
+                Storage::disk('public')->delete($fullPath);
+            }
+
+            throw $exception;
+        }
 
         RateLimiter::hit($throttleKey, 10);
         if ($isIzinTelat) {
@@ -415,16 +422,15 @@ class LeaveRequestController extends Controller
 
     public function show(LeaveRequest $leave_request)
     {
-        abort_unless(
-            $leave_request->user_id === Auth::id(),
-            403,
-            'Anda tidak berhak melihat data pengajuan ini.'
-        );
+        if ($leave_request->user_id !== Auth::id()) {
+            return redirect()->back()->with('error', 'Anda tidak berhak melihat data pengajuan ini.');
+        }
 
         return view('leave_requests.show', ['item' => $leave_request->load('user', 'approver')]);
     }
 
-    public function supportingFile(LeaveRequest $leave_request): StreamedResponse
+    public function supportingFile(LeaveRequest $leave_request): StreamedResponse|
+\Illuminate\Http\RedirectResponse
     {
         $user = Auth::user();
         $leave_request->loadMissing('user');
@@ -434,7 +440,9 @@ class LeaveRequestController extends Controller
             || (int) $leave_request->user->direct_supervisor_id === (int) $user->id
             || (int) $leave_request->user->manager_id === (int) $user->id;
 
-        abort_unless($canView, 403, 'Anda tidak berhak melihat bukti pendukung ini.');
+        if (! $canView) {
+            return redirect()->back()->with('error', 'Anda tidak berhak melihat bukti pendukung ini.');
+        }
         abort_unless($leave_request->photo, 404, 'Bukti pendukung tidak tersedia.');
 
         $filename = basename(str_replace('\\', '/', $leave_request->photo));
@@ -465,7 +473,7 @@ class LeaveRequestController extends Controller
 
         // [P0-01] Upload bukti hanya untuk pemilik atau HR.
         if (! $isOwner && ! $isHRD) {
-            abort(403, 'Anda tidak berhak mengunggah bukti untuk pengajuan ini.');
+            return redirect()->back()->with('error', 'Anda tidak berhak mengunggah bukti untuk pengajuan ini.');
         }
 
         if (! in_array($leave_request->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
@@ -511,7 +519,7 @@ class LeaveRequestController extends Controller
         // [P0-01] Endpoint umum hanya boleh diakses pemilik atau HR.
         // MANAGER/Supervisor tidak boleh mengubah pengajuan user lain di sini.
         if (! $isOwner && ! $isHRD) {
-            abort(403, 'Anda tidak berhak mengubah data ini.');
+            return redirect()->back()->with('error', 'Anda tidak berhak mengubah data ini.');
         }
 
         // Semua actor (owner maupun HR) hanya dapat mengubah pengajuan pending.
@@ -617,7 +625,7 @@ class LeaveRequestController extends Controller
             $weekEnd = $weekStart->copy()->addDays(6);
             $alreadyInWeek = LeaveRequest::query()->where('user_id', $applicant->id)->where('type', LeaveType::OFF_SPV->value)
                 ->whereBetween('start_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
-                ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
+                ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED])
                 ->when($leaveRequest->id, fn ($q) => $q->whereKeyNot($leaveRequest->id))
                 ->exists();
             if ($alreadyInWeek) {
@@ -706,11 +714,9 @@ class LeaveRequestController extends Controller
     {
         $user = Auth::user();
 
-        abort_unless(
-            Gate::allows('delete', $leaveRequest),
-            403,
-            'Anda tidak berhak membatalkan pengajuan ini.'
-        );
+        if (! Gate::allows('delete', $leaveRequest)) {
+            return redirect()->back()->with('error', 'Anda tidak berhak membatalkan pengajuan ini.');
+        }
 
         $isOwner = $user->id === $leaveRequest->user_id;
         $isHRD = $user->isHR();
@@ -756,7 +762,7 @@ class LeaveRequestController extends Controller
             ->where('user_id', $userId)
             ->where('type', $type)
             ->when($excludeLeaveId, fn ($query) => $query->whereKeyNot($excludeLeaveId))
-            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
+            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED])
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereDate('start_date', '<=', $endDate)
                     ->whereDate('end_date', '>=', $startDate);
@@ -825,7 +831,7 @@ class LeaveRequestController extends Controller
         return LeaveRequest::query()
             ->where('user_id', $userId)
             ->where('type', LeaveType::OFF_SPV->value)
-            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
+            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED])
             ->whereBetween('start_date', [$start, $end])
             ->count();
     }

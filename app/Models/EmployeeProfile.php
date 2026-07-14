@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 class EmployeeProfile extends Model
 {
@@ -85,20 +85,20 @@ class EmployeeProfile extends Model
             return null;
         }
 
-        $years = $start->diffInYears($end);
+        $years = (int) $start->diffInYears($end);
         $afterYears = $start->copy()->addYears($years);
-        $months = $afterYears->diffInMonths($end);
+        $months = (int) $afterYears->diffInMonths($end);
 
         if ($years > 0 && $months > 0) {
-            return $years . ' Tahun ' . $months . ' Bulan';
+            return $years.' Tahun '.$months.' Bulan';
         }
 
         if ($years > 0) {
-            return $years . ' Tahun';
+            return $years.' Tahun';
         }
 
         if ($months > 0) {
-            return $months . ' Bulan';
+            return $months.' Bulan';
         }
 
         return '0 Bulan';

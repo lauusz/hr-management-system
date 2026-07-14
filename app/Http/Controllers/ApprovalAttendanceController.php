@@ -23,7 +23,9 @@ class ApprovalAttendanceController extends Controller
     public function approve(Request $request, Attendance $attendance)
     {
         $user = Auth::user();
-        abort_unless($user && $user->isHR(), 403, 'Anda tidak berhak menyetujui absensi ini.');
+        if (! ($user && $user->isHR())) {
+            return redirect()->back()->with('error', 'Anda tidak berhak menyetujui absensi ini.');
+        }
 
         if ($attendance->approval_status !== 'PENDING') {
             return back()->with('error', 'Absensi ini tidak dalam status pending.');
@@ -41,7 +43,9 @@ class ApprovalAttendanceController extends Controller
     public function reject(Request $request, Attendance $attendance)
     {
         $user = Auth::user();
-        abort_unless($user && $user->isHR(), 403, 'Anda tidak berhak menolak absensi ini.');
+        if (! ($user && $user->isHR())) {
+            return redirect()->back()->with('error', 'Anda tidak berhak menolak absensi ini.');
+        }
 
         if ($attendance->approval_status !== 'PENDING') {
             return back()->with('error', 'Absensi ini tidak dalam status pending.');

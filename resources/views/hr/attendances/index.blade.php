@@ -53,6 +53,7 @@
                         name="q"
                         value="{{ $q ?? '' }}"
                         placeholder="Nama karyawan..."
+                        autocomplete="off"
                         class="form-control">
                 </div>
             </div>

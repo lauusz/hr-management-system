@@ -120,7 +120,6 @@
                         <input type="radio"
                             name="type"
                             value="{{ $meta['value'] }}"
-                            @if ($meta['first']) required @endif
                             @checked($meta['checked'])
                             data-label="{{ $meta['label'] }}"
                             data-hint="{{ $meta['hint'] ?? '' }}"
@@ -1347,35 +1346,28 @@
                 }
                 if (val === CUTI_KHUSUS) {
                     specialLeaveContainer.style.display = 'block';
-                    if(specialLeaveSelect) specialLeaveSelect.required = true;
                     updateSpecialLeaveBadge();
                     checkSpecialLeaveLimit();
                 } else {
                     specialLeaveContainer.style.display = 'none';
-                    if(specialLeaveSelect) { specialLeaveSelect.required = false; specialLeaveSelect.value = ""; }
+                    if(specialLeaveSelect) { specialLeaveSelect.value = ""; }
                     if(specialLeaveBadge) specialLeaveBadge.style.display = 'none';
                     if(specialLimitWarning) specialLimitWarning.style.display = 'none';
                 }
                 const isTelat = (val === IZIN_TELAT);
                 if (isTelat) {
                     requestLocationIfNeeded();
-                    if(photoInput) photoInput.required = false;
                     if(photoReqIndicator) photoReqIndicator.style.display = 'none';
                 } else {
                     clearLocationValues();
-                    if(photoInput) photoInput.required = false;
                     if(photoReqIndicator) photoReqIndicator.style.display = 'none';
                 }
                 const needPic = (val === CUTI || val === CUTI_KHUSUS || val === SAKIT);
                 if (picSection) {
                     if (needPic) {
                         picSection.style.display = 'block';
-                        if(picNameInput) picNameInput.required = true;
-                        if(picPhoneInput) picPhoneInput.required = true;
                     } else {
                         picSection.style.display = 'none';
-                        if(picNameInput) picNameInput.required = false;
-                        if(picPhoneInput) picPhoneInput.required = false;
                     }
                 }
                 const isTengahKerja = (val === IZIN_TENGAH_KERJA);
@@ -1386,14 +1378,10 @@
                 if (isTengahKerja) {
                     if (worktimeLabel) worktimeLabel.innerHTML = 'Jam Izin';
                     if (endTimeWrapper) endTimeWrapper.style.display = 'block';
-                    startTimeInput.required = true;
-                    endTimeInput.required = true;
                     if (pulangInfo) pulangInfo.style.display = 'none';
                 } else if (isPulangAwal) {
                     if (worktimeLabel) worktimeLabel.innerHTML = 'Jam Pulang';
                     if (endTimeWrapper) endTimeWrapper.style.display = 'none';
-                    startTimeInput.required = true;
-                    endTimeInput.required = false;
                     endTimeInput.value = '';
                     if (pulangInfo) {
                         const shiftEnd = shiftEndInput ? shiftEndInput.value : '';
@@ -1408,13 +1396,9 @@
                 } else if (isTelat) {
                     if (worktimeLabel) worktimeLabel.innerHTML = 'Estimasi Jam Tiba';
                     if (endTimeWrapper) endTimeWrapper.style.display = 'none';
-                    startTimeInput.required = true;
-                    endTimeInput.required = false;
                     endTimeInput.value = '';
                     if (pulangInfo) pulangInfo.style.display = 'none';
                 } else {
-                    startTimeInput.required = false;
-                    endTimeInput.required = false;
                     startTimeInput.value = '';
                     endTimeInput.value = '';
                     if (pulangInfo) pulangInfo.style.display = 'none';
@@ -1727,11 +1711,11 @@
                     const startDate = document.getElementById('start_date').value;
                     const endDate = document.getElementById('end_date').value;
                     if (!type) {
-                        alert('Silakan pilih jenis pengajuan terlebih dahulu');
+                        window.showToast('Silakan pilih jenis pengajuan terlebih dahulu', 'warning');
                         return;
                     }
                     if (!startDate || !endDate) {
-                        alert('Silakan isi tanggal pengajuan terlebih dahulu');
+                        window.showToast('Silakan isi tanggal pengajuan terlebih dahulu', 'warning');
                         return;
                     }
                     const calculationPromise = type === 'CUTI' && window.leaveCalculationState

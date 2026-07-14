@@ -141,7 +141,7 @@
                                     </div>
                                 </x-modal>
                                 @endif
-                                <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept=".jpg,.jpeg,.png" class="file-upload-input">
+                                <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept="image/*,.heic,.heif" class="file-upload-input">
                                 <label for="path_kartu_keluarga" class="file-upload-label">
                                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                                     Pilih File
@@ -162,7 +162,7 @@
                                     </div>
                                 </x-modal>
                                 @endif
-                                <input id="path_ktp" type="file" name="path_ktp" accept=".jpg,.jpeg,.png" class="file-upload-input">
+                                <input id="path_ktp" type="file" name="path_ktp" accept="image/*,.heic,.heif" class="file-upload-input">
                                 <label for="path_ktp" class="file-upload-label">
                                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                                     Pilih File

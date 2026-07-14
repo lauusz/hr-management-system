@@ -80,7 +80,7 @@
             \App\Models\LeaveRequest::PENDING_HR => 'Menunggu HRD',
             \App\Models\LeaveRequest::STATUS_APPROVED => 'Disetujui',
             \App\Models\LeaveRequest::STATUS_REJECTED => 'Ditolak',
-            'BATAL' => 'Dibatalkan',
+            \App\Models\LeaveRequest::STATUS_CANCELLED => 'Dibatalkan',
             'CANCEL_REQ' => 'Pengajuan Batal',
         ];
         $hasAdvancedFilter = ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null) || ($periodRange ?? null) || ($pt_id ?? null);
@@ -95,7 +95,7 @@
                     <svg class="lm-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
-                    <input type="text" name="q" value="{{ $q ?? '' }}" placeholder="Cari nama karyawan..." class="lm-search-input">
+                    <input type="text" name="q" value="{{ $q ?? '' }}" placeholder="Cari nama karyawan..." autocomplete="off" class="lm-search-input">
                 </div>
                 <button type="submit" class="lm-btn-search">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -257,7 +257,7 @@
                                         $statusLabel = 'Atasan Mengetahui';
                                     }
                                     $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>';
-                                } elseif ($st === 'BATAL' || $st === 'CANCEL_REQ') {
+                                } elseif ($st === \App\Models\LeaveRequest::STATUS_CANCELLED || $st === 'CANCEL_REQ') {
                                     $badgeClass = 'lm-badge--neutral';
                                     $badgeBg = 'var(--gray-100)';
                                     $badgeColor = 'var(--text-muted)';

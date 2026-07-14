@@ -49,6 +49,7 @@ class LeaveRequest extends Model
         'longitude' => 'float',
         'accuracy_m' => 'float',
         'location_captured_at' => 'datetime',
+        'deduct_um' => 'boolean',
     ];
 
     public const PENDING_SUPERVISOR = 'PENDING_SUPERVISOR';
@@ -59,13 +60,15 @@ class LeaveRequest extends Model
 
     public const STATUS_REJECTED = 'REJECTED';
 
+    public const STATUS_CANCELLED = 'BATAL';
+
     public const STATUS_OPTIONS = [
         self::PENDING_SUPERVISOR => 'Menunggu Atasan',
         self::PENDING_HR => 'Menunggu HRD',
         self::STATUS_APPROVED => 'Disetujui',
         self::STATUS_REJECTED => 'Ditolak',
         'CANCEL_REQ' => 'Pengajuan Batal',
-        'BATAL' => 'Dibatalkan',
+        self::STATUS_CANCELLED => 'Dibatalkan',
     ];
 
     public function getStatusLabelAttribute(): string

@@ -187,7 +187,7 @@ class ApprovalController extends Controller
         $leave->load(['user.profile.pt', 'user.division', 'approver']);
 
         if (! $this->checkCanView($leave->user, $me) && ! $me->isHR() && $leave->user_id !== $me->id) {
-            abort(403, 'Anda tidak memiliki akses melihat data ini.');
+            return redirect()->back()->with('error', 'Anda tidak memiliki akses melihat data ini.');
         }
 
         $isDirectApprover = $this->checkIsAuthorizedApprover($leave->user, $me);
@@ -213,7 +213,7 @@ class ApprovalController extends Controller
         $me = auth()->user();
 
         if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            abort(403, 'Anda bukan atasan langsung yang berhak menyetujui.');
+            return redirect()->back()->with('error', 'Anda bukan atasan langsung yang berhak menyetujui.');
         }
 
         if ($leave->status !== LeaveRequest::PENDING_SUPERVISOR) {
@@ -290,7 +290,7 @@ class ApprovalController extends Controller
         $me = auth()->user();
 
         if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            abort(403, 'Anda bukan atasan langsung yang berhak menolak.');
+            return redirect()->back()->with('error', 'Anda bukan atasan langsung yang berhak menolak.');
         }
 
         if ($leave->status !== LeaveRequest::PENDING_SUPERVISOR) {
@@ -335,7 +335,7 @@ class ApprovalController extends Controller
         $me = auth()->user();
 
         if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            abort(403, 'Anda bukan atasan langsung yang berhak menyetujui level ini.');
+            return redirect()->back()->with('error', 'Anda bukan atasan langsung yang berhak menyetujui level ini.');
         }
 
         if ($leave->status !== LeaveRequest::PENDING_SUPERVISOR) {
@@ -408,11 +408,11 @@ class ApprovalController extends Controller
         $me = auth()->user();
 
         if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            abort(403, 'Hanya atasan langsung yang dapat mengubah data pengajuan ini.');
+            return redirect()->back()->with('error', 'Hanya atasan langsung yang dapat mengubah data pengajuan ini.');
         }
 
         if (! in_array($leave->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
-            abort(403, 'Pengajuan sudah diproses, tidak dapat direvisi.');
+            return redirect()->back()->with('error', 'Pengajuan sudah diproses, tidak dapat direvisi.');
         }
 
         return view('supervisor.leave_requests.edit', compact('leave'));
@@ -427,7 +427,7 @@ class ApprovalController extends Controller
         $me = auth()->user();
 
         if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            abort(403, 'Akses ditolak.');
+            return redirect()->back()->with('error', 'Akses ditolak.');
         }
 
         if (! in_array($leave->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
@@ -515,7 +515,7 @@ class ApprovalController extends Controller
         $me = auth()->user();
 
         if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            abort(403, 'Akses ditolak.');
+            return redirect()->back()->with('error', 'Akses ditolak.');
         }
 
         // Supervisor/Atasan hanya dapat membatalkan pengajuan yang masih
@@ -553,8 +553,9 @@ class ApprovalController extends Controller
 
         $isSamePt = ($myPtId && $userPtId) ? ($myPtId === $userPtId) : false;
 
-        abort_unless($isSameDivision && $isSamePt, 403,
-            'Akses Ditolak: Karyawan berbeda Divisi atau PT.');
+        if (! $isSameDivision || ! $isSamePt) {
+            return redirect()->back()->with('error', 'Akses Ditolak: Karyawan berbeda Divisi atau PT.');
+        }
     }
 
     /**

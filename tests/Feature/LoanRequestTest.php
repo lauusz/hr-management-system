@@ -4,6 +4,11 @@ use App\Enums\UserRole;
 use App\Models\LoanRepayment;
 use App\Models\LoanRequest;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+
+use function Pest\Laravel\actingAs;
+
 // ⚠️ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
 // karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
 
@@ -268,6 +273,26 @@ describe('EmployeeLoanRequestController', function () {
             ->and($loan->amount)->toBe('5000000.00')
             ->and($loan->status)->toBe('PENDING_HRD')
             ->and($loan->snapshot_name)->toBe('John Doe');
+    });
+
+    it('store compresses image loan documents', function () {
+        Storage::fake('public');
+
+        $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+        actingAs($user, 'web');
+
+        $this->post(route('employee.loan_requests.store'), [
+            'amount' => 5000000,
+            'monthly_installment' => 500000,
+            'payment_method' => 'POTONG_GAJI',
+            'document' => UploadedFile::fake()->image('kasbon.png', 2000, 1000),
+        ])->assertRedirect(route('employee.loan_requests.index'));
+
+        $loan = LoanRequest::where('user_id', $user->id)->firstOrFail();
+
+        expect($loan->document_path)->toEndWith('.jpg');
+        Storage::disk('public')->assertExists($loan->document_path);
     });
 
     it('store validates required fields', function () {

@@ -18,7 +18,6 @@ class EmployeeShiftFactory extends Factory
             'user_id' => User::factory(),
             'shift_id' => Shift::factory(),
             'location_id' => AttendanceLocation::factory(),
-            'effective_date' => now()->toDateString(),
         ];
     }
 

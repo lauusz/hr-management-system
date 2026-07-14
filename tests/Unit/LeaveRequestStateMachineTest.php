@@ -36,6 +36,7 @@ describe('LeaveRequestStateMachine', function () {
             [LeaveRequest::PENDING_HR, LeaveRequestStateMachine::REVISE_FOR_HR, LeaveRequest::PENDING_HR],
             [LeaveRequest::PENDING_SUPERVISOR, LeaveRequestStateMachine::EDIT_PENDING, LeaveRequest::PENDING_SUPERVISOR],
             [LeaveRequest::PENDING_HR, LeaveRequestStateMachine::EDIT_PENDING, LeaveRequest::PENDING_HR],
+            [LeaveRequest::STATUS_APPROVED, 'EDIT_APPROVED_DATE', LeaveRequest::STATUS_APPROVED],
         ];
 
         $present = [];
@@ -68,6 +69,7 @@ describe('LeaveRequestStateMachine', function () {
 
         expect($machine->getAllowedActions(LeaveRequest::STATUS_APPROVED))->toContain(
             LeaveRequestStateMachine::CANCEL,
+            'EDIT_APPROVED_DATE',
         );
 
         expect($machine->getAllowedActions(LeaveRequest::STATUS_REJECTED))->toBeEmpty();

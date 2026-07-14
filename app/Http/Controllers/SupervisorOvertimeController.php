@@ -84,7 +84,10 @@ class SupervisorOvertimeController extends Controller
      */
     public function show(OvertimeRequest $overtimeRequest)
     {
-        $this->authorizeSupervisor($overtimeRequest);
+        $redirect = $this->authorizeSupervisor($overtimeRequest);
+        if ($redirect) {
+            return $redirect;
+        }
         return view('supervisor.overtime_requests.show', compact('overtimeRequest'));
     }
 
@@ -93,7 +96,10 @@ class SupervisorOvertimeController extends Controller
      */
     public function approve(OvertimeRequest $overtimeRequest)
     {
-        $this->authorizeSupervisor($overtimeRequest);
+        $redirect = $this->authorizeSupervisor($overtimeRequest);
+        if ($redirect) {
+            return $redirect;
+        }
 
         if ($overtimeRequest->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
             return back()->with('error', 'Status tidak valid.');
@@ -114,7 +120,10 @@ class SupervisorOvertimeController extends Controller
      */
     public function reject(Request $request, OvertimeRequest $overtimeRequest)
     {
-        $this->authorizeSupervisor($overtimeRequest);
+        $redirect = $this->authorizeSupervisor($overtimeRequest);
+        if ($redirect) {
+            return $redirect;
+        }
 
         $request->validate([
             'rejection_note' => 'required|string|max:255',
@@ -138,7 +147,8 @@ class SupervisorOvertimeController extends Controller
     {
         $me = Auth::user();
         if ($overtime->user->direct_supervisor_id !== $me->id) {
-            abort(403, 'Akses Ditolak: Anda bukan atasan langsung karyawan ini.');
+            return redirect()->back()->with('error', 'Akses Ditolak: Anda bukan atasan langsung karyawan ini.');
         }
+        return null;
     }
 }

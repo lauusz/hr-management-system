@@ -121,6 +121,7 @@
                         name="q"
                         value="{{ $q ?? '' }}"
                         placeholder="Cari nama karyawan..."
+                        autocomplete="off"
                         class="hom-input">
                 </div>
             </div>

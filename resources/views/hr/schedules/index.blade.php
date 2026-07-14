@@ -14,6 +14,7 @@
                        name="q" 
                        value="{{ $search ?? '' }}" 
                        placeholder="Cari nama karyawan..." 
+                       autocomplete="off"
                        class="form-control">
             </div>
 

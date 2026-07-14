@@ -335,6 +335,66 @@ it('refunds annual leave using original deduct amount even if dates change', fun
         ->and((float) $user->fresh()->leave_balance)->toBe(12.0);
 });
 
+it('adjusts approved leave balance from saturday to monday and refunds the latest amount', function () {
+    $service = new LeaveBalanceService;
+    $user = User::factory()->create([
+        'role' => UserRole::EMPLOYEE,
+        'leave_balance' => 10,
+    ]);
+    $leave = LeaveRequest::factory()->forUser($user)->cuti()->approved()->create([
+        'start_date' => '2026-07-18',
+        'end_date' => '2026-07-18',
+    ]);
+
+    expect($service->deductLeaveBalanceForLeave($leave))->toBe(0.5)
+        ->and((float) $user->fresh()->leave_balance)->toBe(9.5);
+
+    $result = $service->adjustApprovedLeaveDateBalance(
+        $leave,
+        '2026-07-20',
+        'Permintaan karyawan',
+        $user->id,
+    );
+
+    expect($result)->toBe([
+        'old_amount' => 0.5,
+        'new_amount' => 1.0,
+        'adjustment' => 0.5,
+    ])->and((float) $user->fresh()->leave_balance)->toBe(9.0);
+
+    $adjustment = LeaveBalanceTransaction::query()
+        ->where('leave_request_id', $leave->id)
+        ->where('transaction_type', LeaveBalanceTransaction::ADJUSTMENT)
+        ->first();
+
+    expect($adjustment)->not->toBeNull()
+        ->and((float) $adjustment->amount)->toBe(0.5)
+        ->and($adjustment->idempotency_key)->toStartWith("ADJUST_DATE:LEAVE:{$leave->id}:");
+
+    expect($service->refundLeaveBalanceForLeave($leave))->toBe(1.0)
+        ->and((float) $user->fresh()->leave_balance)->toBe(10.0);
+});
+
+it('rejects approved date adjustment when deduct ledger is missing', function () {
+    $service = new LeaveBalanceService;
+    $user = User::factory()->create([
+        'role' => UserRole::EMPLOYEE,
+        'leave_balance' => 9.5,
+    ]);
+    $leave = LeaveRequest::factory()->forUser($user)->cuti()->approved()->create([
+        'start_date' => '2026-07-18',
+        'end_date' => '2026-07-18',
+    ]);
+
+    expect(fn () => $service->adjustApprovedLeaveDateBalance(
+        $leave,
+        '2026-07-20',
+        'Permintaan karyawan',
+        $user->id,
+    ))->toThrow(RuntimeException::class, 'Ledger pemotongan cuti belum tersedia')
+        ->and((float) $user->fresh()->leave_balance)->toBe(9.5);
+});
+
 it('refunds non-CUTI leave using original deduct amount without explicit refund amount', function () {
     $service = new LeaveBalanceService;
     $email = 'test-refund-sakit-'.uniqid().'@example.com';

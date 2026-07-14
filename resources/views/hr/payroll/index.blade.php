@@ -113,7 +113,7 @@
 
                 <div>
                     <label class="filter-label" for="search">Cari Nama Karyawan</label>
-                    <input type="text" name="search" id="search" value="{{ request('search') }}" placeholder="Ketik nama karyawan..." class="filter-control">
+                    <input type="text" name="search" id="search" value="{{ request('search') }}" placeholder="Ketik nama karyawan..." autocomplete="off" class="filter-control">
                 </div>
                 <div>
                     <button type="submit" class="btn-action">Cari</button>
@@ -629,7 +629,7 @@
                     const checkedRows = getRowCheckboxes().filter((checkbox) => checkbox.checked);
                     if (checkedRows.length === 0) {
                         event.preventDefault();
-                        alert('Pilih minimal satu data karyawan yang akan diunduh.');
+                        window.showToast('Pilih minimal satu data karyawan yang akan diunduh.', 'warning');
                         return;
                     }
 

@@ -202,7 +202,7 @@
                     <div class="doc-upload" id="doc-upload-area">
                         <label class="form-label">{{ $loan->document_path ? 'Ganti Dokumen' : 'Unggah Dokumen' }}</label>
                         <div class="file-input-wrapper">
-                            <input type="file" name="document" id="document" class="file-input" accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx,.txt">
+                            <input type="file" name="document" id="document" class="file-input" accept="image/*,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx,.txt">
                             <div class="file-input-trigger">
                                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                                 <span class="file-input-text" id="file-label-text">Klik untuk pilih file</span>

@@ -3,6 +3,8 @@
 use App\Models\OvertimeRequest;
 use App\Models\User;
 
+use function Pest\Laravel\actingAs;
+
 beforeEach(function () {
     $this->supervisor = User::factory()->create([
         'role' => \App\Enums\UserRole::SUPERVISOR,

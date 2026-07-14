@@ -2,12 +2,11 @@
 
 namespace App\Exports;
 
-use App\Enums\LeaveType;
 use App\Models\LeaveRequest;
+use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
 use Maatwebsite\Excel\Concerns\FromView;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Carbon\Carbon;
 
 class LeaveMasterExport implements FromView, ShouldAutoSize
 {
@@ -25,7 +24,7 @@ class LeaveMasterExport implements FromView, ShouldAutoSize
                 'user.division',
                 'user.position',
                 'user.profile.pt',
-                'approver'
+                'approver',
             ])
             ->orderByDesc('created_at');
 
@@ -38,7 +37,7 @@ class LeaveMasterExport implements FromView, ShouldAutoSize
             LeaveRequest::PENDING_HR => 'Menunggu HRD',
             LeaveRequest::STATUS_APPROVED => 'Disetujui',
             LeaveRequest::STATUS_REJECTED => 'Ditolak',
-            'BATAL' => 'Dibatalkan',
+            LeaveRequest::STATUS_CANCELLED => 'Dibatalkan',
             'CANCEL_REQ' => 'Pengajuan Batal',
         ];
 
@@ -51,17 +50,17 @@ class LeaveMasterExport implements FromView, ShouldAutoSize
     protected function applyFilters($query)
     {
         // Status filter
-        if (!empty($this->filters['status'])) {
+        if (! empty($this->filters['status'])) {
             $query->where('status', $this->filters['status']);
         }
 
         // Type filter
-        if (!empty($this->filters['type'])) {
+        if (! empty($this->filters['type'])) {
             $query->where('type', $this->filters['type']);
         }
 
         // Submitted range filter
-        if (!empty($this->filters['submitted_range'])) {
+        if (! empty($this->filters['submitted_range'])) {
             $parts = preg_split('/\s+(to|sampai)\s+/i', $this->filters['submitted_range']);
             try {
                 if (count($parts) === 1) {
@@ -84,7 +83,7 @@ class LeaveMasterExport implements FromView, ShouldAutoSize
         }
 
         // Period range filter
-        if (!empty($this->filters['period_range'])) {
+        if (! empty($this->filters['period_range'])) {
             $parts = preg_split('/\s+(to|sampai)\s+/i', $this->filters['period_range']);
             try {
                 if (count($parts) === 1) {
@@ -109,16 +108,16 @@ class LeaveMasterExport implements FromView, ShouldAutoSize
         }
 
         // PT filter
-        if (!empty($this->filters['pt_id'])) {
+        if (! empty($this->filters['pt_id'])) {
             $query->whereHas('user.profile', function ($q) {
                 $q->where('pt_id', $this->filters['pt_id']);
             });
         }
 
         // Search filter
-        if (!empty($this->filters['q'])) {
+        if (! empty($this->filters['q'])) {
             $query->whereHas('user', function ($sub) {
-                $sub->where('name', 'like', '%' . $this->filters['q'] . '%');
+                $sub->where('name', 'like', '%'.$this->filters['q'].'%');
             });
         }
     }

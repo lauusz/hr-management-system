@@ -1,31 +1,47 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\AttendanceController;
-use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\ApprovalAttendanceController;
 use App\Http\Controllers\ApprovalController;
-use App\Http\Controllers\HrLeaveController;
-use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\Atk\Admin\AccessController as AtkAdminAccessController;
+use App\Http\Controllers\Atk\Admin\CategoryController as AtkAdminCategoryController;
+use App\Http\Controllers\Atk\Admin\DashboardController as AtkAdminDashboardController;
+use App\Http\Controllers\Atk\Admin\ItemController as AtkAdminItemController;
+use App\Http\Controllers\Atk\Admin\NeedRequestController as AtkAdminNeedRequestController;
+use App\Http\Controllers\Atk\Admin\ReportController as AtkAdminReportController;
+use App\Http\Controllers\Atk\Admin\RequestApprovalController as AtkAdminRequestApprovalController;
+use App\Http\Controllers\Atk\Admin\StockController as AtkAdminStockController;
+use App\Http\Controllers\Atk\Admin\StockMovementController as AtkAdminStockMovementController;
+use App\Http\Controllers\Atk\CartController as AtkCartController;
+use App\Http\Controllers\Atk\CatalogController as AtkCatalogController;
+use App\Http\Controllers\Atk\NeedRequestController as AtkNeedRequestController;
+use App\Http\Controllers\Atk\RequestController as AtkRequestController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\EmployeeDocumentController;
+use App\Http\Controllers\EmployeeLoanRequestController;
 use App\Http\Controllers\EmployeeShiftController;
+use App\Http\Controllers\HR\AssetController;
 use App\Http\Controllers\HR\AttendanceLocationController;
 use App\Http\Controllers\HR\DivisionController;
+use App\Http\Controllers\HR\OfficeHolidayController;
+use App\Http\Controllers\HR\OrganizationController;
+use App\Http\Controllers\Hr\PayslipController;
 use App\Http\Controllers\HR\PositionController;
 use App\Http\Controllers\HR\ScheduleController;
 use App\Http\Controllers\HRAttendanceController;
-use App\Http\Controllers\ApprovalAttendanceController;
 use App\Http\Controllers\HREmployeeController;
-use App\Http\Controllers\PtController;
-use App\Http\Controllers\EmployeeDocumentController;
-use App\Http\Controllers\HR\OrganizationController;
-use App\Http\Controllers\HR\OfficeHolidayController;
-use App\Http\Controllers\EmployeeLoanRequestController;
+use App\Http\Controllers\HrLeaveController;
 use App\Http\Controllers\HrLoanRequestController;
-use App\Http\Controllers\SupervisorDataController;
-use App\Http\Controllers\OvertimeRequestController;
-use App\Http\Controllers\SupervisorOvertimeController;
 use App\Http\Controllers\HrOvertimeController;
-use App\Http\Controllers\Hr\PayslipController;
+use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\OvertimeRequestController;
+use App\Http\Controllers\PtController;
+use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\SupervisorDataController;
+use App\Http\Controllers\SupervisorOvertimeController;
+use App\Http\Controllers\V2AccessController;
+use App\Models\Asset;
+use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
@@ -34,7 +50,59 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
 
-    Route::get('/dashboard', fn() => view('dashboard'))->name('dashboard');
+    Route::prefix('v2')->name('v2.')->group(function () {
+        Route::get('/access', V2AccessController::class)->name('access');
+
+        Route::prefix('atk')->name('atk.')->group(function () {
+            Route::get('/', [AtkCatalogController::class, 'index'])->name('catalog');
+            Route::post('/cart', [AtkCatalogController::class, 'addToCart'])->name('cart.add');
+            Route::get('/cart', [AtkCartController::class, 'show'])->name('cart.show');
+            Route::post('/cart/submit', [AtkCartController::class, 'store'])->name('cart.submit');
+            Route::put('/cart/{item}', [AtkCartController::class, 'update'])->name('cart.update');
+            Route::delete('/cart/{item}', [AtkCartController::class, 'remove'])->name('cart.remove');
+            Route::get('/requests', [AtkRequestController::class, 'index'])->name('requests.index');
+            Route::get('/requests/{atkRequest}', [AtkRequestController::class, 'show'])->name('requests.show');
+            Route::get('/need-requests', [AtkNeedRequestController::class, 'index'])->name('need-requests.index');
+            Route::get('/need-requests/create', [AtkNeedRequestController::class, 'create'])->name('need-requests.create');
+            Route::post('/need-requests', [AtkNeedRequestController::class, 'store'])->name('need-requests.store');
+
+            Route::middleware('atk.admin')->prefix('admin')->name('admin.')->group(function () {
+                Route::get('/', AtkAdminDashboardController::class)->name('dashboard');
+                Route::get('/items', [AtkAdminItemController::class, 'index'])->name('items.index');
+                Route::get('/items/create', [AtkAdminItemController::class, 'create'])->name('items.create');
+                Route::post('/items', [AtkAdminItemController::class, 'store'])->name('items.store');
+                Route::get('/items/{item}/edit', [AtkAdminItemController::class, 'edit'])->name('items.edit');
+                Route::put('/items/{item}', [AtkAdminItemController::class, 'update'])->name('items.update');
+                Route::post('/items/{item}/stock', [AtkAdminStockController::class, 'store'])->name('items.stock.store');
+                Route::get('/stock-movements', [AtkAdminStockMovementController::class, 'index'])->name('stock-movements.index');
+                Route::get('/access', [AtkAdminAccessController::class, 'index'])->name('access.index');
+                Route::post('/access/{user}/grant', [AtkAdminAccessController::class, 'grant'])->name('access.grant');
+                Route::delete('/access/{user}/revoke', [AtkAdminAccessController::class, 'revoke'])->name('access.revoke');
+                Route::get('/categories', [AtkAdminCategoryController::class, 'index'])->name('categories.index');
+                Route::post('/categories', [AtkAdminCategoryController::class, 'store'])->name('categories.store');
+                Route::put('/categories/{category}', [AtkAdminCategoryController::class, 'update'])->name('categories.update');
+                Route::get('/requests', [AtkAdminRequestApprovalController::class, 'index'])->name('requests.index');
+                Route::get('/requests/{atkRequest}', [AtkAdminRequestApprovalController::class, 'show'])->name('requests.show');
+                Route::post('/requests/{atkRequest}/approve', [AtkAdminRequestApprovalController::class, 'approve'])->name('requests.approve');
+                Route::post('/requests/{atkRequest}/reject', [AtkAdminRequestApprovalController::class, 'reject'])->name('requests.reject');
+                Route::post('/requests/{atkRequest}/items/{requestItem}/review', [AtkAdminRequestApprovalController::class, 'reviewItem'])->name('requests.items.review');
+                Route::post('/requests/{atkRequest}/finalize', [AtkAdminRequestApprovalController::class, 'finalize'])->name('requests.finalize');
+                Route::get('/need-requests', [AtkAdminNeedRequestController::class, 'index'])->name('need-requests.index');
+                Route::post('/need-requests/{needRequest}/process', [AtkAdminNeedRequestController::class, 'process'])->name('need-requests.process');
+                Route::get('/reports', [AtkAdminReportController::class, 'index'])->name('reports.index');
+                Route::get('/reports/export', [AtkAdminReportController::class, 'export'])->name('reports.export');
+            });
+        });
+    });
+
+    Route::get('/dashboard', function () {
+        $receivedAssets = Asset::with('category')
+            ->where('current_user_id', auth()->id())
+            ->orderBy('name')
+            ->get();
+
+        return view('dashboard', compact('receivedAssets'));
+    })->name('dashboard');
 
     Route::get('/leave-requests/search-substitute', [LeaveRequestController::class, 'searchSubstitute'])
         ->name('leave-requests.search-substitute');
@@ -45,7 +113,7 @@ Route::middleware('auth')->group(function () {
         ->name('leave-requests.supporting-file');
     Route::post('/leave-requests/{leave_request}/upload-photo', [LeaveRequestController::class, 'uploadPhoto'])
         ->name('leave-requests.upload-photo');
-    
+
     // [BARU] Endpoint untuk cek duplikat pengajuan
     Route::post('/leave-requests/check-duplicate', [LeaveRequestController::class, 'checkDuplicate'])->name('leave-requests.checkDuplicate');
     Route::post('/leave-requests/calculate-effective-days', [LeaveRequestController::class, 'calculateEffectiveDays'])
@@ -82,6 +150,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/leave-requests', [HrLeaveController::class, 'index'])->name('hr.leave.index');
         Route::get('/hr/leave-requests/{leave}', [HrLeaveController::class, 'show'])->name('hr.leave.show');
         Route::put('/hr/leave-requests/{leave}', [HrLeaveController::class, 'update'])->name('hr.leave.update');
+        Route::put('/hr/leave-requests/{leave}/adjust-date', [HrLeaveController::class, 'adjustApprovedDate'])->name('hr.leave.adjust-date');
         Route::post('/hr/leave-requests/{leave}/approve', [HrLeaveController::class, 'approve'])->name('hr.leave.approve');
         Route::post('/hr/leave-requests/{leave}/reject', [HrLeaveController::class, 'reject'])->name('hr.leave.reject');
 
@@ -120,6 +189,14 @@ Route::middleware('auth')->group(function () {
         Route::patch('/hr/employees/{user}/shift-inline', [EmployeeShiftController::class, 'updateInline'])->name('hr.employees.shift.inline');
         Route::post('/hr/employees/{user}/documents', [EmployeeDocumentController::class, 'store'])->name('hr.employees.documents.store');
         Route::delete('/hr/employee-documents/{employeeDocument}', [EmployeeDocumentController::class, 'destroy'])->name('hr.employee_documents.destroy');
+
+        Route::get('/hr/assets', [AssetController::class, 'index'])->name('hr.assets.index');
+        Route::get('/hr/assets/create', [AssetController::class, 'create'])->name('hr.assets.create');
+        Route::post('/hr/assets', [AssetController::class, 'store'])->name('hr.assets.store');
+        Route::get('/hr/assets/{asset}/edit', [AssetController::class, 'edit'])->name('hr.assets.edit');
+        Route::put('/hr/assets/{asset}', [AssetController::class, 'update'])->name('hr.assets.update');
+        Route::get('/hr/assets/{asset}', [AssetController::class, 'show'])->name('hr.assets.show');
+        Route::post('/hr/assets/{asset}/movements', [AssetController::class, 'storeMovement'])->name('hr.assets.movements.store');
 
         Route::prefix('hr/supervisors')->name('hr.supervisors.')->group(function () {
             Route::get('/', [SupervisorDataController::class, 'index'])->name('index');
@@ -233,5 +310,4 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 });
 
-
-Route::get('/', fn() => redirect()->route('login'));
+Route::get('/', fn () => redirect()->route('login'));

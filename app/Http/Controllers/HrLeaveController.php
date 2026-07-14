@@ -39,7 +39,9 @@ class HrLeaveController extends Controller
      */
     public function index(Request $request)
     {
-        $this->authorizeAccess();
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
 
         $today = Carbon::today();
 
@@ -122,7 +124,9 @@ class HrLeaveController extends Controller
      */
     public function master(Request $request)
     {
-        $this->authorizeAccess();
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
 
         // Base Query
         $query = LeaveRequest::withoutGlobalScopes()
@@ -140,7 +144,7 @@ class HrLeaveController extends Controller
             LeaveRequest::PENDING_HR,
             LeaveRequest::STATUS_APPROVED,
             LeaveRequest::STATUS_REJECTED,
-            'BATAL',
+            LeaveRequest::STATUS_CANCELLED,
             'CANCEL_REQ',
         ];
 
@@ -253,7 +257,9 @@ class HrLeaveController extends Controller
      */
     public function exportMaster(Request $request)
     {
-        $this->authorizeAccess();
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
 
         $filters = [
             'status' => $request->query('status'),
@@ -294,7 +300,9 @@ class HrLeaveController extends Controller
 
     public function createManual()
     {
-        $this->authorizeAccess();
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
 
         $employees = User::query()
             ->with(['position', 'division'])
@@ -322,7 +330,7 @@ class HrLeaveController extends Controller
             LeaveRequest::PENDING_HR => 'Menunggu HRD',
             LeaveRequest::STATUS_APPROVED => 'Disetujui',
             LeaveRequest::STATUS_REJECTED => 'Ditolak',
-            'BATAL' => 'Dibatalkan',
+            LeaveRequest::STATUS_CANCELLED => 'Dibatalkan',
         ];
 
         return view('hr.leave_requests.create_manual', [
@@ -335,14 +343,16 @@ class HrLeaveController extends Controller
 
     public function storeManual(Request $request)
     {
-        $this->authorizeAccess();
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
 
         $statusOptions = [
             LeaveRequest::PENDING_SUPERVISOR,
             LeaveRequest::PENDING_HR,
             LeaveRequest::STATUS_APPROVED,
             LeaveRequest::STATUS_REJECTED,
-            'BATAL',
+            LeaveRequest::STATUS_CANCELLED,
         ];
 
         $validated = $request->validate([
@@ -372,7 +382,7 @@ class HrLeaveController extends Controller
             : now();
 
         $type = $validated['type'];
-        if (! in_array($status, [LeaveRequest::STATUS_REJECTED, 'BATAL'], true)) {
+        if (! in_array($status, [LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED], true)) {
             $duplicates = $this->findOverlappingLeaveRequests(
                 $employee->id,
                 $type,
@@ -404,7 +414,7 @@ class HrLeaveController extends Controller
 
         $approvedBy = null;
         $approvedAt = null;
-        if (in_array($status, [LeaveRequest::STATUS_APPROVED, LeaveRequest::STATUS_REJECTED, 'BATAL'], true)) {
+        if (in_array($status, [LeaveRequest::STATUS_APPROVED, LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED], true)) {
             $approvedBy = Auth::id();
             $approvedAt = $submittedAt->copy();
         }
@@ -460,7 +470,9 @@ class HrLeaveController extends Controller
 
     public function show(LeaveRequest $leave)
     {
-        $this->authorizeAccess();
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
 
         // Load relasi yang diperlukan
         $leave->load(['user.profile.pt', 'user.division', 'user.position', 'approver']);
@@ -496,7 +508,9 @@ class HrLeaveController extends Controller
      */
     public function update(Request $request, LeaveRequest $leave)
     {
-        $this->authorizeAccess();
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
 
         // Update hanya diizinkan untuk pengajuan yang belum diputuskan.
         // Pengajuan yang sudah APPROVED/REJECTED/BATAL tidak boleh diedit karena
@@ -631,12 +645,95 @@ class HrLeaveController extends Controller
         return redirect()->route('hr.leave.show', $leave->id)->with('success', 'Data pengajuan berhasil diperbarui.');
     }
 
+    public function adjustApprovedDate(Request $request, LeaveRequest $leave)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        if (! $this->leaveBalanceService->isAnnualLeave($leave)
+            || $leave->status !== LeaveRequest::STATUS_APPROVED
+            || ! $leave->start_date->isSameDay($leave->end_date)) {
+            return redirect()->back()->with('error', 'Perubahan tanggal hanya tersedia untuk CUTI satu hari yang sudah disetujui.');
+        }
+
+        $validated = $request->validate([
+            'new_date' => ['required', 'date', Rule::notIn([$leave->start_date->toDateString()])],
+            'change_reason' => ['required', 'string', 'max:1000'],
+        ], [
+            'new_date.not_in' => 'Tanggal baru harus berbeda dari tanggal sebelumnya.',
+            'change_reason.required' => 'Alasan perubahan tanggal wajib diisi.',
+        ]);
+
+        try {
+            $updated = $this->stateMachine->perform(
+                $leave,
+                LeaveRequestStateMachine::EDIT_APPROVED_DATE,
+                function (LeaveRequest $lockedLeave) use ($validated) {
+                    if (! $this->leaveBalanceService->isAnnualLeave($lockedLeave)
+                        || ! $lockedLeave->start_date->isSameDay($lockedLeave->end_date)) {
+                        throw new \RuntimeException('Perubahan tanggal hanya tersedia untuk CUTI satu hari yang sudah disetujui.');
+                    }
+
+                    $duplicates = $this->findOverlappingLeaveRequests(
+                        $lockedLeave->user_id,
+                        LeaveType::CUTI->value,
+                        $validated['new_date'],
+                        $validated['new_date'],
+                        $lockedLeave->id,
+                    );
+
+                    if ($duplicates->isNotEmpty()) {
+                        throw new \RuntimeException($this->formatOverlapMessage($duplicates));
+                    }
+
+                    $oldDate = $lockedLeave->start_date->toDateString();
+                    $balanceChange = $this->leaveBalanceService->adjustApprovedLeaveDateBalance(
+                        $lockedLeave,
+                        $validated['new_date'],
+                        $validated['change_reason'],
+                        (int) Auth::id(),
+                    );
+                    $systemNote = sprintf(
+                        '[System] Tanggal diubah oleh HR (%s) dari %s menjadi %s; potongan %.1f menjadi %.1f hari. Alasan: %s',
+                        Auth::user()->name,
+                        $oldDate,
+                        $validated['new_date'],
+                        $balanceChange['old_amount'],
+                        $balanceChange['new_amount'],
+                        $validated['change_reason'],
+                    );
+
+                    return [
+                        'start_date' => $validated['new_date'],
+                        'end_date' => $validated['new_date'],
+                        'notes' => $lockedLeave->notes ? $lockedLeave->notes."\n".$systemNote : $systemNote,
+                    ];
+                },
+                [],
+                LeaveRequest::STATUS_APPROVED,
+            );
+
+            if (! $updated) {
+                return redirect()->back()->with('error', 'Status pengajuan sudah berubah.');
+            }
+        } catch (\RuntimeException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('hr.leave.show', $leave->id)
+            ->with('success', 'Tanggal cuti berhasil diubah dan saldo telah disesuaikan.');
+    }
+
     /**
      * [UPDATE] APPROVE DENGAN LOGIKA HARI KERJA (5 HARI vs 6 HARI)
      */
     public function approve(Request $request, LeaveRequest $leave)
     {
-        $this->authorizeAccess();
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
 
         // 1. Validasi
         $request->validate([
@@ -651,13 +748,25 @@ class HrLeaveController extends Controller
 
         // Pastikan status valid
         $allowedStatus = [LeaveRequest::PENDING_HR];
-        abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk disetujui.');
+        if (! in_array($leave->status, $allowedStatus)) {
+            return redirect()->back()->with('error', 'Status pengajuan tidak valid untuk disetujui.');
+        }
 
         if ($leave->user_id === auth()->id()) {
             return back()->with('error', 'Etika Profesi: Anda tidak dapat menyetujui pengajuan Anda sendiri.');
         }
 
-        abort_unless($this->canHrActOnLeave(auth()->user(), $leave), 403, 'Anda tidak memiliki izin untuk menyetujui pengajuan ini.');
+        if (! $this->canHrActOnLeave(auth()->user(), $leave)) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk menyetujui pengajuan ini.');
+        }
+
+        $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : (string) $leave->type;
+        if (in_array($leaveTypeValue, [LeaveType::SAKIT->value, LeaveType::IZIN->value], true)) {
+            $deductLeaveField = $leaveTypeValue === LeaveType::SAKIT->value ? 'deduct_leave_sakit' : 'deduct_leave_izin';
+            if ($request->filled($deductLeaveField) === $request->filled('deduct_um')) {
+                return redirect()->back()->with('error', 'Pilih salah satu: Potong Cuti atau Potong UM.');
+            }
+        }
 
         $actor = auth()->user();
 
@@ -682,17 +791,17 @@ class HrLeaveController extends Controller
                     $shouldDeductUM = $request->filled('deduct_um');
 
                     // Potong cuti (CUTI: otomatis berdasarkan hari kerja efektif)
-                    if ($leaveTypeValue === LeaveType::CUTI->value) {
+                    if (! $shouldDeductUM && $leaveTypeValue === LeaveType::CUTI->value) {
                         $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
                     }
 
                     // Potong cuti (SAKIT)
-                    if ($shouldDeductSakit) {
+                    if (! $shouldDeductUM && $shouldDeductSakit) {
                         $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $deductAmountSakit);
                     }
 
                     // Potong cuti (IZIN)
-                    if ($shouldDeductIzin) {
+                    if (! $shouldDeductUM && $shouldDeductIzin) {
                         $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $deductAmountIzin);
                     }
 
@@ -723,7 +832,7 @@ class HrLeaveController extends Controller
 
             // Pesan sukses
             // Jika ini Cancel Request, pesannya "Pembatalan Disetujui"
-            if ($leave->status === 'BATAL') {
+            if ($leave->status === LeaveRequest::STATUS_CANCELLED) {
                 return redirect()->route('hr.leave.index')->with('success', 'Permintaan pembatalan telah disetujui.');
             }
 
@@ -736,20 +845,26 @@ class HrLeaveController extends Controller
 
     public function reject(Request $request, LeaveRequest $leave)
     {
-        $this->authorizeAccess();
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
 
         $request->validate([
             'notes_hrd' => 'required|string|max:1000',
         ]);
 
         $allowedStatus = [LeaveRequest::PENDING_HR];
-        abort_unless(in_array($leave->status, $allowedStatus), 400, 'Status pengajuan tidak valid untuk ditolak.');
+        if (! in_array($leave->status, $allowedStatus)) {
+            return redirect()->back()->with('error', 'Status pengajuan tidak valid untuk ditolak.');
+        }
 
         if ($leave->user_id === auth()->id()) {
             return back()->with('error', 'Etika Profesi: Anda tidak dapat menolak pengajuan Anda sendiri.');
         }
 
-        abort_unless($this->canHrActOnLeave(auth()->user(), $leave), 403, 'Anda tidak memiliki izin untuk menolak pengajuan ini.');
+        if (! $this->canHrActOnLeave(auth()->user(), $leave)) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk menolak pengajuan ini.');
+        }
 
         $rejected = $this->stateMachine->perform(
             $leave,
@@ -783,7 +898,7 @@ class HrLeaveController extends Controller
         $user = auth()->user();
 
         if (! $user || ! method_exists($user, 'isHR') || ! $user->isHR()) {
-            abort(403, 'Akses khusus HRD');
+            return redirect()->back()->with('error', 'Akses khusus HRD');
         }
     }
 
@@ -916,7 +1031,7 @@ class HrLeaveController extends Controller
             ->where('user_id', $userId)
             ->where('type', $type)
             ->when($excludeLeaveId, fn ($query) => $query->whereKeyNot($excludeLeaveId))
-            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, 'BATAL'])
+            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED])
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereDate('start_date', '<=', $endDate)
                     ->whereDate('end_date', '>=', $startDate);

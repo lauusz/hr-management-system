@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\App;
 use Illuminate\Database\Eloquent\Builder;
 use App\Models\LeaveRequest;
 use App\Enums\UserRole;
@@ -29,6 +30,9 @@ class AppServiceProvider extends ServiceProvider
         // Set Carbon locale to Indonesian for all date formatting
         Carbon::setLocale('id');
         Carbon::now()->locale('id');
+
+        // Set Laravel app locale to Indonesian for all validation messages
+        App::setLocale('id');
 
         // GATE: Kelola Slip Gaji
         Gate::define('manage-payroll', function ($user) {

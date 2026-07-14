@@ -121,6 +121,7 @@
                         name="q"
                         value="{{ request('q') }}"
                         placeholder="Cari nama bawahan..."
+                        autocomplete="off"
                         class="som-input">
                 </div>
             </div>

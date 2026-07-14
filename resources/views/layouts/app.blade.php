@@ -392,6 +392,58 @@
       background: var(--sidebar-bg);
     }
 
+    .sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      background: var(--gray-50);
+      min-width: 0;
+    }
+
+    .sidebar-user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .sidebar-user-details {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .sidebar-user-name {
+      color: var(--text-primary);
+      font-size: 0.8125rem;
+      font-weight: 700;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar-user-role {
+      color: var(--text-muted);
+      font-size: 0.6875rem;
+      font-weight: 500;
+      line-height: 1.25;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .btn-logout {
       width: 100%;
       padding: 8px 12px;
@@ -802,6 +854,22 @@
         transform: scale(1) translateY(0);
       }
     }
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+    .toast { pointer-events: auto; padding: 14px 20px; border-radius: 12px; font-size: 14px; font-weight: 500; color: #fff; box-shadow: 0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08); display: flex; align-items: center; gap: 10px; min-width: 280px; max-width: 400px; animation: toastSlideIn 0.35s ease-out; border: 1px solid rgba(255,255,255,0.15); backdrop-filter: blur(4px); }
+    .toast.hiding { animation: toastSlideOut 0.25s ease-in forwards; }
+    .toast-success { background: linear-gradient(135deg, #22C55E, #16A34A); }
+    .toast-error { background: linear-gradient(135deg, #EF4444, #DC2626); }
+    .toast-warning { background: linear-gradient(135deg, #F59E0B, #D97706); }
+    .toast-info { background: linear-gradient(135deg, #3B82F6, #2563EB); }
+    .toast-icon { width: 22px; height: 22px; flex-shrink: 0; }
+    .toast-close { margin-left: auto; background: none; border: none; color: rgba(255,255,255,0.8); font-size: 18px; line-height: 1; cursor: pointer; padding: 0 0 0 8px; }
+    .toast-close:hover { color: #fff; }
+    @keyframes toastSlideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastSlideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(40px); } }
+    @media (max-width: 480px) { .toast-container { top: 10px; right: 10px; left: 10px; } .toast { min-width: unset; max-width: unset; width: 100%; } }
+
+    /* ================= TOAST END ================= */
+
   </style>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -838,6 +906,13 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
             </svg>
             <span class="menu-text">Dashboard</span>
+          </a>
+
+          <a href="{{ route('v2.access') }}" class="menu-item {{ request()->routeIs('v2.access') ? 'active' : '' }}">
+            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/>
+            </svg>
+            <span class="menu-text">Pilih Layanan</span>
           </a>
 
           <a href="{{ route('leave-requests.index') }}" class="menu-item {{ request()->routeIs('leave-requests.*') ? 'active' : '' }}">
@@ -980,6 +1055,7 @@
         $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
         $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*','hr.office-holidays.*', 'hr.overtime-requests.master');
         $hrLoanOpen = request()->routeIs('hr.loan_requests.*', 'hr.payroll.*');
+        $hrAssetOpen = request()->routeIs('hr.assets.*');
         @endphp
 
         <div class="menu-section">
@@ -1042,6 +1118,13 @@
             <a href="{{ route('hr.pts.index') }}" class="submenu-item {{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">Master PT</a>
           </div>
 
+          <a href="{{ route('hr.assets.index') }}" class="menu-item {{ $hrAssetOpen ? 'active' : '' }}">
+            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7H4m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0l-2-3H6L4 7m8 4v4"/>
+            </svg>
+            <span class="menu-text">Inventaris Karyawan</span>
+          </a>
+
           <a href="{{ route('hr.supervisors.index') }}" class="menu-item {{ request()->routeIs('hr.supervisors.*') ? 'active' : '' }}">
             <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
@@ -1103,6 +1186,16 @@
 
       <!-- Footer / Logout -->
       <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="sidebar-user-avatar">
+            {{ substr(auth()->user()->name, 0, 1) }}
+          </div>
+          <div class="sidebar-user-details">
+            <span class="sidebar-user-name">{{ auth()->user()->name }}</span>
+            <span class="sidebar-user-role">{{ auth()->user()->role->label() }}</span>
+          </div>
+        </div>
+
         <button class="btn-logout" type="button" data-modal-target="confirm-logout">
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
@@ -1135,20 +1228,10 @@
             <h2 class="page-title">{{ $title ?? 'Dashboard' }}</h2>
           @endisset
 
-          <div class="user-chip">
-            <div class="user-avatar">
-              {{ substr(auth()->user()->name, 0, 1) }}
-            </div>
-            <div class="user-details">
-              <span class="user-name">{{ auth()->user()->name }}</span>
-              <span class="user-role">
-                {{ auth()->user()->role instanceof \App\Enums\UserRole ? auth()->user()->role->label() : auth()->user()->role }}
-              </span>
-            </div>
-          </div>
         </div>
 
         {{ $slot }}
+        <div class="toast-container" id="toastContainer"></div>
       </div>
     </main>
   </div>
@@ -1212,7 +1295,7 @@
       const maxLabel = input.dataset.maxFileLabel || '8 MB';
 
       if (maxBytes > 0 && file.size > maxBytes) {
-        alert(`Ukuran file "${file.name}" melebihi batas maksimal ${maxLabel}. Silakan pilih file yang lebih kecil.`);
+        window.showToast(`Ukuran file "${file.name}" melebihi batas maksimal ${maxLabel}. Silakan pilih file yang lebih kecil.`, 'warning');
         input.value = '';
       }
     }, true);
@@ -1297,6 +1380,85 @@
         if (submenuBadge) submenuBadge.style.display = isOpen ? '' : 'none';
       }
     });
+
+    // ================= TOAST NOTIFICATION =================
+    const toastContainer = document.getElementById('toastContainer');
+    const toastIcons = {
+      success: '<svg class="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>',
+      error: '<svg class="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>',
+      warning: '<svg class="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
+      info: '<svg class="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+    };
+
+    function showToast(message, type = 'info', duration = 4000) {
+      if (!toastContainer) return;
+      const toast = document.createElement('div');
+      toast.className = 'toast toast-' + type;
+      toast.innerHTML = toastIcons[type] + '<span style="flex:1">' + escapeHtml(message) + '</span>' +
+        '<button class="toast-close" onclick="this.parentElement.remove()">&times;</button>';
+      toastContainer.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('hiding');
+        toast.addEventListener('animationend', () => toast.remove());
+      }, duration);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Global toast helper for inline scripts
+    window.showToast = showToast;
+
+    function requiredFieldLabel(field) {
+      const label = field.id
+        ? Array.from(document.querySelectorAll('label')).find(item => item.getAttribute('for') === field.id)
+        : null;
+      const wrapperLabel = label || field.closest('.form-group, .field, .lrc-field, .lr-field, div')?.querySelector('label');
+      const text = wrapperLabel?.textContent || field.getAttribute('aria-label') || field.getAttribute('placeholder') || field.name || 'Field ini';
+
+      return text.replace(/\*/g, '').replace(/\s+/g, ' ').trim() || 'Field ini';
+    }
+
+    let lastRequiredToastAt = 0;
+    document.addEventListener('invalid', function(event) {
+      const field = event.target;
+      if (!(field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement)) return;
+      if (!field.validity.valueMissing) return;
+
+      event.preventDefault();
+
+      const now = Date.now();
+      if (now - lastRequiredToastAt < 300) return;
+      lastRequiredToastAt = now;
+
+      showToast(requiredFieldLabel(field) + ' wajib diisi.', 'warning', 5000);
+      field.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      field.focus({ preventScroll: true });
+    }, true);
+
+    // Handle Laravel flash messages from session
+    @if(session('success'))
+      showToast('{{ addslashes(session('success')) }}', 'success', 4000);
+    @endif
+    @if(session('error'))
+      showToast('{{ addslashes(session('error')) }}', 'error', 5000);
+    @endif
+    @if(session('warning'))
+      showToast('{{ addslashes(session('warning')) }}', 'warning', 5000);
+    @endif
+    @if(session('info'))
+      showToast('{{ addslashes(session('info')) }}', 'info', 4000);
+    @endif
+
+    // Handle validation errors (convert to toast)
+    @if($errors->any())
+      @foreach($errors->all() as $error)
+        showToast('{{ addslashes($error) }}', 'warning', 6000);
+      @endforeach
+    @endif
   </script>
 
   @stack('scripts')

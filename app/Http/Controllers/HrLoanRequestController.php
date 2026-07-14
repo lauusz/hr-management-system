@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LoanRequest;
 use App\Models\LoanRepayment;
+use App\Models\LoanRequest;
+use App\Services\Image\ImageCompressor;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class HrLoanRequestController extends Controller
 {
+    public function __construct(protected ImageCompressor $imageCompressor) {}
+
     public function index(Request $request)
     {
         $query = LoanRequest::orderByDesc('created_at');
@@ -19,7 +24,7 @@ class HrLoanRequestController extends Controller
         }
 
         if ($request->filled('q')) {
-            $query->where('snapshot_name', 'like', '%' . $request->q . '%');
+            $query->where('snapshot_name', 'like', '%'.$request->q.'%');
         }
 
         if ($request->filled('submitted_at')) {
@@ -72,7 +77,7 @@ class HrLoanRequestController extends Controller
             'payment_method' => ['required', 'in:TUNAI,CICILAN,POTONG_GAJI'],
             'purpose' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
-            'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx,txt', 'max:8192'],
+            'document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif,pdf,doc,docx,xls,xlsx,txt', 'max:8192'],
             'delete_document' => ['nullable', 'boolean'],
         ]);
 
@@ -91,7 +96,7 @@ class HrLoanRequestController extends Controller
             if ($loan->document_path && Storage::disk('public')->exists($loan->document_path)) {
                 Storage::disk('public')->delete($loan->document_path);
             }
-            $documentPath = $request->file('document')->store('loan_documents', 'public');
+            $documentPath = $this->storeLoanDocument($request->file('document'));
         }
 
         $loan->update([
@@ -117,7 +122,7 @@ class HrLoanRequestController extends Controller
         $loan = LoanRequest::findOrFail($id);
 
         if ($loan->status !== 'PENDING_HRD') {
-            return redirect()->back()->with('error', 'Pengajuan tidak bisa diapprove (status saat ini: ' . $loan->status . ')');
+            return redirect()->back()->with('error', 'Pengajuan tidak bisa diapprove (status saat ini: '.$loan->status.')');
         }
 
         $loan->update([
@@ -136,8 +141,8 @@ class HrLoanRequestController extends Controller
 
         $loan = LoanRequest::findOrFail($id);
 
-        if (!in_array($loan->status, ['PENDING_HRD', 'APPROVED'])) {
-            return redirect()->back()->with('error', 'Pengajuan tidak bisa ditolak (status saat ini: ' . $loan->status . ')');
+        if (! in_array($loan->status, ['PENDING_HRD', 'APPROVED'])) {
+            return redirect()->back()->with('error', 'Pengajuan tidak bisa ditolak (status saat ini: '.$loan->status.')');
         }
 
         $loan->update([
@@ -155,7 +160,7 @@ class HrLoanRequestController extends Controller
         abort_unless(auth()->user()->isHR(), 403);
 
         $request->validate([
-            'hrd_note' => ['nullable', 'string', 'max:1000']
+            'hrd_note' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $loan = LoanRequest::findOrFail($id);
@@ -170,7 +175,7 @@ class HrLoanRequestController extends Controller
         $formattedNew = "[{$timestamp}] {$newNote}";
 
         if ($existingNote) {
-            $loan->update(['hrd_note' => $existingNote . "\n" . $formattedNew]);
+            $loan->update(['hrd_note' => $existingNote."\n".$formattedNew]);
         } else {
             $loan->update(['hrd_note' => $formattedNew]);
         }
@@ -186,7 +191,7 @@ class HrLoanRequestController extends Controller
             'paid_at' => ['required', 'date'],
             'amount' => ['required', 'numeric', 'min:1'],
             'method' => ['required', 'in:TUNAI,TRANSFER,POTONG_GAJI'],
-            'note' => ['nullable', 'string']
+            'note' => ['nullable', 'string'],
         ]);
 
         $loan = LoanRequest::with('repayments')->findOrFail($id);
@@ -197,8 +202,9 @@ class HrLoanRequestController extends Controller
         $remaining = max(0, $loan->amount - $totalPaid);
 
         // If amount exceeds remaining and not confirmed, show warning with remainder info
-        if ($cleanAmount > $remaining && !$request->boolean('force_submit')) {
+        if ($cleanAmount > $remaining && ! $request->boolean('force_submit')) {
             $remainder = $cleanAmount - $remaining;
+
             return redirect()->back()
                 ->withInput()
                 ->with('repayment_warning', [
@@ -243,7 +249,7 @@ class HrLoanRequestController extends Controller
             'paid_at' => ['required', 'date'],
             'amount' => ['required', 'numeric', 'min:1'],
             'method' => ['required', 'in:TUNAI,TRANSFER,POTONG_GAJI'],
-            'note' => ['nullable', 'string']
+            'note' => ['nullable', 'string'],
         ]);
 
         $loan = LoanRequest::with('repayments')->findOrFail($id);
@@ -297,5 +303,24 @@ class HrLoanRequestController extends Controller
         }
 
         return redirect()->back()->with('success', 'Cicilan berhasil dihapus.');
+    }
+
+    private function storeLoanDocument(UploadedFile $file): string
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif', 'bmp', 'tif', 'tiff', 'avif'], true)) {
+            return $file->store('loan_documents', 'public');
+        }
+
+        try {
+            return $this->imageCompressor->compressAndStore($file, 'photo', 'loan_documents', 'loan_');
+        } catch (ValidationException $exception) {
+            if (! in_array($extension, ['heic', 'heif'], true)) {
+                throw $exception;
+            }
+
+            return $file->store('loan_documents', 'public');
+        }
     }
 }

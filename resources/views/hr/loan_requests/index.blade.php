@@ -110,6 +110,7 @@
                            name="q"
                            value="{{ request('q') }}"
                            placeholder="Cari nama karyawan..."
+                           autocomplete="off"
                            class="ln-filter-input">
                 </div>
 

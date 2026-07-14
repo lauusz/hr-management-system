@@ -423,7 +423,8 @@ describe('ApprovalController', function () {
 
             $response = $this->get(route('approval.edit', $leave));
 
-            $response->assertStatus(403);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
         });
 
         test('supervisor cannot cancel leave they do not supervise', function () {

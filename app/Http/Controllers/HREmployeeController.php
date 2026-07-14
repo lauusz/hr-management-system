@@ -2,26 +2,32 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Enums\UserRole;
 use App\Models\Division;
-use App\Models\Position;
+use App\Models\EmployeeDocument;
 use App\Models\EmployeeProfile;
+use App\Models\Position;
 use App\Models\Pt;
 use App\Models\Shift;
-use App\Models\EmployeeDocument;
-use App\Enums\UserRole;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use App\Models\User;
+use App\Services\Image\ImageCompressor;
 use App\Services\LeaveBalanceService;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class HREmployeeController extends Controller
 {
-    public function __construct(protected LeaveBalanceService $leaveBalanceService) {}
+    public function __construct(
+        protected LeaveBalanceService $leaveBalanceService,
+        protected ImageCompressor $imageCompressor,
+    ) {}
 
     public function index(Request $request)
     {
@@ -119,11 +125,11 @@ class HREmployeeController extends Controller
                 $parts = [];
 
                 if ($diff->y) {
-                    $parts[] = $diff->y . ' th';
+                    $parts[] = $diff->y.' th';
                 }
 
                 if ($diff->m) {
-                    $parts[] = $diff->m . ' bln';
+                    $parts[] = $diff->m.' bln';
                 }
 
                 $user->masa_kerja_label = $parts ? implode(' ', $parts) : null;
@@ -164,7 +170,7 @@ class HREmployeeController extends Controller
             'profile.pt',
             'documents.creator',
             'directSupervisor', // Observer
-            'manager'           // Approver
+            'manager',           // Approver
         ]);
 
         $profile = $employee->profile;
@@ -191,11 +197,11 @@ class HREmployeeController extends Controller
             $parts = [];
 
             if ($diff->y) {
-                $parts[] = $diff->y . ' th';
+                $parts[] = $diff->y.' th';
             }
 
             if ($diff->m) {
-                $parts[] = $diff->m . ' bln';
+                $parts[] = $diff->m.' bln';
             }
 
             $masaKerjaLabel = $parts ? implode(' ', $parts) : null;
@@ -255,7 +261,7 @@ class HREmployeeController extends Controller
 
     public function store(Request $request)
     {
-        $roleValues = array_map(fn(UserRole $r) => $r->value, UserRole::cases());
+        $roleValues = array_map(fn (UserRole $r) => $r->value, UserRole::cases());
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -263,7 +269,7 @@ class HREmployeeController extends Controller
             'phone' => ['nullable', 'string', 'max:255'],
             'role' => ['required', Rule::in($roleValues)],
 
-            'manager_id'           => ['nullable', 'exists:users,id'],
+            'manager_id' => ['nullable', 'exists:users,id'],
             'direct_supervisor_id' => ['nullable', 'exists:users,id'],
 
             'division_id' => ['nullable', 'exists:divisions,id'],
@@ -274,8 +280,8 @@ class HREmployeeController extends Controller
             'email' => ['nullable', 'email', 'max:150', 'unique:users,email'],
             'kewarganegaraan' => ['nullable', 'string', 'max:50'],
             'agama' => ['nullable', 'string', 'max:50'],
-            'path_kartu_keluarga' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
-            'path_ktp' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'path_kartu_keluarga' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif', 'max:2048'],
+            'path_ktp' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif', 'max:2048'],
             'nama_bank' => ['nullable', 'string', 'max:100'],
             'no_rekening' => ['nullable', 'string', 'max:50'],
             'pendidikan' => ['nullable', 'string', 'max:100'],
@@ -320,7 +326,7 @@ class HREmployeeController extends Controller
             $userData['password'] = Hash::make('123456');
             $userData['hr_staff_can_approve_non_cuti'] = (
                 $validated['role'] === UserRole::HR_STAFF->value
-                && !empty($validated['hr_staff_can_approve_non_cuti'])
+                && ! empty($validated['hr_staff_can_approve_non_cuti'])
             );
 
             $user = User::create($userData);
@@ -347,15 +353,11 @@ class HREmployeeController extends Controller
             $ktpPath = null;
 
             if ($request->hasFile('path_kartu_keluarga')) {
-                $file = $request->file('path_kartu_keluarga');
-                $filename = 'kk_' . Str::slug($user->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-                $kkPath = $file->storeAs('employee_docs', $filename, 'public');
+                $kkPath = $this->storeEmployeeImage($request->file('path_kartu_keluarga'), 'kk_');
             }
 
             if ($request->hasFile('path_ktp')) {
-                $file = $request->file('path_ktp');
-                $filename = 'ktp_' . Str::slug($user->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-                $ktpPath = $file->storeAs('employee_docs', $filename, 'public');
+                $ktpPath = $this->storeEmployeeImage($request->file('path_ktp'), 'ktp_');
             }
 
             if ($kkPath) {
@@ -419,7 +421,7 @@ class HREmployeeController extends Controller
     // =================================================================
     public function update(Request $request, User $employee)
     {
-        $roleValues = array_map(fn(UserRole $r) => $r->value, UserRole::cases());
+        $roleValues = array_map(fn (UserRole $r) => $r->value, UserRole::cases());
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -431,7 +433,7 @@ class HREmployeeController extends Controller
             // Validasi Saldo Cuti Manual
             'leave_balance' => ['nullable', 'numeric', 'min:0'],
 
-            'manager_id'           => ['nullable', 'exists:users,id'],
+            'manager_id' => ['nullable', 'exists:users,id'],
             'direct_supervisor_id' => ['nullable', 'exists:users,id'],
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
@@ -441,8 +443,8 @@ class HREmployeeController extends Controller
             'email' => ['nullable', 'email', 'max:150', Rule::unique('users', 'email')->ignore($employee->id)],
             'kewarganegaraan' => ['nullable', 'string', 'max:50'],
             'agama' => ['nullable', 'string', 'max:50'],
-            'path_kartu_keluarga' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
-            'path_ktp' => ['nullable', 'file', 'mimes:jpg,jpeg,png', 'max:2048'],
+            'path_kartu_keluarga' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif', 'max:2048'],
+            'path_ktp' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif', 'max:2048'],
             'nama_bank' => ['nullable', 'string', 'max:100'],
             'no_rekening' => ['nullable', 'string', 'max:50'],
             'pendidikan' => ['nullable', 'string', 'max:100'],
@@ -535,19 +537,19 @@ class HREmployeeController extends Controller
             $ktpPath = null;
 
             if ($request->hasFile('path_kartu_keluarga')) {
-                $file = $request->file('path_kartu_keluarga');
-                $filename = 'kk_' . Str::slug($employee->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-                $kkPath = $file->storeAs('employee_docs', $filename, 'public');
+                $kkPath = $this->storeEmployeeImage($request->file('path_kartu_keluarga'), 'kk_');
             }
 
             if ($request->hasFile('path_ktp')) {
-                $file = $request->file('path_ktp');
-                $filename = 'ktp_' . Str::slug($employee->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-                $ktpPath = $file->storeAs('employee_docs', $filename, 'public');
+                $ktpPath = $this->storeEmployeeImage($request->file('path_ktp'), 'ktp_');
             }
 
-            if ($kkPath) $profileData['path_kartu_keluarga'] = $kkPath;
-            if ($ktpPath) $profileData['path_ktp'] = $ktpPath;
+            if ($kkPath) {
+                $profileData['path_kartu_keluarga'] = $kkPath;
+            }
+            if ($ktpPath) {
+                $profileData['path_ktp'] = $ktpPath;
+            }
 
             if ($employee->profile) {
                 $employee->profile->update($profileData);
@@ -591,7 +593,7 @@ class HREmployeeController extends Controller
             'exit_date' => ['required', 'date'],
             'exit_reason_code' => ['nullable', 'string', 'max:50'],
             'exit_reason_note' => ['nullable', 'string'],
-            'exit_document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf,doc,docx,xls,xlsx', 'max:4096'],
+            'exit_document' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif,pdf,doc,docx,xls,xlsx', 'max:4096'],
         ]);
 
         $employee->update([
@@ -602,8 +604,13 @@ class HREmployeeController extends Controller
 
         if ($request->hasFile('exit_document')) {
             $file = $request->file('exit_document');
-            $filename = 'exit_' . Str::slug($employee->name ?: 'employee') . '_' . now()->format('Ymd_His') . '.' . $file->getClientOriginalExtension();
-            $documentPath = $file->storeAs('exit_documents', $filename, 'public');
+            $documentPath = $this->isEmployeeImage($file)
+                ? $this->storeEmployeeImage($file, 'exit_', 'exit_documents')
+                : $file->storeAs(
+                    'exit_documents',
+                    'exit_'.Str::slug($employee->name ?: 'employee').'_'.now()->format('Ymd_His').'.'.$file->getClientOriginalExtension(),
+                    'public'
+                );
         }
 
         $data = [
@@ -658,11 +665,11 @@ class HREmployeeController extends Controller
             $parts = [];
 
             if ($diff->y) {
-                $parts[] = $diff->y . ' th';
+                $parts[] = $diff->y.' th';
             }
 
             if ($diff->m) {
-                $parts[] = $diff->m . ' bln';
+                $parts[] = $diff->m.' bln';
             }
 
             $masaKerjaLabel = $parts ? implode(' ', $parts) : null;
@@ -702,5 +709,25 @@ class HREmployeeController extends Controller
         return redirect()
             ->route('hr.employees.index')
             ->with('success', 'Karyawan berhasil dinonaktifkan.');
+    }
+
+    private function storeEmployeeImage(UploadedFile $file, string $prefix, string $folder = 'employee_docs'): string
+    {
+        try {
+            return $this->imageCompressor->compressAndStore($file, 'photo', $folder, $prefix);
+        } catch (ValidationException $exception) {
+            if (! in_array(strtolower($file->getClientOriginalExtension()), ['heic', 'heif'], true)) {
+                throw $exception;
+            }
+
+            return $file->store($folder, 'public');
+        }
+    }
+
+    private function isEmployeeImage(UploadedFile $file): bool
+    {
+        return in_array(strtolower($file->getClientOriginalExtension()), [
+            'jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif', 'bmp', 'tif', 'tiff', 'avif',
+        ], true);
     }
 }

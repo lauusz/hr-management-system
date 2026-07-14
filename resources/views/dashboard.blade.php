@@ -6,6 +6,14 @@
       if (auth()->user()->isSupervisor() || auth()->user()->isManager()) $roleItemCount++;
       if (auth()->user()->isHR()) $roleItemCount += 8;
       if (auth()->user()->isManager() && !auth()->user()->isHR()) $roleItemCount++;
+      $masaKerja = auth()->user()->profile?->masa_kerja ?? '-';
+      $heroDivision = auth()->user()->division?->name ?? 'Tanpa Divisi';
+      $receivedAssets = $receivedAssets ?? collect();
+      $assetConditionLabels = [
+        'GOOD' => 'Baik',
+        'NEED_REPAIR' => 'Perlu Service',
+        'DAMAGED' => 'Rusak',
+      ];
     @endphp
 
     {{-- ============================================ --}}
@@ -20,15 +28,7 @@
           @endphp
           {{ $greeting }}, <span class="hero-name">{{ auth()->user()->name }}</span>
           <span class="hero-role-badge">
-            @if(auth()->user()->isHR())
-              HRD
-            @elseif(auth()->user()->isSupervisor())
-              Supervisor
-            @elseif(auth()->user()->isManager())
-              Manager
-            @else
-              Karyawan
-            @endif
+            {{ $heroDivision }}
           </span>
         </div>
         <div class="hero-date">
@@ -69,6 +69,18 @@
         <div class="summary-meta">
           <div class="summary-label">Divisi</div>
           <div class="summary-value">{{ auth()->user()->division?->name ?? '-' }}</div>
+        </div>
+      </div>
+
+      <div class="summary-item">
+        <div class="summary-icon icon-blue">
+          <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <div class="summary-meta">
+          <div class="summary-label">Masa Kerja</div>
+          <div class="summary-value">{{ $masaKerja }}</div>
         </div>
       </div>
 
@@ -493,6 +505,62 @@
       </div>
     </section>
 
+    {{-- ============================================ --}}
+    {{-- ASET PERUSAHAAN                              --}}
+    {{-- ============================================ --}}
+    <section class="dash-section dash-section--secondary">
+      <div class="section-header">
+        <h2 class="section-title">Aset Perusahaan yang Diterima</h2>
+        <p class="section-subtitle">Informasi asset kantor yang sedang tercatat atas nama Anda</p>
+      </div>
+
+      @if($receivedAssets->isEmpty())
+        <div class="asset-empty">
+          Belum ada asset perusahaan yang tercatat atas nama Anda.
+        </div>
+      @else
+        <div class="received-asset-grid">
+          @foreach($receivedAssets as $asset)
+            @php
+              $brandModel = trim(($asset->brand ?: '') . ' ' . ($asset->model ?: ''));
+            @endphp
+            <article class="received-asset-card">
+              <div class="received-asset-top">
+                <div class="received-asset-icon icon-navy">
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                  </svg>
+                </div>
+                <div class="received-asset-title">
+                  <div class="received-asset-name">{{ $asset->name }}</div>
+                  <div class="received-asset-code">{{ $asset->asset_code }} &middot; {{ $asset->category->name ?? 'Tanpa kategori' }}</div>
+                </div>
+              </div>
+
+              <div class="received-asset-info">
+                <div>
+                  <span>Brand / Model</span>
+                  <strong>{{ $brandModel !== '' ? $brandModel : '-' }}</strong>
+                </div>
+                <div>
+                  <span>Serial Number</span>
+                  <strong>{{ $asset->serial_number ?: '-' }}</strong>
+                </div>
+                <div>
+                  <span>Email Laptop</span>
+                  <strong>{{ $asset->email_laptop ?: '-' }}</strong>
+                </div>
+                <div>
+                  <span>Kondisi</span>
+                  <strong>{{ $assetConditionLabels[$asset->condition_status] ?? $asset->condition_status }}</strong>
+                </div>
+              </div>
+            </article>
+          @endforeach
+        </div>
+      @endif
+    </section>
+
   </div>
 
   <style>
@@ -881,6 +949,110 @@
     }
 
     /* ============================================= */
+    /* RECEIVED ASSETS - Read only                   */
+    /* ============================================= */
+    .asset-empty {
+      padding: 14px;
+      border: 1px dashed var(--border, #E5E7EB);
+      border-radius: var(--radius-lg, 12px);
+      background: var(--white, #fff);
+      color: var(--text-muted, #6B7280);
+      font-size: 0.8125rem;
+      font-weight: 600;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    .received-asset-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .received-asset-card {
+      display: grid;
+      gap: 12px;
+      padding: 12px;
+      border: 1.5px solid var(--border, #E5E7EB);
+      border-radius: var(--radius-lg, 12px);
+      background: var(--white, #fff);
+      box-shadow: var(--shadow-sm, 0 1px 2px rgba(0,0,0,0.04));
+    }
+
+    .received-asset-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .received-asset-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .received-asset-title {
+      min-width: 0;
+    }
+
+    .received-asset-name {
+      color: var(--text-primary, #111827);
+      font-size: 0.8125rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .received-asset-code {
+      margin-top: 2px;
+      color: var(--text-muted, #6B7280);
+      font-size: 0.6875rem;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .received-asset-info {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .received-asset-info div {
+      min-width: 0;
+      padding: 8px;
+      border-radius: 10px;
+      background: var(--gray-50, #F5F7FA);
+    }
+
+    .received-asset-info span,
+    .received-asset-info strong {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .received-asset-info span {
+      color: var(--text-muted, #6B7280);
+      font-size: 0.625rem;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .received-asset-info strong {
+      margin-top: 3px;
+      color: var(--text-secondary, #374151);
+      font-size: 0.75rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    /* ============================================= */
     /* ROLE GRID - Collapsible on mobile             */
     /* ============================================= */
     .role-grid {
@@ -996,6 +1168,7 @@
 
       /* Summary */
       .summary-bar {
+        grid-template-columns: repeat(3, 1fr);
         gap: 12px;
       }
 
@@ -1058,6 +1231,11 @@
       .settings-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
+      }
+
+      .received-asset-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
       }
 
       .settings-grid .action-card {
@@ -1145,6 +1323,10 @@
 
       .settings-grid {
         grid-template-columns: repeat(2, minmax(200px, 1fr));
+      }
+
+      .received-asset-grid {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       }
     }
   </style>

@@ -19,9 +19,9 @@ trait HasMasaKerja
             return null;
         }
 
-        $years = $start->diffInYears($end);
+        $years = (int) $start->diffInYears($end);
         $afterYears = $start->copy()->addYears($years);
-        $months = $afterYears->diffInMonths($end);
+        $months = (int) $afterYears->diffInMonths($end);
 
         if ($years > 0 && $months > 0) {
             return $years.' Tahun '.$months.' Bulan';
@@ -51,7 +51,7 @@ trait HasMasaKerja
             return null;
         }
 
-        return $start->diffInYears($end);
+        return (int) $start->diffInYears($end);
     }
 
     public function getMasaKerjaInMonthsAttribute(): ?int
@@ -67,6 +67,6 @@ trait HasMasaKerja
             return null;
         }
 
-        return $start->diffInMonths($end);
+        return (int) $start->diffInMonths($end);
     }
 }

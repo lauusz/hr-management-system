@@ -24,6 +24,7 @@
                     name="q"
                     value="{{ $search ?? '' }}"
                     placeholder="Cari divisi..."
+                    autocomplete="off"
                     style="padding:6px 8px;border-radius:999px;border:1px solid #ddd;font-size:0.85rem;min-width:160px;">
                 <button
                     type="submit"

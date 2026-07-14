@@ -249,6 +249,38 @@ describe('HrLeaveController', function () {
             expect($response->viewData('item')->id)->toBe($leave->id);
         });
 
+        it('shows UM deduction option for SAKIT even when leave balance is available', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['leave_balance' => 5]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'type' => LeaveType::SAKIT->value,
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.show', $leave->id));
+
+            $response->assertStatus(200)
+                ->assertSee('name="deduct_um"', false);
+        });
+
+        it('shows UM deduction option for IZIN even when leave balance is available', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['leave_balance' => 5]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'type' => LeaveType::IZIN->value,
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.show', $leave->id));
+
+            $response->assertStatus(200)
+                ->assertSee('name="deduct_um"', false);
+        });
+
         it('employee cannot view leave in HR page', function () {
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create();
@@ -285,13 +317,53 @@ describe('HrLeaveController', function () {
 
             actingAs($hrd, 'web');
 
-            $response = $this->post(route('hr.leave.approve', $leave->id));
+            $response = $this->post(route('hr.leave.approve', $leave->id), ['deduct_um' => '1']);
 
             $response->assertRedirect();
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
                 ->and($leave->approved_by)->toBe($hrd->id)
                 ->and($leave->approved_at)->toBeTruthy();
+        });
+
+        it('rejects IZIN approval when neither cuti nor UM deduction is selected', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->post(route('hr.leave.approve', $leave->id));
+
+            $response->assertRedirect()
+                ->assertSessionHas('error', 'Pilih salah satu: Potong Cuti atau Potong UM.');
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR);
+        });
+
+        it('rejects SAKIT approval when both cuti and UM deductions are selected', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::SAKIT->value,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->post(route('hr.leave.approve', $leave->id), [
+                'deduct_leave_sakit' => '1',
+                'deduct_amount_sakit' => '1',
+                'deduct_um' => '1',
+            ]);
+
+            $response->assertRedirect()
+                ->assertSessionHas('error', 'Pilih salah satu: Potong Cuti atau Potong UM.');
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR);
         });
 
         it('HRD can approve PENDING_HR CUTI with balance deduction', function () {
@@ -316,6 +388,38 @@ describe('HrLeaveController', function () {
             $employee->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
                 ->and($employee->leave_balance)->toBeLessThan(12);
+        });
+
+        it('HRD can approve CUTI with UM deduction without deducting leave balance', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+            ]);
+            EmployeeProfile::create([
+                'user_id' => $employee->id,
+                'tgl_bergabung' => now()->subYears(2)->toDateString(),
+                'kategori' => 'KONTRAK',
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-07-01',
+                'end_date' => '2026-07-02',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('hr.leave.approve', $leave->id), ['deduct_um' => '1']);
+
+            $leave->refresh();
+            $employee->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->deduct_um)->toBeTrue()
+                ->and((float) $employee->leave_balance)->toBe(12.0);
+            expect(LeaveBalanceTransaction::where('leave_request_id', $leave->id)
+                ->where('transaction_type', LeaveBalanceTransaction::DEDUCT)
+                ->exists())->toBeFalse();
         });
 
         it('HRD final approve deletes duplicate pending overlaps', function () {
@@ -345,7 +449,7 @@ describe('HrLeaveController', function () {
 
             actingAs($hrd, 'web');
 
-            $this->post(route('hr.leave.approve', $leave->id));
+            $this->post(route('hr.leave.approve', $leave->id), ['deduct_um' => '1']);
 
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
@@ -377,7 +481,7 @@ describe('HrLeaveController', function () {
 
             actingAs($hrStaff, 'web');
 
-            $this->post(route('hr.leave.approve', $leave->id));
+            $this->post(route('hr.leave.approve', $leave->id), ['deduct_um' => '1']);
 
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
@@ -393,7 +497,7 @@ describe('HrLeaveController', function () {
 
             actingAs($hrStaff, 'web');
 
-            $this->post(route('hr.leave.approve', $leave->id));
+            $this->post(route('hr.leave.approve', $leave->id), ['deduct_um' => '1']);
 
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
@@ -416,7 +520,8 @@ describe('HrLeaveController', function () {
             actingAs($hrStaff, 'web');
 
             $response = $this->post(route('hr.leave.approve', $leave->id));
-            $response->assertStatus(403);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
         });
 
         it('HR Staff CAN approve MANAGER non-CUTI when HR Staff flag is true', function () {
@@ -435,7 +540,7 @@ describe('HrLeaveController', function () {
 
             actingAs($hrStaff, 'web');
 
-            $this->post(route('hr.leave.approve', $leave->id));
+            $this->post(route('hr.leave.approve', $leave->id), ['deduct_um' => '1']);
 
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
@@ -458,7 +563,8 @@ describe('HrLeaveController', function () {
             actingAs($hrStaff, 'web');
 
             $response = $this->post(route('hr.leave.approve', $leave->id));
-            $response->assertStatus(403);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
         });
 
         // --- SUPERVISOR tests ---
@@ -489,7 +595,7 @@ describe('HrLeaveController', function () {
 
             actingAs($hrStaff, 'web');
 
-            $this->post(route('hr.leave.approve', $leave->id));
+            $this->post(route('hr.leave.approve', $leave->id), ['deduct_um' => '1']);
 
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
@@ -511,7 +617,7 @@ describe('HrLeaveController', function () {
 
             actingAs($hrStaff, 'web');
 
-            $this->post(route('hr.leave.approve', $leave->id));
+            $this->post(route('hr.leave.approve', $leave->id), ['deduct_um' => '1']);
 
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
@@ -590,7 +696,7 @@ describe('HrLeaveController', function () {
             $leaveEmployeeCuti->refresh();
             expect($leaveEmployeeCuti->status)->toBe(LeaveRequest::STATUS_APPROVED);
 
-            $this->post(route('hr.leave.approve', $leaveEmployeeIzin->id));
+            $this->post(route('hr.leave.approve', $leaveEmployeeIzin->id), ['deduct_um' => '1']);
             $leaveEmployeeIzin->refresh();
             expect($leaveEmployeeIzin->status)->toBe(LeaveRequest::STATUS_APPROVED);
         });
@@ -606,7 +712,8 @@ describe('HrLeaveController', function () {
 
             $response = $this->post(route('hr.leave.approve', $leave->id));
 
-            $response->assertStatus(400);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
         });
 
         it('cannot approve rejected leave', function () {
@@ -620,7 +727,8 @@ describe('HrLeaveController', function () {
 
             $response = $this->post(route('hr.leave.approve', $leave->id));
 
-            $response->assertStatus(400);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
         });
 
         it('approve saves notes_hrd', function () {
@@ -634,6 +742,7 @@ describe('HrLeaveController', function () {
 
             $this->post(route('hr.leave.approve', $leave->id), [
                 'notes_hrd' => 'Disetujui dengan catatan khusus',
+                'deduct_um' => '1',
             ]);
 
             $leave->refresh();
@@ -791,7 +900,8 @@ describe('HrLeaveController', function () {
                 'notes_hrd' => 'Tolak',
             ]);
 
-            $response->assertStatus(400);
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
         });
 
         it('employee cannot reject', function () {
@@ -1280,6 +1390,126 @@ describe('HrLeaveController', function () {
             $leave->refresh();
             expect($leave->reason)->toBe('Extended reason')
                 ->and($leave->end_date->format('Y-m-d'))->toBe(now()->addDays(6)->toDateString());
+        });
+    });
+
+    describe('adjust approved date', function () {
+        it('shows approved date adjustment action and form to HR', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leave = LeaveRequest::factory()->forUser($employee)->cuti()->approved()->create([
+                'start_date' => '2026-07-18',
+                'end_date' => '2026-07-18',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('Ubah Tanggal')
+                ->assertSee('name="new_date"', false)
+                ->assertSee(route('hr.leave.adjust-date', $leave), false);
+        });
+
+        it('HRD moves approved saturday leave to monday and adjusts balance', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 10,
+            ]);
+            $approvedAt = now()->subDay()->startOfSecond();
+            $leave = LeaveRequest::factory()->forUser($employee)->cuti()->approved()->create([
+                'start_date' => '2026-07-18',
+                'end_date' => '2026-07-18',
+                'approved_by' => $hrd->id,
+                'approved_at' => $approvedAt,
+            ]);
+            app(\App\Services\LeaveBalanceService::class)->deductLeaveBalanceForLeave($leave);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->put(route('hr.leave.adjust-date', $leave), [
+                'new_date' => '2026-07-20',
+                'change_reason' => 'Permintaan karyawan melalui WhatsApp',
+            ]);
+
+            $response->assertRedirect(route('hr.leave.show', $leave));
+            $response->assertSessionHas('success');
+
+            $leave->refresh();
+            expect($leave->start_date->toDateString())->toBe('2026-07-20')
+                ->and($leave->end_date->toDateString())->toBe('2026-07-20')
+                ->and($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->approved_by)->toBe($hrd->id)
+                ->and($leave->approved_at->equalTo($approvedAt))->toBeTrue()
+                ->and((float) $employee->fresh()->leave_balance)->toBe(9.0)
+                ->and($leave->notes)->toContain('Permintaan karyawan melalui WhatsApp');
+        });
+
+        it('rejects approved date change without deduct ledger', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 9.5,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->cuti()->approved()->create([
+                'start_date' => '2026-07-18',
+                'end_date' => '2026-07-18',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->put(route('hr.leave.adjust-date', $leave), [
+                'new_date' => '2026-07-20',
+                'change_reason' => 'Permintaan karyawan',
+            ]);
+
+            $response->assertSessionHas('error', fn (string $message) => str_contains($message, 'Ledger pemotongan cuti belum tersedia'));
+            expect($leave->fresh()->start_date->toDateString())->toBe('2026-07-18')
+                ->and((float) $employee->fresh()->leave_balance)->toBe(9.5);
+        });
+
+        it('rejects employee access to approved date change', function () {
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leave = LeaveRequest::factory()->forUser($employee)->cuti()->approved()->create([
+                'start_date' => '2026-07-18',
+                'end_date' => '2026-07-18',
+            ]);
+
+            actingAs($employee, 'web');
+
+            $this->put(route('hr.leave.adjust-date', $leave), [
+                'new_date' => '2026-07-20',
+                'change_reason' => 'Permintaan sendiri',
+            ])->assertStatus(403);
+        });
+
+        it('rejects overlapping approved date change without mutating balance', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 10,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->cuti()->approved()->create([
+                'start_date' => '2026-07-18',
+                'end_date' => '2026-07-18',
+            ]);
+            LeaveRequest::factory()->forUser($employee)->cuti()->approved()->create([
+                'start_date' => '2026-07-20',
+                'end_date' => '2026-07-20',
+            ]);
+            app(\App\Services\LeaveBalanceService::class)->deductLeaveBalanceForLeave($leave);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->put(route('hr.leave.adjust-date', $leave), [
+                'new_date' => '2026-07-20',
+                'change_reason' => 'Permintaan karyawan',
+            ]);
+
+            $response->assertSessionHas('error');
+            expect($leave->fresh()->start_date->toDateString())->toBe('2026-07-18')
+                ->and((float) $employee->fresh()->leave_balance)->toBe(9.5);
         });
     });
 

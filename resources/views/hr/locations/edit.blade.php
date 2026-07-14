@@ -202,7 +202,7 @@
                     const data = await res.json();
 
                     if (!data || !data.length) {
-                        alert('Alamat tidak ditemukan. Mohon perjelas nama jalan/kota.');
+                        window.showToast('Alamat tidak ditemukan. Mohon perjelas nama jalan/kota.', 'warning');
                     } else {
                         const lat = parseFloat(data[0].lat);
                         const lng = parseFloat(data[0].lon);
@@ -211,7 +211,7 @@
                         }
                     }
                 } catch (e) {
-                    alert('Gagal menghubungi layanan peta.');
+                    window.showToast('Gagal menghubungi layanan peta.', 'error');
                 } finally {
                     geocodeBtn.disabled = false;
                     geocodeBtn.innerHTML = originalText;
@@ -221,7 +221,7 @@
             // Current Location Function
             useCurrentLocationBtn.addEventListener('click', function() {
                 if (!navigator.geolocation) {
-                    alert('Browser Anda tidak mendukung geolokasi.');
+                    window.showToast('Browser Anda tidak mendukung geolokasi.', 'warning');
                     return;
                 }
 
@@ -237,7 +237,7 @@
                     },
                     function(err) {
                         console.error(err);
-                        alert('Gagal mengambil lokasi GPS. Pastikan izin lokasi aktif.');
+                        window.showToast('Gagal mengambil lokasi GPS. Pastikan izin lokasi aktif.', 'error');
                         useCurrentLocationBtn.disabled = false;
                         useCurrentLocationBtn.innerHTML = originalText;
                     }, {

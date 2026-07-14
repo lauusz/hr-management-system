@@ -4,11 +4,16 @@ color 0E
 
 :: --- CONFIGURATION ---
 set DB_USER=root
-set DB_PASS=123456
+set DB_PASS=%HRD_DB_PASS%
 set DB_NAME=hrd_system
 set DUMP_PATH="C:\Program Files\MariaDB 11.8\bin\mysqldump.exe"
 set BACKUP_DIR=C:\apps\hrd-system\backups
 :: ---------------------
+
+if "%DB_PASS%"=="" (
+    echo [GAGAL] Environment variable HRD_DB_PASS belum diatur.
+    exit /b 1
+)
 
 :: Buat folder backup jika belum ada
 if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"

@@ -69,7 +69,7 @@
                                     \App\Models\LeaveRequest::PENDING_HR => 'Atasan Mengetahui',
                                     \App\Models\LeaveRequest::STATUS_APPROVED => 'Disetujui',
                                     \App\Models\LeaveRequest::STATUS_REJECTED => 'Ditolak',
-                                    'BATAL' => 'Dibatalkan',
+                                    \App\Models\LeaveRequest::STATUS_CANCELLED => 'Dibatalkan',
                                     'CANCEL_REQ' => 'Pengajuan Batal',
                                 ];
                             @endphp
@@ -79,7 +79,7 @@
                 </div>
                 <div class="apv-filter-group apv-filter-group--wide">
                     <label class="apv-filter-label" for="q">Cari Karyawan</label>
-                    <input type="text" id="q" name="q" value="{{ $q ?? '' }}" placeholder="Ketik nama bawahan..." class="apv-filter-input">
+                    <input type="text" id="q" name="q" value="{{ $q ?? '' }}" placeholder="Ketik nama bawahan..." autocomplete="off" class="apv-filter-input">
                 </div>
             </div>
             <div class="apv-filter-actions">
@@ -126,9 +126,9 @@
                     $statusClass = 'apv-badge--teal';
                     $statusLabel = 'Atasan Mengetahui';
                     $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
-                } elseif (in_array($st, ['BATAL', 'CANCEL_REQ'])) {
+                } elseif (in_array($st, [\App\Models\LeaveRequest::STATUS_CANCELLED, 'CANCEL_REQ'])) {
                     $statusClass = 'apv-badge--gray';
-                    $statusLabel = $st === 'BATAL' ? 'Dibatalkan' : 'Pengajuan Batal';
+                    $statusLabel = $st === \App\Models\LeaveRequest::STATUS_CANCELLED ? 'Dibatalkan' : 'Pengajuan Batal';
                 }
 
                 $typeClass = 'apv-type--default';

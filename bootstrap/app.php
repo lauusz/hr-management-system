@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureRole;
+use App\Http\Middleware\EnsureAtkAdmin;
 use App\Http\Middleware\HasSubordinates;
 use App\Http\Middleware\PreventBrowserCache;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => EnsureRole::class,
+            'atk.admin' => EnsureAtkAdmin::class,
             'has.subordinates' => HasSubordinates::class,
             'prevent.cache' => PreventBrowserCache::class,
         ]);

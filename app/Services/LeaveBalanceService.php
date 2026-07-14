@@ -208,6 +208,86 @@ class LeaveBalanceService
         });
     }
 
+    /**
+     * @return array{old_amount: float, new_amount: float, adjustment: float}
+     */
+    public function adjustApprovedLeaveDateBalance(
+        LeaveRequest $leave,
+        string $newDate,
+        string $reason,
+        int $createdBy,
+    ): array {
+        if (! $leave->exists || ! $leave->id) {
+            throw new RuntimeException('Pengajuan cuti belum tersimpan.');
+        }
+
+        if (! $this->isAnnualLeave($leave) || $leave->status !== LeaveRequest::STATUS_APPROVED) {
+            throw new RuntimeException('Hanya CUTI yang sudah disetujui yang dapat diubah tanggalnya.');
+        }
+
+        return DB::transaction(function () use ($leave, $newDate, $reason, $createdBy) {
+            $lockedUser = User::lockForUpdate()->findOrFail($leave->user_id);
+            $deductKey = "DEDUCT:LEAVE:{$leave->id}";
+            $deductTransaction = LeaveBalanceTransaction::query()
+                ->where('idempotency_key', $deductKey)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $deductTransaction) {
+                throw new RuntimeException('Ledger pemotongan cuti belum tersedia. Jalankan backfill ledger terlebih dahulu.');
+            }
+
+            $adjustmentPrefix = "ADJUST_DATE:LEAVE:{$leave->id}:";
+            $previousAdjustments = (float) LeaveBalanceTransaction::query()
+                ->where('leave_request_id', $leave->id)
+                ->where('transaction_type', LeaveBalanceTransaction::ADJUSTMENT)
+                ->where('idempotency_key', 'like', $adjustmentPrefix.'%')
+                ->lockForUpdate()
+                ->get()
+                ->sum('amount');
+
+            $oldAmount = (float) $deductTransaction->amount + $previousAdjustments;
+            $newAmount = $this->calculateEffectiveDaysForUser($lockedUser, $newDate, $newDate);
+            $adjustment = $newAmount - $oldAmount;
+            $currentBalance = (float) $lockedUser->leave_balance;
+
+            if ($adjustment > 0 && $currentBalance < $adjustment) {
+                throw new RuntimeException("Sisa cuti tidak mencukupi untuk perubahan tanggal. Tambahan yang dibutuhkan: {$adjustment} hari.");
+            }
+
+            if (abs($adjustment) > 0.00001) {
+                $newBalance = $currentBalance - $adjustment;
+                $lockedUser->update(['leave_balance' => $newBalance]);
+
+                LeaveBalanceTransaction::create([
+                    'user_id' => $lockedUser->id,
+                    'leave_request_id' => $leave->id,
+                    'transaction_type' => LeaveBalanceTransaction::ADJUSTMENT,
+                    'amount' => $adjustment,
+                    'balance_before' => $currentBalance,
+                    'balance_after' => $newBalance,
+                    'description' => sprintf(
+                        'Perubahan tanggal pengajuan #%d dari %s menjadi %s (%s). Potongan %.1f menjadi %.1f hari.',
+                        $leave->id,
+                        $leave->start_date->toDateString(),
+                        $newDate,
+                        $reason,
+                        $oldAmount,
+                        $newAmount,
+                    ),
+                    'idempotency_key' => $adjustmentPrefix.Str::uuid(),
+                    'created_by' => $createdBy,
+                ]);
+            }
+
+            return [
+                'old_amount' => $oldAmount,
+                'new_amount' => $newAmount,
+                'adjustment' => $adjustment,
+            ];
+        });
+    }
+
     public function refundLeaveBalanceForLeave(LeaveRequest $leave, ?float $amount = null): float
     {
         // Production refund harus menggunakan LeaveRequest yang sudah tersimpan.
@@ -229,7 +309,15 @@ class LeaveBalanceService
                 ->first();
 
             if ($deductTransaction) {
-                $daysToRefund = (float) $deductTransaction->amount;
+                $adjustmentPrefix = "ADJUST_DATE:LEAVE:{$leave->id}:";
+                $dateAdjustments = (float) LeaveBalanceTransaction::query()
+                    ->where('leave_request_id', $leave->id)
+                    ->where('transaction_type', LeaveBalanceTransaction::ADJUSTMENT)
+                    ->where('idempotency_key', 'like', $adjustmentPrefix.'%')
+                    ->lockForUpdate()
+                    ->get()
+                    ->sum('amount');
+                $daysToRefund = (float) $deductTransaction->amount + $dateAdjustments;
             } else {
                 // Fallback hanya untuk CUTI legacy yang belum memiliki ledger DEDUCT.
                 if (! $this->isAnnualLeave($leave)) {

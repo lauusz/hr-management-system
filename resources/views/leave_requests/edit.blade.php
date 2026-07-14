@@ -542,7 +542,7 @@
                 if (!file) return;
                 const maxBytes = parseInt(this.dataset.maxFileSize, 10) || 8388608;
                 if (file.size > maxBytes) {
-                    alert('Ukuran file melebihi ' + (this.dataset.maxFileLabel || '8 MB') + '. Pilih file yang lebih kecil.');
+                    window.showToast('Ukuran file melebihi ' + (this.dataset.maxFileLabel || '8 MB') + '. Pilih file yang lebih kecil.', 'warning');
                     this.value = '';
                     photoPreviewContainer.style.display = 'none';
                     uploadBox.style.display = 'block';
@@ -578,38 +578,38 @@
                 const start = startDateInput.value;
                 const end = endDateInput.value;
 
-                if (!type) { alert('Pilih jenis pengajuan.'); e.preventDefault(); return; }
-                if (!start || !end) { alert('Pilih periode tanggal.'); e.preventDefault(); return; }
+                if (!type) { window.showToast('Pilih jenis pengajuan.', 'warning'); e.preventDefault(); return; }
+                if (!start || !end) { window.showToast('Pilih periode tanggal.', 'warning'); e.preventDefault(); return; }
 
                 if (specialTypes.includes(type)) {
                     const pic = document.getElementById('edit_substitute_pic').value.trim();
                     const phone = document.getElementById('edit_substitute_phone').value.trim();
                     if (!pic || !phone) {
-                        alert('Nama PIC dan No. HP PIC wajib diisi untuk tipe ini.');
+                        window.showToast('Nama PIC dan No. HP PIC wajib diisi untuk tipe ini.', 'warning');
                         e.preventDefault(); return;
                     }
                 }
 
                 if (type === 'CUTI_KHUSUS' && !specialSelect.value) {
-                    alert('Pilih kategori cuti khusus.');
+                    window.showToast('Pilih kategori cuti khusus.', 'warning');
                     e.preventDefault(); return;
                 }
 
                 if (type === 'IZIN_TELAT' && !document.getElementById('edit_start_time').value) {
-                    alert('Estimasi jam tiba wajib diisi.');
+                    window.showToast('Estimasi jam tiba wajib diisi.', 'warning');
                     e.preventDefault(); return;
                 }
                 if (type === 'IZIN_TENGAH_KERJA' && (!document.getElementById('edit_start_time').value || !document.getElementById('edit_end_time').value)) {
-                    alert('Jam mulai dan selesai wajib diisi.');
+                    window.showToast('Jam mulai dan selesai wajib diisi.', 'warning');
                     e.preventDefault(); return;
                 }
                 if (type === 'IZIN_PULANG_AWAL' && !document.getElementById('edit_start_time').value) {
-                    alert('Jam pulang wajib diisi.');
+                    window.showToast('Jam pulang wajib diisi.', 'warning');
                     e.preventDefault(); return;
                 }
 
                 if (type === 'CUTI' && underOneYear) {
-                    alert('Maaf, masa kerja Anda belum 1 tahun. Belum berhak mengajukan Cuti Tahunan.');
+                    window.showToast('Maaf, masa kerja Anda belum 1 tahun. Belum berhak mengajukan Cuti Tahunan.', 'warning');
                     e.preventDefault(); return;
                 }
 

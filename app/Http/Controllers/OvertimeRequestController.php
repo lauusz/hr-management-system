@@ -76,7 +76,9 @@ class OvertimeRequestController extends Controller
         $roleStr = strtoupper($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role);
         $isHRD = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER']);
 
-        if (!$isOwner && !$isHRD) abort(403, 'Anda tidak berhak mengubah data ini.');
+        if (!$isOwner && !$isHRD) {
+            return redirect()->back()->with('error', 'Anda tidak berhak mengubah data ini.');
+        }
 
         if ($isOwner && !$isHRD) {
             if ($overtimeRequest->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
@@ -125,7 +127,9 @@ class OvertimeRequestController extends Controller
         $roleStr = strtoupper($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role);
         $isHRD = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER']);
 
-        if (!$isOwner && !$isHRD) abort(403, 'Anda tidak berhak menghapus data ini.');
+        if (!$isOwner && !$isHRD) {
+            return redirect()->back()->with('error', 'Anda tidak berhak menghapus data ini.');
+        }
 
         // Owner hanya bisa hapus jika status masih pending supervisor
         if ($isOwner && !$isHRD) {

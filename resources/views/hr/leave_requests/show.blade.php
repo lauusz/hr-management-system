@@ -37,7 +37,7 @@
             $statusClass = 'apv-badge--teal';
             $statusLabel = 'Verifikasi HRD';
             $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>';
-        } elseif ($status === 'BATAL') {
+        } elseif ($status === \App\Models\LeaveRequest::STATUS_CANCELLED) {
             $statusClass = 'apv-badge--gray';
             $statusLabel = 'Dibatalkan';
         }
@@ -95,7 +95,11 @@
         $user = auth()->user();
         $isHrStaff = $user->isHR();
         $canHrEdit = $isHrStaff && in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true);
-        $isRejectedOrBatal = in_array($item->status, [\App\Models\LeaveRequest::STATUS_REJECTED, 'BATAL'], true);
+        $canAdjustApprovedDate = $isHrStaff
+            && $item->status === \App\Models\LeaveRequest::STATUS_APPROVED
+            && $isTypeCuti
+            && $item->start_date->isSameDay($item->end_date);
+        $isRejectedOrBatal = in_array($item->status, [\App\Models\LeaveRequest::STATUS_REJECTED, \App\Models\LeaveRequest::STATUS_CANCELLED], true);
 
         $applicantRoleVal = $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role;
         $applicantRole = strtoupper((string) $applicantRoleVal);
@@ -460,12 +464,27 @@
     <div class="apv-action-bar">
         <div class="apv-action-dock">
             <div class="apv-action-main">
-            @if($item->status === 'BATAL')
+            @if($item->status === \App\Models\LeaveRequest::STATUS_CANCELLED)
                 <div class="apv-status-notice apv-status-notice--gray">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
                     </svg>
                     Pengajuan Sudah Dibatalkan
+                </div>
+            @elseif($canAdjustApprovedDate)
+                <div class="apv-action-secondary">
+                    <button type="button" data-modal-target="modal-adjust-approved-date" class="apv-action-btn apv-action-btn--secondary">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Ubah Tanggal
+                    </button>
+                    <button type="button" data-modal-target="modal-delete" class="apv-action-btn apv-action-btn--danger">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Batalkan
+                    </button>
                 </div>
             @elseif($canHrEdit)
                 {{-- Edit & Batal --}}
@@ -648,6 +667,41 @@
             <img id="docModalImage" src="{{ $docUrl }}" alt="Bukti Izin" class="doc-modal-img" draggable="false">
         </div>
     </div>
+    @endif
+
+
+    @if($canAdjustApprovedDate)
+    <x-modal id="modal-adjust-approved-date" title="Ubah Tanggal Cuti" type="form">
+        <form action="{{ route('hr.leave.adjust-date', $item) }}" method="POST">
+            @csrf
+            @method('PUT')
+
+            <div class="edit-form-group">
+                <label class="edit-form-label">Tanggal Sebelumnya</label>
+                <input type="text" class="edit-form-input" value="{{ $item->start_date->locale('id')->translatedFormat('l, j F Y') }} ({{ $durationLabel }})" disabled>
+            </div>
+            <div class="edit-form-group">
+                <label for="new_date" class="edit-form-label">Tanggal Baru</label>
+                <input type="date" id="new_date" name="new_date" class="edit-form-input" value="{{ old('new_date') }}" required>
+                @error('new_date')
+                    <small class="form-error">{{ $message }}</small>
+                @enderror
+            </div>
+            <div class="edit-form-group">
+                <label for="change_reason" class="edit-form-label">Alasan Perubahan</label>
+                <textarea id="change_reason" name="change_reason" rows="3" class="edit-form-textarea" placeholder="Contoh: Permintaan karyawan melalui WhatsApp" required>{{ old('change_reason') }}</textarea>
+                @error('change_reason')
+                    <small class="form-error">{{ $message }}</small>
+                @enderror
+            </div>
+            <p class="form-helper">Saldo cuti akan dihitung ulang mengikuti hari kerja pada tanggal baru.</p>
+
+            <div class="edit-modal-footer">
+                <button type="button" data-modal-close="true" class="edit-btn-cancel">Batal</button>
+                <button type="submit" class="edit-btn-save">Simpan Perubahan</button>
+            </div>
+        </form>
+    </x-modal>
     @endif
 
 
@@ -865,20 +919,23 @@
                 </div>
                 @if($balance <= 0)
                 <div id="sakit-um-notice" style="margin-top: 8px; margin-left: 24px; display:none;">
-                    <small style="color: var(--error, #EF4444); font-size: 12px;">* Saldo cuti habis, otomatis dialihkan ke Potong UM</small>
+                    <small style="color: var(--error, #EF4444); font-size: 12px;">* Saldo cuti habis, pilih Potong UM jika potongan uang makan berlaku.</small>
                 </div>
                 @endif
+                <small style="display: block; margin-top: 8px; color: var(--text-muted, #6B7280); font-size: 12px; margin-left: 24px;">
+                    Pilih salah satu: Potong Cuti atau Potong UM.
+                </small>
             </div>
             @endif
 
-            @if($isTypeSakit && $balance <= 0)
+            @if($isTypeSakit)
             <div class="edit-form-group" style="margin-bottom: 15px; background: rgba(245, 158, 11, 0.08); padding: 12px; border-radius: 10px; border: 1px solid rgba(245, 158, 11, 0.25);">
                 <label class="edit-checkbox-wrapper">
-                    <input type="checkbox" name="deduct_um" value="1">
+                    <input type="checkbox" name="deduct_um" value="1" id="deduct_um_sakit" onclick="toggleSakitUmOption()">
                     <span style="color: #92400e;">Potong UM (Uang Makan)</span>
                 </label>
                 <small style="display: block; margin-top: 4px; color: #92400e; font-size: 12px; margin-left: 24px;">
-                    Karyawan tidak memiliki saldo cuti.
+                    Centang jika potongan uang makan berlaku untuk pengajuan sakit ini.
                 </small>
             </div>
             @endif
@@ -901,20 +958,23 @@
                 </div>
                 @if($balance <= 0)
                 <div id="izin-um-notice" style="margin-top: 8px; margin-left: 24px;">
-                    <small style="color: var(--error, #EF4444); font-size: 12px;">* Saldo cuti habis, otomatis dialihkan ke Potong UM</small>
+                    <small style="color: var(--error, #EF4444); font-size: 12px;">* Saldo cuti habis, pilih Potong UM jika potongan uang makan berlaku.</small>
                 </div>
                 @endif
+                <small style="display: block; margin-top: 8px; color: var(--text-muted, #6B7280); font-size: 12px; margin-left: 24px;">
+                    Pilih salah satu: Potong Cuti atau Potong UM.
+                </small>
             </div>
             @endif
 
-            @if($isTypeIzin && $balance <= 0)
+            @if($isTypeIzin)
             <div class="edit-form-group" style="margin-bottom: 15px; background: rgba(245, 158, 11, 0.08); padding: 12px; border-radius: 10px; border: 1px solid rgba(245, 158, 11, 0.25);">
                 <label class="edit-checkbox-wrapper">
-                    <input type="checkbox" name="deduct_um" value="1">
+                    <input type="checkbox" name="deduct_um" value="1" id="deduct_um_izin" onclick="toggleIzinUmOption()">
                     <span style="color: #92400e;">Potong UM (Uang Makan)</span>
                 </label>
                 <small style="display: block; margin-top: 4px; color: #92400e; font-size: 12px; margin-left: 24px;">
-                    Karyawan tidak memiliki saldo cuti.
+                    Centang jika potongan uang makan berlaku untuk pengajuan izin ini.
                 </small>
             </div>
             @endif
@@ -1133,11 +1193,31 @@
                 const checkbox = document.getElementById('deduct_leave_sakit');
                 const optionsDiv = document.getElementById('sakit-deduct-options');
                 const noticeDiv = document.getElementById('sakit-um-notice');
+                const umCheckbox = document.getElementById('deduct_um_sakit');
                 if (checkbox && optionsDiv) {
                     optionsDiv.style.display = checkbox.checked ? 'block' : 'none';
                 }
                 if (noticeDiv) {
                     noticeDiv.style.display = checkbox && checkbox.checked ? 'block' : 'none';
+                }
+                if (checkbox && checkbox.checked && umCheckbox) {
+                    umCheckbox.checked = false;
+                }
+            };
+
+            window.toggleSakitUmOption = function() {
+                const umCheckbox = document.getElementById('deduct_um_sakit');
+                const cutiCheckbox = document.getElementById('deduct_leave_sakit');
+                const optionsDiv = document.getElementById('sakit-deduct-options');
+                const noticeDiv = document.getElementById('sakit-um-notice');
+                if (umCheckbox && umCheckbox.checked && cutiCheckbox) {
+                    cutiCheckbox.checked = false;
+                    if (optionsDiv) {
+                        optionsDiv.style.display = 'none';
+                    }
+                    if (noticeDiv) {
+                        noticeDiv.style.display = 'none';
+                    }
                 }
             };
 
@@ -1145,8 +1225,24 @@
             window.toggleIzinOptions = function() {
                 const checkbox = document.getElementById('deduct_leave_izin');
                 const optionsDiv = document.getElementById('izin-deduct-options');
+                const umCheckbox = document.getElementById('deduct_um_izin');
                 if (checkbox && optionsDiv) {
                     optionsDiv.style.display = checkbox.checked ? 'block' : 'none';
+                }
+                if (checkbox && checkbox.checked && umCheckbox) {
+                    umCheckbox.checked = false;
+                }
+            };
+
+            window.toggleIzinUmOption = function() {
+                const umCheckbox = document.getElementById('deduct_um_izin');
+                const cutiCheckbox = document.getElementById('deduct_leave_izin');
+                const optionsDiv = document.getElementById('izin-deduct-options');
+                if (umCheckbox && umCheckbox.checked && cutiCheckbox) {
+                    cutiCheckbox.checked = false;
+                    if (optionsDiv) {
+                        optionsDiv.style.display = 'none';
+                    }
                 }
             };
 

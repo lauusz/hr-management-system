@@ -6,6 +6,6 @@ echo ==========================================
 echo.
 
 :: Parameter -D digunakan untuk langsung memilih database (USE hrd_system)
-"C:\Program Files\MariaDB 11.8\bin\mysql.exe" -u root -p123456 -D hrd_system
+"C:\Program Files\MariaDB 11.8\bin\mysql.exe" -u root -p -D hrd_system
 
 pause
