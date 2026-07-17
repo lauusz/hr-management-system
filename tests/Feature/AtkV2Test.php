@@ -362,6 +362,38 @@ it('allows admin atk to reject need requests', function () {
         ->admin_note->toBe('Tidak masuk daftar belanja.');
 });
 
+it('renders responsive admin need request cards on mobile', function () {
+    $admin = createAtkAdmin();
+    $user = User::factory()->create(['name' => 'Pemohon Restock Mobile']);
+
+    AtkNeedRequest::create([
+        'user_id' => $user->id,
+        'user_name_snapshot' => $user->name,
+        'pt_name_snapshot' => 'TRIGUNA',
+        'requested_item_name' => 'Spidol Whiteboard',
+        'qty' => 3,
+        'unit_name' => 'pcs',
+        'reason' => 'Persediaan ruang rapat habis.',
+        'status' => 'PENDING',
+    ]);
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.need-requests.index'))
+        ->assertOk()
+        ->assertSee('atk-admin-need-mobile-table')
+        ->assertSee('atk-admin-need-card')
+        ->assertSee('data-label="Pemohon"', false)
+        ->assertSee('data-label="Jumlah"', false)
+        ->assertSee('atk-admin-need-actions')
+        ->assertSee('Pemohon Restock Mobile')
+        ->assertSee('Spidol Whiteboard')
+        ->assertSee('3 pcs')
+        ->assertSee('Tolak')
+        ->assertSee('Tandai Selesai')
+        ->assertDontSee('Jumlah aktual masuk')
+        ->assertDontSee('Harga satuan (opsional)');
+});
+
 it('defaults optional item numeric fields when admin leaves them empty', function () {
     $admin = User::factory()->create();
     UserAccessRole::create([
@@ -405,70 +437,135 @@ it('filters admin requests by status', function () {
     AtkRequest::create([
         'request_number' => 'ATK-FILTER-1',
         'user_id' => $user->id,
-        'user_name_snapshot' => $user->name,
+        'user_name_snapshot' => 'Request Pending Filter',
         'status' => 'PENDING',
     ]);
     AtkRequest::create([
         'request_number' => 'ATK-FILTER-2',
         'user_id' => $user->id,
-        'user_name_snapshot' => $user->name,
+        'user_name_snapshot' => 'Request Approved Filter',
         'status' => 'APPROVED',
     ]);
 
     actingAs($admin)
         ->get(route('v2.atk.admin.requests.index', ['status' => 'PENDING']))
         ->assertOk()
-        ->assertSee('ATK-FILTER-1')
-        ->assertDontSee('ATK-FILTER-2');
+        ->assertSee('Request Pending Filter')
+        ->assertDontSee('Request Approved Filter');
 });
 
-it('orders admin requests with pending first and oldest request first', function () {
+it('shows submission dates and orders admin requests with pending first then newest first', function () {
     $admin = User::factory()->create();
     UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
     $user = User::factory()->create();
+    $baseTime = now()->startOfMinute();
 
-    $processedRequest = AtkRequest::create([
-        'request_number' => 'ATK-ORDER-APPROVED',
+    $olderProcessedRequest = AtkRequest::create([
+        'request_number' => 'ATK-ORDER-APPROVED-OLD',
         'user_id' => $user->id,
-        'user_name_snapshot' => $user->name,
+        'user_name_snapshot' => 'Approved Lama',
+        'status' => AtkRequest::STATUS_APPROVED,
+    ]);
+
+    $newerProcessedRequest = AtkRequest::create([
+        'request_number' => 'ATK-ORDER-APPROVED-NEW',
+        'user_id' => $user->id,
+        'user_name_snapshot' => 'Approved Baru',
         'status' => AtkRequest::STATUS_APPROVED,
     ]);
 
     $newerPendingRequest = AtkRequest::create([
         'request_number' => 'ATK-ORDER-PENDING-NEW',
         'user_id' => $user->id,
-        'user_name_snapshot' => $user->name,
+        'user_name_snapshot' => 'Pending Baru',
         'status' => AtkRequest::STATUS_PENDING,
     ]);
 
     $olderPendingRequest = AtkRequest::create([
         'request_number' => 'ATK-ORDER-PENDING-OLD',
         'user_id' => $user->id,
-        'user_name_snapshot' => $user->name,
+        'user_name_snapshot' => 'Pending Lama',
         'status' => AtkRequest::STATUS_PENDING,
     ]);
 
-    DB::table('atk_requests')->where('id', $processedRequest->id)->update([
-        'created_at' => now()->subDays(3),
-        'updated_at' => now()->subDays(3),
+    DB::table('atk_requests')->where('id', $olderProcessedRequest->id)->update([
+        'created_at' => $baseTime->copy()->subDays(3),
+        'updated_at' => $baseTime->copy()->subDays(3),
+    ]);
+    DB::table('atk_requests')->where('id', $newerProcessedRequest->id)->update([
+        'created_at' => $baseTime->copy()->subHours(12),
+        'updated_at' => $baseTime->copy()->subHours(12),
     ]);
     DB::table('atk_requests')->where('id', $olderPendingRequest->id)->update([
-        'created_at' => now()->subDays(2),
-        'updated_at' => now()->subDays(2),
+        'created_at' => $baseTime->copy()->subDays(2),
+        'updated_at' => $baseTime->copy()->subDays(2),
     ]);
     DB::table('atk_requests')->where('id', $newerPendingRequest->id)->update([
-        'created_at' => now()->subDay(),
-        'updated_at' => now()->subDay(),
+        'created_at' => $baseTime->copy()->subDay(),
+        'updated_at' => $baseTime->copy()->subDay(),
     ]);
 
     actingAs($admin)
         ->get(route('v2.atk.admin.requests.index'))
         ->assertOk()
+        ->assertSee('<th>Tgl Pengajuan</th>', false)
+        ->assertDontSee('<th>No</th>', false)
+        ->assertSee($baseTime->copy()->subDay()->format('d/m/Y H:i'))
         ->assertSeeInOrder([
-            'ATK-ORDER-PENDING-OLD',
-            'ATK-ORDER-PENDING-NEW',
-            'ATK-ORDER-APPROVED',
+            'Pending Baru',
+            'Pending Lama',
+            'Approved Baru',
+            'Approved Lama',
         ]);
+});
+
+it('renders responsive admin request cards on mobile', function () {
+    $admin = createAtkAdmin();
+    $user = User::factory()->create(['name' => 'Pemohon Mobile Admin']);
+    $submittedAt = now()->startOfMinute();
+    [$atkRequest] = createAtkRequestWithItems($user, [
+        ['name' => 'Pulpen Mobile', 'stock_qty' => 10, 'qty' => 2],
+        ['name' => 'Kertas Mobile', 'stock_qty' => 10, 'qty' => 1],
+    ]);
+
+    DB::table('atk_requests')->where('id', $atkRequest->id)->update([
+        'created_at' => $submittedAt,
+        'updated_at' => $submittedAt,
+    ]);
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.requests.index'))
+        ->assertOk()
+        ->assertSee('atk-admin-request-mobile-list')
+        ->assertSee('atk-admin-request-desktop-table')
+        ->assertSee('Pemohon Mobile Admin')
+        ->assertSee($atkRequest->pt_name_snapshot)
+        ->assertSee('2 Item')
+        ->assertSee($submittedAt->format('d/m/Y H:i'))
+        ->assertSee('Review Admin')
+        ->assertSee(route('v2.atk.admin.requests.show', $atkRequest));
+});
+
+it('renders a responsive admin review detail with mobile item cards', function () {
+    $admin = createAtkAdmin();
+    $user = User::factory()->create(['name' => 'Pemohon Detail Mobile']);
+    [$atkRequest] = createAtkRequestWithItems($user, [
+        ['name' => 'Binder Detail Mobile', 'stock_qty' => 10, 'qty' => 2],
+    ]);
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.requests.show', $atkRequest))
+        ->assertOk()
+        ->assertSee('atk-admin-review-header')
+        ->assertSee('atk-admin-review-table')
+        ->assertSee('atk-admin-review-item')
+        ->assertSee('data-label="Jumlah"', false)
+        ->assertSee('data-label="Stok Saat Ini"', false)
+        ->assertSee('atk-admin-final-actions')
+        ->assertSee('Binder Detail Mobile')
+        ->assertSee('Setujui')
+        ->assertSee('Tidak Diproses')
+        ->assertSee('Selesaikan Review');
 });
 
 it('filters admin items by out of stock status', function () {
@@ -497,6 +594,31 @@ it('filters admin items by out of stock status', function () {
         ->assertOk()
         ->assertSee('Barang Habis')
         ->assertDontSee('Barang Ada');
+});
+
+it('renders responsive admin item cards on mobile', function () {
+    $admin = createAtkAdmin();
+    $item = AtkItem::create([
+        'name' => 'Kertas Memo Mobile',
+        'unit_name' => 'box',
+        'unit_size' => 12,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 8,
+        'min_request_qty' => 1,
+        'is_active' => true,
+    ]);
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.items.index'))
+        ->assertOk()
+        ->assertSee('atk-admin-items-mobile-table')
+        ->assertSee('atk-admin-item-card')
+        ->assertSee('data-label="Stok"', false)
+        ->assertSee('data-label="Satuan"', false)
+        ->assertSee('atk-admin-item-stock-form')
+        ->assertSee('Kertas Memo Mobile')
+        ->assertSee('Tambah Stok')
+        ->assertSee(route('v2.atk.admin.items.edit', $item));
 });
 
 it('filters usage report by pt', function () {
@@ -577,8 +699,22 @@ it('filters usage report by pt', function () {
     actingAs($admin)
         ->get(route('v2.atk.admin.reports.index', ['pt_id' => $ptA->id]))
         ->assertOk()
-        ->assertSee('Report Bulanan Approved')
-        ->assertSee('Detail Pengambilan')
+        ->assertSeeInOrder([
+            'Laporan Pemakaian ATK',
+            'Ringkasan Eksekutif',
+            'Rekap Penggunaan per PT',
+            'Rekap Konsumsi per Barang',
+            'Detail Transaksi',
+        ])
+        ->assertSee('Request Disetujui')
+        ->assertSee('Pengambil Aktif')
+        ->assertSee('PT Aktif')
+        ->assertSee('Jenis Barang')
+        ->assertSee('Jumlah Pengambil')
+        ->assertSee('Jumlah Request')
+        ->assertSee('PT Pengguna')
+        ->assertSee('atk-report-summary-grid')
+        ->assertSee('atk-report-section')
         ->assertSee($user->name)
         ->assertSee('PT A')
         ->assertSee('Spidol')
@@ -614,7 +750,60 @@ it('shows stock movement history', function () {
         ->get(route('v2.atk.admin.stock-movements.index'))
         ->assertOk()
         ->assertSee('Binder Clip')
-        ->assertSee('Stok awal');
+        ->assertSee('0 → 5');
+});
+
+it('renders responsive stock movement cards on mobile', function () {
+    $admin = createAtkAdmin();
+    $admin->update(['name' => 'Admin Stok Mobile']);
+    $user = User::factory()->create(['name' => 'Pengambil ATK Mobile']);
+    $item = AtkItem::create([
+        'name' => 'Binder Riwayat Mobile',
+        'unit_name' => 'box',
+        'unit_size' => 12,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 5,
+        'is_active' => true,
+    ]);
+    $atkRequest = AtkRequest::create([
+        'request_number' => 'ATK-STOCK-PT-MOBILE',
+        'user_id' => $user->id,
+        'user_name_snapshot' => $user->name,
+        'pt_name_snapshot' => 'TRIGUNA',
+        'status' => AtkRequest::STATUS_APPROVED,
+    ]);
+
+    AtkStockMovement::create([
+        'atk_item_id' => $item->id,
+        'movement_type' => 'OUT',
+        'qty' => 5,
+        'stock_before' => 10,
+        'stock_after' => 5,
+        'source_type' => AtkStockMovement::SOURCE_REQUEST,
+        'source_id' => $atkRequest->id,
+        'created_by' => $admin->id,
+    ]);
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.stock-movements.index'))
+        ->assertOk()
+        ->assertSee('atk-stock-movements-mobile-table')
+        ->assertSee('atk-stock-movement-card')
+        ->assertSee('data-label="Perubahan Stok"', false)
+        ->assertSee('data-label="PT"', false)
+        ->assertSee('data-label="Nama Pengambil"', false)
+        ->assertSee('data-label="Diproses Oleh"', false)
+        ->assertSee('Binder Riwayat Mobile')
+        ->assertSee('Keluar')
+        ->assertSee('5 box')
+        ->assertSee('TRIGUNA')
+        ->assertSee('Pengambil ATK Mobile')
+        ->assertSee('Admin Stok Mobile')
+        ->assertSee('10 → 5')
+        ->assertDontSee('<th>Harga</th>', false)
+        ->assertDontSee('<th>Total</th>', false)
+        ->assertDontSee('<th>Sumber</th>', false)
+        ->assertDontSee('<th>Catatan</th>', false);
 });
 
 it('records unit price when admin adds incoming stock', function () {
@@ -651,8 +840,64 @@ it('records unit price when admin adds incoming stock', function () {
     actingAs($admin)
         ->get(route('v2.atk.admin.stock-movements.index'))
         ->assertOk()
-        ->assertSee('Rp 12.500')
-        ->assertSee('Rp 37.500');
+        ->assertDontSee('Rp 12.500')
+        ->assertDontSee('Rp 37.500');
+});
+
+it('allows admin to correct an item stock down to the actual quantity', function () {
+    $admin = createAtkAdmin();
+    $item = AtkItem::create([
+        'name' => 'Barang Salah Input',
+        'unit_name' => 'box',
+        'unit_size' => 12,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 10,
+        'is_active' => true,
+    ]);
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.items.edit', $item))
+        ->assertOk()
+        ->assertSee('Koreksi Stok Aktual')
+        ->assertSee('name="movement_type" value="ADJUSTMENT"', false)
+        ->assertSee('name="qty"', false)
+        ->assertSee('min="0"', false);
+
+    actingAs($admin)
+        ->post(route('v2.atk.admin.items.stock.store', $item), [
+            'movement_type' => AtkStockMovement::TYPE_ADJUSTMENT,
+            'qty' => 0,
+        ])
+        ->assertRedirect();
+
+    $movement = AtkStockMovement::where('atk_item_id', $item->id)->latest('id')->firstOrFail();
+
+    expect($item->fresh()->stock_qty)->toBe(0)
+        ->and($movement->movement_type)->toBe(AtkStockMovement::TYPE_ADJUSTMENT)
+        ->and($movement->qty)->toBe(10)
+        ->and($movement->stock_before)->toBe(10)
+        ->and($movement->stock_after)->toBe(0)
+        ->and($movement->notes)->toBe('Koreksi stok manual');
+});
+
+it('renders an ATK success notification only once on the item edit page', function () {
+    $admin = createAtkAdmin();
+    $item = AtkItem::create([
+        'name' => 'Barang Notifikasi Tunggal',
+        'unit_name' => 'pcs',
+        'unit_size' => 1,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 2,
+        'is_active' => true,
+    ]);
+
+    $response = actingAs($admin)
+        ->withSession(['success' => 'Stok berhasil diperbarui.'])
+        ->get(route('v2.atk.admin.items.edit', $item));
+
+    $response->assertOk()->assertSee('Stok berhasil diperbarui.');
+
+    expect(substr_count($response->getContent(), 'Stok berhasil diperbarui.'))->toBe(1);
 });
 
 it('allows admin atk to create and update categories', function () {
@@ -680,9 +925,9 @@ it('allows admin atk to create and update categories', function () {
 it('uses the project pagination component on v2 atk pages', function () {
     $user = User::factory()->create();
 
-    foreach (range(1, 13) as $number) {
+    foreach (range(1, 21) as $number) {
         AtkItem::create([
-            'name' => 'Barang Pagination '.$number,
+            'name' => sprintf('Barang Pagination %02d', $number),
             'unit_name' => 'pcs',
             'unit_size' => 1,
             'content_unit_name' => 'pcs',
@@ -703,12 +948,126 @@ it('uses the project pagination component on v2 atk pages', function () {
         ->assertSee('.atk-catalog-cart-link', false)
         ->assertSee('display: none', false)
         ->assertSee('object-fit: contain', false)
+        ->assertSee('Barang Pagination 20')
+        ->assertDontSee('Barang Pagination 21')
         ->assertSee('hrd-pagination')
         ->assertSee('.atk-shell .hrd-page-btn--active', false)
         ->assertDontSee('w-5 h-5', false);
 });
 
-it('renders the atk mobile sidebar drawer controls', function () {
+it('orders available catalog items before out of stock items', function () {
+    $user = User::factory()->create();
+
+    foreach ([
+        ['name' => 'ATK Alpha Kosong', 'stock_qty' => 0],
+        ['name' => 'ATK Beta Tersedia', 'stock_qty' => 5],
+        ['name' => 'ATK Zulu Tersedia', 'stock_qty' => 2],
+    ] as $item) {
+        AtkItem::create($item + [
+            'unit_name' => 'pcs',
+            'unit_size' => 1,
+            'content_unit_name' => 'pcs',
+            'is_active' => true,
+        ]);
+    }
+
+    actingAs($user)
+        ->get(route('v2.atk.catalog'))
+        ->assertOk()
+        ->assertSeeInOrder([
+            'ATK Beta Tersedia',
+            'ATK Zulu Tersedia',
+            'ATK Alpha Kosong',
+        ]);
+});
+
+it('renders compact and responsive atk catalog cards on mobile', function () {
+    $user = User::factory()->create();
+
+    AtkItem::create([
+        'name' => 'Binder Clip Tanpa Kategori',
+        'unit_name' => 'pcs',
+        'unit_size' => 1,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 5,
+        'image_path' => 'atk-items/missing.jpg',
+        'is_active' => true,
+    ]);
+
+    AtkItem::create([
+        'name' => 'Bolpoin Box Kosong',
+        'unit_name' => 'box',
+        'unit_size' => 12,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 0,
+        'is_active' => true,
+    ]);
+
+    AtkItem::create([
+        'name' => 'Pensil Menipis',
+        'unit_name' => 'pcs',
+        'unit_size' => 1,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 1,
+        'minimum_stock' => 5,
+        'is_active' => true,
+    ]);
+
+    actingAs($user)
+        ->get(route('v2.atk.catalog'))
+        ->assertOk()
+        ->assertSee('atk-catalog-search', false)
+        ->assertSee("display: flex;\n            min-width: 0;\n            flex-direction: column;", false)
+        ->assertSee("gap: 8px;\n            padding: 8px;", false)
+        ->assertSee('height: clamp(104px, 30vw, 120px)', false)
+        ->assertSee('-webkit-line-clamp: 2', false)
+        ->assertSee('min-height: 44px', false)
+        ->assertSee('class="atk-product-placeholder" hidden', false)
+        ->assertSee('this.nextElementSibling.hidden = false', false)
+        ->assertSee('atk-stock-empty-badge', false)
+        ->assertSee('Stok Kosong')
+        ->assertDontSee('>Tersedia</span>', false)
+        ->assertDontSee('Stok Menipis')
+        ->assertDontSee('Stok Habis')
+        ->assertDontSee('min-height: 34px', false)
+        ->assertDontSee('Tanpa kategori')
+        ->assertDontSee('1 pcs = 1 pcs')
+        ->assertSee('1 box = 12 pcs')
+        ->assertSee('Ajukan Restock')
+        ->assertDontSee('<button class="atk-btn atk-btn-muted" disabled>Stok Habis</button>', false);
+});
+
+it('renders an accessible quantity stepper on the atk catalog', function () {
+    $user = User::factory()->create();
+
+    AtkItem::create([
+        'name' => 'Kertas Catatan',
+        'unit_name' => 'pcs',
+        'unit_size' => 1,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 5,
+        'min_request_qty' => 2,
+        'is_active' => true,
+    ]);
+
+    actingAs($user)
+        ->get(route('v2.atk.catalog'))
+        ->assertOk()
+        ->assertSee('data-stepper', false)
+        ->assertSee('data-stepper-decrease', false)
+        ->assertSee('data-stepper-input', false)
+        ->assertSee('data-stepper-increase', false)
+        ->assertSee('inputmode="numeric"', false)
+        ->assertSee('aria-label="Kurangi jumlah Kertas Catatan"', false)
+        ->assertSee('aria-label="Tambah jumlah Kertas Catatan"', false)
+        ->assertSee('grid-template-columns: 44px minmax(0, 1fr) 44px', false)
+        ->assertDontSee('grid-template-columns: 144px minmax(0, 1fr)', false)
+        ->assertSee('quantityInput.stepDown()', false)
+        ->assertSee('quantityInput.stepUp()', false)
+        ->assertSee('syncAllSteppers()', false);
+});
+
+it('renders the atk mobile sidebar drawer controls and menu icons', function () {
     $user = User::factory()->create();
 
     actingAs($user)
@@ -718,6 +1077,8 @@ it('renders the atk mobile sidebar drawer controls', function () {
         ->assertSee('id="atkBurger"', false)
         ->assertSee('id="atkSidebar"', false)
         ->assertSee('id="atkBackdrop"', false)
+        ->assertSee('.atk-menu-icon', false)
+        ->assertSee('class="atk-menu-icon" viewBox="0 0 24 24"', false)
         ->assertSee('aria-label="Buka keranjang, 3 item"', false)
         ->assertSee('<span class="atk-cart-badge" aria-hidden="true">3</span>', false);
 });
@@ -768,7 +1129,7 @@ it('shows pt and async search controls on admin atk access page', function () {
         ->assertDontSee('>Cari</button>', false);
 });
 
-it('increases stock when admin completes a need request for a catalog item', function () {
+it('marks a catalog need request done without changing stock', function () {
     $admin = User::factory()->create();
     UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
 
@@ -792,33 +1153,25 @@ it('increases stock when admin completes a need request for a catalog item', fun
         'status' => 'PENDING',
     ]);
 
-    actingAs($admin)
+    $movementBefore = AtkStockMovement::count();
+
+    $response = actingAs($admin)
+        ->followingRedirects()
         ->post(route('v2.atk.admin.need-requests.process', $needRequest), [
             'status' => 'DONE',
-            'qty' => 5,
-            'unit_price' => 2500,
-            'admin_note' => 'Restock via need-request',
-        ])
-        ->assertRedirect(route('v2.atk.admin.need-requests.index'));
+        ]);
 
-    expect($item->fresh()->stock_qty)->toBe(8)
+    $response->assertOk()->assertSee('Pengajuan barang diselesaikan.');
+
+    expect(substr_count($response->getContent(), 'Pengajuan barang diselesaikan.'))->toBe(1)
+        ->and($item->fresh()->stock_qty)->toBe(3)
         ->and($needRequest->fresh())
         ->status->toBe('DONE')
-        ->processed_by->toBe($admin->id);
-
-    $movement = AtkStockMovement::where('atk_item_id', $item->id)->latest('id')->first();
-    expect($movement)
-        ->movement_type->toBe('IN')
-        ->qty->toBe(5)
-        ->stock_before->toBe(3)
-        ->stock_after->toBe(8)
-        ->unit_price->toBe(2500)
-        ->total_price->toBe(12500)
-        ->source_type->toBe(AtkStockMovement::SOURCE_NEED_REQUEST)
-        ->source_id->toBe($needRequest->id);
+        ->processed_by->toBe($admin->id)
+        ->and(AtkStockMovement::count())->toBe($movementBefore);
 });
 
-it('creates a new item and stock movement when admin completes a non-catalog need request', function () {
+it('marks a non-catalog need request done without creating item or stock movement', function () {
     $admin = User::factory()->create();
     UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
 
@@ -833,35 +1186,20 @@ it('creates a new item and stock movement when admin completes a non-catalog nee
         'status' => 'PENDING',
     ]);
 
+    $itemBefore = AtkItem::count();
+    $movementBefore = AtkStockMovement::count();
+
     actingAs($admin)
         ->post(route('v2.atk.admin.need-requests.process', $needRequest), [
             'status' => 'DONE',
-            'existing_item_id' => null,
-            'new_item_name' => 'Stabilo Pink',
-            'new_item_unit_name' => 'pcs',
-            'new_item_category_id' => null,
-            'qty' => 12,
-            'unit_price' => 4000,
         ])
         ->assertRedirect(route('v2.atk.admin.need-requests.index'));
 
-    // Item baru tercipta dengan stok sesuai qty aktual.
-    $newItem = AtkItem::where('name', 'Stabilo Pink')->firstOrFail();
-    expect($newItem->stock_qty)->toBe(12)
-        ->and($newItem->created_by)->toBe($admin->id);
-
-    // need-request ter-link ke item baru + status DONE.
     expect($needRequest->fresh())
         ->status->toBe('DONE')
-        ->atk_item_id->toBe($newItem->id);
-
-    // Movement IN terekam dengan source NEED_REQUEST.
-    $movement = AtkStockMovement::where('atk_item_id', $newItem->id)->first();
-    expect($movement)
-        ->movement_type->toBe('IN')
-        ->qty->toBe(12)
-        ->stock_before->toBe(0)
-        ->stock_after->toBe(12);
+        ->atk_item_id->toBeNull()
+        ->and(AtkItem::count())->toBe($itemBefore)
+        ->and(AtkStockMovement::count())->toBe($movementBefore);
 });
 
 it('prevents double-processing of an already completed need request', function () {
@@ -1051,6 +1389,51 @@ it('shows a user their own need-request history only', function () {
         ->assertDontSee('Buku Orang Lain');
 });
 
+it('renders responsive need request cards on mobile', function () {
+    $user = User::factory()->create();
+    $submittedAt = now()->startOfMinute();
+
+    AtkNeedRequest::create([
+        'user_id' => $user->id,
+        'user_name_snapshot' => $user->name,
+        'requested_item_name' => 'Tinta Printer Hitam',
+        'qty' => 2,
+        'unit_name' => 'botol',
+        'reason' => 'Persediaan operasional habis.',
+        'status' => 'REJECTED',
+        'admin_note' => 'Gunakan tinta cadangan dahulu.',
+        'created_at' => $submittedAt,
+        'updated_at' => $submittedAt,
+    ]);
+
+    actingAs($user)
+        ->get(route('v2.atk.need-requests.index'))
+        ->assertOk()
+        ->assertSee('atk-need-request-mobile-list')
+        ->assertSee('atk-need-request-desktop-table')
+        ->assertSee('Tinta Printer Hitam')
+        ->assertSee('2 botol')
+        ->assertSee('Persediaan operasional habis.')
+        ->assertSee('Gunakan tinta cadangan dahulu.')
+        ->assertSee($submittedAt->format('d/m/Y H:i'));
+});
+
+it('renders an editable quantity stepper on the need request form', function () {
+    $user = User::factory()->create();
+
+    actingAs($user)
+        ->get(route('v2.atk.need-requests.create'))
+        ->assertOk()
+        ->assertSee('data-need-qty-stepper', false)
+        ->assertSee('data-need-qty-decrease', false)
+        ->assertSee('data-need-qty-increase', false)
+        ->assertSee('class="atk-need-qty-input" type="number"', false)
+        ->assertSee('name="qty"', false)
+        ->assertSee('min="1"', false)
+        ->assertSee('inputmode="numeric"', false)
+        ->assertDontSee('readonly', false);
+});
+
 it('downloads an excel file when admin exports the usage report', function () {
     $admin = User::factory()->create();
     UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
@@ -1201,6 +1584,60 @@ it('shows request notes on the user detail page', function () {
         ->assertOk()
         ->assertSee('Catatan Pengaju')
         ->assertSee('Tolong diprioritaskan untuk rapat besok');
+});
+
+it('renders responsive request cards for a users request history', function () {
+    $user = User::factory()->create();
+    $submittedAt = now()->startOfMinute();
+
+    $atkRequest = AtkRequest::create([
+        'request_number' => 'ATK-MOBILE-HISTORY',
+        'user_id' => $user->id,
+        'user_name_snapshot' => $user->name,
+        'pt_name_snapshot' => 'TRIGUNA',
+        'status' => AtkRequest::STATUS_PENDING,
+        'created_at' => $submittedAt,
+        'updated_at' => $submittedAt,
+    ]);
+
+    actingAs($user)
+        ->get(route('v2.atk.requests.index'))
+        ->assertOk()
+        ->assertSee('atk-request-mobile-list')
+        ->assertSee('atk-request-desktop-table')
+        ->assertSee('ATK-MOBILE-HISTORY')
+        ->assertSee('TRIGUNA')
+        ->assertSee($submittedAt->format('d/m/Y H:i'))
+        ->assertSee(route('v2.atk.requests.show', $atkRequest));
+});
+
+it('renders a responsive request detail with mobile item cards', function () {
+    $user = User::factory()->create();
+    [$atkRequest, $items] = createAtkRequestWithItems($user, [
+        [
+            'name' => 'Kertas A4',
+            'stock_qty' => 10,
+            'qty' => 2,
+            'unit_name' => 'rim',
+            'unit_size' => 500,
+            'content_unit_name' => 'lembar',
+        ],
+    ]);
+    $items[0]['requestItem']->update([
+        'status' => 'REJECTED',
+        'admin_note' => 'Gunakan stok divisi dahulu.',
+    ]);
+
+    actingAs($user)
+        ->get(route('v2.atk.requests.show', $atkRequest))
+        ->assertOk()
+        ->assertSee('atk-request-summary')
+        ->assertSee('atk-request-item-mobile-list')
+        ->assertSee('atk-request-item-desktop-table')
+        ->assertSee('Kertas A4')
+        ->assertSee('2 rim')
+        ->assertSee('1000 lembar')
+        ->assertSee('Gunakan stok divisi dahulu.');
 });
 
 it('filters a users own requests by status', function () {

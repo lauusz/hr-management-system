@@ -923,7 +923,7 @@
                 </div>
                 @endif
                 <small style="display: block; margin-top: 8px; color: var(--text-muted, #6B7280); font-size: 12px; margin-left: 24px;">
-                    Pilih salah satu: Potong Cuti atau Potong UM.
+                    Opsional. Kosongkan jika tidak ada potongan cuti maupun UM.
                 </small>
             </div>
             @endif
@@ -962,7 +962,7 @@
                 </div>
                 @endif
                 <small style="display: block; margin-top: 8px; color: var(--text-muted, #6B7280); font-size: 12px; margin-left: 24px;">
-                    Pilih salah satu: Potong Cuti atau Potong UM.
+                    Opsional. Kosongkan jika tidak ada potongan cuti maupun UM.
                 </small>
             </div>
             @endif

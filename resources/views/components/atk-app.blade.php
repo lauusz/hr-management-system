@@ -24,6 +24,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         /* Hallmark · macrostructure: App Shell · tone: soft commerce · anchor hue: violet */
+        /* Hallmark · pre-emit critique: P4 H4 E4 S5 R5 V4 */
         html,
         body {
             overflow-x: clip;
@@ -107,6 +108,7 @@
         .atk-menu-item {
             display: flex;
             align-items: center;
+            gap: 10px;
             min-height: 44px;
             padding: 9px 12px;
             border-radius: 12px;
@@ -115,6 +117,23 @@
             text-decoration: none;
             font-size: 13px;
             font-weight: 600;
+        }
+        .atk-icon-sprite {
+            position: absolute;
+            width: 0;
+            height: 0;
+            overflow: hidden;
+        }
+        .atk-menu-icon {
+            width: 18px;
+            height: 18px;
+            flex: 0 0 18px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            opacity: .82;
         }
         .atk-menu-item:hover,
         .atk-menu-item.active {
@@ -394,43 +413,62 @@
     <div class="atk-shell">
         <div class="atk-backdrop" id="atkBackdrop" aria-hidden="true"></div>
         <aside class="atk-sidebar" id="atkSidebar">
+            <svg class="atk-icon-sprite" aria-hidden="true">
+                <symbol id="atk-icon-catalog" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+                <symbol id="atk-icon-cart" viewBox="0 0 24 24"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L20.5 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></symbol>
+                <symbol id="atk-icon-request" viewBox="0 0 24 24"><path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="M9 11h6M9 15h6"/></symbol>
+                <symbol id="atk-icon-history" viewBox="0 0 24 24"><path d="M4 7h16v13H4z"/><path d="M3 4h18v3H3zM9 11h6"/></symbol>
+                <symbol id="atk-icon-add" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></symbol>
+                <symbol id="atk-icon-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="4" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="11" width="7" height="10" rx="2"/></symbol>
+                <symbol id="atk-icon-inbox" viewBox="0 0 24 24"><path d="M4 4h16l2 10v6H2v-6L4 4Z"/><path d="M2 14h6l2 3h4l2-3h6"/></symbol>
+                <symbol id="atk-icon-restock" viewBox="0 0 24 24"><path d="m12 3 8 4-8 4-8-4 8-4Z"/><path d="m4 7 8 4 8-4v10l-8 4-8-4V7Z"/><path d="M12 11v10M16 14h4M18 12v4"/></symbol>
+                <symbol id="atk-icon-items" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
+                <symbol id="atk-icon-category" viewBox="0 0 24 24"><path d="M20 13 11 22l-9-9V3h10l8 8a1.4 1.4 0 0 1 0 2Z"/><circle cx="7" cy="8" r="1.5"/></symbol>
+                <symbol id="atk-icon-stock" viewBox="0 0 24 24"><path d="M7 3v15M3 7l4-4 4 4M17 21V6M13 17l4 4 4-4"/></symbol>
+                <symbol id="atk-icon-report" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+                <symbol id="atk-icon-access" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 11h6M19 8v6"/></symbol>
+                <symbol id="atk-icon-portal" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+                <symbol id="atk-icon-hrd" viewBox="0 0 24 24"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 10h1M14 10h1M9 14h1M14 14h1M10 21v-3h4v3"/></symbol>
+            </svg>
             <div class="atk-brand">
                 <h1 class="atk-brand-title">Kebutuhan Kantor</h1>
                 <p class="atk-brand-subtitle">Permintaan ATK internal</p>
             </div>
             <nav class="atk-menu">
                 <div class="atk-menu-title">User</div>
-                <a class="atk-menu-item {{ request()->routeIs('v2.atk.catalog') ? 'active' : '' }}" href="{{ route('v2.atk.catalog') }}">Katalog</a>
-                <a class="atk-menu-item {{ request()->routeIs('v2.atk.cart.*') ? 'active' : '' }}" href="{{ route('v2.atk.cart.show') }}">Keranjang</a>
-                <a class="atk-menu-item {{ request()->routeIs('v2.atk.requests.*') ? 'active' : '' }}" href="{{ route('v2.atk.requests.index') }}">Pengajuan Saya</a>
-                <a class="atk-menu-item {{ request()->routeIs('v2.atk.need-requests.index') ? 'active' : '' }}" href="{{ route('v2.atk.need-requests.index') }}">Pengajuan Barang Saya</a>
-                <a class="atk-menu-item {{ request()->routeIs('v2.atk.need-requests.create') ? 'active' : '' }}" href="{{ route('v2.atk.need-requests.create') }}">Ajukan Barang</a>
+                <a class="atk-menu-item {{ request()->routeIs('v2.atk.catalog') ? 'active' : '' }}" href="{{ route('v2.atk.catalog') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-catalog"/></svg><span>Katalog</span></a>
+                <a class="atk-menu-item {{ request()->routeIs('v2.atk.cart.*') ? 'active' : '' }}" href="{{ route('v2.atk.cart.show') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-cart"/></svg><span>Keranjang</span></a>
+                <a class="atk-menu-item {{ request()->routeIs('v2.atk.requests.*') ? 'active' : '' }}" href="{{ route('v2.atk.requests.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-request"/></svg><span>Pengajuan Saya</span></a>
+                <a class="atk-menu-item {{ request()->routeIs('v2.atk.need-requests.index') ? 'active' : '' }}" href="{{ route('v2.atk.need-requests.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-history"/></svg><span>Pengajuan Barang Saya</span></a>
+                <a class="atk-menu-item {{ request()->routeIs('v2.atk.need-requests.create') ? 'active' : '' }}" href="{{ route('v2.atk.need-requests.create') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-add"/></svg><span>Ajukan Barang</span></a>
 
                 @if(auth()->user()->canManageAtk())
                     <div class="atk-menu-title">Admin ATK</div>
-                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.dashboard') ? 'active' : '' }}" href="{{ route('v2.atk.admin.dashboard') }}">Dashboard Admin</a>
+                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.dashboard') ? 'active' : '' }}" href="{{ route('v2.atk.admin.dashboard') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-dashboard"/></svg><span>Dashboard Admin</span></a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.requests.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.requests.index') }}">
+                        <svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-inbox"/></svg>
                         <span>Request Masuk</span>
                         @if($atkPendingRequestCount > 0)
                             <span class="atk-menu-badge">{{ $atkPendingRequestCount > 99 ? '99+' : $atkPendingRequestCount }}</span>
                         @endif
                     </a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.need-requests.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.need-requests.index') }}">
+                        <svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-restock"/></svg>
                         <span>Pengajuan Barang</span>
                         @if($atkPendingNeedRequestCount > 0)
                             <span class="atk-menu-badge">{{ $atkPendingNeedRequestCount > 99 ? '99+' : $atkPendingNeedRequestCount }}</span>
                         @endif
                     </a>
-                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.items.index') }}">Master Barang</a>
-                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.categories.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.categories.index') }}">Kategori</a>
-                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.stock-movements.index') }}">Riwayat Stok</a>
-                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.reports.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.reports.index') }}">Rekap PT</a>
-                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.access.index') }}">Akses</a>
+                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.items.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-items"/></svg><span>Master Barang</span></a>
+                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.categories.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.categories.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-category"/></svg><span>Kategori</span></a>
+                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.stock-movements.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-stock"/></svg><span>Riwayat Stok</span></a>
+                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.reports.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.reports.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-report"/></svg><span>Rekap PT</span></a>
+                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.access.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-access"/></svg><span>Akses</span></a>
                 @endif
 
                 <div class="atk-menu-title">Pindah Layanan</div>
-                <a class="atk-menu-item" href="{{ route('v2.access') }}">Portal</a>
-                <a class="atk-menu-item" href="{{ route('dashboard') }}">HRD System</a>
+                <a class="atk-menu-item" href="{{ route('v2.access') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-portal"/></svg><span>Portal</span></a>
+                <a class="atk-menu-item" href="{{ route('dashboard') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-hrd"/></svg><span>HRD System</span></a>
             </nav>
             <div class="atk-sidebar-footer">
                 <div class="atk-user">

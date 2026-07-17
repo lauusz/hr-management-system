@@ -2,9 +2,38 @@
     <div class="atk-header">
         <div>
             <h1 class="atk-title">Edit Barang</h1>
-            <p class="atk-subtitle">Ubah informasi barang. Stok tetap diubah dari menu tambah stok.</p>
+            <p class="atk-subtitle">Ubah informasi barang dan koreksi stok aktual bila terjadi salah input.</p>
         </div>
     </div>
+    <form class="atk-card atk-stock-correction" method="POST" action="{{ route('v2.atk.admin.items.stock.store', $item) }}">
+        @csrf
+        <input type="hidden" name="movement_type" value="ADJUSTMENT">
+        <div class="atk-stock-correction-header">
+            <div>
+                <h2 class="atk-section-title">Koreksi Stok Aktual</h2>
+                <p class="atk-form-helper">Gunakan hanya ketika jumlah sistem berbeda dari stok fisik. Perubahan akan tercatat di riwayat stok.</p>
+            </div>
+            <div class="atk-stock-current">
+                <span>Stok Sistem</span>
+                <strong>{{ $item->stock_qty }} {{ $item->unit_name }}</strong>
+            </div>
+        </div>
+        <div class="atk-stock-correction-grid">
+            <div>
+                <label class="atk-label" for="actual_stock">Stok Aktual</label>
+                <input class="atk-input" id="actual_stock" type="number" min="0" inputmode="numeric" name="qty" value="{{ old('movement_type') === 'ADJUSTMENT' ? old('qty', $item->stock_qty) : $item->stock_qty }}" required>
+                <p class="atk-form-helper">Masukkan jumlah akhir yang benar, bukan jumlah yang ingin dikurangi.</p>
+            </div>
+            <div>
+                <label class="atk-label" for="stock_notes">Alasan Koreksi</label>
+                <input class="atk-input" id="stock_notes" type="text" name="notes" value="{{ old('movement_type') === 'ADJUSTMENT' ? old('notes') : '' }}" maxlength="1000" placeholder="Opsional, contoh: Koreksi salah input stok awal">
+            </div>
+        </div>
+        <div class="atk-actions atk-stock-correction-actions">
+            <button class="atk-btn atk-btn-secondary" type="submit">Simpan Koreksi Stok</button>
+        </div>
+    </form>
+
     <form class="atk-card" method="POST" action="{{ route('v2.atk.admin.items.update', $item) }}" enctype="multipart/form-data">
         @csrf
         @method('PUT')
@@ -122,6 +151,67 @@
         .atk-unit-preview-note {
             font-size: 11px;
             color: var(--atk-muted);
+        }
+        .atk-stock-correction {
+            margin-bottom: 14px;
+            border-left: 4px solid var(--warning);
+        }
+        .atk-stock-correction-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .atk-stock-correction-header .atk-section-title {
+            margin: 0;
+        }
+        .atk-stock-current {
+            flex: 0 0 auto;
+            padding: 9px 12px;
+            border-radius: 12px;
+            background: var(--atk-primary-softer);
+            text-align: right;
+        }
+        .atk-stock-current span,
+        .atk-stock-current strong {
+            display: block;
+        }
+        .atk-stock-current span {
+            color: var(--atk-muted);
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .atk-stock-current strong {
+            margin-top: 3px;
+            font-size: 14px;
+        }
+        .atk-stock-correction-grid {
+            display: grid;
+            gap: 12px;
+        }
+        .atk-stock-correction-actions {
+            justify-content: flex-end;
+            margin-top: 14px;
+        }
+        @media (max-width: 639px) {
+            .atk-stock-correction-header {
+                flex-direction: column;
+            }
+            .atk-stock-current,
+            .atk-stock-correction-actions,
+            .atk-stock-correction-actions .atk-btn {
+                width: 100%;
+            }
+            .atk-stock-current {
+                text-align: left;
+            }
+        }
+        @media (min-width: 768px) {
+            .atk-stock-correction-grid {
+                grid-template-columns: minmax(160px, .45fr) minmax(0, 1fr);
+            }
         }
     </style>
     <script>

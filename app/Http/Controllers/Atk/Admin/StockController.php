@@ -14,7 +14,11 @@ class StockController extends Controller
     {
         $validated = $request->validate([
             'movement_type' => ['required', 'in:'.AtkStockMovement::TYPE_IN.','.AtkStockMovement::TYPE_ADJUSTMENT],
-            'qty' => ['required', 'integer', 'min:1'],
+            'qty' => [
+                'required',
+                'integer',
+                $request->input('movement_type') === AtkStockMovement::TYPE_ADJUSTMENT ? 'min:0' : 'min:1',
+            ],
             'unit_price' => ['nullable', 'integer', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -40,7 +44,9 @@ class StockController extends Controller
                 'stock_after' => $after,
                 // MANUAL: tidak ada source model, source_type dibiarkan NULL.
                 'source_type' => null,
-                'notes' => $validated['notes'] ?? 'Stok masuk manual',
+                'notes' => $validated['notes'] ?? ($validated['movement_type'] === AtkStockMovement::TYPE_ADJUSTMENT
+                    ? 'Koreksi stok manual'
+                    : 'Stok masuk manual'),
                 'created_by' => $request->user()->id,
             ]);
         });

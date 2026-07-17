@@ -319,16 +319,20 @@ describe('HrLeaveController', function () {
 
             $response = $this->post(route('hr.leave.approve', $leave->id), ['deduct_um' => '1']);
 
-            $response->assertRedirect();
+            $response->assertRedirect()
+                ->assertSessionHas('success', 'Pengajuan berhasil disetujui.');
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
                 ->and($leave->approved_by)->toBe($hrd->id)
                 ->and($leave->approved_at)->toBeTruthy();
         });
 
-        it('rejects IZIN approval when neither cuti nor UM deduction is selected', function () {
+        it('approves IZIN without cuti or UM deduction', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
-            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 5,
+            ]);
             $leave = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
                 'type' => LeaveType::IZIN->value,
@@ -338,10 +342,12 @@ describe('HrLeaveController', function () {
 
             $response = $this->post(route('hr.leave.approve', $leave->id));
 
-            $response->assertRedirect()
-                ->assertSessionHas('error', 'Pilih salah satu: Potong Cuti atau Potong UM.');
+            $response->assertRedirect();
             $leave->refresh();
-            expect($leave->status)->toBe(LeaveRequest::PENDING_HR);
+            $employee->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->deduct_um)->toBeFalse()
+                ->and((float) $employee->leave_balance)->toBe(5.0);
         });
 
         it('rejects SAKIT approval when both cuti and UM deductions are selected', function () {

@@ -15,8 +15,9 @@ class CatalogController extends Controller
             ->when($request->filled('q'), function ($query) use ($request) {
                 $query->where('name', 'like', '%'.$request->string('q')->toString().'%');
             })
+            ->orderByRaw('CASE WHEN stock_qty > 0 THEN 0 ELSE 1 END')
             ->orderBy('name')
-            ->paginate(12)
+            ->paginate(20)
             ->withQueryString();
 
         return view('atk.catalog', [

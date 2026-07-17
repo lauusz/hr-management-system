@@ -38,27 +38,28 @@ class ReportController extends Controller
         $summaryRow = $baseQuery()
             ->select([
                 DB::raw('COUNT(DISTINCT atk_requests.id) as request_count'),
-                DB::raw('COALESCE(SUM(atk_request_items.qty), 0) as total_qty'),
+                DB::raw('COUNT(DISTINCT atk_requests.user_id) as user_count'),
                 DB::raw('COUNT(DISTINCT atk_requests.pt_id) as pt_count'),
-                DB::raw('COUNT(atk_request_items.id) as detail_count'),
+                DB::raw('COUNT(DISTINCT atk_request_items.item_name_snapshot) as item_count'),
             ])
             ->first();
 
         $summary = [
             'request_count' => (int) ($summaryRow->request_count ?? 0),
-            'total_qty' => (int) ($summaryRow->total_qty ?? 0),
+            'user_count' => (int) ($summaryRow->user_count ?? 0),
             'pt_count' => (int) ($summaryRow->pt_count ?? 0),
-            'detail_count' => (int) ($summaryRow->detail_count ?? 0),
+            'item_count' => (int) ($summaryRow->item_count ?? 0),
         ];
 
         $ptRows = $baseQuery()
             ->select([
                 'atk_requests.pt_name_snapshot',
                 DB::raw('COUNT(DISTINCT atk_requests.id) as request_count'),
-                DB::raw('SUM(atk_request_items.qty) as total_qty'),
+                DB::raw('COUNT(DISTINCT atk_requests.user_id) as user_count'),
+                DB::raw('COUNT(DISTINCT atk_request_items.item_name_snapshot) as item_count'),
             ])
             ->groupBy('atk_requests.pt_name_snapshot')
-            ->orderByDesc('total_qty')
+            ->orderByDesc('request_count')
             ->orderBy('atk_requests.pt_name_snapshot')
             ->get();
 
@@ -67,6 +68,8 @@ class ReportController extends Controller
                 'atk_request_items.item_name_snapshot',
                 'atk_request_items.unit_name_snapshot',
                 DB::raw('SUM(atk_request_items.qty) as total_qty'),
+                DB::raw('COUNT(DISTINCT atk_requests.id) as request_count'),
+                DB::raw('COUNT(DISTINCT atk_requests.pt_id) as pt_count'),
             ])
             ->groupBy('atk_request_items.item_name_snapshot', 'atk_request_items.unit_name_snapshot')
             ->orderByDesc('total_qty')
@@ -88,8 +91,22 @@ class ReportController extends Controller
             ->get();
 
         $pts = Pt::orderBy('name')->get();
+        $selectedPtName = $request->filled('pt_id')
+            ? ($pts->firstWhere('id', $request->integer('pt_id'))?->name ?? 'PT tidak ditemukan')
+            : 'Semua PT';
+        $generatedAt = now();
 
-        return view('atk.admin.reports.index', compact('pts', 'month', 'periodLabel', 'summary', 'ptRows', 'itemRows', 'detailRows'));
+        return view('atk.admin.reports.index', compact(
+            'pts',
+            'month',
+            'periodLabel',
+            'selectedPtName',
+            'generatedAt',
+            'summary',
+            'ptRows',
+            'itemRows',
+            'detailRows'
+        ));
     }
 
     public function export(Request $request)

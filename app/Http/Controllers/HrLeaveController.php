@@ -763,7 +763,7 @@ class HrLeaveController extends Controller
         $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : (string) $leave->type;
         if (in_array($leaveTypeValue, [LeaveType::SAKIT->value, LeaveType::IZIN->value], true)) {
             $deductLeaveField = $leaveTypeValue === LeaveType::SAKIT->value ? 'deduct_leave_sakit' : 'deduct_leave_izin';
-            if ($request->filled($deductLeaveField) === $request->filled('deduct_um')) {
+            if ($request->filled($deductLeaveField) && $request->filled('deduct_um')) {
                 return redirect()->back()->with('error', 'Pilih salah satu: Potong Cuti atau Potong UM.');
             }
         }
@@ -836,7 +836,7 @@ class HrLeaveController extends Controller
                 return redirect()->route('hr.leave.index')->with('success', 'Permintaan pembatalan telah disetujui.');
             }
 
-            return redirect()->route('hr.leave.index')->with('success', 'Pengajuan disetujui & Saldo dipotong sesuai hari kerja Role.');
+            return redirect()->route('hr.leave.index')->with('success', 'Pengajuan berhasil disetujui.');
 
         } catch (\Exception $e) {
             return redirect()->route('hr.leave.index')->with('error', $e->getMessage());

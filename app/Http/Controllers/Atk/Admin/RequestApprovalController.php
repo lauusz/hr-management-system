@@ -25,8 +25,8 @@ class RequestApprovalController extends Controller
                 });
             })
             ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [AtkRequest::STATUS_PENDING])
-            ->orderBy('created_at')
-            ->orderBy('id')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
