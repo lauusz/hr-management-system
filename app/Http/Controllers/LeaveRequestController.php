@@ -384,6 +384,10 @@ class LeaveRequestController extends Controller
                 $initialStatus = LeaveRequest::PENDING_HR;
         }
 
+        if ($isOffSpv) {
+            $initialStatus = LeaveRequest::PENDING_HR;
+        }
+
         try {
             LeaveRequest::create([
                 'user_id' => $userId,
@@ -662,7 +666,7 @@ class LeaveRequestController extends Controller
 
         $updated = $this->stateMachine->perform(
             $leaveRequest,
-            LeaveRequestStateMachine::EDIT_PENDING,
+            $isOffSpv ? LeaveRequestStateMachine::REVISE_FOR_HR : LeaveRequestStateMachine::EDIT_PENDING,
             function (LeaveRequest $lockedLeave) use ($request, $user, $validated) {
                 if ($request->hasFile('photo')) {
                     if ($lockedLeave->photo) {

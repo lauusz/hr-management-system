@@ -7,8 +7,10 @@ use App\Models\AtkItem;
 use App\Models\AtkRequest;
 use App\Models\AtkRequestItem;
 use App\Models\AtkStockMovement;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class RequestApprovalController extends Controller
 {
@@ -31,6 +33,62 @@ class RequestApprovalController extends Controller
             ->withQueryString();
 
         return view('atk.admin.requests.index', compact('requests'));
+    }
+
+    public function createManual()
+    {
+        $users = User::query()
+            ->active()
+            ->with('profile.pt')
+            ->orderBy('name')
+            ->get();
+        $items = AtkItem::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return view('atk.admin.requests.manual-create', compact('users', 'items'));
+    }
+
+    public function storeManual(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => [
+                'required',
+                Rule::exists('users', 'id')->where('status', User::STATUS_ACTIVE),
+            ],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'quantities' => ['required', 'array'],
+            'quantities.*' => ['nullable', 'integer', 'min:1'],
+        ]);
+
+        $quantities = collect($validated['quantities'])
+            ->filter(fn ($qty) => $qty !== null && (int) $qty > 0)
+            ->map(fn ($qty) => (int) $qty);
+
+        if ($quantities->isEmpty()) {
+            return back()->withErrors(['quantities' => 'Pilih minimal satu barang.'])->withInput();
+        }
+
+        $items = AtkItem::query()
+            ->where('is_active', true)
+            ->whereIn('id', $quantities->keys())
+            ->get()
+            ->keyBy('id');
+
+        if ($items->count() !== $quantities->count()) {
+            return back()->withErrors(['quantities' => 'Terdapat barang yang tidak aktif atau tidak ditemukan.'])->withInput();
+        }
+
+        $rows = $quantities->map(function (int $qty, int|string $itemId) use ($items): array {
+            return ['item' => $items->get((int) $itemId), 'qty' => $qty];
+        })->values();
+        $user = User::query()->active()->findOrFail($validated['user_id']);
+        $atkRequest = AtkRequest::createPending($user, $rows, $validated['notes'] ?? null);
+
+        return redirect()
+            ->route('v2.atk.admin.requests.show', $atkRequest)
+            ->with('success', 'Pengambilan manual berhasil dibuat. Silakan review setiap item.');
     }
 
     public function show(AtkRequest $atkRequest)

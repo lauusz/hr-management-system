@@ -650,6 +650,12 @@
             <button type="button" class="doc-tb-btn" onclick="zoomDoc(0.25)" aria-label="Perbesar gambar">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
+            <button type="button" class="doc-tb-btn" onclick="rotateDoc(-90)" aria-label="Putar gambar ke kiri">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v8h8"/></svg>
+            </button>
+            <button type="button" class="doc-tb-btn" onclick="rotateDoc(90)" aria-label="Putar gambar ke kanan">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v8h-8"/></svg>
+            </button>
             <button type="button" class="doc-tb-btn" onclick="resetDocZoom()" aria-label="Reset zoom">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
             </button>
@@ -1039,6 +1045,7 @@
                 let docZoom = 1;
                 let docPanX = 0;
                 let docPanY = 0;
+                let docRotation = 0;
                 let isDragging = false;
                 let dragStartX = 0;
                 let dragStartY = 0;
@@ -1051,7 +1058,7 @@
                 const pctEl = document.getElementById('docZoomPct');
 
                 function updateDocTransform() {
-                    img.style.transform = 'translate(' + docPanX + 'px, ' + docPanY + 'px) scale(' + docZoom + ')';
+                    img.style.transform = 'translate(' + docPanX + 'px, ' + docPanY + 'px) scale(' + docZoom + ') rotate(' + docRotation + 'deg)';
                     if (pctEl) pctEl.textContent = Math.round(docZoom * 100) + '%';
                     updateCursor();
                 }
@@ -1079,7 +1086,13 @@
                     docZoom = 1;
                     docPanX = 0;
                     docPanY = 0;
+                    docRotation = 0;
                     isDragging = false;
+                    updateDocTransform();
+                };
+
+                window.rotateDoc = function(delta) {
+                    docRotation = (docRotation + delta + 360) % 360;
                     updateDocTransform();
                 };
 

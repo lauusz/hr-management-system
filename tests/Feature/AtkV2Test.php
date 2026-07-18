@@ -546,6 +546,97 @@ it('renders responsive admin request cards on mobile', function () {
         ->assertSee(route('v2.atk.admin.requests.show', $atkRequest));
 });
 
+it('shows the manual ATK request form only to ATK admins', function () {
+    $admin = createAtkAdmin();
+    $user = User::factory()->create(['name' => 'User Pengambilan Manual']);
+    AtkItem::create([
+        'name' => 'Pulpen Input Manual',
+        'unit_name' => 'pcs',
+        'unit_size' => 1,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 10,
+        'is_active' => true,
+    ]);
+
+    actingAs($user)
+        ->get('/v2/atk/admin/requests/manual/create')
+        ->assertForbidden();
+
+    actingAs($admin)
+        ->get('/v2/atk/admin/requests/manual/create')
+        ->assertOk()
+        ->assertSee('Input Pengambilan Manual')
+        ->assertSee('User Pengambilan Manual')
+        ->assertSee('Pulpen Input Manual');
+});
+
+it('creates a pending manual request that can be finalized as partial', function () {
+    $admin = createAtkAdmin();
+    $pt = Pt::create(['name' => 'PT Input Manual']);
+    $user = User::factory()->create(['name' => 'Pengambil Manual']);
+    DB::table('employee_profiles')->insert([
+        'user_id' => $user->id,
+        'pt_id' => $pt->id,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $approvedItem = AtkItem::create([
+        'name' => 'Pulpen Manual Approved',
+        'unit_name' => 'pcs',
+        'unit_size' => 1,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 10,
+        'is_active' => true,
+    ]);
+    $rejectedItem = AtkItem::create([
+        'name' => 'Buku Manual Ditolak',
+        'unit_name' => 'pcs',
+        'unit_size' => 1,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 10,
+        'is_active' => true,
+    ]);
+
+    $response = actingAs($admin)->post('/v2/atk/admin/requests/manual', [
+        'user_id' => $user->id,
+        'notes' => 'Dicatat manual oleh admin.',
+        'quantities' => [
+            $approvedItem->id => 2,
+            $rejectedItem->id => 1,
+        ],
+    ]);
+
+    $atkRequest = AtkRequest::where('user_id', $user->id)->latest('id')->firstOrFail();
+    $response->assertRedirect(route('v2.atk.admin.requests.show', $atkRequest));
+
+    expect($atkRequest)
+        ->status->toBe(AtkRequest::STATUS_PENDING)
+        ->user_name_snapshot->toBe('Pengambil Manual')
+        ->pt_id->toBe($pt->id)
+        ->pt_name_snapshot->toBe('PT Input Manual')
+        ->notes->toBe('Dicatat manual oleh admin.')
+        ->and($atkRequest->items)->toHaveCount(2);
+
+    $approvedRequestItem = $atkRequest->items->firstWhere('atk_item_id', $approvedItem->id);
+    $rejectedRequestItem = $atkRequest->items->firstWhere('atk_item_id', $rejectedItem->id);
+
+    actingAs($admin)->post(route('v2.atk.admin.requests.items.review', [$atkRequest, $approvedRequestItem]), [
+        'status' => AtkRequestItem::STATUS_APPROVED,
+    ])->assertRedirect();
+    actingAs($admin)->post(route('v2.atk.admin.requests.items.review', [$atkRequest, $rejectedRequestItem]), [
+        'status' => AtkRequestItem::STATUS_REJECTED,
+        'admin_note' => 'Tidak jadi diambil.',
+    ])->assertRedirect();
+    actingAs($admin)->post(route('v2.atk.admin.requests.finalize', $atkRequest))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($atkRequest->fresh()->status)->toBe(AtkRequest::STATUS_PARTIAL)
+        ->and($approvedItem->fresh()->stock_qty)->toBe(8)
+        ->and($rejectedItem->fresh()->stock_qty)->toBe(10)
+        ->and(AtkStockMovement::where('source_id', $atkRequest->id)->count())->toBe(1);
+});
+
 it('renders a responsive admin review detail with mobile item cards', function () {
     $admin = createAtkAdmin();
     $user = User::factory()->create(['name' => 'Pemohon Detail Mobile']);

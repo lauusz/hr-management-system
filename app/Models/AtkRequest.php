@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class AtkRequest extends Model
 {
@@ -60,6 +63,63 @@ class AtkRequest extends Model
     public function rejectedBy()
     {
         return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    public static function createPending(User $user, Collection $rows, ?string $notes = null): self
+    {
+        $pt = $user->pt;
+
+        return DB::transaction(function () use ($user, $pt, $rows, $notes): self {
+            $atkRequest = null;
+            $prefix = 'ATK-'.now()->format('Ym').'-';
+
+            for ($attempt = 0; $attempt < 5; $attempt++) {
+                $maxSequence = self::query()
+                    ->where('request_number', 'like', $prefix.'%')
+                    ->pluck('request_number')
+                    ->map(function (string $number): int {
+                        $suffix = substr(strrchr($number, '-'), 1);
+
+                        return ctype_digit($suffix) ? (int) $suffix : 0;
+                    })
+                    ->max() ?? 0;
+
+                try {
+                    $atkRequest = self::create([
+                        'request_number' => $prefix.str_pad((string) ($maxSequence + 1), 4, '0', STR_PAD_LEFT),
+                        'user_id' => $user->id,
+                        'user_name_snapshot' => $user->name,
+                        'pt_id' => $pt?->id,
+                        'pt_name_snapshot' => $pt?->name,
+                        'status' => self::STATUS_PENDING,
+                        'notes' => $notes,
+                    ]);
+                    break;
+                } catch (QueryException $exception) {
+                    if (($exception->errorInfo[1] ?? null) !== 1062) {
+                        throw $exception;
+                    }
+                }
+            }
+
+            if ($atkRequest === null) {
+                throw new \RuntimeException('Gagal membuat nomor pengajuan setelah beberapa percobaan. Coba lagi.');
+            }
+
+            foreach ($rows as $row) {
+                $item = $row['item'];
+                $atkRequest->items()->create([
+                    'atk_item_id' => $item->id,
+                    'qty' => $row['qty'],
+                    'item_name_snapshot' => $item->name,
+                    'unit_name_snapshot' => $item->unit_name,
+                    'unit_size_snapshot' => $item->unit_size,
+                    'content_unit_name_snapshot' => $item->content_unit_name,
+                ]);
+            }
+
+            return $atkRequest;
+        });
     }
 
     /**

@@ -4,6 +4,7 @@
             <h1 class="atk-title">Request Masuk</h1>
             <p class="atk-subtitle">Buka halaman review admin untuk cek item dan finalisasi stok.</p>
         </div>
+        <a class="atk-btn atk-btn-primary" href="{{ route('v2.atk.admin.requests.manual.create') }}">Input Pengambilan Manual</a>
     </div>
     <form method="GET" class="atk-card atk-form-grid" style="margin-bottom:14px">
         <input class="atk-input" name="q" value="{{ request('q') }}" placeholder="Cari no request, user, atau PT" autocomplete="off">

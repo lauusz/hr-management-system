@@ -602,8 +602,11 @@ describe('LeaveRequestController', function () {
         });
 
         it('accepts OFF_SPV for supervisor within same month', function () {
-            $user = User::factory()->create(['role' => UserRole::SUPERVISOR]);
             $manager = User::factory()->create(['role' => UserRole::MANAGER]);
+            $user = User::factory()->create([
+                'role' => UserRole::SUPERVISOR,
+                'manager_id' => $manager->id,
+            ]);
 
             actingAs($user, 'web');
 
@@ -625,6 +628,8 @@ describe('LeaveRequestController', function () {
             ]);
 
             $response->assertSessionDoesntHaveErrors(['error']);
+            expect(LeaveRequest::where('user_id', $user->id)->first()?->status)
+                ->toBe(LeaveRequest::PENDING_HR);
         });
 
         it('rejects OFF_SPV for next month', function () {
@@ -1619,6 +1624,29 @@ describe('LeaveRequestController', function () {
             ]);
 
             $response->assertSessionHas('error');
+        });
+
+        it('forwards pending supervisor request to HR when changed to OFF_SPV', function () {
+            $manager = User::factory()->create(['role' => UserRole::MANAGER]);
+            $user = User::factory()->create([
+                'role' => UserRole::SUPERVISOR,
+                'manager_id' => $manager->id,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+            ]);
+
+            actingAs($user, 'web');
+
+            $this->put(route('leave-requests.update', $leave->id), [
+                'type' => LeaveType::OFF_SPV->value,
+                'start_date' => now()->toDateString(),
+                'end_date' => now()->toDateString(),
+                'reason' => 'Update menjadi OFF SPV',
+            ]);
+
+            expect($leave->fresh()->status)->toBe(LeaveRequest::PENDING_HR);
         });
     });
 

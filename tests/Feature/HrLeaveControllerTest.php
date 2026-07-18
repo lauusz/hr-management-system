@@ -249,6 +249,22 @@ describe('HrLeaveController', function () {
             expect($response->viewData('item')->id)->toBe($leave->id);
         });
 
+        it('shows image rotation controls', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'photo' => 'bukti.jpg',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.show', $leave->id));
+
+            $response->assertStatus(200)
+                ->assertSee('aria-label="Putar gambar ke kiri"', false)
+                ->assertSee('aria-label="Putar gambar ke kanan"', false);
+        });
+
         it('shows UM deduction option for SAKIT even when leave balance is available', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create(['leave_balance' => 5]);

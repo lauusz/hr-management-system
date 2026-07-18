@@ -82,6 +82,8 @@ Route::middleware('auth')->group(function () {
                 Route::post('/categories', [AtkAdminCategoryController::class, 'store'])->name('categories.store');
                 Route::put('/categories/{category}', [AtkAdminCategoryController::class, 'update'])->name('categories.update');
                 Route::get('/requests', [AtkAdminRequestApprovalController::class, 'index'])->name('requests.index');
+                Route::get('/requests/manual/create', [AtkAdminRequestApprovalController::class, 'createManual'])->name('requests.manual.create');
+                Route::post('/requests/manual', [AtkAdminRequestApprovalController::class, 'storeManual'])->name('requests.manual.store');
                 Route::get('/requests/{atkRequest}', [AtkAdminRequestApprovalController::class, 'show'])->name('requests.show');
                 Route::post('/requests/{atkRequest}/approve', [AtkAdminRequestApprovalController::class, 'approve'])->name('requests.approve');
                 Route::post('/requests/{atkRequest}/reject', [AtkAdminRequestApprovalController::class, 'reject'])->name('requests.reject');
