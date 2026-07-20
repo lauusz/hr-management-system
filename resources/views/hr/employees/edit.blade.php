@@ -133,13 +133,7 @@
                             <label for="path_kartu_keluarga">Upload Kartu Keluarga</label>
                             <div class="file-upload-wrapper">
                                 @if(optional($profile)->path_kartu_keluarga)
-                                @php $kkModalId = 'modal-kk-'.$item->id; @endphp
-                                <button type="button" class="btn-sm-view" data-modal-open="{{ $kkModalId }}">Lihat File Saat Ini</button>
-                                <x-modal :id="$kkModalId" title="Kartu Keluarga" variant="info" type="info" cancelLabel="Tutup">
-                                    <div style="text-align:center;">
-                                        <img src="{{ asset('storage/' . $profile->path_kartu_keluarga) }}" alt="Kartu Keluarga" style="max-width:100%; border-radius:8px;">
-                                    </div>
-                                </x-modal>
+                                <button type="button" class="btn-sm-view" data-image-viewer-src="{{ asset('storage/' . $profile->path_kartu_keluarga) }}" data-image-viewer-alt="Kartu Keluarga">Lihat File Saat Ini</button>
                                 @endif
                                 <input id="path_kartu_keluarga" type="file" name="path_kartu_keluarga" accept="image/*,.heic,.heif" class="file-upload-input">
                                 <label for="path_kartu_keluarga" class="file-upload-label">
@@ -154,13 +148,7 @@
                             <label for="path_ktp">Upload KTP</label>
                             <div class="file-upload-wrapper">
                                 @if(optional($profile)->path_ktp)
-                                @php $ktpModalId = 'modal-ktp-'.$item->id; @endphp
-                                <button type="button" class="btn-sm-view" data-modal-open="{{ $ktpModalId }}">Lihat File Saat Ini</button>
-                                <x-modal :id="$ktpModalId" title="KTP" variant="info" type="info" cancelLabel="Tutup">
-                                    <div style="text-align:center;">
-                                        <img src="{{ asset('storage/' . $profile->path_ktp) }}" alt="KTP" style="max-width:100%; border-radius:8px;">
-                                    </div>
-                                </x-modal>
+                                <button type="button" class="btn-sm-view" data-image-viewer-src="{{ asset('storage/' . $profile->path_ktp) }}" data-image-viewer-alt="KTP">Lihat File Saat Ini</button>
                                 @endif
                                 <input id="path_ktp" type="file" name="path_ktp" accept="image/*,.heic,.heif" class="file-upload-input">
                                 <label for="path_ktp" class="file-upload-label">

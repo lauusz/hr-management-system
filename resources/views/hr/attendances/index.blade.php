@@ -186,7 +186,8 @@
                             @if($at->clock_in_photo)
                             <button type="button"
                                 class="btn-pill btn-blue"
-                                data-photo-url="{{ asset('storage/'.$at->clock_in_photo) }}"
+                                data-image-viewer-src="{{ asset('storage/'.$at->clock_in_photo) }}"
+                                data-image-viewer-alt="Foto clock-in {{ $at->user->name }}"
                                 data-employee-name="{{ $at->user->name }}"
                                 data-datetime="{{ $at->clock_in_at ? $at->clock_in_at->format('d/m/Y H:i') : '' }}"
                                 data-label="Clock-in">
@@ -201,7 +202,8 @@
                             @if($at->clock_out_photo)
                             <button type="button"
                                 class="btn-pill btn-blue"
-                                data-photo-url="{{ asset('storage/'.$at->clock_out_photo) }}"
+                                data-image-viewer-src="{{ asset('storage/'.$at->clock_out_photo) }}"
+                                data-image-viewer-alt="Foto clock-out {{ $at->user->name }}"
                                 data-employee-name="{{ $at->user->name }}"
                                 data-datetime="{{ $at->clock_out_at ? $at->clock_out_at->format('d/m/Y H:i') : '' }}"
                                 data-label="Clock-out">
@@ -250,14 +252,6 @@
 
     <div style="margin-top: 20px;">
         <x-pagination :items="$items" />
-    </div>
-
-    {{-- [SIMPLE FULL SCREEN VIEWER] --}}
-    <div id="simple-viewer" class="simple-viewer-overlay" style="display: none;">
-        <button type="button" id="btn-close-simple" class="btn-close-simple">
-            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-        <img id="simple-viewer-img" src="" alt="Full Preview">
     </div>
 
     <style>
@@ -442,12 +436,6 @@
 
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
-        /* --- UTILITY --- */
-        .simple-viewer-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; }
-        .btn-close-simple { position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; z-index: 100000; }
-        .btn-close-simple:hover { background: rgba(255, 255, 255, 0.3); }
-        #simple-viewer-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
-
         @media(max-width: 768px) {
             .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
             .filter-group, .form-control { width: 100%; min-width: 0; }
@@ -460,37 +448,6 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // --- Simple Viewer Logic ---
-            const viewer = document.getElementById('simple-viewer');
-            const viewerImg = document.getElementById('simple-viewer-img');
-            const closeBtn = document.getElementById('btn-close-simple');
-
-            function openViewer(url) {
-                if(viewer && viewerImg && url) {
-                    viewerImg.src = url;
-                    viewer.style.display = 'flex';
-                    document.body.style.overflow = 'hidden'; 
-                }
-            }
-
-            function closeViewer() {
-                if (viewer) viewer.style.display = 'none';
-                if (viewerImg) viewerImg.src = '';
-                document.body.style.overflow = ''; 
-            }
-
-            // Event Delegation for buttons
-            document.body.addEventListener('click', function(e) {
-                if (e.target && e.target.classList.contains('btn-pill') && e.target.hasAttribute('data-photo-url')) {
-                    const url = e.target.getAttribute('data-photo-url');
-                    if (url) openViewer(url);
-                }
-            });
-
-            if (closeBtn) closeBtn.addEventListener('click', closeViewer);
-            if (viewer) viewer.addEventListener('click', (e) => { if (e.target === viewer) closeViewer(); });
-            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer && viewer.style.display === 'flex') closeViewer(); });
-
             // --- Flatpickr Logic ---
             const rangeInput = document.getElementById('date_range');
             const startHidden = document.getElementById('date_start');

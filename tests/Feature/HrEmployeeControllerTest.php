@@ -1,11 +1,30 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\EmployeeProfile;
 use App\Models\LeaveBalanceTransaction;
 use App\Models\User;
 
 pest()->extend(Tests\TestCase::class)
     ->in('Feature');
+
+it('uses global image viewer for stored employee documents', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+    EmployeeProfile::create([
+        'user_id' => $employee->id,
+        'path_kartu_keluarga' => 'employee-documents/kk.jpg',
+        'path_ktp' => 'employee-documents/ktp.jpg',
+    ]);
+
+    $this->actingAs($hrd, 'web');
+
+    $response = $this->get(route('hr.employees.edit', $employee));
+
+    $response->assertOk()
+        ->assertSee('data-image-viewer-alt="Kartu Keluarga"', false)
+        ->assertSee('data-image-viewer-alt="KTP"', false);
+});
 
 it('manual leave_balance update writes adjustment ledger', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);

@@ -143,7 +143,9 @@
                         <div class="form-group">
                             <span class="current-photo-label">Foto Saat Ini</span>
                             @if($asset->photo_path)
-                                <img class="current-photo" src="{{ asset('storage/'.$asset->photo_path) }}" alt="Foto {{ $asset->name }}">
+                                <button type="button" data-image-viewer-src="{{ asset('storage/'.$asset->photo_path) }}" data-image-viewer-alt="Foto asset {{ $asset->name }}" style="width:100%; border:0; padding:0; background:transparent; cursor:pointer;">
+                                    <img class="current-photo" src="{{ asset('storage/'.$asset->photo_path) }}" alt="Foto {{ $asset->name }}">
+                                </button>
                             @else
                                 <div class="current-photo-placeholder">Belum ada foto.</div>
                             @endif

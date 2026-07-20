@@ -69,7 +69,9 @@
                             <td>
                                 <div style="display:flex;align-items:center;gap:10px">
                                     @if($asset->photo_path)
-                                        <img class="asset-thumb" src="{{ asset('storage/'.$asset->photo_path) }}" alt="Foto {{ $asset->name }}">
+                                        <button type="button" data-image-viewer-src="{{ asset('storage/'.$asset->photo_path) }}" data-image-viewer-alt="Foto asset {{ $asset->name }}" style="border:0; padding:0; background:transparent; cursor:pointer;">
+                                            <img class="asset-thumb" src="{{ asset('storage/'.$asset->photo_path) }}" alt="Foto {{ $asset->name }}">
+                                        </button>
                                     @endif
                                     <div>
                                         <strong>{{ $asset->name }}</strong><br>

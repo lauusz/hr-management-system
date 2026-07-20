@@ -60,7 +60,8 @@ it('allows HR to create and transfer employee assets', function () {
         ->get(route('hr.assets.edit', $asset))
         ->assertOk()
         ->assertSee('Edit Asset')
-        ->assertSee('laptop.awal@example.com');
+        ->assertSee('laptop.awal@example.com')
+        ->assertSee('data-image-viewer-alt="Foto asset Lenovo ThinkPad E14"', false);
 
     actingAs($hr)
         ->put(route('hr.assets.update', $asset), [
@@ -103,6 +104,7 @@ it('allows HR to create and transfer employee assets', function () {
         ->assertSee('Lenovo ThinkPad E14 Gen 2')
         ->assertSee('laptop.baru@example.com')
         ->assertSee('Foto Asset')
+        ->assertSee('data-image-viewer-alt="Foto asset Lenovo ThinkPad E14 Gen 2"', false)
         ->assertSee('Dokumen Serah Terima')
         ->assertSee('Pemegang Baru')
         ->assertSee('Tukar laptop antar karyawan');

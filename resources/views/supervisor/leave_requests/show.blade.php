@@ -292,7 +292,7 @@
                 <div class="apv-detail-row apv-detail-row--full">
                     <span class="apv-detail-label">Bukti Pendukung</span>
                     @if($isImageDoc)
-                    <div class="apv-photo-preview js-view-photo" data-url="{{ $url }}">
+                    <button type="button" class="apv-photo-preview" data-image-viewer-src="{{ $url }}" data-image-viewer-alt="Bukti Izin" style="padding:0; background:transparent; text-align:left;">
                         <img src="{{ $url }}" alt="Bukti Izin">
                         <div class="apv-photo-overlay">
                             <svg width="20" height="20" fill="none" stroke="#fff" viewBox="0 0 24 24">
@@ -301,7 +301,7 @@
                             </svg>
                             <span>Lihat Foto</span>
                         </div>
-                    </div>
+                    </button>
                     @else
                     <a href="{{ $url }}" target="_blank" class="apv-photo-preview" style="text-decoration:none;">
                         <div class="apv-file-preview">
@@ -449,16 +449,6 @@
         </div>
     </div>
 
-    {{-- Photo Viewer Overlay --}}
-    <div id="simple-viewer" class="apv-viewer-overlay" style="display: none;">
-        <button type="button" id="btn-close-simple" class="apv-viewer-close">
-            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-        </button>
-        <img id="simple-viewer-img" src="" alt="Full Preview">
-    </div>
-
     {{-- Modals --}}
     <x-modal id="modal-delete" title="Ajukan Pembatalan?" type="confirm" variant="danger" confirmLabel="Ya, Ajukan" cancelLabel="Batal" :confirmFormAction="route('approval.destroy', $item->id)" confirmFormMethod="DELETE">
         <p style="margin:0; color:#374151;">Anda akan mengajukan permintaan pembatalan untuk pengajuan ini ke HRD.</p>
@@ -473,35 +463,6 @@
         <p style="margin:0; color:#374151;">{{ $ackModalBody }}</p>
     </x-modal>
     @endif
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const viewer = document.getElementById('simple-viewer');
-            const viewerImg = document.getElementById('simple-viewer-img');
-            const closeBtn = document.getElementById('btn-close-simple');
-
-            document.querySelectorAll('.js-view-photo').forEach(el => {
-                el.addEventListener('click', () => {
-                    const url = el.getAttribute('data-url');
-                    if (url && viewer && viewerImg) {
-                        viewerImg.src = url;
-                        viewer.style.display = 'flex';
-                        document.body.style.overflow = 'hidden';
-                    }
-                });
-            });
-
-            function closeViewer() {
-                if (viewer) viewer.style.display = 'none';
-                if (viewerImg) viewerImg.src = '';
-                document.body.style.overflow = '';
-            }
-
-            if (closeBtn) closeBtn.addEventListener('click', closeViewer);
-            if (viewer) viewer.addEventListener('click', (e) => { if (e.target === viewer) closeViewer(); });
-            document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer.style.display === 'flex') closeViewer(); });
-        });
-    </script>
 
     <style>
         /* ========================================== */
@@ -1154,38 +1115,6 @@
             min-height: 48px;
         }
         .apv-status-notice svg { flex-shrink: 0; }
-
-        /* ========================================== */
-        /* PHOTO VIEWER                               */
-        /* ========================================== */
-        .apv-viewer-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.92);
-            z-index: 99999;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .apv-viewer-close {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: #fff;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.2s;
-            z-index: 100000;
-        }
-        .apv-viewer-close:hover { background: rgba(255,255,255,0.25); }
-        #simple-viewer-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; }
 
         /* ========================================== */
         /* RESPONSIVE                                 */

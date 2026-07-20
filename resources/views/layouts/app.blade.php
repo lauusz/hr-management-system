@@ -1461,6 +1461,8 @@
     @endif
   </script>
 
+  <x-image-viewer />
+
   @stack('scripts')
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 

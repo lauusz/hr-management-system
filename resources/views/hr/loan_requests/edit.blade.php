@@ -164,9 +164,9 @@
                         <span class="doc-existing-label">Dokumen saat ini</span>
                         @if($isImageDoc)
                         <div class="doc-image-wrap">
-                            <a href="{{ $docUrl }}" target="_blank" class="doc-image-link">
+                            <button type="button" class="doc-image-link" data-image-viewer-src="{{ $docUrl }}" data-image-viewer-alt="Dokumen Pendukung" style="width:100%; border:0; padding:0; background:transparent; cursor:pointer;">
                                 <img src="{{ $docUrl }}" alt="Dokumen Pendukung" loading="lazy">
-                            </a>
+                            </button>
                         </div>
                         @else
                         <div class="doc-file">

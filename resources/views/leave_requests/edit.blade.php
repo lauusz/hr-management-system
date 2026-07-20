@@ -227,7 +227,9 @@
                     <div class="lr-existing-file">
                         <span class="lr-existing-file-label">File saat ini:</span>
                         @if($isImageDoc)
-                            <img src="{{ $photoUrl }}" alt="Bukti pendukung" class="lr-existing-file-preview">
+                            <button type="button" data-image-viewer-src="{{ $photoUrl }}" data-image-viewer-alt="Bukti pendukung" style="border:0; padding:0; background:transparent; cursor:pointer;">
+                                <img src="{{ $photoUrl }}" alt="Bukti pendukung" class="lr-existing-file-preview">
+                            </button>
                         @endif
                         <a href="{{ $photoUrl }}" target="_blank" class="lr-existing-file-link">
                             <span class="lr-existing-file-badge">{{ strtoupper($docExt) }}</span>

@@ -42,11 +42,6 @@
         .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; margin-bottom: 16px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
         .form-control:focus { border-color: #2563eb; }
 
-        /* [SIMPLE FULL SCREEN VIEWER CSS] */
-        .simple-viewer-overlay { position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.95); z-index: 99999; display: flex; align-items: center; justify-content: center; }
-        .btn-close-simple { position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.1); border: none; color: #fff; width: 48px; height: 48px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; z-index: 100000; }
-        .btn-close-simple:hover { background: rgba(255, 255, 255, 0.3); }
-        #simple-viewer-img { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
     </style>
 
     <div class="container-xl">
@@ -92,7 +87,8 @@
                                 <td>
                                     @if($item->clock_in_photo)
                                         <button type="button" class="btn-pill btn-blue"
-                                            onclick="openPhoto('{{ asset('storage/'.$item->clock_in_photo) }}', '{{ $item->user->name }}')">
+                                            data-image-viewer-src="{{ asset('storage/'.$item->clock_in_photo) }}"
+                                            data-image-viewer-alt="Foto absensi {{ $item->user->name }}">
                                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                             Lihat Foto
                                         </button>
@@ -199,14 +195,6 @@
         </div>
     </div>
 
-    {{-- [SIMPLE FULL SCREEN VIEWER] --}}
-    <div id="simple-viewer" class="simple-viewer-overlay" style="display: none;">
-        <button type="button" id="btn-close-simple" class="btn-close-simple" onclick="closeViewer()">
-            <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
-        <img id="simple-viewer-img" src="" alt="Full Preview">
-    </div>
-
     {{-- JAVASCRIPT LOGIC --}}
     <script>
         // --- Logic Approve Modal (X-Modal) ---
@@ -238,41 +226,6 @@
             document.getElementById('rejectModal').style.display = 'none';
         }
 
-        // --- Logic Photo Modal (Full Screen) ---
-        function openPhoto(url, name) {
-            const viewer = document.getElementById('simple-viewer');
-            const viewerImg = document.getElementById('simple-viewer-img');
-            
-            if(url && viewer && viewerImg) {
-                viewerImg.src = url;
-                viewer.style.display = 'flex';
-                document.body.style.overflow = 'hidden'; 
-            }
-        }
-
-        function closeViewer() {
-            const viewer = document.getElementById('simple-viewer');
-            const viewerImg = document.getElementById('simple-viewer-img');
-            
-            if (viewer) viewer.style.display = 'none';
-            if (viewerImg) viewerImg.src = '';
-            document.body.style.overflow = ''; 
-        }
-
-        // Close on escape key
-        document.addEventListener('keydown', (e) => { 
-            const viewer = document.getElementById('simple-viewer');
-            if (e.key === 'Escape' && viewer.style.display === 'flex') {
-                closeViewer();
-            }
-        });
-
-        // Close on click background
-        document.getElementById('simple-viewer').addEventListener('click', (e) => { 
-            if (e.target.id === 'simple-viewer') {
-                closeViewer();
-            }
-        });
     </script>
 
 </x-app>

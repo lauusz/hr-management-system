@@ -10,6 +10,24 @@ pest()->extend(Tests\TestCase::class)
     ->in('Feature');
 
 describe('ApprovalAttendanceController', function () {
+    it('uses global image viewer for attendance photos', function () {
+        $hrd = User::factory()->create(['role' => UserRole::HRD]);
+        $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+        Attendance::factory()->for($employee)->create([
+            'approval_status' => 'PENDING',
+            'type' => 'DINAS_LUAR',
+            'clock_in_photo' => 'attendance/foto.jpg',
+        ]);
+
+        actingAs($hrd, 'web');
+
+        $response = $this->get(route('hr.approval_attendance.index'));
+
+        $response->assertOk()
+            ->assertSee('data-image-viewer-src=', false)
+            ->assertDontSee('id="simple-viewer"', false);
+    });
+
     it('allows HRD to approve pending attendance', function () {
         $hrd = User::factory()->create(['role' => UserRole::HRD]);
         $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);

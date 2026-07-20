@@ -507,7 +507,9 @@
                         <span class="asset-photo-label">Foto Asset</span>
                         <div class="asset-photo-wrap">
                             @if($asset->photo_path)
-                                <img class="asset-photo" src="{{ asset('storage/'.$asset->photo_path) }}" alt="Foto {{ $asset->name }}">
+                                <button type="button" data-image-viewer-src="{{ asset('storage/'.$asset->photo_path) }}" data-image-viewer-alt="Foto asset {{ $asset->name }}" style="width:100%; height:100%; border:0; padding:0; background:transparent; cursor:pointer;">
+                                    <img class="asset-photo" src="{{ asset('storage/'.$asset->photo_path) }}" alt="Foto {{ $asset->name }}">
+                                </button>
                             @else
                                 <div class="asset-photo-placeholder">
                                     <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">

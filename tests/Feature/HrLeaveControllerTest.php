@@ -261,8 +261,28 @@ describe('HrLeaveController', function () {
             $response = $this->get(route('hr.leave.show', $leave->id));
 
             $response->assertStatus(200)
+                ->assertSee('data-image-viewer-src=', false)
+                ->assertDontSee('id="docModal"', false)
                 ->assertSee('aria-label="Putar gambar ke kiri"', false)
                 ->assertSee('aria-label="Putar gambar ke kanan"', false);
+        });
+
+        it('shows global image viewer controls', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'photo' => 'bukti.jpg',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.show', $leave->id));
+
+            $response->assertStatus(200)
+                ->assertSee('id="projectImageViewer"', false)
+                ->assertSee('aria-label="Putar gambar ke kiri"', false)
+                ->assertSee('aria-label="Putar gambar ke kanan"', false)
+                ->assertSee('data-image-viewer-action="reset"', false);
         });
 
         it('shows UM deduction option for SAKIT even when leave balance is available', function () {
