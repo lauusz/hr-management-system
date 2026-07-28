@@ -249,6 +249,31 @@ describe('HrLeaveController', function () {
             expect($response->viewData('item')->id)->toBe($leave->id);
         });
 
+        it('shows final HR intervention controls for every terminal status', function (string $status) {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => $status,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.show', $leave));
+            $response->assertOk();
+
+            $html = $response->getContent();
+            expect(str_contains($html, 'data-modal-target="modal-edit-hr"'))->toBeTrue()
+                ->and(str_contains($html, 'Simpan & Setujui'))->toBeTrue()
+                ->and(str_contains($html, 'status pengajuan langsung menjadi APPROVED'))->toBeTrue();
+        })->with([
+            LeaveRequest::STATUS_APPROVED,
+            LeaveRequest::STATUS_REJECTED,
+            LeaveRequest::STATUS_CANCELLED,
+        ]);
+
         it('shows image rotation controls', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
@@ -1249,7 +1274,7 @@ describe('HrLeaveController', function () {
     // UPDATE
     // =====================================================================
     describe('update', function () {
-        it('HRD can update pending leave request metadata', function () {
+        it('HRD update on pending leave is a final approval', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
@@ -1269,10 +1294,12 @@ describe('HrLeaveController', function () {
             $response->assertRedirect();
             $leave->refresh();
             expect($leave->reason)->toBe('Updated reason')
-                ->and($leave->status)->toBe(LeaveRequest::PENDING_HR);
+                ->and($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->approved_by)->toBe($hrd->id)
+                ->and($leave->approved_at)->not->toBeNull();
         });
 
-        it('HR Staff cannot self-approve through update', function () {
+        it('HR Staff can finalize their own request through manual intervention', function () {
             $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
             $leave = LeaveRequest::factory()->forUser($hrStaff)->create([
                 'status' => LeaveRequest::PENDING_HR,
@@ -1291,12 +1318,12 @@ describe('HrLeaveController', function () {
 
             $response->assertRedirect();
             $leave->refresh();
-            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
-                ->and($leave->approved_by)->toBeNull()
-                ->and($leave->approved_at)->toBeNull();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->approved_by)->toBe($hrStaff->id)
+                ->and($leave->approved_at)->not->toBeNull();
         });
 
-        it('status PENDING_HR does not become APPROVED through update payload', function () {
+        it('ignores approval actor payload and uses the authenticated HR actor', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
@@ -1316,12 +1343,12 @@ describe('HrLeaveController', function () {
             ]);
 
             $leave->refresh();
-            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
-                ->and($leave->approved_by)->toBeNull()
-                ->and($leave->approved_at)->toBeNull();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->approved_by)->toBe($hrd->id)
+                ->and($leave->approved_at)->not->toBeNull();
         });
 
-        it('balance does not change when update payload sends status APPROVED', function () {
+        it('final HR intervention deducts the approved CUTI balance', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create([
                 'role' => UserRole::EMPLOYEE,
@@ -1346,16 +1373,18 @@ describe('HrLeaveController', function () {
 
             $leave->refresh();
             $employee->refresh();
-            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
-                ->and((float) $employee->leave_balance)->toBe(12.0);
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and((float) $employee->leave_balance)->toBeLessThan(12.0)
+                ->and(LeaveBalanceTransaction::where('leave_request_id', $leave->id)->exists())->toBeTrue();
         });
 
-        it('cannot update APPROVED leave request', function () {
+        it('can update an APPROVED leave request', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::STATUS_APPROVED,
                 'reason' => 'Original reason',
+                'notes' => '[System] Intervensi final oleh admin (HR STAFF); status APPROVED → APPROVED.',
             ]);
 
             actingAs($hrd, 'web');
@@ -1370,7 +1399,91 @@ describe('HrLeaveController', function () {
             $response->assertRedirect();
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
-                ->and($leave->reason)->toBe('Original reason');
+                ->and($leave->reason)->toBe('Updated reason')
+                ->and($leave->approved_by)->toBe($hrd->id);
+            expect((string) $leave->notes)
+                ->toContain("[System] Diperbarui oleh HR ({$hrd->name}) pada ".now()->format('d M Y H:i'))
+                ->not->toContain('→');
+        });
+
+        it('reopens any terminal status as final APPROVED', function (string $status) {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => $status,
+                'type' => LeaveType::IZIN->value,
+                'reason' => 'Sebelum intervensi',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->put(route('hr.leave.update', $leave->id), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+                'reason' => 'Setelah intervensi',
+            ])->assertSessionHas('success');
+
+            expect($leave->fresh()->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->fresh()->reason)->toBe('Setelah intervensi');
+        })->with([
+            LeaveRequest::STATUS_REJECTED,
+            LeaveRequest::STATUS_CANCELLED,
+            'CANCEL_REQ',
+        ]);
+
+        it('can finalize HR intervention for every leave type', function (LeaveType $type) {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => $type === LeaveType::OFF_SPV ? UserRole::SUPERVISOR : UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+            ]);
+            $date = $type === LeaveType::OFF_SPV ? '2026-08-01' : '2026-08-03';
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::STATUS_REJECTED,
+                'type' => LeaveType::IZIN->value,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->put(route('hr.leave.update', $leave), [
+                'type' => $type->value,
+                'start_date' => $date,
+                'end_date' => $date,
+                'reason' => 'Intervensi semua tipe',
+                'special_leave_detail' => $type === LeaveType::CUTI_KHUSUS ? 'MENIKAH' : null,
+            ])->assertSessionHas('success');
+
+            expect($leave->fresh()->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->fresh()->type)->toBe($type);
+        })->with(LeaveType::cases());
+
+        it('allows a past CUTI date and adds one employee-visible H-7 warning', function () {
+            \Carbon\Carbon::withTestNow('2026-08-10 09:00:00', function () {
+                $hrd = User::factory()->create(['role' => UserRole::HRD]);
+                $employee = User::factory()->create([
+                    'role' => UserRole::EMPLOYEE,
+                    'leave_balance' => 12,
+                ]);
+                $leave = LeaveRequest::factory()->forUser($employee)->create([
+                    'status' => LeaveRequest::STATUS_REJECTED,
+                    'type' => LeaveType::CUTI->value,
+                    'notes' => '[Warning] Perubahan oleh HR dilakukan kurang dari H-7.',
+                ]);
+
+                actingAs($hrd, 'web');
+
+                $this->put(route('hr.leave.update', $leave->id), [
+                    'type' => LeaveType::CUTI->value,
+                    'start_date' => '2026-08-08',
+                    'end_date' => '2026-08-08',
+                    'reason' => 'Koreksi tanggal lampau',
+                ])->assertSessionHas('success');
+
+                $leave->refresh();
+                expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                    ->and(substr_count((string) $leave->notes, '[Warning] Perubahan oleh HR dilakukan kurang dari H-7.'))->toBe(1);
+            });
         });
 
         // [P0-03] HR update CUTI pending harus validasi saldo secara atomik.
@@ -1431,7 +1544,8 @@ describe('HrLeaveController', function () {
             $response->assertSessionHas('success');
             $leave->refresh();
             expect($leave->reason)->toBe('Extended reason')
-                ->and($leave->end_date->format('Y-m-d'))->toBe(now()->addDays(6)->toDateString());
+                ->and($leave->end_date->format('Y-m-d'))->toBe(now()->addDays(6)->toDateString())
+                ->and($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
         });
     });
 

@@ -161,6 +161,18 @@ describe('LeaveRequestController', function () {
             expect($response->viewData('canOffSpv'))->toBeTrue();
         });
 
+        it('calculates legacy OFF_SPV quota from Saturdays in the current calendar month', function () {
+            Carbon::withTestNow('2026-07-22', function () {
+                $user = User::factory()->create(['role' => UserRole::SUPERVISOR]);
+
+                actingAs($user, 'web');
+
+                $response = $this->get(route('leave-requests.create'));
+
+                expect($response->viewData('offSpvInfo')['limit'])->toBe(2);
+            });
+        });
+
         it('create page does not show OFF_SPV for employee', function () {
             $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
 
@@ -601,35 +613,28 @@ describe('LeaveRequestController', function () {
             $response->assertSessionHas('error');
         });
 
-        it('accepts OFF_SPV for supervisor within same month', function () {
-            $manager = User::factory()->create(['role' => UserRole::MANAGER]);
-            $user = User::factory()->create([
-                'role' => UserRole::SUPERVISOR,
-                'manager_id' => $manager->id,
-            ]);
+        it('accepts OFF_SPV for supervisor on Saturday within the active cutoff period', function () {
+            Carbon::withTestNow('2026-07-27', function () {
+                $manager = User::factory()->create(['role' => UserRole::MANAGER]);
+                $user = User::factory()->create([
+                    'role' => UserRole::SUPERVISOR,
+                    'manager_id' => $manager->id,
+                ]);
 
-            actingAs($user, 'web');
+                actingAs($user, 'web');
 
-            // Find next Monday in current month
-            $nextMonday = Carbon::now()->startOfMonth();
-            if ($nextMonday->dayOfWeek != Carbon::MONDAY) {
-                $nextMonday = $nextMonday->next(Carbon::MONDAY);
-            }
-            if ($nextMonday->month != Carbon::now()->month) {
-                $nextMonday = $nextMonday->subWeek();
-            }
+                $response = $this->post(route('leave-requests.store'), [
+                    'type' => LeaveType::OFF_SPV->value,
+                    'start_date' => '2026-08-01',
+                    'end_date' => '2026-08-01',
+                    'reason' => 'Off SPV',
+                    'manager_id' => $manager->id,
+                ]);
 
-            $response = $this->post(route('leave-requests.store'), [
-                'type' => LeaveType::OFF_SPV->value,
-                'start_date' => $nextMonday->toDateString(),
-                'end_date' => $nextMonday->toDateString(),
-                'reason' => 'Off SPV',
-                'manager_id' => $manager->id,
-            ]);
-
-            $response->assertSessionDoesntHaveErrors(['error']);
-            expect(LeaveRequest::where('user_id', $user->id)->first()?->status)
-                ->toBe(LeaveRequest::PENDING_HR);
+                $response->assertSessionDoesntHaveErrors();
+                expect(LeaveRequest::where('user_id', $user->id)->first()?->status)
+                    ->toBe(LeaveRequest::PENDING_HR);
+            });
         });
 
         it('rejects OFF_SPV for next month', function () {
@@ -1618,8 +1623,8 @@ describe('LeaveRequestController', function () {
 
             $response = $this->put(route('leave-requests.update', $leave->id), [
                 'type' => LeaveType::OFF_SPV->value,
-                'start_date' => now()->toDateString(),
-                'end_date' => now()->toDateString(),
+                'start_date' => now()->next(Carbon::SATURDAY)->toDateString(),
+                'end_date' => now()->next(Carbon::SATURDAY)->toDateString(),
                 'reason' => 'Update to off spv',
             ]);
 
@@ -1627,6 +1632,7 @@ describe('LeaveRequestController', function () {
         });
 
         it('forwards pending supervisor request to HR when changed to OFF_SPV', function () {
+            Carbon::setTestNow('2026-07-20 09:00:00');
             $manager = User::factory()->create(['role' => UserRole::MANAGER]);
             $user = User::factory()->create([
                 'role' => UserRole::SUPERVISOR,
@@ -1639,10 +1645,11 @@ describe('LeaveRequestController', function () {
 
             actingAs($user, 'web');
 
+            $saturday = now()->next(Carbon::SATURDAY)->toDateString();
             $this->put(route('leave-requests.update', $leave->id), [
                 'type' => LeaveType::OFF_SPV->value,
-                'start_date' => now()->toDateString(),
-                'end_date' => now()->toDateString(),
+                'start_date' => $saturday,
+                'end_date' => $saturday,
                 'reason' => 'Update menjadi OFF SPV',
             ]);
 

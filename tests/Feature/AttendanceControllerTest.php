@@ -74,6 +74,46 @@ describe('AttendanceController', function () {
             expect($response->viewData('attendance')->id)->toBe($attendance->id);
         });
 
+        it('renders the simplified responsive dashboard', function () {
+            $user = User::factory()->create();
+
+            actingAs($user, 'web');
+
+            $this->get(route('attendance.dashboard'))
+                ->assertOk()
+                ->assertSee('attendance-status-panel', false)
+                ->assertSee('attendance-action-dock', false)
+                ->assertDontSee('attendance-hero', false)
+                ->assertDontSee('Ringkasan Hari Ini')
+                ->assertDontSee('Panduan Singkat');
+        });
+
+        it('shows the active attendance state', function () {
+            $user = User::factory()->create();
+            Attendance::factory()->forUser($user)->today()->clockedIn()->create();
+
+            actingAs($user, 'web');
+
+            $this->get(route('attendance.dashboard'))
+                ->assertOk()
+                ->assertSee('Sedang bekerja')
+                ->assertSee('Catat jam pulang kerja');
+        });
+
+        it('shows the completed attendance state', function () {
+            $user = User::factory()->create();
+            Attendance::factory()->forUser($user)->today()->clockedOut()->create([
+                'completion_status' => Attendance::COMPLETION_CLOSED,
+            ]);
+
+            actingAs($user, 'web');
+
+            $this->get(route('attendance.dashboard'))
+                ->assertOk()
+                ->assertSee('Presensi selesai')
+                ->assertSee('Sudah tercatat');
+        });
+
         it('unauthenticated redirected to login', function () {
             $response = $this->get(route('attendance.dashboard'));
 
@@ -85,6 +125,21 @@ describe('AttendanceController', function () {
     // CLOCK IN
     // =====================================================================
     describe('clockIn', function () {
+        it('renders the single viewport clock in experience', function () {
+            $user = User::factory()->create();
+
+            actingAs($user, 'web');
+
+            $this->get(route('attendance.clockIn.form'))
+                ->assertOk()
+                ->assertSee('clock-in-screen', false)
+                ->assertSee('clock-in-status', false)
+                ->assertSee('clock-in-camera', false)
+                ->assertSee('clock-in-face-guide__corner', false)
+                ->assertSee('clock-in-controls', false)
+                ->assertSee('Ambil Foto');
+        });
+
         it('successfully clocks in when within radius', function () {
             Storage::fake('public');
             $user = User::factory()->create();
@@ -535,9 +590,45 @@ describe('AttendanceController', function () {
             $response->assertStatus(200);
             expect($response->viewData('todayAttendance')->id)->toBe($attendance->id);
         });
+
+        it('opens the remote attendance flow without creating attendance', function () {
+            $user = User::factory()->create();
+
+            actingAs($user, 'web');
+
+            $this->get(route('remote-attendance.index'))
+                ->assertOk()
+                ->assertSee(route('remote-attendance.purpose'), false)
+                ->assertSee('remote-dashboard--viewport-fit', false);
+
+            $this->get(route('remote-attendance.purpose'))
+                ->assertOk()
+                ->assertViewIs('attendance.remote.purpose')
+                ->assertSee('Tersimpan sementara');
+
+            $this->get(route('remote-attendance.photo'))
+                ->assertOk()
+                ->assertViewIs('attendance.remote.photo')
+                ->assertViewHas('mode', 'in')
+                ->assertSee('Langkah 2 dari 2');
+
+            expect(Attendance::where('user_id', $user->id)->exists())->toBeFalse();
+        });
     });
 
     describe('remoteClockOut', function () {
+        it('shows a dedicated remote clock out capture page', function () {
+            $user = User::factory()->create();
+
+            actingAs($user, 'web');
+
+            $this->get(route('remote-attendance.clockOut.form'))
+                ->assertOk()
+                ->assertViewIs('attendance.remote.photo')
+                ->assertViewHas('mode', 'out')
+                ->assertSee('Selesaikan Dinas');
+        });
+
         it('allows clock out for DINAS_LUAR without location check', function () {
             Storage::fake('public');
             $user = User::factory()->create();

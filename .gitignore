@@ -8,6 +8,9 @@
 *.sql
 *.sqlite
 *.txt
+*.yml
+*.md
+*.png
 /.fleet
 /.idea
 /.nova

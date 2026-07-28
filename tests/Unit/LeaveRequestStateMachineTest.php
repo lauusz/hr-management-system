@@ -37,6 +37,12 @@ describe('LeaveRequestStateMachine', function () {
             [LeaveRequest::PENDING_SUPERVISOR, LeaveRequestStateMachine::EDIT_PENDING, LeaveRequest::PENDING_SUPERVISOR],
             [LeaveRequest::PENDING_HR, LeaveRequestStateMachine::EDIT_PENDING, LeaveRequest::PENDING_HR],
             [LeaveRequest::STATUS_APPROVED, 'EDIT_APPROVED_DATE', LeaveRequest::STATUS_APPROVED],
+            [LeaveRequest::PENDING_SUPERVISOR, LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
+            [LeaveRequest::PENDING_HR, LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
+            [LeaveRequest::STATUS_APPROVED, LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
+            [LeaveRequest::STATUS_REJECTED, LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
+            [LeaveRequest::STATUS_CANCELLED, LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
+            ['CANCEL_REQ', LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
         ];
 
         $present = [];
@@ -70,12 +76,35 @@ describe('LeaveRequestStateMachine', function () {
         expect($machine->getAllowedActions(LeaveRequest::STATUS_APPROVED))->toContain(
             LeaveRequestStateMachine::CANCEL,
             'EDIT_APPROVED_DATE',
+            LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
         );
 
-        expect($machine->getAllowedActions(LeaveRequest::STATUS_REJECTED))->toBeEmpty();
-        expect($machine->getAllowedActions('BATAL'))->toBeEmpty();
-        expect($machine->getAllowedActions('CANCEL_REQ'))->toBeEmpty();
+        expect($machine->getAllowedActions(LeaveRequest::STATUS_REJECTED))->toBe([
+            LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
+        ]);
+        expect($machine->getAllowedActions('BATAL'))->toBe([
+            LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
+        ]);
+        expect($machine->getAllowedActions('CANCEL_REQ'))->toBe([
+            LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
+        ]);
     });
+
+    it('allows HR override approval from every known leave status', function (string $status) {
+        $machine = new LeaveRequestStateMachine;
+
+        expect($machine->getTargetStatus(
+            $status,
+            LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
+        ))->toBe(LeaveRequest::STATUS_APPROVED);
+    })->with([
+        LeaveRequest::PENDING_SUPERVISOR,
+        LeaveRequest::PENDING_HR,
+        LeaveRequest::STATUS_APPROVED,
+        LeaveRequest::STATUS_REJECTED,
+        LeaveRequest::STATUS_CANCELLED,
+        'CANCEL_REQ',
+    ]);
 
     it('keeps REVISE_FOR_HR on PENDING_HR as same-state revision', function () {
         $user = User::factory()->create();

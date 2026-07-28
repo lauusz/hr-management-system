@@ -660,3 +660,74 @@ it('annual reset with explicit key stores zero marker when target already matche
             ->where('transaction_type', LeaveBalanceTransaction::ADJUSTMENT)
             ->count())->toBe(2);
 });
+
+it('reconciles HR override deductions across repeated approval and cancellation cycles', function () {
+    $service = new LeaveBalanceService;
+    $actor = User::factory()->create(['role' => UserRole::HRD]);
+    $user = User::factory()->create([
+        'role' => UserRole::EMPLOYEE,
+        'leave_balance' => 10,
+    ]);
+    $leave = LeaveRequest::factory()->forUser($user)->create([
+        'type' => LeaveType::CUTI,
+        'start_date' => '2026-08-03',
+        'end_date' => '2026-08-03',
+        'status' => LeaveRequest::STATUS_APPROVED,
+    ]);
+
+    $service->deductLeaveBalanceForLeave($leave);
+
+    expect((float) $user->fresh()->leave_balance)->toBe(9.0)
+        ->and($service->currentNetDeductionForLeave($leave))->toBe(1.0)
+        ->and($service->reconcileLeaveBalanceForHrOverride(
+            $leave,
+            2,
+            $actor->id,
+            'HR memperpanjang cuti',
+        ))->toBe(1.0)
+        ->and((float) $user->fresh()->leave_balance)->toBe(8.0)
+        ->and($service->currentNetDeductionForLeave($leave))->toBe(2.0)
+        ->and($service->reconcileLeaveBalanceForHrOverride(
+            $leave,
+            2,
+            $actor->id,
+            'HR menyimpan ulang',
+        ))->toBe(0.0)
+        ->and((float) $user->fresh()->leave_balance)->toBe(8.0)
+        ->and($service->refundLeaveBalanceForLeave($leave))->toBe(2.0)
+        ->and((float) $user->fresh()->leave_balance)->toBe(10.0)
+        ->and($service->reconcileLeaveBalanceForHrOverride(
+            $leave,
+            2,
+            $actor->id,
+            'HR membuka kembali cuti',
+        ))->toBe(2.0)
+        ->and((float) $user->fresh()->leave_balance)->toBe(8.0)
+        ->and($service->refundLeaveBalanceForLeave($leave))->toBe(2.0)
+        ->and((float) $user->fresh()->leave_balance)->toBe(10.0)
+        ->and(LeaveBalanceTransaction::where('leave_request_id', $leave->id)
+            ->where('transaction_type', LeaveBalanceTransaction::REFUND)
+            ->count())->toBe(2);
+});
+
+it('rolls back HR override reconciliation when the balance is insufficient', function () {
+    $service = new LeaveBalanceService;
+    $actor = User::factory()->create(['role' => UserRole::HRD]);
+    $user = User::factory()->create([
+        'role' => UserRole::EMPLOYEE,
+        'leave_balance' => 0.5,
+    ]);
+    $leave = LeaveRequest::factory()->forUser($user)->create([
+        'type' => LeaveType::CUTI,
+        'status' => LeaveRequest::STATUS_REJECTED,
+    ]);
+
+    expect(fn () => $service->reconcileLeaveBalanceForHrOverride(
+        $leave,
+        1,
+        $actor->id,
+        'HR menyetujui cuti',
+    ))->toThrow(RuntimeException::class)
+        ->and((float) $user->fresh()->leave_balance)->toBe(0.5)
+        ->and(LeaveBalanceTransaction::where('leave_request_id', $leave->id)->count())->toBe(0);
+});

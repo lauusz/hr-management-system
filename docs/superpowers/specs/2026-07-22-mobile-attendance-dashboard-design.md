@@ -1,4 +1,4 @@
-# Mobile Attendance Dashboard Design
+# Responsive Attendance Dashboard Design
 
 Date: 2026-07-22
 Status: Awaiting final specification review
@@ -14,7 +14,7 @@ Simplify the mobile attendance dashboard for non-technical employees. The screen
 
 ## Scope
 
-This change applies only to the employee attendance dashboard at `resources/views/attendance/dashboard.blade.php` on viewports below 768px.
+This change applies to the employee attendance dashboard at `resources/views/attendance/dashboard.blade.php` on mobile and desktop viewports.
 
 The implementation will not change:
 
@@ -23,14 +23,13 @@ The implementation will not change:
 - camera and geolocation screens;
 - remote attendance / Dinas Luar screens;
 - HR attendance screens;
-- the desktop attendance dashboard.
 
 ## Visual Direction
 
 Use the selected first mockup as the visual target, adapted to the existing application shell rather than copied pixel-for-pixel.
 
-- Keep the existing compact mobile header and hamburger navigation.
-- Remove the blue greeting hero on mobile.
+- Keep the existing application header and mobile hamburger navigation.
+- Remove the blue greeting hero at every viewport size.
 - Use white or near-white surfaces for normal information.
 - Reserve navy blue for the enabled primary action.
 - Reserve amber or red for an actual warning or error.
@@ -39,13 +38,13 @@ Use the selected first mockup as the visual target, adapted to the existing appl
 
 ## Mobile Information Hierarchy
 
-The scrollable content appears in this order:
+The content appears in this order:
 
 1. **Previous attendance warning**, only when `$previousIncompleteAttendance` exists.
 2. **Current attendance status**, always visible.
 3. **Bottom spacing**, large enough that the final content is not covered by the sticky actions.
 
-The existing mobile sections `attendance-hero`, `Ringkasan Hari Ini`, and `Panduan Singkat` will not be shown. Their data remains unchanged and the desktop presentation remains available.
+The existing sections `attendance-hero`, `Ringkasan Hari Ini`, and `Panduan Singkat` will not be shown. Their data remains unchanged and remains available in HR views where applicable.
 
 ### Previous Attendance Warning
 
@@ -81,6 +80,8 @@ Clock In and Clock Out remain visible in a sticky bottom dock on mobile.
 - Use a white dock with a subtle top border or shadow.
 - Keep the selected mockup's vertical button arrangement: Clock In above Clock Out.
 
+On viewports 768px and wider, the same action surface remains in normal document flow below the status section. It uses the same colors, labels, and state treatment, constrained to the same centered content column rather than spanning the viewport.
+
 Button behavior continues to use the existing `$canClockIn` and `$canClockOut` values:
 
 | State | Clock In | Clock Out |
@@ -98,7 +99,7 @@ The smallest implementation is preferred:
 - edit only `resources/views/attendance/dashboard.blade.php` if possible;
 - reuse the current Blade state variables and route logic;
 - reuse existing CSS variables from `layouts/app.blade.php`;
-- keep mobile-only rules inside the page's existing responsive CSS;
+- keep all responsive rules inside the page's existing CSS;
 - do not introduce a component, dependency, or JavaScript module for a single screen.
 
 No layout-file change is planned. A second file may be touched only if browser verification proves the page-level fixed dock cannot coexist with the current mobile shell.
@@ -109,6 +110,7 @@ No layout-file change is planned. A second file may be touched only if browser v
 - Do not communicate warning or disabled state by color alone; keep text labels.
 - Preserve semantic links for enabled actions.
 - Ensure the dock does not cover content at 320px, 390px, and 430px widths.
+- Keep the desktop content centered with a readable maximum width and no new side panels or metrics.
 - Respect the existing mobile sidebar and modal z-index hierarchy.
 - Do not add animation beyond existing hover/press feedback.
 
@@ -133,6 +135,7 @@ Implementation is complete only when all checks pass:
 5. Clock In and Clock Out enablement matches the existing backend state.
 6. Desktop at 1024px or wider has no visual regression.
 7. No horizontal overflow appears at 320px width.
+8. Desktop screenshots at 1440×1000 show the same simplified hierarchy and the action panel in normal flow.
 
 ## Explicitly Deferred
 
