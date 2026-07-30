@@ -13,8 +13,9 @@ Master Jadwal Karyawan tetap tersedia untuk seluruh karyawan dan perubahan indiv
 - Master Shift tetap menjadi satu-satunya sumber pola hari, jam masuk, jam pulang, hari libur, dan catatan shift.
 - Master Jadwal OPS dan Master Jadwal Karyawan mengelola sumber jadwal aktif yang sama agar alur absensi tidak bercabang.
 - HR dapat menerapkan perubahan sekarang atau menjadwalkannya mulai tanggal 1 bulan berikutnya.
-- Hanya jadwal aktif dan satu jadwal berikutnya yang disimpan untuk kebutuhan operasional.
-- Tidak ada halaman riwayat rolling pada tahap ini.
+- Jadwal aktif tetap disimpan pada `employee_shifts`.
+- Jadwal langsung, pending, dan batal dicatat pada `employee_shift_changes`.
+- Tidak ada halaman riwayat rolling pada tahap ini, walaupun catatan perubahan tetap tersedia di database.
 
 ## Struktur Halaman
 
@@ -74,11 +75,15 @@ Snapshot pada absensi memastikan perubahan jadwal berikutnya tidak mengubah data
 
 ## Penyimpanan Data
 
-Keanggotaan OPS disimpan sebagai atribut manual pada karyawan. Penugasan jadwal tetap memakai satu record jadwal per karyawan dan diperluas untuk menampung satu shift berikutnya, satu lokasi berikutnya, serta tanggal efektifnya.
+Keanggotaan OPS disimpan pada `users.is_ops_schedule_member`. Jadwal aktif tetap memakai satu record `employee_shifts` per karyawan agar alur absensi yang sudah ada tidak bercabang.
 
-Record jadwal boleh belum memiliki jadwal aktif ketika anggota OPS baru ditambahkan, tetapi proses absensi tetap menolak clock-in sampai jadwal aktif tersedia atau jadwal berikutnya telah mencapai tanggal efektif.
+Perubahan jadwal disimpan pada `employee_shift_changes` dengan pengguna, shift, lokasi, tanggal efektif, status, pembuat perubahan, snapshot nama shift/lokasi, serta waktu penerapan atau pembatalan.
 
-Jadwal lampau tidak disimpan sebagai riwayat rolling tersendiri. Ketika HR menyiapkan periode berikutnya setelah jadwal pending telah efektif, nilai efektif tersebut dinormalisasi menjadi jadwal aktif sebelum pending baru disimpan.
+Setiap karyawan hanya boleh mempunyai satu perubahan berstatus `PENDING`. Perubahan langsung memperbarui `employee_shifts` dan dicatat sebagai `APPLIED`. Perubahan bulan depan disimpan sebagai `PENDING`; ketika tanggal efektif tercapai, perubahan tersebut diterapkan ke `employee_shifts` dan statusnya menjadi `APPLIED`.
+
+Record jadwal aktif belum wajib tersedia ketika anggota OPS baru ditambahkan. Dalam kondisi tersebut, clock-in tetap ditolak sampai HR menerapkan jadwal aktif atau jadwal pending mencapai tanggal efektif.
+
+Catatan perubahan tetap disimpan untuk konsistensi dan audit internal, tetapi UI riwayat rolling tidak dibuat pada tahap ini.
 
 ## Validasi dan Keamanan
 
