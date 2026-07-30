@@ -30,6 +30,7 @@ class User extends Authenticatable
         'manager_id',
         'shift_id',
         'status',
+        'is_ops_schedule_member',
         'last_login_at',
     ];
 
@@ -47,6 +48,7 @@ class User extends Authenticatable
             'can_manage_payroll' => 'boolean',
             'hr_staff_can_approve_non_cuti' => 'boolean',
             'leave_balance' => 'decimal:1',
+            'is_ops_schedule_member' => 'boolean',
         ];
     }
 
@@ -206,6 +208,17 @@ class User extends Authenticatable
     public function employeeShift()
     {
         return $this->hasOne(EmployeeShift::class, 'user_id');
+    }
+
+    public function employeeShiftChanges()
+    {
+        return $this->hasMany(EmployeeShiftChange::class);
+    }
+
+    public function pendingShiftChange()
+    {
+        return $this->hasOne(EmployeeShiftChange::class)
+            ->where('status', EmployeeShiftChange::STATUS_PENDING);
     }
 
     public function documents()
