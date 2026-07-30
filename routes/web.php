@@ -24,6 +24,7 @@ use App\Http\Controllers\HR\AssetController;
 use App\Http\Controllers\HR\AttendanceLocationController;
 use App\Http\Controllers\HR\DivisionController;
 use App\Http\Controllers\HR\OfficeHolidayController;
+use App\Http\Controllers\HR\OperationalScheduleController;
 use App\Http\Controllers\HR\OrganizationController;
 use App\Http\Controllers\Hr\PayslipController;
 use App\Http\Controllers\HR\PositionController;
@@ -230,6 +231,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/schedules/{schedule}/edit', [ScheduleController::class, 'edit'])->name('hr.schedules.edit');
         Route::put('/hr/schedules/{schedule}', [ScheduleController::class, 'update'])->name('hr.schedules.update');
         Route::delete('/hr/schedules/{schedule}', [ScheduleController::class, 'destroy'])->name('hr.schedules.destroy');
+
+        Route::get('/hr/operational-schedules', [OperationalScheduleController::class, 'index'])
+            ->name('hr.operational-schedules.index');
+        Route::post('/hr/operational-schedules/members', [OperationalScheduleController::class, 'storeMembers'])
+            ->name('hr.operational-schedules.members.store');
+        Route::delete('/hr/operational-schedules/members/{user}', [OperationalScheduleController::class, 'destroyMember'])
+            ->name('hr.operational-schedules.members.destroy');
+        Route::post('/hr/operational-schedules/bulk', [OperationalScheduleController::class, 'bulkUpdate'])
+            ->name('hr.operational-schedules.bulk');
 
         // [UBAH DISINI] MASTER ATTENDANCE (Hanya List)
         Route::get('/hr/attendances', [HRAttendanceController::class, 'index'])->name('hr.attendances.index');

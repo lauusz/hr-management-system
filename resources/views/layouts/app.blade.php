@@ -1061,7 +1061,7 @@
         @if(auth()->user()->isHR())
         @php
         $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
-        $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*','hr.office-holidays.*', 'hr.overtime-requests.master');
+        $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*','hr.operational-schedules.*','hr.office-holidays.*', 'hr.overtime-requests.master');
         $hrLoanOpen = request()->routeIs('hr.loan_requests.*', 'hr.payroll.*');
         $hrAssetOpen = request()->routeIs('hr.assets.*');
         @endphp
@@ -1156,6 +1156,7 @@
             <a href="{{ route('hr.shifts.index') }}" class="submenu-item {{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">Master Shift</a>
             <a href="{{ route('hr.locations.index') }}" class="submenu-item {{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">Lokasi Presensi</a>
             <a href="{{ route('hr.schedules.index') }}" class="submenu-item {{ request()->routeIs('hr.schedules.*') ? 'active' : '' }}">Jadwal Karyawan</a>
+            <a href="{{ route('hr.operational-schedules.index') }}" class="submenu-item {{ request()->routeIs('hr.operational-schedules.*') ? 'active' : '' }}">Jadwal Operasional</a>
             <a href="{{ route('hr.office-holidays.index') }}" class="submenu-item {{ request()->routeIs('hr.office-holidays.*') ? 'active' : '' }}">Kalender Kantor</a>
           </div>
 
