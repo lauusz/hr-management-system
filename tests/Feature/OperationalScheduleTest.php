@@ -304,3 +304,31 @@ it('rejects non OPS users and inactive schedule options in bulk updates', functi
 
     $this->assertDatabaseMissing('employee_shifts', ['user_id' => $user->id]);
 });
+
+it('applies due OPS changes before Master Jadwal Karyawan is listed', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $user = User::factory()->create(['is_ops_schedule_member' => true]);
+    $shift = Shift::factory()->create(['name' => 'Shift Efektif Hari Ini']);
+    $location = AttendanceLocation::factory()->create();
+    EmployeeShiftChange::create([
+        'user_id' => $user->id,
+        'shift_id' => $shift->id,
+        'location_id' => $location->id,
+        'effective_date' => now()->toDateString(),
+        'status' => EmployeeShiftChange::STATUS_PENDING,
+        'pending_slot' => 1,
+        'created_by' => $hrd->id,
+        'shift_name_snapshot' => $shift->name,
+        'location_name_snapshot' => $location->name,
+    ]);
+
+    $this->actingAs($hrd)
+        ->get('/hr/schedules')
+        ->assertOk();
+
+    $this->assertDatabaseHas('employee_shifts', [
+        'user_id' => $user->id,
+        'shift_id' => $shift->id,
+        'location_id' => $location->id,
+    ]);
+});

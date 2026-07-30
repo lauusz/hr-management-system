@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\EmployeeShift;
 use App\Services\Image\ImageCompressor;
+use App\Services\OperationalScheduleService;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
@@ -14,7 +15,10 @@ use Illuminate\Support\Facades\Log;
 
 class AttendanceController extends Controller
 {
-    public function __construct(protected ImageCompressor $imageCompressor) {}
+    public function __construct(
+        protected ImageCompressor $imageCompressor,
+        protected OperationalScheduleService $operationalSchedules
+    ) {}
 
     // --- DASHBOARD ---
     public function dashboard()
@@ -142,9 +146,7 @@ class AttendanceController extends Controller
             $today = $now->toDateString();
 
             // 2. Cek Shift & Lokasi User
-            $employeeShift = EmployeeShift::with(['location', 'shift'])
-                ->where('user_id', $user->id)
-                ->first();
+            $employeeShift = $this->operationalSchedules->applyDueForUser($user, $now);
 
             if (! $employeeShift || ! $employeeShift->shift) {
                 return response()->json(['message' => 'Jadwal shift belum diatur. Hubungi HR.'], 400);
@@ -322,10 +324,18 @@ class AttendanceController extends Controller
             // 4. Validasi Radius (Hanya Jika WFO)
             $distance = 0;
             if (! $isDinasLuar) {
-                $empShift = EmployeeShift::with('location')->where('user_id', $user->id)->first();
+                $attendance->loadMissing('location');
+                $loc = $attendance->location;
 
-                if ($empShift && $empShift->location) {
-                    $loc = $empShift->location;
+                if (! $loc) {
+                    $loc = EmployeeShift::query()
+                        ->with('location')
+                        ->where('user_id', $user->id)
+                        ->first()
+                        ?->location;
+                }
+
+                if ($loc) {
                     $distance = (int) round($this->calculateDistance(
                         $request->lat, $request->lng, $loc->latitude, $loc->longitude
                     ));

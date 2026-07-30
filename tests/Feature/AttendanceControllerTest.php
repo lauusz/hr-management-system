@@ -3,6 +3,7 @@
 use App\Models\Attendance;
 use App\Models\AttendanceLocation;
 use App\Models\EmployeeShift;
+use App\Models\EmployeeShiftChange;
 use App\Models\Shift;
 use App\Models\ShiftDay;
 use App\Models\User;
@@ -56,6 +57,26 @@ describe('AttendanceController', function () {
             'shift_id' => $shift->id,
             'location_id' => $location->id,
         ]);
+    }
+
+    function createOperationalShiftPattern(
+        string $name,
+        string $startTime = '08:00:00',
+        string $endTime = '17:00:00'
+    ): Shift {
+        $shift = Shift::factory()->create(['name' => $name, 'is_active' => true]);
+
+        foreach (range(1, 7) as $dayOfWeek) {
+            ShiftDay::factory()->create([
+                'shift_id' => $shift->id,
+                'day_of_week' => $dayOfWeek,
+                'start_time' => $startTime,
+                'end_time' => $endTime,
+                'is_holiday' => false,
+            ]);
+        }
+
+        return $shift;
     }
 
     // =====================================================================
@@ -166,6 +187,95 @@ describe('AttendanceController', function () {
             expect($attendance)->toBeTruthy()
                 ->and($attendance->clock_in_at)->toBeTruthy()
                 ->and($attendance->type)->toBe('WFO');
+        });
+
+        it('uses a due OPS schedule when clocking in on its effective date', function () {
+            Storage::fake('public');
+            Carbon::setTestNow(Carbon::parse('2026-08-01 07:55:00', 'Asia/Jakarta'));
+
+            $user = User::factory()->create(['is_ops_schedule_member' => true]);
+            $oldLocation = AttendanceLocation::factory()->create([
+                'name' => 'Lokasi Lama',
+                'latitude' => -6.200000,
+                'longitude' => 106.816666,
+                'radius_meters' => 100,
+            ]);
+            createShiftSetup($user, $oldLocation);
+            $newLocation = AttendanceLocation::factory()->create([
+                'name' => 'Lokasi Baru',
+                'latitude' => -6.210000,
+                'longitude' => 106.826666,
+                'radius_meters' => 100,
+            ]);
+            $newShift = createOperationalShiftPattern('Shift OPS Baru', '08:00:00', '16:00:00');
+            $change = EmployeeShiftChange::create([
+                'user_id' => $user->id,
+                'shift_id' => $newShift->id,
+                'location_id' => $newLocation->id,
+                'effective_date' => '2026-08-01',
+                'status' => EmployeeShiftChange::STATUS_PENDING,
+                'pending_slot' => 1,
+                'created_by' => $user->id,
+                'shift_name_snapshot' => $newShift->name,
+                'location_name_snapshot' => $newLocation->name,
+            ]);
+
+            actingAs($user, 'web');
+            $response = $this->post(route('attendance.clockIn'), [
+                'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
+                'lat' => -6.210000,
+                'lng' => 106.826666,
+            ]);
+
+            $response->assertOk()->assertJson(['message' => 'Clock In Berhasil.']);
+            $attendance = Attendance::where('user_id', $user->id)->firstOrFail();
+            expect($attendance->shift_id)->toBe($newShift->id)
+                ->and($attendance->location_id)->toBe($newLocation->id)
+                ->and($attendance->normal_start_time->format('H:i'))->toBe('08:00')
+                ->and($attendance->normal_end_time->format('H:i'))->toBe('16:00')
+                ->and($change->fresh()->status)->toBe(EmployeeShiftChange::STATUS_APPLIED);
+
+            Carbon::setTestNow();
+        });
+
+        it('keeps the active schedule before a pending OPS effective date', function () {
+            Storage::fake('public');
+            Carbon::setTestNow(Carbon::parse('2026-07-31 07:55:00', 'Asia/Jakarta'));
+
+            $user = User::factory()->create(['is_ops_schedule_member' => true]);
+            $oldLocation = AttendanceLocation::factory()->create([
+                'latitude' => -6.200000,
+                'longitude' => 106.816666,
+                'radius_meters' => 100,
+            ]);
+            $assignment = createShiftSetup($user, $oldLocation);
+            $newLocation = AttendanceLocation::factory()->create();
+            $newShift = createOperationalShiftPattern('Shift OPS Bulan Depan');
+            $change = EmployeeShiftChange::create([
+                'user_id' => $user->id,
+                'shift_id' => $newShift->id,
+                'location_id' => $newLocation->id,
+                'effective_date' => '2026-08-01',
+                'status' => EmployeeShiftChange::STATUS_PENDING,
+                'pending_slot' => 1,
+                'created_by' => $user->id,
+                'shift_name_snapshot' => $newShift->name,
+                'location_name_snapshot' => $newLocation->name,
+            ]);
+
+            actingAs($user, 'web');
+            $this->post(route('attendance.clockIn'), [
+                'photo' => UploadedFile::fake()->image('clockin.jpg', 800, 600),
+                'lat' => -6.200000,
+                'lng' => 106.816666,
+            ])->assertOk();
+
+            $attendance = Attendance::where('user_id', $user->id)->firstOrFail();
+            expect($attendance->shift_id)->toBe($assignment->shift_id)
+                ->and($attendance->location_id)->toBe($oldLocation->id)
+                ->and($change->fresh()->status)->toBe(EmployeeShiftChange::STATUS_PENDING);
+
+            Carbon::setTestNow();
         });
 
         it('rejects clock in when outside radius', function () {
@@ -383,6 +493,40 @@ describe('AttendanceController', function () {
 
             $attendance->refresh();
             expect($attendance->clock_out_at)->toBeTruthy();
+        });
+
+        it('uses the attendance location snapshot after the active schedule changes', function () {
+            Storage::fake('public');
+            $user = User::factory()->create();
+            $clockInLocation = AttendanceLocation::factory()->create([
+                'latitude' => -6.200000,
+                'longitude' => 106.816666,
+                'radius_meters' => 100,
+            ]);
+            $newLocation = AttendanceLocation::factory()->create([
+                'latitude' => -6.210000,
+                'longitude' => 106.826666,
+                'radius_meters' => 100,
+            ]);
+            $assignment = createShiftSetup($user, $clockInLocation);
+            $attendance = Attendance::factory()->forUser($user)->today()->clockedIn()->create([
+                'shift_id' => $assignment->shift_id,
+                'employee_shift_id' => $assignment->id,
+                'location_id' => $clockInLocation->id,
+                'normal_start_time' => Carbon::parse(now()->toDateString().' 08:00:00'),
+                'normal_end_time' => Carbon::parse(now()->toDateString().' 17:00:00'),
+                'type' => 'WFO',
+            ]);
+            $assignment->update(['location_id' => $newLocation->id]);
+
+            actingAs($user, 'web');
+            $this->post(route('attendance.clockOut'), [
+                'photo' => UploadedFile::fake()->image('clockout.jpg', 800, 600),
+                'lat' => -6.200000,
+                'lng' => 106.816666,
+            ])->assertOk()->assertJson(['message' => 'Clock Out Berhasil.']);
+
+            expect($attendance->fresh()->clock_out_at)->not->toBeNull();
         });
 
         it('prevents double clock out on same attendance', function () {

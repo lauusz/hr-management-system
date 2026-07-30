@@ -9,13 +9,20 @@ use App\Models\EmployeeShift;
 use App\Models\Position;
 use App\Models\Shift;
 use App\Models\User;
+use App\Services\OperationalScheduleService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class ScheduleController extends Controller
 {
+    public function __construct(
+        private readonly OperationalScheduleService $operationalSchedules
+    ) {}
+
     public function index(Request $request)
     {
+        $this->operationalSchedules->applyAllDue(now());
+
         $search = $request->get('q');
         $ptFilter = $request->get('pt_id');
         $positionFilter = $request->get('position_id');
