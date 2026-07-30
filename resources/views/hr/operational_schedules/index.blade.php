@@ -214,15 +214,30 @@
         <form method="POST" action="{{ route('hr.operational-schedules.members.store') }}">
             @csrf
             <p class="ops-modal-help">Pilih satu atau beberapa karyawan untuk dimasukkan ke daftar operasional.</p>
+            <label class="ops-member-filter">
+                <span>Filter Jabatan</span>
+                <select id="opsMemberPositionFilter" class="ops-control">
+                    <option value="">Semua Jabatan</option>
+                    @foreach($positionOptions as $position)
+                        <option value="{{ $position->id }}">{{ $position->name }}</option>
+                    @endforeach
+                </select>
+            </label>
             <div class="ops-member-list">
                 @forelse($availableUsers as $user)
-                    <label>
+                    <label class="ops-member-item" data-position-id="{{ $user->position_id ?? '' }}">
                         <input type="checkbox" name="user_ids[]" value="{{ $user->id }}">
-                        <span>{{ $user->name }}</span>
+                        <span>
+                            <strong>{{ $user->name }}</strong>
+                            <small>{{ $user->position?->name ?? 'Tanpa jabatan' }}</small>
+                        </span>
                     </label>
                 @empty
                     <p class="ops-muted">Semua karyawan aktif sudah menjadi anggota OPS.</p>
                 @endforelse
+                <p id="opsMemberFilterEmpty" class="ops-muted ops-member-filter-empty" hidden>
+                    Tidak ada karyawan dengan jabatan tersebut.
+                </p>
             </div>
             <div class="ops-modal-actions">
                 <button type="button" class="ops-btn ops-btn-secondary" data-modal-close="true">Batal</button>
@@ -306,6 +321,12 @@
         .ops-member-list { max-height: 330px; margin-top: 12px; overflow-y: auto; border: 1px solid #e5eaf1; border-radius: 10px; }
         .ops-member-list label { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid #f0f3f7; cursor: pointer; }
         .ops-member-list label:last-child { border-bottom: 0; }
+        .ops-member-filter { display: grid; gap: 5px; margin-top: 14px; color: #64748b; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .ops-member-item strong, .ops-member-item small { display: block; }
+        .ops-member-item[hidden] { display: none; }
+        .ops-member-item strong { color: #334155; font-size: 13px; }
+        .ops-member-item small { margin-top: 2px; color: #8490a3; font-size: 11px; font-weight: 500; }
+        .ops-member-filter-empty { padding: 14px; text-align: center; }
         .ops-modal-help { margin: 0; color: #64748b; font-size: 13px; }
         .ops-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
         @media (max-width: 1050px) {
@@ -330,6 +351,9 @@
             const bulkButton = document.getElementById('opsBulkOpen');
             const shift = document.getElementById('opsShift');
             const location = document.getElementById('opsLocation');
+            const memberPosition = document.getElementById('opsMemberPositionFilter');
+            const memberItems = [...document.querySelectorAll('.ops-member-item')];
+            const memberFilterEmpty = document.getElementById('opsMemberFilterEmpty');
 
             toggle?.addEventListener('click', () => {
                 panel.hidden = !panel.hidden;
@@ -372,6 +396,16 @@
             location?.addEventListener('change', syncBulk);
             document.querySelectorAll('input[name="ops_apply_mode"]')
                 .forEach(item => item.addEventListener('change', syncBulk));
+            memberPosition?.addEventListener('change', () => {
+                let visible = 0;
+                memberItems.forEach(item => {
+                    const matches = !memberPosition.value
+                        || item.dataset.positionId === memberPosition.value;
+                    item.hidden = !matches;
+                    if (matches) visible++;
+                });
+                memberFilterEmpty.hidden = visible > 0;
+            });
             syncBulk();
         })();
     </script>

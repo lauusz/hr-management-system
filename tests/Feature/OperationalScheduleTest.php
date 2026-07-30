@@ -4,6 +4,7 @@ use App\Enums\UserRole;
 use App\Models\AttendanceLocation;
 use App\Models\EmployeeShift;
 use App\Models\EmployeeShiftChange;
+use App\Models\Position;
 use App\Models\Shift;
 use App\Models\User;
 use App\Services\OperationalScheduleService;
@@ -331,4 +332,23 @@ it('applies due OPS changes before Master Jadwal Karyawan is listed', function (
         'shift_id' => $shift->id,
         'location_id' => $location->id,
     ]);
+});
+
+it('renders a position filter for available OPS members', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $position = Position::create([
+        'name' => 'Krani Operasional',
+        'is_active' => true,
+    ]);
+    User::factory()->create([
+        'position_id' => $position->id,
+        'status' => User::STATUS_ACTIVE,
+        'is_ops_schedule_member' => false,
+    ]);
+
+    $this->actingAs($hrd)
+        ->get('/hr/operational-schedules')
+        ->assertOk()
+        ->assertSee('id="opsMemberPositionFilter"', false)
+        ->assertSee('data-position-id="'.$position->id.'"', false);
 });

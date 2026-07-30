@@ -85,6 +85,7 @@ class OperationalScheduleController extends Controller
             'availableUsers' => User::query()
                 ->active()
                 ->where('is_ops_schedule_member', false)
+                ->with('position')
                 ->orderBy('name')
                 ->get(['id', 'name', 'position_id']),
             'nextMonthDate' => now()->addMonthNoOverflow()->startOfMonth(),
