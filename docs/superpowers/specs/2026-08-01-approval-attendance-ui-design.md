@@ -38,10 +38,14 @@ Halaman tetap menerima koleksi `$pendingAttendances` dari controller saat ini. S
 - Foto atau koordinat yang tidak tersedia ditampilkan sebagai tanda `-`.
 - Relasi jabatan atau divisi yang kosong tidak menyebabkan error dan ditampilkan secara ringkas.
 - Pesan sukses dan error dari session ditampilkan di atas tabel.
-- Nama dan catatan panjang dibatasi secara visual tanpa menghilangkan nilai aslinya.
+- Nama panjang dibatasi secara visual tanpa menghilangkan nilai aslinya.
+- Keperluan/notes ditampilkan dalam satu baris dan otomatis menggunakan elipsis (`…`) berdasarkan lebar kolom, bukan jumlah karakter.
+- Seluruh notes, termasuk notes pendek, dapat diklik untuk membuka modal `Detail Keperluan` yang menampilkan teks lengkap.
+- Notes kosong tetap ditampilkan sebagai `Tidak ada keterangan` dan tidak membuka modal.
 
 ## Verifikasi
 
 - Feature test approval yang sudah ada tetap lulus.
 - Route Terima dan Tolak tetap berupa POST dan menghasilkan URL dari helper Laravel.
+- Test memastikan trigger dan modal detail notes dirender tanpa mengubah isi notes.
 - Pemeriksaan manual dilakukan pada kondisi data tersedia, data kosong, modal Terima, modal Tolak, foto, lokasi, nama panjang, dan viewport mobile.
