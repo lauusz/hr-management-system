@@ -29,6 +29,14 @@ Menyelaraskan tampilan `/hr/approval-attendance` dengan pola visual `/hr/leave/m
 4. Modal Terima dan Tolak yang menggunakan bahasa tindakan yang jelas.
 5. Empty state ketika tidak ada pengajuan pending.
 
+## Tampilan Mobile
+
+- Pada viewport maksimal `767px`, daftar pengajuan ditampilkan sebagai card per karyawan dan tabel desktop disembunyikan.
+- Setiap card menampilkan identitas karyawan dan waktu di bagian atas, keperluan dengan elipsis, akses foto/lokasi, lalu tombol Terima dan Tolak di bagian bawah.
+- Tombol keputusan memakai lebar yang seimbang dan tetap menampilkan label teks.
+- Versi mobile tidak menggunakan horizontal scroll dan memakai modal yang sama dengan versi desktop.
+- Pada viewport mulai `768px`, tabel desktop tetap digunakan tanpa perubahan struktur data.
+
 ## Perilaku dan Data
 
 Halaman tetap menerima koleksi `$pendingAttendances` dari controller saat ini. Setiap aksi mengirim POST beserta CSRF token menuju route yang sudah tersedia. Bukti foto tetap dibuka melalui image viewer global; lokasi tetap dibuka pada tab baru.
@@ -48,4 +56,5 @@ Halaman tetap menerima koleksi `$pendingAttendances` dari controller saat ini. S
 - Feature test approval yang sudah ada tetap lulus.
 - Route Terima dan Tolak tetap berupa POST dan menghasilkan URL dari helper Laravel.
 - Test memastikan trigger dan modal detail notes dirender tanpa mengubah isi notes.
+- Test memastikan markup card mobile tersedia untuk setiap pengajuan tanpa menggandakan form POST atau business logic.
 - Pemeriksaan manual dilakukan pada kondisi data tersedia, data kosong, modal Terima, modal Tolak, foto, lokasi, nama panjang, dan viewport mobile.
