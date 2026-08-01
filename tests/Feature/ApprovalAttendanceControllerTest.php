@@ -28,6 +28,31 @@ describe('ApprovalAttendanceController', function () {
             ->assertDontSee('id="simple-viewer"', false);
     });
 
+    it('renders the approval queue with generated action URLs', function () {
+        $hrd = User::factory()->create(['role' => UserRole::HRD]);
+        $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+        $notes = 'Mini Workshop PT. Meratus Line. hari jumat dari pagi hingga malam sehingga tidak sempat absen out di kantor';
+        $attendance = Attendance::factory()->for($employee)->create([
+            'approval_status' => 'PENDING',
+            'type' => 'DINAS_LUAR',
+            'notes' => $notes,
+        ]);
+
+        actingAs($hrd, 'web');
+
+        $this->get(route('hr.approval_attendance.index'))
+            ->assertOk()
+            ->assertSee('Approval Absensi')
+            ->assertSee('Menunggu Keputusan')
+            ->assertSee(route('hr.approval_attendance.approve', $attendance), false)
+            ->assertSee(route('hr.approval_attendance.reject', $attendance), false)
+            ->assertSee('data-notes=', false)
+            ->assertSee('id="notesDetailModal"', false)
+            ->assertSee($notes)
+            ->assertSee('class="aa-mobile-list"', false)
+            ->assertSee('class="aa-mobile-card"', false);
+    });
+
     it('allows HRD to approve pending attendance', function () {
         $hrd = User::factory()->create(['role' => UserRole::HRD]);
         $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);

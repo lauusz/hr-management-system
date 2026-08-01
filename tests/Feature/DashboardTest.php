@@ -42,6 +42,16 @@ it('does not show the topbar user chip', function () {
     expect($response->getContent())->not->toContain('class="user-chip"');
 });
 
+it('switches the global sidebar to a drawer when effective viewport space is limited', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user, 'web')->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('--sidebar-width: clamp(224px, 17vw, 264px);', false)
+        ->assertSee('@media (max-width: 1279px)', false)
+        ->assertSee('@media (min-width: 1280px)', false);
+});
+
 it('shows logged in user info in sidebar footer above logout button', function () {
     $user = User::factory()->create(['name' => 'NIKOLAUS SATRIA']);
 

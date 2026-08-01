@@ -1,68 +1,104 @@
 <x-app title="Master Absensi">
 
     <div class="card mb-4">
-        <form method="GET" class="filter-container">
+        <form method="POST" action="{{ route('hr.attendances.filter') }}" id="attendanceFilterForm">
+            @csrf
             @php
-            $rangeValue = '';
-            if (!empty($date_start) && !empty($date_end)) {
-                $rangeValue = $date_start . ' sampai ' . $date_end;
-            } elseif (!empty($date_start)) {
-                $rangeValue = $date_start;
-            }
+                $rangeValue = '';
+                if (!empty($date_start) && !empty($date_end)) {
+                    $rangeValue = $date_start . ' sampai ' . $date_end;
+                } elseif (!empty($date_start)) {
+                    $rangeValue = $date_start;
+                }
+
+                $today = now()->toDateString();
+                $hasCustomDateRange = ($date_start ?? $today) !== $today
+                    || ($date_end ?? $today) !== $today;
+                $hasAdvancedFilter = $hasCustomDateRange
+                    || ($shift_id ?? null)
+                    || ($status ?? null)
+                    || ($completion_status ?? null);
             @endphp
 
-            <div class="filter-group">
-                <label>Rentang Tanggal</label>
-                <div class="input-with-icon">
-                    <input type="text"
-                        id="date_range"
-                        name="date_range"
-                        value="{{ $rangeValue }}"
-                        placeholder="Pilih tanggal..."
-                        autocomplete="off"
-                        class="form-control">
-                    <input type="hidden" name="date_start" id="date_start" value="{{ $date_start ?? '' }}">
-                    <input type="hidden" name="date_end" id="date_end" value="{{ $date_end ?? '' }}">
-                </div>
-            </div>
-
-            <div class="filter-group">
-                <label>Status</label>
-                <select name="status" class="form-control">
-                    <option value="">Semua Status</option>
-                    <option value="HADIR" @selected(($status ?? '' )=='HADIR' )>Hadir</option>
-                    <option value="TERLAMBAT" @selected(($status ?? '' )=='TERLAMBAT' )>Terlambat</option>
-                </select>
-            </div>
-
-            <div class="filter-group">
-                <label>Status Kelengkapan</label>
-                <select name="completion_status" class="form-control">
-                    <option value="">Semua</option>
-                    <option value="{{ App\Models\Attendance::COMPLETION_CLOSED }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_CLOSED)>Lengkap</option>
-                    <option value="{{ App\Models\Attendance::COMPLETION_OPEN }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_OPEN)>Berjalan</option>
-                    <option value="{{ App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT)>Belum Clock Out</option>
-                    <option value="{{ App\Models\Attendance::COMPLETION_LATE_CLOCK_OUT }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_LATE_CLOCK_OUT)>Clock Out Terlambat</option>
-                </select>
-            </div>
-
-            <div class="filter-group flex-grow">
-                <label>Cari Karyawan</label>
-                <div class="search-input">
+            <div class="attendance-search-row">
+                <div class="attendance-search-wrap">
                     <input type="text"
                         name="q"
                         value="{{ $q ?? '' }}"
-                        placeholder="Nama karyawan..."
+                        placeholder="Cari nama karyawan..."
                         autocomplete="off"
-                        class="form-control">
+                        class="attendance-search-input">
                 </div>
+                <button type="submit" class="attendance-btn-search">Cari</button>
+                @if(($q ?? null) || $hasAdvancedFilter)
+                    <button type="submit" name="action" value="reset" class="attendance-btn-reset">Reset</button>
+                @endif
+                <button type="button"
+                    class="attendance-btn-toggle {{ $hasAdvancedFilter ? 'active' : '' }}"
+                    aria-expanded="{{ $hasAdvancedFilter ? 'true' : 'false' }}"
+                    aria-controls="attendanceFilterPanel"
+                    onclick="toggleAttendanceFilterPanel()">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                    </svg>
+                    Filter
+                </button>
             </div>
 
-            <div class="filter-actions">
-                <button type="submit" class="btn-primary">Filter</button>
-                @if(($q ?? null) || ($status ?? null) || ($completion_status ?? null) || ($date_start ?? null))
-                <a href="{{ route('hr.attendances.index') }}" class="btn-reset">Reset</a>
-                @endif
+            <div class="attendance-filter-panel" id="attendanceFilterPanel" style="{{ $hasAdvancedFilter ? '' : 'display: none;' }}">
+                <div class="attendance-filter-grid">
+                    <div class="filter-group">
+                        <label>Rentang Tanggal</label>
+                        <div class="input-with-icon">
+                            <input type="text"
+                                id="date_range"
+                                name="date_range"
+                                value="{{ $rangeValue }}"
+                                placeholder="Pilih tanggal..."
+                                autocomplete="off"
+                                class="form-control">
+                            <input type="hidden" name="date_start" id="date_start" value="{{ $date_start ?? '' }}">
+                            <input type="hidden" name="date_end" id="date_end" value="{{ $date_end ?? '' }}">
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Shift</label>
+                        <select name="shift_id" class="form-control">
+                            <option value="">Semua Shift</option>
+                            @foreach(($shifts ?? collect()) as $shift)
+                                <option value="{{ $shift->id }}" @selected((string) ($shift_id ?? '') === (string) $shift->id)>
+                                    {{ $shift->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select name="status" class="form-control">
+                            <option value="">Semua Status</option>
+                            <option value="HADIR" @selected(($status ?? '' )=='HADIR' )>Hadir</option>
+                            <option value="TERLAMBAT" @selected(($status ?? '' )=='TERLAMBAT' )>Terlambat</option>
+                            <option value="DINAS_LUAR" @selected(($status ?? '' )=='DINAS_LUAR' )>Dinas Luar</option>
+                        </select>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Status Kelengkapan</label>
+                        <select name="completion_status" class="form-control">
+                            <option value="">Semua</option>
+                            <option value="{{ App\Models\Attendance::COMPLETION_CLOSED }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_CLOSED)>Lengkap</option>
+                            <option value="{{ App\Models\Attendance::COMPLETION_OPEN }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_OPEN)>Berjalan</option>
+                            <option value="{{ App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT)>Belum Clock Out</option>
+                            <option value="{{ App\Models\Attendance::COMPLETION_LATE_CLOCK_OUT }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_LATE_CLOCK_OUT)>Clock Out Terlambat</option>
+                        </select>
+                    </div>
+
+                    <div class="attendance-filter-actions">
+                        <button type="submit" class="attendance-btn-apply">Terapkan Filter</button>
+                    </div>
+                </div>
             </div>
         </form>
     </div>
@@ -96,7 +132,15 @@
                         </td>
 
                         <td>
-                            <span class="text-muted">{{ $at->shift->name ?? '-' }}</span>
+                            @php
+                                $shiftName = $at->shift->name ?? '-';
+                                $shortShiftName = str_contains($shiftName, ',')
+                                    ? strstr($shiftName, ',', true) . '…'
+                                    : $shiftName;
+                            @endphp
+                            <span class="text-muted shift-name" title="{{ $shiftName }}">
+                                {{ $shortShiftName }}
+                            </span>
                         </td>
 
                         <td>
@@ -132,7 +176,9 @@
                         </td>
 
                         <td>
-                            @if($at->late_minutes > 0)
+                            @if($at->type === 'DINAS_LUAR')
+                                <span class="text-muted">-</span>
+                            @elseif($at->late_minutes > 0)
                                 @php
                                     $jam = floor($at->late_minutes / 60);
                                     $menit = $at->late_minutes % 60;
@@ -170,7 +216,11 @@
 
                         <td>
                             @if($at->completion_status === App\Models\Attendance::COMPLETION_CLOSED)
-                                <span class="badge-status bg-green">Lengkap</span>
+                                <span class="attendance-complete-icon" role="img" aria-label="Lengkap" title="Lengkap">
+                                    <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                </span>
                             @elseif($at->completion_status === App\Models\Attendance::COMPLETION_OPEN)
                                 <span class="badge-status bg-yellow">Berjalan</span>
                             @elseif($at->completion_status === App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT)
@@ -257,9 +307,7 @@
     <style>
         /* --- UTILITY --- */
         .mb-4 { margin-bottom: 16px; }
-        .mb-4 { margin-bottom: 16px; }
         .text-center { text-align: center; }
-        .fw-bold { font-weight: 600; color: #111827; }
         .fw-bold { font-weight: 600; color: #111827; }
         .text-muted { color: #9ca3af; font-size: 13px; font-style: italic; }
         .text-small { font-size: 13px; color: #4b5563; }
@@ -275,21 +323,104 @@
         }
 
         /* --- FILTER SECTION --- */
-        .filter-container {
-            padding: 20px;
+        .attendance-search-row {
+            padding: 16px 20px;
             display: flex;
             flex-wrap: wrap;
-            gap: 16px;
-            align-items: flex-end;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .attendance-search-wrap {
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .attendance-search-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 13.5px;
+            color: #374151;
+            outline: none;
+        }
+
+        .attendance-search-input:focus,
+        .form-control:focus {
+            border-color: #1e4a8d;
+        }
+
+        .attendance-btn-search,
+        .attendance-btn-reset,
+        .attendance-btn-toggle,
+        .attendance-btn-apply {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .attendance-btn-search,
+        .attendance-btn-apply {
+            background: #1e4a8d;
+            color: #fff;
+            border: 1px solid #1e4a8d;
+        }
+
+        .attendance-btn-search:hover,
+        .attendance-btn-apply:hover {
+            background: #163a75;
+        }
+
+        .attendance-btn-reset,
+        .attendance-btn-toggle {
+            background: #fff;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        .attendance-btn-reset:hover,
+        .attendance-btn-toggle:hover {
+            background: #f9fafb;
+        }
+
+        .attendance-btn-toggle.active {
+            background: #1e4a8d;
+            color: #fff;
+            border-color: #1e4a8d;
+        }
+
+        .attendance-btn-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            justify-content: center;
+        }
+
+        .attendance-filter-panel {
+            padding: 16px 20px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            animation: attendanceFilterSlideDown 0.18s ease-out;
+        }
+
+        .attendance-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px 16px;
+            align-items: end;
         }
 
         .filter-group {
             display: flex;
             flex-direction: column;
             gap: 6px;
+            min-width: 0;
         }
-        
-        .filter-group.flex-grow { flex: 1; min-width: 200px; }
 
         .filter-group label {
             font-size: 12px;
@@ -306,45 +437,22 @@
             font-size: 13.5px;
             color: #374151;
             background: #fff;
-            min-width: 160px;
+            min-width: 0;
             width: 100%;
             outline: none;
             transition: border-color 0.2s;
         }
-        
-        .form-control:focus { border-color: #1e4a8d; }
 
-        .filter-actions {
+        .attendance-filter-actions {
+            grid-column: 1 / -1;
             display: flex;
-            gap: 8px;
-            padding-bottom: 2px; /* Alignment fix */
+            justify-content: flex-end;
         }
 
-        .btn-primary {
-            padding: 9px 18px;
-            background: #1e4a8d;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 13.5px;
-            font-weight: 600;
-            transition: background 0.2s;
+        @keyframes attendanceFilterSlideDown {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
         }
-        .btn-primary:hover { background: #163a75; }
-        
-        .btn-reset {
-            padding: 9px 16px;
-            background: #fff;
-            color: #374151;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 13.5px;
-            font-weight: 500;
-            display: inline-block;
-        }
-        .btn-reset:hover { background: #f9fafb; }
 
         /* --- TABLE --- */
         .table-wrapper { width: 100%; overflow-x: auto; }
@@ -373,10 +481,75 @@
         .custom-table tr:last-child td { border-bottom: none; }
         .custom-table tr:hover td { background: #fdfdfd; }
 
+        .custom-table th:first-child,
+        .custom-table td:first-child {
+            position: sticky;
+            left: 0;
+            min-width: 180px;
+            text-align: left;
+            box-shadow: 6px 0 8px -8px rgba(15, 23, 42, 0.35);
+        }
+
+        .custom-table th:first-child {
+            z-index: 3;
+            background: #f9fafb;
+        }
+
+        .custom-table td:first-child {
+            z-index: 2;
+            background: #fff;
+        }
+
+        .custom-table th:nth-child(2),
+        .custom-table td:nth-child(2) {
+            width: 150px;
+            min-width: 150px;
+            max-width: 150px;
+            text-align: left;
+        }
+
+        .custom-table th:nth-child(n+3),
+        .custom-table td:nth-child(n+3) {
+            text-align: center;
+        }
+
+        .custom-table th:nth-child(3),
+        .custom-table td:nth-child(3) { min-width: 84px; }
+        .custom-table th:nth-child(4),
+        .custom-table td:nth-child(4),
+        .custom-table th:nth-child(5),
+        .custom-table td:nth-child(5) { min-width: 76px; }
+        .custom-table th:nth-child(6),
+        .custom-table td:nth-child(6) { min-width: 70px; }
+        .custom-table th:nth-child(7),
+        .custom-table td:nth-child(7) { min-width: 90px; }
+        .custom-table th:nth-child(8),
+        .custom-table td:nth-child(8) { min-width: 110px; }
+        .custom-table th:nth-child(9),
+        .custom-table td:nth-child(9),
+        .custom-table th:nth-child(10),
+        .custom-table td:nth-child(10) { min-width: 68px; }
+        .custom-table th:nth-child(11),
+        .custom-table td:nth-child(11) { min-width: 100px; }
+
+        .custom-table td:nth-child(3),
+        .custom-table td:nth-child(4),
+        .custom-table td:nth-child(5),
+        .custom-table td:nth-child(6) { white-space: nowrap; }
+
         /* --- CUSTOM COLUMNS --- */
+        .custom-table .text-muted,
+        .custom-table .text-small { font-size: 12px; }
+        .shift-name {
+            display: block;
+            max-width: 130px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
         .time-block { display: flex; flex-direction: column; line-height: 1.2; }
         .time-date { font-size: 11px; color: #6b7280; }
-        .time-clock { font-weight: 600; color: #111827; }
+        .time-clock { font-size: 12px; font-weight: 700; color: #111827; }
 
         .badge-status {
             display: inline-block;
@@ -391,6 +564,17 @@
         .bg-gray { background: #f3f4f6; color: #4b5563; }
         .bg-purple { background: #f3e8ff; color: #6b21a8; } /* Style untuk Dinas Luar */
         .bg-yellow { background: #fef3c7; color: #92400e; }
+
+        .attendance-complete-icon {
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            background: #dcfce7;
+            color: #166534;
+        }
 
         .badge-late {
             color: #b91c1c;
@@ -437,16 +621,34 @@
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
         @media(max-width: 768px) {
-            .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
-            .filter-group, .form-control { width: 100%; min-width: 0; }
-            .filter-actions { margin-top: 4px; }
-            .btn-primary, .btn-reset { flex: 1; text-align: center; }
+            .attendance-search-row { align-items: stretch; }
+            .attendance-search-wrap { flex-basis: 100%; min-width: 0; }
+            .attendance-btn-search,
+            .attendance-btn-reset,
+            .attendance-btn-toggle { flex: 1; text-align: center; }
+            .attendance-filter-grid { grid-template-columns: 1fr; }
+            .attendance-btn-apply { width: 100%; }
+        }
+
+        @media(min-width: 480px) and (max-width: 768px) {
+            .attendance-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
     </style>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
+        function toggleAttendanceFilterPanel() {
+            const panel = document.getElementById('attendanceFilterPanel');
+            const button = document.querySelector('.attendance-btn-toggle');
+            if (!panel || !button) return;
+
+            const willOpen = panel.style.display === 'none';
+            panel.style.display = willOpen ? '' : 'none';
+            button.classList.toggle('active', willOpen);
+            button.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // --- Flatpickr Logic ---
             const rangeInput = document.getElementById('date_range');

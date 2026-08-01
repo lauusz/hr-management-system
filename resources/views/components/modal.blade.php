@@ -49,6 +49,7 @@ if (isset($variant)) {
     'confirmLabel' => 'Ya',
     'cancelLabel' => 'Batal',
     'confirmFormAction' => null,
+    'confirmFormId' => null,
     'confirmFormMethod' => 'POST',
     'primaryLinkHref' => null,
     'primaryLinkLabel' => null,
@@ -252,23 +253,29 @@ if (isset($variant)) {
             <div class="modal-footer">
 
                 {{-- CASE 1: FORM CONFIRMATION --}}
-                @if($type === 'confirm' && $confirmFormAction)
+                @if($type === 'confirm' && ($confirmFormAction || $confirmFormId))
                     <button type="button" class="modal-btn modal-btn-secondary" data-modal-close="true">
                         {{ $cancelLabel }}
                     </button>
 
-                    <form method="{{ in_array($confirmMethod, ['GET','POST']) ? $confirmMethod : 'POST' }}"
-                          action="{{ $confirmFormAction }}"
-                          @if($hasFile) enctype="multipart/form-data" @endif
-                          style="margin:0;">
-                        @csrf
-                        @if($isSpoofMethod)
-                            @method($confirmMethod)
-                        @endif
-                        <button type="submit" class="modal-btn modal-btn-primary">
+                    @if($confirmFormId)
+                        <button type="submit" form="{{ $confirmFormId }}" class="modal-btn modal-btn-primary">
                             {{ $confirmLabel }}
                         </button>
-                    </form>
+                    @else
+                        <form method="{{ in_array($confirmMethod, ['GET','POST']) ? $confirmMethod : 'POST' }}"
+                              action="{{ $confirmFormAction }}"
+                              @if($hasFile) enctype="multipart/form-data" @endif
+                              style="margin:0;">
+                            @csrf
+                            @if($isSpoofMethod)
+                                @method($confirmMethod)
+                            @endif
+                            <button type="submit" class="modal-btn modal-btn-primary">
+                                {{ $confirmLabel }}
+                            </button>
+                        </form>
+                    @endif
 
                 {{-- CASE 2: INFO / LINK --}}
                 @elseif($type === 'info')

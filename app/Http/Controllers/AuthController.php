@@ -42,7 +42,8 @@ class AuthController extends Controller
                 $user->update(['last_login_at' => now()]);
             }
 
-            return redirect()->intended(route('dashboard'));
+            return redirect()->intended(route('dashboard'))
+                ->with('offer_pwa_install', true);
         }
 
         return back()

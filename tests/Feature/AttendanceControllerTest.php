@@ -83,6 +83,202 @@ describe('AttendanceController', function () {
     // DASHBOARD
     // =====================================================================
     describe('dashboard', function () {
+        it('renders the HR attendance completion icon and collapsible filter controls', function () {
+            $hrd = User::factory()->create(['role' => \App\Enums\UserRole::HRD]);
+            $attendance = Attendance::factory()
+                ->today()
+                ->clockedOut()
+                ->create(['completion_status' => Attendance::COMPLETION_CLOSED]);
+
+            actingAs($hrd, 'web');
+            \Illuminate\Support\Facades\View::share('errors', new \Illuminate\Support\ViewErrorBag);
+
+            $date = $attendance->date->toDateString();
+
+            $this->view('hr.attendances.index', [
+                'items' => new \Illuminate\Pagination\LengthAwarePaginator(
+                    [$attendance->load(['user', 'shift', 'employeeShift'])],
+                    1,
+                    20
+                ),
+                'date_start' => $date,
+                'date_end' => $date,
+                'status' => null,
+                'completion_status' => null,
+                'q' => null,
+            ])
+                ->assertSee('attendance-complete-icon', false)
+                ->assertSee('aria-label="Lengkap"', false)
+                ->assertSee('attendance-btn-toggle', false)
+                ->assertSee('attendanceFilterPanel', false);
+        });
+
+        it('does not show lateness for DINAS_LUAR attendance', function () {
+            $hrd = User::factory()->create(['role' => \App\Enums\UserRole::HRD]);
+            $attendance = Attendance::factory()
+                ->today()
+                ->clockedOut()
+                ->create([
+                    'type' => 'DINAS_LUAR',
+                    'late_minutes' => 495,
+                ]);
+
+            actingAs($hrd, 'web');
+            \Illuminate\Support\Facades\View::share('errors', new \Illuminate\Support\ViewErrorBag);
+
+            $date = $attendance->date->toDateString();
+
+            $this->view('hr.attendances.index', [
+                'items' => new \Illuminate\Pagination\LengthAwarePaginator(
+                    [$attendance->load(['user', 'shift', 'employeeShift'])],
+                    1,
+                    20
+                ),
+                'date_start' => $date,
+                'date_end' => $date,
+                'status' => null,
+                'completion_status' => null,
+                'q' => null,
+            ])
+                ->assertSee('Dinas Luar')
+                ->assertDontSee('8j 15m');
+        });
+
+        it('shortens the displayed shift name before the first comma', function () {
+            $hrd = User::factory()->create(['role' => \App\Enums\UserRole::HRD]);
+            $shift = Shift::factory()->create([
+                'name' => 'Kantor Tanjung Batu, Operasional TB',
+            ]);
+            $attendance = Attendance::factory()
+                ->today()
+                ->create(['shift_id' => $shift->id]);
+
+            actingAs($hrd, 'web');
+            \Illuminate\Support\Facades\View::share('errors', new \Illuminate\Support\ViewErrorBag);
+
+            $date = $attendance->date->toDateString();
+
+            $this->view('hr.attendances.index', [
+                'items' => new \Illuminate\Pagination\LengthAwarePaginator(
+                    [$attendance->load(['user', 'shift', 'employeeShift'])],
+                    1,
+                    20
+                ),
+                'date_start' => $date,
+                'date_end' => $date,
+                'status' => null,
+                'completion_status' => null,
+                'q' => null,
+            ])
+                ->assertSeeText('Kantor Tanjung Batu…')
+                ->assertSee('title="Kantor Tanjung Batu, Operasional TB"', false);
+        });
+
+        it('filters HR attendance by shift', function () {
+            $hrd = User::factory()->create(['role' => \App\Enums\UserRole::HRD]);
+            $selectedShift = Shift::factory()->create(['name' => 'Shift Pilihan']);
+            $otherShift = Shift::factory()->create(['name' => 'Shift Lain']);
+            $matching = Attendance::factory()->today()->create(['shift_id' => $selectedShift->id]);
+            Attendance::factory()->today()->create(['shift_id' => $otherShift->id]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.attendances.index', [
+                'date_start' => now()->subDay()->toDateString(),
+                'date_end' => now()->addDay()->toDateString(),
+                'shift_id' => $selectedShift->id,
+            ]));
+
+            $response->assertOk()->assertViewHas('shifts');
+            expect($response->viewData('items')->pluck('id')->all())->toBe([$matching->id]);
+        });
+
+        it('filters displayed attendance status without mixing DINAS_LUAR rows', function () {
+            $hrd = User::factory()->create(['role' => \App\Enums\UserRole::HRD]);
+            $wfoPresent = Attendance::factory()->today()->wfo()->create(['status' => 'HADIR']);
+            Attendance::factory()->today()->wfo()->create(['status' => 'TERLAMBAT']);
+            $remote = Attendance::factory()->today()->dinasLuar()->create(['status' => 'HADIR']);
+
+            actingAs($hrd, 'web');
+
+            $dateQuery = [
+                'date_start' => now()->subDay()->toDateString(),
+                'date_end' => now()->addDay()->toDateString(),
+            ];
+
+            $presentResponse = $this->get(route('hr.attendances.index', [
+                ...$dateQuery,
+                'status' => 'HADIR',
+            ]));
+
+            expect($presentResponse->viewData('items')->pluck('id')->all())->toBe([$wfoPresent->id]);
+
+            $remoteResponse = $this->get(route('hr.attendances.index', [
+                ...$dateQuery,
+                'status' => 'DINAS_LUAR',
+            ]));
+
+            expect($remoteResponse->viewData('items')->pluck('id')->all())->toBe([$remote->id]);
+        });
+
+        it('collapses advanced HR attendance filters and reopens them when active', function () {
+            $hrd = User::factory()->create(['role' => \App\Enums\UserRole::HRD]);
+            $shift = Shift::factory()->create(['name' => 'Shift Pilihan']);
+
+            actingAs($hrd, 'web');
+
+            $defaultResponse = $this->get(route('hr.attendances.index'));
+            $defaultResponse
+                ->assertOk()
+                ->assertSee('aria-expanded="false"', false)
+                ->assertSee('id="attendanceFilterPanel" style="display: none;"', false);
+
+            $activeResponse = $this->get(route('hr.attendances.index', [
+                'shift_id' => $shift->id,
+            ]));
+            $activeResponse
+                ->assertOk()
+                ->assertSee('aria-expanded="true"', false)
+                ->assertSee('M3 4a1 1 0 011-1h16', false)
+                ->assertDontSee('attendance-filter-badge', false);
+        });
+
+        it('applies attendance filters from a POST body and keeps the redirect URL clean', function () {
+            $hrd = User::factory()->create(['role' => \App\Enums\UserRole::HRD]);
+            $selectedShift = Shift::factory()->create(['name' => 'Shift POST']);
+            $otherShift = Shift::factory()->create(['name' => 'Shift Lain']);
+            $matching = Attendance::factory()->today()->create(['shift_id' => $selectedShift->id]);
+            Attendance::factory()->today()->create(['shift_id' => $otherShift->id]);
+
+            actingAs($hrd, 'web');
+
+            $this->post('/hr/attendances/filter', [
+                'date_start' => now()->toDateString(),
+                'date_end' => now()->toDateString(),
+                'shift_id' => $selectedShift->id,
+            ])
+                ->assertRedirect(route('hr.attendances.index'))
+                ->assertSessionHas('hr_attendance_filters.shift_id', $selectedShift->id);
+
+            $response = $this->get(route('hr.attendances.index'));
+
+            expect($response->viewData('items')->pluck('id')->all())->toBe([$matching->id]);
+        });
+
+        it('clears POST attendance filters from the session', function () {
+            $hrd = User::factory()->create(['role' => \App\Enums\UserRole::HRD]);
+
+            actingAs($hrd, 'web');
+
+            $this->withSession([
+                'hr_attendance_filters' => ['status' => 'HADIR'],
+            ])->post('/hr/attendances/filter', [
+                'action' => 'reset',
+            ])
+                ->assertRedirect(route('hr.attendances.index'))
+                ->assertSessionMissing('hr_attendance_filters');
+        });
+
         it('shows today attendance on dashboard', function () {
             $user = User::factory()->create();
             $attendance = Attendance::factory()->forUser($user)->today()->create();

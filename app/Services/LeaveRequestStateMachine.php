@@ -27,6 +27,8 @@ class LeaveRequestStateMachine
 
     public const EDIT_PENDING = 'EDIT_PENDING';
 
+    public const UPLOAD_EVIDENCE = 'UPLOAD_EVIDENCE';
+
     public const EDIT_APPROVED_DATE = 'EDIT_APPROVED_DATE';
 
     public const HR_OVERRIDE_APPROVE = 'HR_OVERRIDE_APPROVE';
@@ -55,6 +57,11 @@ class LeaveRequestStateMachine
         self::EDIT_PENDING => [
             LeaveRequest::PENDING_SUPERVISOR => LeaveRequest::PENDING_SUPERVISOR,
             LeaveRequest::PENDING_HR => LeaveRequest::PENDING_HR,
+        ],
+        self::UPLOAD_EVIDENCE => [
+            LeaveRequest::PENDING_SUPERVISOR => LeaveRequest::PENDING_SUPERVISOR,
+            LeaveRequest::PENDING_HR => LeaveRequest::PENDING_HR,
+            LeaveRequest::STATUS_APPROVED => LeaveRequest::STATUS_APPROVED,
         ],
         self::EDIT_APPROVED_DATE => [
             LeaveRequest::STATUS_APPROVED => LeaveRequest::STATUS_APPROVED,

@@ -411,7 +411,9 @@
             $isHrdUploader = in_array(strtoupper((string) $authRole), ['HRD', 'HR STAFF', 'MANAGER'], true);
             $isOwnerUploader = $authUser->id === $item->user_id;
             $isPendingStatus = in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true);
-            $canUploadFollowupPhoto = $isHrdUploader || $isOwnerUploader;
+            $isApprovedWithoutPhoto = $item->status === \App\Models\LeaveRequest::STATUS_APPROVED && ! $item->photo;
+            $canUploadFollowupPhoto = ($isHrdUploader || $isOwnerUploader)
+                && ($isPendingStatus || $isApprovedWithoutPhoto);
         @endphp
 
         <div class="lrs-section lrs-attachment">
@@ -464,8 +466,20 @@
 
             @if($canUploadFollowupPhoto)
                 <div class="lrs-upload-area">
-                    <p class="lrs-upload-hint">Foto bisa diunggah jika belum tersedia saat pengajuan dibuat.</p>
-                    <form method="POST" action="{{ route('leave-requests.upload-photo', $item) }}" enctype="multipart/form-data" class="lrs-upload-form">
+                    @if($isApprovedWithoutPhoto)
+                        <div class="lrs-note lrs-note--warning">
+                            <div class="lrs-note-header">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                <span class="lrs-note-title">Perhatian</span>
+                            </div>
+                            <p class="lrs-note-text">Pengajuan sudah disetujui. Bukti hanya dapat diunggah satu kali dan tidak dapat diganti setelah disimpan.</p>
+                        </div>
+                    @else
+                        <p class="lrs-upload-hint">Bukti pendukung dapat ditambahkan atau diperbarui selama pengajuan masih diproses.</p>
+                    @endif
+                    <form method="POST" action="{{ route('leave-requests.upload-photo', $item) }}" enctype="multipart/form-data" class="lrs-upload-form" id="followupUploadForm">
                         @csrf
                         <div class="lrs-file-input-wrap">
                             <input type="file" name="photo" id="followupPhotoInput" class="lrs-file-input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB" required>
@@ -476,7 +490,7 @@
                                 Pilih File
                             </label>
                         </div>
-                        <button type="submit" id="followupUploadBtn" class="lrs-btn-upload is-hidden">Upload</button>
+                        <button type="{{ $isApprovedWithoutPhoto ? 'button' : 'submit' }}" id="followupUploadBtn" class="lrs-btn-upload is-hidden" @if($isApprovedWithoutPhoto) data-modal-target="modal-upload-evidence" @endif>Upload</button>
                     </form>
                     <div id="followupPhotoPreviewContainer" class="lrs-preview-box" style="display:none;">
                         <p class="lrs-preview-label">Preview:</p>
@@ -574,6 +588,24 @@
         </x-modal>
     @endcan
 
+    @if($isApprovedWithoutPhoto)
+        <x-modal
+            id="modal-upload-evidence"
+            title="Upload Bukti Pendukung?"
+            type="confirm"
+            variant="warning"
+            confirmLabel="Ya, Upload Bukti"
+            cancelLabel="Batal"
+            confirmFormId="followupUploadForm">
+            <p style="margin:0; color:#374151;">
+                Bukti untuk pengajuan yang sudah disetujui hanya dapat diunggah satu kali.
+            </p>
+            <p style="margin:8px 0 0 0; font-size:0.85rem; color:#6b7280;">
+                Pastikan file yang dipilih sudah benar karena tidak dapat diganti setelah disimpan.
+            </p>
+        </x-modal>
+    @endif
+
     {{-- ============================================== --}}
     {{-- SCRIPTS                                        --}}
     {{-- ============================================== --}}
@@ -605,6 +637,7 @@
                 followupPhotoInput.addEventListener('change', toggleUploadButton);
                 toggleUploadButton();
             }
+
         });
     </script>
 

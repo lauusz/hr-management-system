@@ -36,6 +36,9 @@ describe('LeaveRequestStateMachine', function () {
             [LeaveRequest::PENDING_HR, LeaveRequestStateMachine::REVISE_FOR_HR, LeaveRequest::PENDING_HR],
             [LeaveRequest::PENDING_SUPERVISOR, LeaveRequestStateMachine::EDIT_PENDING, LeaveRequest::PENDING_SUPERVISOR],
             [LeaveRequest::PENDING_HR, LeaveRequestStateMachine::EDIT_PENDING, LeaveRequest::PENDING_HR],
+            [LeaveRequest::PENDING_SUPERVISOR, LeaveRequestStateMachine::UPLOAD_EVIDENCE, LeaveRequest::PENDING_SUPERVISOR],
+            [LeaveRequest::PENDING_HR, LeaveRequestStateMachine::UPLOAD_EVIDENCE, LeaveRequest::PENDING_HR],
+            [LeaveRequest::STATUS_APPROVED, LeaveRequestStateMachine::UPLOAD_EVIDENCE, LeaveRequest::STATUS_APPROVED],
             [LeaveRequest::STATUS_APPROVED, 'EDIT_APPROVED_DATE', LeaveRequest::STATUS_APPROVED],
             [LeaveRequest::PENDING_SUPERVISOR, LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
             [LeaveRequest::PENDING_HR, LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
@@ -71,10 +74,12 @@ describe('LeaveRequestStateMachine', function () {
             LeaveRequestStateMachine::CANCEL,
             LeaveRequestStateMachine::REVISE_FOR_HR,
             LeaveRequestStateMachine::EDIT_PENDING,
+            LeaveRequestStateMachine::UPLOAD_EVIDENCE,
         );
 
         expect($machine->getAllowedActions(LeaveRequest::STATUS_APPROVED))->toContain(
             LeaveRequestStateMachine::CANCEL,
+            LeaveRequestStateMachine::UPLOAD_EVIDENCE,
             'EDIT_APPROVED_DATE',
             LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
         );

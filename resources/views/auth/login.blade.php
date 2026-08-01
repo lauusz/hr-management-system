@@ -11,8 +11,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="HRD System">
 
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+  <link rel="manifest" href="{{ request()->getBaseUrl() }}/manifest.json">
+  <link rel="apple-touch-icon" href="{{ request()->getBaseUrl() }}/images/icons/icon-192x192.png">
 
   <title>Masuk - HRD Triguna Samudratrans</title>
   <link rel="icon" href="{{ asset('images/logo-triguna-clean.png') }}" type="image/png">
@@ -1009,7 +1009,8 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js')
+        const basePath = @json(request()->getBaseUrl());
+        navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' })
           .then(function(registration) {
             console.log('SW registered:', registration.scope);
           })

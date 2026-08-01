@@ -487,8 +487,18 @@ class LeaveRequestController extends Controller
             return redirect()->back()->with('error', 'Anda tidak berhak mengunggah bukti untuk pengajuan ini.');
         }
 
-        if (! in_array($leave_request->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
+        $uploadableStatuses = [
+            LeaveRequest::PENDING_SUPERVISOR,
+            LeaveRequest::PENDING_HR,
+            LeaveRequest::STATUS_APPROVED,
+        ];
+
+        if (! in_array($leave_request->status, $uploadableStatuses, true)) {
             return back()->with('error', 'Pengajuan sudah diproses, bukti pendukung tidak dapat diunggah.');
+        }
+
+        if ($leave_request->status === LeaveRequest::STATUS_APPROVED && $leave_request->photo) {
+            return back()->with('error', 'Bukti pengajuan yang sudah disetujui hanya dapat diunggah satu kali.');
         }
 
         $validated = $request->validate([
@@ -500,17 +510,27 @@ class LeaveRequestController extends Controller
 
         $fullPath = $this->imageCompressor->compressAndStore($validated['photo'], 'photo', 'leave_photos', 'leave_');
 
-        $updated = $this->stateMachine->perform(
-            $leave_request,
-            LeaveRequestStateMachine::EDIT_PENDING,
-            function (LeaveRequest $lockedLeave) use ($fullPath) {
-                if ($lockedLeave->photo) {
-                    Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
-                }
+        try {
+            $updated = $this->stateMachine->perform(
+                $leave_request,
+                LeaveRequestStateMachine::UPLOAD_EVIDENCE,
+                function (LeaveRequest $lockedLeave) use ($fullPath) {
+                    if ($lockedLeave->status === LeaveRequest::STATUS_APPROVED && $lockedLeave->photo) {
+                        throw new \RuntimeException('Bukti pengajuan yang sudah disetujui hanya dapat diunggah satu kali.');
+                    }
 
-                return ['photo' => basename($fullPath)];
-            }
-        );
+                    if ($lockedLeave->photo) {
+                        Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
+                    }
+
+                    return ['photo' => basename($fullPath)];
+                }
+            );
+        } catch (\RuntimeException $exception) {
+            Storage::disk('public')->delete($fullPath);
+
+            return back()->with('error', $exception->getMessage());
+        }
 
         if (! $updated) {
             Storage::disk('public')->delete($fullPath);

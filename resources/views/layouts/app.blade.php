@@ -16,8 +16,9 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="HRD System">
 
-  <link rel="manifest" href="/hrd/manifest.json">
-  <link rel="apple-touch-icon" href="/hrd/images/icons/icon-192x192.png">
+  <link rel="manifest" href="{{ request()->getBaseUrl() }}/manifest.json">
+  <link rel="apple-touch-icon" href="{{ request()->getBaseUrl() }}/images/icons/icon-192x192.png">
+  <script type="module" src="{{ request()->getBaseUrl() }}/pwa-install.js"></script>
 
   <title>{{ $title ?? 'HRD System' }}</title>
 
@@ -62,7 +63,7 @@
       --danger: var(--error);
       --danger-light: #FEF2F2;
 
-      --sidebar-width: 264px;
+      --sidebar-width: clamp(224px, 17vw, 264px);
       --sidebar-bg: var(--white);
       --sidebar-header-height: 60px;
     }
@@ -634,7 +635,7 @@
     }
 
     /* --- RESPONSIVE --- */
-    @media (max-width: 1024px) {
+    @media (max-width: 1279px) {
       .sidebar {
         position: fixed;
         left: 0;
@@ -762,7 +763,7 @@
     }
 
     /* Desktop: rounded sidebar + collapse support */
-    @media (min-width: 1025px) {
+    @media (min-width: 1280px) {
       .sidebar {
         margin: 12px 0 12px 12px;
         height: calc(100dvh - 24px);
@@ -877,6 +878,77 @@
     @media (max-width: 480px) { .toast-container { top: 10px; right: 10px; left: 10px; } .toast { min-width: unset; max-width: unset; width: 100%; } }
 
     /* ================= TOAST END ================= */
+
+    .pwa-install-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(10, 61, 98, 0.68);
+      backdrop-filter: blur(3px);
+    }
+
+    .pwa-install-backdrop[hidden] {
+      display: none;
+    }
+
+    .pwa-install-dialog {
+      width: min(100%, 420px);
+      padding: 28px;
+      border-radius: 20px;
+      background: var(--white);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.28);
+      text-align: center;
+    }
+
+    .pwa-install-icon {
+      width: 72px;
+      height: 72px;
+      margin-bottom: 16px;
+      border-radius: 18px;
+    }
+
+    .pwa-install-title {
+      margin: 0 0 10px;
+      color: var(--text-primary);
+      font-size: 1.35rem;
+    }
+
+    .pwa-install-copy {
+      margin: 0 0 24px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .pwa-install-actions {
+      display: grid;
+      gap: 10px;
+    }
+
+    .pwa-install-button {
+      min-height: 44px;
+      border: 1px solid var(--primary);
+      border-radius: 12px;
+      padding: 10px 18px;
+      background: var(--primary);
+      color: var(--white);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .pwa-install-button--secondary {
+      background: var(--white);
+      color: var(--primary-dark);
+    }
+
+    .pwa-install-button:focus-visible {
+      outline: 3px solid rgba(212, 175, 55, 0.65);
+      outline-offset: 2px;
+    }
 
   </style>
 
@@ -1257,6 +1329,33 @@
     <p style="margin:0;">Apakah Anda yakin ingin mengakhiri sesi ini?</p>
   </x-modal>
 
+  <div
+    class="pwa-install-backdrop"
+    id="pwa-install-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="pwa-install-title"
+    aria-describedby="pwa-install-instructions"
+    data-offer="{{ session('offer_pwa_install') ? '1' : '0' }}"
+    hidden>
+    <div class="pwa-install-dialog">
+      <img
+        class="pwa-install-icon"
+        src="{{ request()->getBaseUrl() }}/images/icons/icon-192x192.png"
+        alt="">
+      <h2 class="pwa-install-title" id="pwa-install-title">Install HRD System</h2>
+      <p class="pwa-install-copy" id="pwa-install-instructions" data-pwa-instructions></p>
+      <div class="pwa-install-actions">
+        <button class="pwa-install-button" type="button" data-pwa-install aria-label="Install HRD System">
+          Install
+        </button>
+        <button class="pwa-install-button pwa-install-button--secondary" type="button" data-pwa-later>
+          Maybe Later
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const sidebar = document.getElementById('sidebar');
     const burger = document.getElementById('burger');
@@ -1479,7 +1578,8 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/hrd/sw.js')
+        const basePath = @json(request()->getBaseUrl());
+        navigator.serviceWorker.register(basePath + '/sw.js', { scope: basePath + '/' })
           .then(function(registration) {
             console.log('SW registered:', registration.scope);
           })

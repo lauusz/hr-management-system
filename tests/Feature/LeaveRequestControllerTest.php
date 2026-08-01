@@ -1166,10 +1166,12 @@ describe('LeaveRequestController', function () {
             $response->assertSessionHas('success');
         });
 
-        it('prevents upload photo to processed leave', function () {
+        it('allows owner to upload photo once to approved leave without evidence', function () {
+            Storage::fake('public');
             $user = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($user)->create([
                 'status' => LeaveRequest::STATUS_APPROVED,
+                'photo' => null,
             ]);
 
             actingAs($user, 'web');
@@ -1178,7 +1180,64 @@ describe('LeaveRequestController', function () {
                 'photo' => UploadedFile::fake()->image('bukti.jpg'),
             ]);
 
-            $response->assertSessionHas('error');
+            $response->assertSessionHas('success');
+            $leave->refresh();
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->photo)->not->toBeNull();
+        });
+
+        it('prevents owner from replacing evidence on approved leave', function () {
+            Storage::fake('public');
+            Storage::disk('public')->put('leave_photos/bukti-lama.jpg', 'old-evidence');
+
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'photo' => 'bukti-lama.jpg',
+            ]);
+
+            actingAs($user, 'web');
+
+            $response = $this->post(route('leave-requests.upload-photo', $leave->id), [
+                'photo' => UploadedFile::fake()->image('bukti-baru.jpg'),
+            ]);
+
+            $response->assertSessionHas('error', 'Bukti pengajuan yang sudah disetujui hanya dapat diunggah satu kali.');
+            $leave->refresh();
+            expect($leave->photo)->toBe('bukti-lama.jpg')
+                ->and(Storage::disk('public')->get('leave_photos/bukti-lama.jpg'))->toBe('old-evidence');
+        });
+
+        it('uses the project modal before one-time upload on approved leave', function () {
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'photo' => null,
+            ]);
+
+            actingAs($user, 'web');
+
+            $this->get(route('leave-requests.show', $leave))
+                ->assertOk()
+                ->assertSee('Pengajuan sudah disetujui. Bukti hanya dapat diunggah satu kali dan tidak dapat diganti setelah disimpan.')
+                ->assertSee('id="followupPhotoInput"', false)
+                ->assertSee('id="modal-upload-evidence"', false)
+                ->assertSee('form="followupUploadForm"', false)
+                ->assertDontSee('window.confirm');
+        });
+
+        it('hides upload form on approved leave that already has evidence', function () {
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'photo' => 'bukti.jpg',
+            ]);
+
+            actingAs($user, 'web');
+
+            $this->get(route('leave-requests.show', $leave))
+                ->assertOk()
+                ->assertDontSee('id="followupPhotoInput"', false);
         });
 
         it('prevents upload photo to cancelled BATAL leave', function () {

@@ -243,6 +243,7 @@ Route::middleware('auth')->group(function () {
 
         // [UBAH DISINI] MASTER ATTENDANCE (Hanya List)
         Route::get('/hr/attendances', [HRAttendanceController::class, 'index'])->name('hr.attendances.index');
+        Route::post('/hr/attendances/filter', [HRAttendanceController::class, 'filter'])->name('hr.attendances.filter');
 
         // [BARU] APPROVAL ATTENDANCE (Khusus Dinas Luar)
         Route::get('/hr/approval-attendance', [ApprovalAttendanceController::class, 'index'])->name('hr.approval_attendance.index');
