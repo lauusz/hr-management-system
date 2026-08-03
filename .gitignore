@@ -35,3 +35,4 @@ Thumbs.db
 .kimi/skills/superpowers-subagent-development/scripts/*.ps1
 
 settings.local.json
+/.worktrees
