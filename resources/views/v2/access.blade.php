@@ -19,7 +19,7 @@
             </a>
 
             @if(auth()->user()->canAccessOps())
-                <a class="access-card access-card-ops" href="{{ route('v2.ops.index') }}">
+                <a class="access-card access-card-ops" href="{{ route('v2.ops.catalog') }}">
                     <span class="access-kicker">Testing</span>
                     <strong>Kebutuhan Operasional</strong>
                     <small>Penyimpanan dan pengajuan kebutuhan operasional untuk divisi OPS.</small>

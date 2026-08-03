@@ -79,6 +79,65 @@ it('gives ops admins and atk admins full ops access', function () {
         ->and($atkAdmin->canManageOps())->toBeTrue();
 });
 
+it('shows only available ops items in the ops catalog', function () {
+    $user = createOpsUser();
+    createOpsTestItem(['module' => 'ATK', 'name' => 'Kertas ATK']);
+    createOpsTestItem(['module' => 'OPS', 'name' => 'Sarung Tangan OPS']);
+    createOpsTestItem([
+        'module' => 'OPS',
+        'name' => 'Barang OPS Terhapus',
+        'is_active' => false,
+        'deleted_at' => now(),
+    ]);
+
+    actingAs($user)
+        ->get('/v2/ops')
+        ->assertOk()
+        ->assertSee('Sarung Tangan OPS')
+        ->assertDontSee('Kertas ATK')
+        ->assertDontSee('Barang OPS Terhapus');
+});
+
+it('keeps the ops cart separate from the atk cart', function () {
+    $user = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS']);
+
+    actingAs($user)
+        ->post('/v2/ops/cart', ['atk_item_id' => $item->id, 'qty' => 2])
+        ->assertSessionHas('ops_cart.'.$item->id, 2)
+        ->assertSessionMissing('atk_cart');
+});
+
+it('submits an ops cart without reducing stock', function () {
+    $user = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS', 'stock_qty' => 8]);
+
+    actingAs($user)->withSession(['ops_cart' => [$item->id => 3]])
+        ->post('/v2/ops/cart/submit', ['notes' => 'Dipakai di lapangan'])
+        ->assertRedirect();
+
+    $opsRequest = AtkRequest::forModule('OPS')->sole();
+
+    expect($opsRequest->user_id)->toBe($user->id)
+        ->and($opsRequest->items()->sole()->qty)->toBe(3)
+        ->and($item->fresh()->stock_qty)->toBe(8);
+});
+
+it('shows only the authenticated users own ops requests', function () {
+    $user = createOpsUser();
+    $other = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS']);
+
+    $own = AtkRequest::createPending($user, collect([['item' => $item, 'qty' => 1]]), null, 'OPS');
+    $otherRequest = AtkRequest::createPending($other, collect([['item' => $item, 'qty' => 1]]), null, 'OPS');
+
+    actingAs($user)
+        ->get('/v2/ops/requests')
+        ->assertOk()
+        ->assertSee($own->request_number)
+        ->assertDontSee($otherRequest->request_number);
+});
+
 function createOpsTestItem(array $overrides = []): AtkItem
 {
     return AtkItem::create(array_merge([
@@ -93,4 +152,12 @@ function createOpsTestItem(array $overrides = []): AtkItem
         'min_request_qty' => 1,
         'is_active' => true,
     ], $overrides));
+}
+
+function createOpsUser(string $role = 'OPS'): User
+{
+    $user = User::factory()->create();
+    UserAccessRole::create(['user_id' => $user->id, 'role' => $role]);
+
+    return $user;
 }

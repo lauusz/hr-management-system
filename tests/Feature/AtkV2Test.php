@@ -32,14 +32,14 @@ it('shows the v2 access portal for authenticated users', function () {
         ->assertSee('HRD System')
         ->assertSee('Kebutuhan Kantor')
         ->assertSee('Kebutuhan Operasional')
-        ->assertSee('href="'.route('v2.ops.index').'"', false)
+        ->assertSee('href="'.route('v2.ops.catalog').'"', false)
         ->assertSee('<span class="access-kicker">Testing</span>', false)
         ->assertDontSee('V2 Testing');
 
     expect(substr_count($response->getContent(), '<span class="access-kicker">Existing</span>'))->toBe(2);
 });
 
-it('shows the ops placeholder page for authenticated users', function () {
+it('shows the ops catalog page for authenticated users with ops access', function () {
     $user = User::factory()->create();
     UserAccessRole::create(['user_id' => $user->id, 'role' => 'OPS']);
 
@@ -47,7 +47,7 @@ it('shows the ops placeholder page for authenticated users', function () {
         ->get('/v2/ops')
         ->assertOk()
         ->assertSee('Kebutuhan Operasional')
-        ->assertSee('Halaman sedang disiapkan')
+        ->assertSee('Katalog')
         ->assertSee(route('v2.access'));
 });
 

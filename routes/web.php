@@ -35,6 +35,9 @@ use App\Http\Controllers\HrLoanRequestController;
 use App\Http\Controllers\HrOvertimeController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\OvertimeRequestController;
+use App\Http\Controllers\Ops\CartController as OpsCartController;
+use App\Http\Controllers\Ops\CatalogController as OpsCatalogController;
+use App\Http\Controllers\Ops\RequestController as OpsRequestController;
 use App\Http\Controllers\PtController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SupervisorDataController;
@@ -53,7 +56,14 @@ Route::middleware('auth')->group(function () {
     Route::prefix('v2')->name('v2.')->group(function () {
         Route::get('/access', V2AccessController::class)->name('access');
         Route::middleware('ops.access')->prefix('ops')->name('ops.')->group(function () {
-            Route::view('/', 'v2.ops.index')->name('index');
+            Route::get('/', [OpsCatalogController::class, 'index'])->name('catalog');
+            Route::post('/cart', [OpsCatalogController::class, 'addToCart'])->name('cart.add');
+            Route::get('/cart', [OpsCartController::class, 'show'])->name('cart.show');
+            Route::put('/cart/{item}', [OpsCartController::class, 'update'])->name('cart.update');
+            Route::delete('/cart/{item}', [OpsCartController::class, 'remove'])->name('cart.remove');
+            Route::post('/cart/submit', [OpsCartController::class, 'store'])->name('cart.submit');
+            Route::get('/requests', [OpsRequestController::class, 'index'])->name('requests.index');
+            Route::get('/requests/{atkRequest}', [OpsRequestController::class, 'show'])->name('requests.show');
         });
 
         Route::prefix('atk')->name('atk.')->group(function () {
