@@ -21,8 +21,6 @@
     <div class="ops-actions ops-admin-back-actions">
         <a class="ops-btn ops-btn-soft" href="{{ route('v2.ops.admin.requests.index') }}">Kembali ke Daftar</a>
     </div>
-    <div class="ops-alert ops-alert-warning ops-admin-review-help">Periksa setiap barang, lalu selesaikan review.</div>
-
     @if($atkRequest->notes)
         <div class="ops-card ops-admin-note"><strong>Catatan Pengaju</strong><p>{{ $atkRequest->notes }}</p></div>
     @endif
