@@ -30,16 +30,6 @@
                             <div class="ops-actions">
                                 <a class="ops-btn ops-btn-soft" href="{{ route('v2.ops.admin.items.edit', $item) }}">Ubah</a>
                                 <details class="ops-admin-item-detail">
-                                    <summary class="ops-btn ops-btn-soft">Kurangi Stok</summary>
-                                    <form method="POST" action="{{ route('v2.ops.admin.items.stock.store', $item) }}" class="ops-admin-item-form">
-                                        @csrf
-                                        <input type="hidden" name="movement_type" value="OUT">
-                                        <input class="ops-input" type="number" name="qty" min="1" max="{{ $item->stock_qty }}" placeholder="Jumlah" required>
-                                        <input class="ops-input" name="notes" placeholder="Keterangan (opsional)">
-                                        <button class="ops-btn ops-btn-primary" type="submit">Kurangi</button>
-                                    </form>
-                                </details>
-                                <details class="ops-admin-item-detail">
                                     <summary class="ops-btn ops-btn-danger">Hapus</summary>
                                     <form method="POST" action="{{ route('v2.ops.admin.items.destroy', $item) }}" class="ops-admin-item-form">
                                         @csrf
@@ -97,7 +87,6 @@
             .ops-admin-item-actions::before { display:block; margin:4px 0 8px; }
             .ops-admin-item-actions>.ops-actions { display:grid; grid-template-columns:1fr 1fr; width:100%; }
             .ops-admin-item-actions .ops-btn { width:100%; }
-            .ops-admin-item-actions>.ops-actions>a:first-child { grid-column:1 / -1; }
             .ops-admin-item-detail,.ops-admin-item-form { min-width:0; width:100%; }
             .ops-admin-item-detail[open] { grid-column:1 / -1; }
             .ops-admin-items-empty { display:block; padding:18px; border:1px solid var(--ops-border); border-radius:14px; background:#fff; text-align:center; }

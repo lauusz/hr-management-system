@@ -84,7 +84,31 @@ class ItemController extends Controller
         }
         unset($validated['image']);
         $validated['is_active'] = $request->boolean('is_active');
-        $item->update($validated);
+        $stockAfter = isset($validated['stock_qty']) ? (int) $validated['stock_qty'] : null;
+        unset($validated['stock_qty']);
+
+        DB::transaction(function () use ($item, $validated, $stockAfter, $request): void {
+            $lockedItem = AtkItem::query()->lockForUpdate()->findOrFail($item->id);
+            $this->ensureOpsItem($lockedItem);
+            $stockBefore = $lockedItem->stock_qty;
+
+            if ($stockAfter !== null) {
+                $validated['stock_qty'] = $stockAfter;
+            }
+            $lockedItem->update($validated);
+
+            if ($stockAfter !== null && $stockAfter !== $stockBefore) {
+                AtkStockMovement::create([
+                    'atk_item_id' => $lockedItem->id,
+                    'movement_type' => $stockAfter > $stockBefore ? AtkStockMovement::TYPE_IN : AtkStockMovement::TYPE_OUT,
+                    'qty' => abs($stockAfter - $stockBefore),
+                    'stock_before' => $stockBefore,
+                    'stock_after' => $stockAfter,
+                    'notes' => 'Penyesuaian melalui ubah barang',
+                    'created_by' => $request->user()->id,
+                ]);
+            }
+        });
 
         return redirect()->route('v2.ops.admin.items.index')->with('success', 'Barang berhasil diperbarui.');
     }

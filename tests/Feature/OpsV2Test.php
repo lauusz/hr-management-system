@@ -241,7 +241,7 @@ it('keeps the ops item photo when editing without a new upload and renders form 
     actingAs($admin)->get('/v2/ops')->assertOk()->assertSee('Tanpa foto');
 });
 
-it('renders the ops master items as an atk-style responsive table without unit and restock columns', function () {
+it('renders the ops master items as an atk-style responsive table with edit and delete actions only', function () {
     $admin = createOpsUser('ADMIN OPS');
     $item = createOpsTestItem(['module' => 'OPS', 'name' => 'Rompi Master OPS', 'stock_qty' => 7]);
 
@@ -255,9 +255,44 @@ it('renders the ops master items as an atk-style responsive table without unit a
         ->assertDontSee('<th>Satuan</th>', false)
         ->assertDontSee('<th>Tambah Stok</th>', false)
         ->assertDontSee('name="movement_type" value="IN"', false)
+        ->assertDontSee('name="movement_type" value="OUT"', false)
         ->assertSee(route('v2.ops.admin.items.edit', $item), false)
-        ->assertSee('Kurangi Stok')
+        ->assertDontSee('Kurangi Stok')
         ->assertSee('Hapus');
+});
+
+it('adjusts stock from the ops edit form and records the movement', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $item = createOpsTestItem(['module' => 'OPS', 'name' => 'Rompi Edit Stok', 'stock_qty' => 10]);
+
+    actingAs($admin)->get('/v2/ops/admin/items/'.$item->id.'/edit')
+        ->assertOk()
+        ->assertSee('name="stock_qty"', false)
+        ->assertSee('value="10"', false);
+
+    actingAs($admin)->put('/v2/ops/admin/items/'.$item->id, [
+        'name' => $item->name,
+        'unit_name' => $item->unit_name,
+        'stock_qty' => 6,
+        'is_active' => '1',
+    ])->assertRedirect('/v2/ops/admin/items');
+
+    expect($item->fresh()->stock_qty)->toBe(6);
+
+    $movement = AtkStockMovement::where('atk_item_id', $item->id)->sole();
+    expect($movement->movement_type)->toBe(AtkStockMovement::TYPE_OUT)
+        ->and($movement->qty)->toBe(4)
+        ->and($movement->stock_before)->toBe(10)
+        ->and($movement->stock_after)->toBe(6);
+
+    actingAs($admin)->put('/v2/ops/admin/items/'.$item->id, [
+        'name' => $item->name,
+        'unit_name' => $item->unit_name,
+        'stock_qty' => '6',
+        'is_active' => '1',
+    ])->assertRedirect('/v2/ops/admin/items');
+
+    expect(AtkStockMovement::where('atk_item_id', $item->id)->count())->toBe(1);
 });
 
 it('renders an atk-style green quantity stepper on ops catalog cards', function () {
