@@ -1,4 +1,12 @@
 @props(['title' => 'Kebutuhan Operasional'])
+@php
+    $opsPendingRequestCount = auth()->check() && auth()->user()->canManageOps()
+        ? \App\Models\AtkRequest::query()
+            ->forModule(\App\Models\AtkRequest::MODULE_OPS)
+            ->where('status', \App\Models\AtkRequest::STATUS_PENDING)
+            ->count()
+        : 0;
+@endphp
 <!doctype html>
 <html lang="id">
 <head>
@@ -25,6 +33,7 @@
         .ops-nav-title { margin:14px 10px 7px; color:#9CA3AF; font-size:10px; font-weight:800; text-transform:uppercase; }
         .ops-nav a { display:flex; align-items:center; gap:10px; min-height:44px; margin-bottom:4px; padding:10px 12px; border-radius:12px; color:var(--ops-muted); font-size:13px; font-weight:600; text-decoration:none; }
         .ops-nav a:hover,.ops-nav a.active { color:var(--ops-dark); background:var(--ops-soft); }
+        .ops-nav-badge { min-width:18px; margin-left:auto; padding:2px 7px; border-radius:999px; background:var(--ops-error); color:#fff; font-size:10px; font-weight:700; line-height:1.4; text-align:center; }
         .ops-icon-sprite { position:absolute; width:0; height:0; overflow:hidden; }
         .ops-nav-icon { width:18px; height:18px; flex:0 0 18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
         .ops-user { padding:12px; border-radius:14px; background:var(--ops-soft); font-size:12px; }
@@ -86,7 +95,13 @@
             <a class="{{ request()->routeIs('v2.ops.requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.requests.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-request"/></svg>Pengajuan Saya</a>
             @if(auth()->user()->canManageOps() && Route::has('v2.ops.admin.requests.index'))
                 <div class="ops-nav-title">Admin OPS</div>
-                <a class="{{ request()->routeIs('v2.ops.admin.requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.requests.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-inbox"/></svg>Request Masuk</a>
+                <a class="{{ request()->routeIs('v2.ops.admin.requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.requests.index') }}">
+                    <svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-inbox"/></svg>
+                    <span>Request Masuk</span>
+                    @if($opsPendingRequestCount > 0)
+                        <span class="ops-nav-badge">{{ $opsPendingRequestCount > 99 ? '99+' : $opsPendingRequestCount }}</span>
+                    @endif
+                </a>
                 @if(Route::has('v2.ops.admin.items.index'))<a class="{{ request()->routeIs('v2.ops.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.items.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-box"/></svg>Master Barang OPS</a>@endif
                 @if(Route::has('v2.ops.admin.stock-movements.index'))<a class="{{ request()->routeIs('v2.ops.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.stock-movements.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-stock"/></svg>Riwayat Stok</a>@endif
                 @if(Route::has('v2.ops.admin.access.index'))<a class="{{ request()->routeIs('v2.ops.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.access.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-access"/></svg>Akses</a>@endif

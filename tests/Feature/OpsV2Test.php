@@ -95,6 +95,23 @@ it('shows matching svg icons in the ops sidebar', function () {
         ->assertSee('href="#ops-icon-portal"', false);
 });
 
+it('shows the pending ops request count in the admin sidebar', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $requester = createOpsUser();
+    $opsItem = createOpsTestItem(['module' => 'OPS']);
+    $atkItem = createOpsTestItem(['module' => 'ATK']);
+
+    AtkRequest::createPending($requester, collect([['item' => $opsItem, 'qty' => 1]]), null, 'OPS');
+    AtkRequest::createPending($requester, collect([['item' => $opsItem, 'qty' => 1]]), null, 'OPS');
+    $approved = AtkRequest::createPending($requester, collect([['item' => $opsItem, 'qty' => 1]]), null, 'OPS');
+    $approved->update(['status' => AtkRequest::STATUS_APPROVED]);
+    AtkRequest::createPending($requester, collect([['item' => $atkItem, 'qty' => 1]]));
+
+    actingAs($admin)->get('/v2/ops')
+        ->assertOk()
+        ->assertSee('<span class="ops-nav-badge">2</span>', false);
+});
+
 it('rejects users without ops access from the ops module', function () {
     actingAs(User::factory()->create())
         ->get('/v2/ops')
