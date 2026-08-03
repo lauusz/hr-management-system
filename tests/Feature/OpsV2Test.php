@@ -202,6 +202,23 @@ it('shows only the authenticated users own ops requests', function () {
         ->assertDontSee($otherRequest->request_number);
 });
 
+it('renders and filters the ops request history with the atk responsive layout', function () {
+    $user = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS']);
+    $pending = AtkRequest::createPending($user, collect([['item' => $item, 'qty' => 1]]), null, 'OPS');
+    $approved = AtkRequest::createPending($user, collect([['item' => $item, 'qty' => 2]]), null, 'OPS');
+    $approved->update(['status' => AtkRequest::STATUS_APPROVED]);
+
+    actingAs($user)->get('/v2/ops/requests?status=APPROVED')
+        ->assertOk()
+        ->assertSee('ops-request-mobile-list', false)
+        ->assertSee('ops-request-desktop-table', false)
+        ->assertSee('name="status"', false)
+        ->assertSee('Disetujui')
+        ->assertSee($approved->request_number)
+        ->assertDontSee($pending->request_number);
+});
+
 it('creates an ops item with an opening stock movement', function () {
     $admin = createOpsUser('ADMIN OPS');
 
