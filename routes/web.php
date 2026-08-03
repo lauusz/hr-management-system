@@ -75,6 +75,7 @@ Route::middleware('auth')->group(function () {
                 Route::get('/requests/manual/create', [OpsAdminRequestApprovalController::class, 'createManual'])->name('requests.manual.create');
                 Route::post('/requests/manual', [OpsAdminRequestApprovalController::class, 'storeManual'])->name('requests.manual.store');
                 Route::get('/requests/{atkRequest}', [OpsAdminRequestApprovalController::class, 'show'])->name('requests.show');
+                Route::post('/requests/{atkRequest}/approve-all', [OpsAdminRequestApprovalController::class, 'approveAll'])->name('requests.approve-all');
                 Route::post('/requests/{atkRequest}/reject', [OpsAdminRequestApprovalController::class, 'reject'])->name('requests.reject');
                 Route::post('/requests/{atkRequest}/items/{requestItem}/review', [OpsAdminRequestApprovalController::class, 'reviewItem'])->name('requests.items.review');
                 Route::post('/requests/{atkRequest}/finalize', [OpsAdminRequestApprovalController::class, 'finalize'])->name('requests.finalize');

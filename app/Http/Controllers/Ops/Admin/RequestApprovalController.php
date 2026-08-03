@@ -160,6 +160,53 @@ class RequestApprovalController extends Controller
         return redirect()->route('v2.ops.admin.requests.show', $atkRequest)->with('success', 'Pengajuan ditolak.');
     }
 
+    public function approveAll(Request $request, AtkRequest $atkRequest)
+    {
+        $this->ensureOpsRequest($atkRequest);
+
+        if ($atkRequest->status !== AtkRequest::STATUS_PENDING) {
+            return back()->with('warning', 'Pengajuan sudah selesai.');
+        }
+
+        try {
+            DB::transaction(function () use ($request, $atkRequest): void {
+                $lockedRequest = AtkRequest::query()->forModule(AtkRequest::MODULE_OPS)
+                    ->whereKey($atkRequest->id)->lockForUpdate()->firstOrFail();
+
+                if ($lockedRequest->status !== AtkRequest::STATUS_PENDING) {
+                    throw new \RuntimeException('Pengajuan baru saja diselesaikan.');
+                }
+
+                $lockedRequest->load('items');
+                $required = $lockedRequest->items
+                    ->whereIn('status', [AtkRequestItem::STATUS_PENDING, AtkRequestItem::STATUS_APPROVED])
+                    ->groupBy('atk_item_id')
+                    ->map(fn ($rows) => $rows->sum('qty'));
+
+                foreach ($required as $itemId => $qty) {
+                    $item = AtkItem::query()->forModule(AtkItem::MODULE_OPS)->available()
+                        ->whereKey($itemId)->lockForUpdate()->first();
+
+                    if (! $item || $item->stock_qty < $qty) {
+                        throw new \RuntimeException('Ada barang dengan stok tidak cukup.');
+                    }
+                }
+
+                $lockedRequest->items()->where('status', AtkRequestItem::STATUS_PENDING)->update([
+                    'status' => AtkRequestItem::STATUS_APPROVED,
+                    'admin_note' => null,
+                    'reviewed_by' => $request->user()->id,
+                    'reviewed_at' => now(),
+                ]);
+            });
+        } catch (\RuntimeException $exception) {
+            return redirect()->route('v2.ops.admin.requests.show', $atkRequest)->with('warning', $exception->getMessage());
+        }
+
+        return redirect()->route('v2.ops.admin.requests.show', $atkRequest)
+            ->with('success', 'Semua barang disetujui. Selesaikan review untuk menyimpan.');
+    }
+
     public function finalize(Request $request, AtkRequest $atkRequest)
     {
         $this->ensureOpsRequest($atkRequest);

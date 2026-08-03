@@ -539,6 +539,7 @@ it('renders the atk-style ops review and lets the admin reject all items', funct
         ->assertSee('ops-admin-review-item', false)
         ->assertSee('data-label="Jumlah"', false)
         ->assertSee('data-label="Stok Saat Ini"', false)
+        ->assertSee('Setujui Semua')
         ->assertSee('Tolak Semua')
         ->assertSee('Selesaikan Review');
 
@@ -550,6 +551,44 @@ it('renders the atk-style ops review and lets the admin reject all items', funct
     expect($freshRequest->status)->toBe(AtkRequest::STATUS_REJECTED)
         ->and($freshRequest->admin_note)->toBe('Tidak digunakan.')
         ->and($opsRequest->items()->sole()->status)->toBe(AtkRequestItem::STATUS_REJECTED);
+});
+
+it('marks all ops request items approved without finalizing or reducing stock', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $requester = createOpsUser();
+    $firstItem = createOpsTestItem(['module' => 'OPS', 'stock_qty' => 5]);
+    $secondItem = createOpsTestItem(['module' => 'OPS', 'stock_qty' => 4]);
+    $opsRequest = AtkRequest::createPending($requester, collect([
+        ['item' => $firstItem, 'qty' => 2],
+        ['item' => $secondItem, 'qty' => 1],
+    ]), null, 'OPS');
+
+    actingAs($admin)
+        ->post('/v2/ops/admin/requests/'.$opsRequest->id.'/approve-all')
+        ->assertRedirect('/v2/ops/admin/requests/'.$opsRequest->id);
+
+    expect($opsRequest->fresh()->status)->toBe(AtkRequest::STATUS_PENDING)
+        ->and($opsRequest->items()->pluck('status')->unique()->all())->toBe([AtkRequestItem::STATUS_APPROVED])
+        ->and($opsRequest->items()->pluck('reviewed_by')->unique()->all())->toBe([$admin->id])
+        ->and($firstItem->fresh()->stock_qty)->toBe(5)
+        ->and($secondItem->fresh()->stock_qty)->toBe(4);
+});
+
+it('keeps all ops request items pending when bulk approval stock is insufficient', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $requester = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS', 'stock_qty' => 1]);
+    $opsRequest = AtkRequest::createPending($requester, collect([
+        ['item' => $item, 'qty' => 2],
+    ]), null, 'OPS');
+
+    actingAs($admin)
+        ->post('/v2/ops/admin/requests/'.$opsRequest->id.'/approve-all')
+        ->assertRedirect('/v2/ops/admin/requests/'.$opsRequest->id)
+        ->assertSessionHas('warning');
+
+    expect($opsRequest->items()->sole()->status)->toBe(AtkRequestItem::STATUS_PENDING)
+        ->and($item->fresh()->stock_qty)->toBe(1);
 });
 
 it('finalizes a partial ops approval once and reduces only approved stock', function () {

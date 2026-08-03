@@ -2,8 +2,6 @@
     $statusLabels = ['PENDING'=>'Menunggu','APPROVED'=>'Disetujui','REJECTED'=>'Ditolak','PARTIAL'=>'Sebagian'];
     $itemStatusLabels = ['PENDING'=>'Menunggu review','APPROVED'=>'Disetujui','REJECTED'=>'Tidak diproses'];
     $pendingCount = $atkRequest->items->where('status', 'PENDING')->count();
-    $approvedCount = $atkRequest->items->where('status', 'APPROVED')->count();
-    $rejectedCount = $atkRequest->items->where('status', 'REJECTED')->count();
     $insufficientApprovedCount = $atkRequest->items
         ->filter(fn ($item) => ($item->status ?? 'PENDING') === 'APPROVED' && (($item->item?->stock_qty ?? 0) < $item->qty))
         ->count();
@@ -19,7 +17,7 @@
     </div>
 
     <div class="ops-actions ops-admin-back-actions">
-        <a class="ops-btn ops-btn-soft" href="{{ route('v2.ops.admin.requests.index') }}">Kembali ke Daftar</a>
+        <a class="ops-btn ops-btn-soft ops-btn-sm" href="{{ route('v2.ops.admin.requests.index') }}">Kembali</a>
     </div>
     @if($atkRequest->notes)
         <div class="ops-card ops-admin-note"><strong>Catatan Pengaju</strong><p>{{ $atkRequest->notes }}</p></div>
@@ -80,14 +78,12 @@
             </table>
         </div>
 
-        <div class="ops-review-summary">
-            <span><small>Menunggu</small><b class="ops-badge ops-item-status-pending">{{ $pendingCount }}</b></span>
-            <span><small>Disetujui</small><b class="ops-badge ops-item-status-approved">{{ $approvedCount }}</b></span>
-            <span><small>Tidak diproses</small><b class="ops-badge ops-item-status-rejected">{{ $rejectedCount }}</b></span>
-        </div>
-
         @if($isPending)
             <div class="ops-actions ops-admin-final-actions">
+                <form method="POST" action="{{ route('v2.ops.admin.requests.approve-all', $atkRequest) }}">
+                    @csrf
+                    <button class="ops-btn ops-btn-soft" type="submit" @disabled($pendingCount === 0)>Setujui Semua</button>
+                </form>
                 <form method="POST" action="{{ route('v2.ops.admin.requests.reject', $atkRequest) }}" class="ops-admin-reject-all-form">
                     @csrf
                     <input class="ops-input" name="admin_note" placeholder="Alasan tolak semua (wajib)" required maxlength="1000">
@@ -128,16 +124,12 @@
         .ops-inline-warning { margin-top:6px; color:#B45309; font-size:11px; font-weight:700; }
         .ops-review-note { display:grid; gap:2px; min-width:160px; }
         .ops-review-note span { color:var(--ops-muted); font-size:11px; }
-        .ops-review-summary { display:flex; flex-wrap:wrap; gap:16px; margin-top:12px; padding-top:12px; border-top:1px solid var(--ops-border); }
-        .ops-review-summary span { display:inline-flex; align-items:center; gap:6px; }
-        .ops-review-summary small { color:var(--ops-muted); font-weight:700; }
         .ops-admin-final-actions { justify-content:flex-end; margin-top:14px; }
         .ops-admin-reject-all-form .ops-input { width:240px; }
         .ops-finalize-hint { margin:8px 0 0; color:var(--ops-muted); font-size:11px; text-align:right; }
         @media (max-width:639px) {
-            .ops-admin-review-header,.ops-admin-review-panel { padding:14px; border:1px solid var(--ops-border); border-radius:16px; background:#fff; }
+            .ops-admin-review-panel { padding:14px; border:1px solid var(--ops-border); border-radius:16px; background:#fff; }
             .ops-admin-review-header { align-items:flex-start; }
-            .ops-admin-back-actions,.ops-admin-back-actions .ops-btn { width:100%; }
             .ops-admin-review-table-wrap { overflow:visible; border:0; }
             .ops-admin-review-table { display:block; min-width:0; }
             .ops-admin-review-table thead { display:none; }
@@ -150,8 +142,6 @@
             .ops-admin-review-item td:first-child::before,.ops-admin-review-item td:last-child::before { display:block; margin-bottom:6px; }
             .ops-item-actions,.ops-item-reject-form { flex-direction:column; align-items:stretch; width:100%; }
             .ops-item-actions form,.ops-item-actions .ops-btn,.ops-item-note-input { width:100%; }
-            .ops-review-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
-            .ops-review-summary span { flex-direction:column; padding:8px 4px; border-radius:10px; background:var(--ops-soft); text-align:center; }
             .ops-admin-final-actions,.ops-admin-final-actions form,.ops-admin-final-actions .ops-input,.ops-admin-final-actions .ops-btn { width:100%; }
             .ops-admin-reject-all-form { display:grid; }
             .ops-finalize-hint { text-align:left; }
