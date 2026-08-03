@@ -6,6 +6,8 @@ use App\Models\AtkNeedRequest;
 use App\Models\AtkRequest;
 use App\Models\AtkRequestItem;
 use App\Models\AtkStockMovement;
+use App\Models\Division;
+use App\Models\OpsAccessDivision;
 use App\Models\Pt;
 use App\Models\User;
 use App\Models\UserAccessRole;
@@ -80,8 +82,9 @@ it('shows the v2 access portal for authenticated users', function () {
 });
 
 it('shows the ops catalog page for authenticated users with ops access', function () {
-    $user = User::factory()->create();
-    UserAccessRole::create(['user_id' => $user->id, 'role' => 'OPS']);
+    $division = Division::factory()->create();
+    $user = User::factory()->create(['division_id' => $division->id]);
+    OpsAccessDivision::create(['division_id' => $division->id]);
 
     actingAs($user)
         ->get('/v2/ops')

@@ -4,14 +4,21 @@ namespace App\Http\Controllers\Ops\Admin;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\Division;
+use App\Models\OpsAccessDivision;
 use App\Models\User;
 use App\Models\UserAccessRole;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AccessController extends Controller
 {
     public function index(Request $request)
     {
+        $divisions = Division::withCount([
+            'users as active_users_count' => fn ($query) => $query->active(),
+        ])->orderBy('name')->get();
+        $selectedDivisionIds = OpsAccessDivision::pluck('division_id')->all();
         $users = User::with(['accessRoles', 'pt'])
             ->when($request->filled('q'), function ($query) use ($request): void {
                 $keyword = '%'.$request->string('q')->toString().'%';
@@ -26,14 +33,33 @@ class AccessController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('ops.admin.access.index', compact('users'));
+        return view('ops.admin.access.index', compact('divisions', 'selectedDivisionIds', 'users'));
     }
 
-    public function grantUser(User $user)
+    public function syncDivisions(Request $request)
     {
-        $this->grant($user, UserRole::OPS);
+        $validated = $request->validate([
+            'division_ids' => ['sometimes', 'array'],
+            'division_ids.*' => ['integer', 'distinct', 'exists:divisions,id'],
+        ]);
+        $divisionIds = array_map('intval', $validated['division_ids'] ?? []);
 
-        return $this->back('Akses OPS berhasil diberikan.');
+        DB::transaction(function () use ($divisionIds, $request): void {
+            if ($divisionIds === []) {
+                OpsAccessDivision::query()->delete();
+            } else {
+                OpsAccessDivision::whereNotIn('division_id', $divisionIds)->delete();
+            }
+
+            foreach ($divisionIds as $divisionId) {
+                OpsAccessDivision::firstOrCreate(
+                    ['division_id' => $divisionId],
+                    ['created_by' => $request->user()->id],
+                );
+            }
+        });
+
+        return $this->back('Akses pengguna OPS berhasil disimpan.');
     }
 
     public function grantAdmin(User $user)
@@ -41,13 +67,6 @@ class AccessController extends Controller
         $this->grant($user, UserRole::ADMIN_OPS);
 
         return $this->back('Akses Admin OPS berhasil diberikan.');
-    }
-
-    public function revokeUser(User $user)
-    {
-        $this->revoke($user, UserRole::OPS);
-
-        return $this->back('Akses OPS berhasil dicabut.');
     }
 
     public function revokeAdmin(Request $request, User $user)

@@ -84,9 +84,8 @@ Route::middleware('auth')->group(function () {
                 Route::post('/items/{item}/stock', [OpsAdminStockController::class, 'store'])->name('items.stock.store');
                 Route::get('/stock-movements', [OpsAdminStockMovementController::class, 'index'])->name('stock-movements.index');
                 Route::get('/access', [OpsAdminAccessController::class, 'index'])->name('access.index');
-                Route::post('/access/{user}/grant-user', [OpsAdminAccessController::class, 'grantUser'])->name('access.grant-user');
+                Route::post('/access/divisions', [OpsAdminAccessController::class, 'syncDivisions'])->name('access.divisions.sync');
                 Route::post('/access/{user}/grant-admin', [OpsAdminAccessController::class, 'grantAdmin'])->name('access.grant-admin');
-                Route::delete('/access/{user}/revoke-user', [OpsAdminAccessController::class, 'revokeUser'])->name('access.revoke-user');
                 Route::delete('/access/{user}/revoke-admin', [OpsAdminAccessController::class, 'revokeAdmin'])->name('access.revoke-admin');
             });
         });

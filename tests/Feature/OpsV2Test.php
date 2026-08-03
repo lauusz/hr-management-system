@@ -325,19 +325,43 @@ it('shows only ops item movements in ops stock history', function () {
         ->assertDontSee('Stok ATK');
 });
 
-it('lets ops admins manage ops access without revoking themselves', function () {
+it('shows bulk division access instead of per-user access buttons', function () {
     $admin = createOpsUser('ADMIN OPS');
-    $user = User::factory()->create();
+    $division = Division::factory()->create(['name' => 'OPS Lapangan']);
+    User::factory()->count(2)->create(['division_id' => $division->id, 'status' => User::STATUS_ACTIVE]);
+    User::factory()->create(['division_id' => $division->id, 'status' => 'INACTIVE']);
+    OpsAccessDivision::create(['division_id' => $division->id, 'created_by' => $admin->id]);
 
-    actingAs($admin)->post('/v2/ops/admin/access/'.$user->id.'/grant-user')->assertRedirect();
-    expect($user->fresh()->hasAccessRole('OPS'))->toBeTrue();
+    actingAs($admin)->get('/v2/ops/admin/access')
+        ->assertOk()
+        ->assertSee('OPS Lapangan')
+        ->assertSee('2 pengguna aktif')
+        ->assertSee('name="division_ids[]"', false)
+        ->assertSee('value="'.$division->id.'"', false)
+        ->assertSee('Simpan Akses Pengguna')
+        ->assertDontSee('Jadikan Pengguna')
+        ->assertDontSee('Cabut Pengguna');
+});
 
-    actingAs($admin)->post('/v2/ops/admin/access/'.$user->id.'/grant-admin')->assertRedirect();
-    actingAs($admin)->delete('/v2/ops/admin/access/'.$user->id.'/revoke-user')->assertRedirect();
+it('syncs bulk division access while keeping ops admins managed per user', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $oldDivision = Division::factory()->create();
+    $newDivision = Division::factory()->create();
+    $oldUser = User::factory()->create(['division_id' => $oldDivision->id]);
+    $newUser = User::factory()->create(['division_id' => $newDivision->id]);
+    $newAdmin = User::factory()->create();
+    OpsAccessDivision::create(['division_id' => $oldDivision->id, 'created_by' => $admin->id]);
 
-    expect($user->fresh()->hasAccessRole('OPS'))->toBeFalse()
-        ->and($user->fresh()->canAccessOps())->toBeTrue()
-        ->and($user->fresh()->canManageOps())->toBeTrue();
+    actingAs($admin)->post('/v2/ops/admin/access/divisions', [
+        'division_ids' => [$newDivision->id],
+    ])->assertRedirect('/v2/ops/admin/access');
+
+    expect(OpsAccessDivision::pluck('division_id')->all())->toBe([$newDivision->id])
+        ->and($oldUser->canAccessOps())->toBeFalse()
+        ->and($newUser->canAccessOps())->toBeTrue();
+
+    actingAs($admin)->post('/v2/ops/admin/access/'.$newAdmin->id.'/grant-admin')->assertRedirect();
+    expect($newAdmin->fresh()->canManageOps())->toBeTrue();
 
     actingAs($admin)->delete('/v2/ops/admin/access/'.$admin->id.'/revoke-admin')
         ->assertSessionHas('warning');
