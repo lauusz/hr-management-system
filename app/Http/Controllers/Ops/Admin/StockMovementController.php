@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Ops\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AtkItem;
+use App\Models\AtkRequest;
 use App\Models\AtkStockMovement;
 use Illuminate\Http\Request;
 
@@ -13,20 +14,21 @@ class StockMovementController extends Controller
     {
         $movements = AtkStockMovement::with(['item', 'createdBy'])
             ->whereHas('item', fn ($query) => $query->forModule(AtkItem::MODULE_OPS))
-            ->when($request->filled('q'), function ($query) use ($request): void {
-                $keyword = '%'.$request->string('q')->toString().'%';
-                $query->whereHas('item', fn ($query) => $query->where('name', 'like', $keyword));
-            })
-            ->when($request->filled('month'), function ($query) use ($request): void {
-                [$year, $month] = array_pad(explode('-', $request->string('month')->toString(), 2), 2, null);
-                if (ctype_digit((string) $year) && ctype_digit((string) $month) && (int) $month >= 1 && (int) $month <= 12) {
-                    $query->whereYear('created_at', (int) $year)->whereMonth('created_at', (int) $month);
-                }
-            })
+            ->when($request->filled('item_id'), fn ($query) => $query->where('atk_item_id', $request->integer('item_id')))
+            ->when($request->filled('movement_type'), fn ($query) => $query->where('movement_type', $request->string('movement_type')))
             ->latest()
             ->paginate(20)
             ->withQueryString();
+        $requestSources = AtkRequest::forModule(AtkRequest::MODULE_OPS)->whereIn(
+            'id',
+            $movements->getCollection()
+                ->where('source_type', AtkStockMovement::SOURCE_REQUEST)
+                ->pluck('source_id')
+                ->filter()
+                ->unique()
+        )->get(['id', 'pt_name_snapshot', 'user_name_snapshot'])->keyBy('id');
+        $items = AtkItem::forModule(AtkItem::MODULE_OPS)->orderBy('name')->get();
 
-        return view('ops.admin.stock_movements.index', compact('movements'));
+        return view('ops.admin.stock_movements.index', compact('items', 'movements', 'requestSources'));
     }
 }

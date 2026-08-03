@@ -421,30 +421,59 @@ it('lets atk admins process ops approvals from the ops module', function () {
         ->assertSee($opsRequest->request_number);
 });
 
-it('shows only ops item movements in ops stock history', function () {
+it('renders ops stock history with the same responsive table structure as atk', function () {
     $admin = createOpsUser('ADMIN OPS');
+    $admin->update(['name' => 'Admin Riwayat OPS']);
+    $requester = User::factory()->create(['name' => 'Pengambil OPS']);
     $opsItem = createOpsTestItem(['module' => 'OPS', 'name' => 'Sepatu Safety']);
     $atkItem = createOpsTestItem(['module' => 'ATK', 'name' => 'Pulpen ATK']);
+    $opsRequest = AtkRequest::create([
+        'module' => 'OPS',
+        'request_number' => 'OPS-STOCK-HISTORY',
+        'user_id' => $requester->id,
+        'user_name_snapshot' => $requester->name,
+        'pt_name_snapshot' => 'TRIGUNA',
+        'status' => AtkRequest::STATUS_APPROVED,
+    ]);
 
-    foreach ([[$opsItem, 'Stok OPS'], [$atkItem, 'Stok ATK']] as [$item, $notes]) {
-        AtkStockMovement::create([
-            'atk_item_id' => $item->id,
-            'movement_type' => 'IN',
-            'qty' => 5,
-            'stock_before' => 0,
-            'stock_after' => 5,
-            'notes' => $notes,
-            'created_by' => $admin->id,
-        ]);
-    }
+    AtkStockMovement::create([
+        'atk_item_id' => $opsItem->id,
+        'movement_type' => 'OUT',
+        'qty' => 2,
+        'stock_before' => 7,
+        'stock_after' => 5,
+        'source_type' => AtkStockMovement::SOURCE_REQUEST,
+        'source_id' => $opsRequest->id,
+        'created_by' => $admin->id,
+    ]);
+    AtkStockMovement::create([
+        'atk_item_id' => $atkItem->id,
+        'movement_type' => 'IN',
+        'qty' => 5,
+        'stock_before' => 0,
+        'stock_after' => 5,
+        'created_by' => $admin->id,
+    ]);
 
     actingAs($admin)
-        ->get('/v2/ops/admin/stock-movements?q=Sepatu')
+        ->get('/v2/ops/admin/stock-movements?item_id='.$opsItem->id.'&movement_type=OUT')
         ->assertOk()
+        ->assertSee('name="item_id"', false)
+        ->assertSee('name="movement_type"', false)
+        ->assertSee('ops-stock-movements-mobile-table', false)
+        ->assertSee('ops-stock-movement-card', false)
+        ->assertSee('data-label="PT"', false)
+        ->assertSee('data-label="Nama Pengambil"', false)
+        ->assertSee('data-label="Diproses Oleh"', false)
+        ->assertSee('data-label="Perubahan Stok"', false)
         ->assertSee('Sepatu Safety')
-        ->assertSee('Stok OPS')
-        ->assertDontSee('Pulpen ATK')
-        ->assertDontSee('Stok ATK');
+        ->assertSee('Keluar')
+        ->assertSee('2 pcs')
+        ->assertSee('TRIGUNA')
+        ->assertSee('Pengambil OPS')
+        ->assertSee('Admin Riwayat OPS')
+        ->assertSee('7 → 5')
+        ->assertDontSee('Pulpen ATK');
 });
 
 it('shows bulk division access instead of per-user access buttons', function () {
