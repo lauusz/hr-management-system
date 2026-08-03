@@ -2,6 +2,7 @@
 
 use App\Models\AtkItem;
 use App\Models\AtkRequest;
+use App\Models\AtkStockMovement;
 use App\Models\User;
 use App\Models\UserAccessRole;
 use Tests\Support\InstallsOpsSchema;
@@ -136,6 +137,73 @@ it('shows only the authenticated users own ops requests', function () {
         ->assertOk()
         ->assertSee($own->request_number)
         ->assertDontSee($otherRequest->request_number);
+});
+
+it('creates an ops item with an opening stock movement', function () {
+    $admin = createOpsUser('ADMIN OPS');
+
+    actingAs($admin)
+        ->post('/v2/ops/admin/items', [
+            'name' => 'Helm Proyek',
+            'unit_name' => 'pcs',
+            'stock_qty' => 12,
+            'description' => 'Untuk kunjungan lapangan',
+        ])
+        ->assertRedirect('/v2/ops/admin/items');
+
+    $item = AtkItem::forModule('OPS')->where('name', 'Helm Proyek')->sole();
+    $movement = AtkStockMovement::where('atk_item_id', $item->id)->sole();
+
+    expect($item->stock_qty)->toBe(12)
+        ->and($movement->movement_type)->toBe(AtkStockMovement::TYPE_IN)
+        ->and($movement->stock_before)->toBe(0)
+        ->and($movement->stock_after)->toBe(12);
+});
+
+it('adds and subtracts ops stock without allowing negative stock', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $item = createOpsTestItem(['module' => 'OPS', 'stock_qty' => 10]);
+
+    actingAs($admin)->post('/v2/ops/admin/items/'.$item->id.'/stock', [
+        'movement_type' => 'IN',
+        'qty' => 5,
+    ])->assertRedirect();
+
+    actingAs($admin)->post('/v2/ops/admin/items/'.$item->id.'/stock', [
+        'movement_type' => 'OUT',
+        'qty' => 4,
+    ])->assertRedirect();
+
+    expect($item->fresh()->stock_qty)->toBe(11);
+
+    actingAs($admin)->post('/v2/ops/admin/items/'.$item->id.'/stock', [
+        'movement_type' => 'OUT',
+        'qty' => 20,
+    ])->assertSessionHas('warning');
+
+    expect($item->fresh()->stock_qty)->toBe(11)
+        ->and(AtkStockMovement::where('atk_item_id', $item->id)->count())->toBe(2);
+});
+
+it('soft deletes ops items with a required reason', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $item = createOpsTestItem(['module' => 'OPS']);
+
+    actingAs($admin)
+        ->delete('/v2/ops/admin/items/'.$item->id, [])
+        ->assertSessionHasErrors('deletion_note');
+
+    actingAs($admin)
+        ->delete('/v2/ops/admin/items/'.$item->id, ['deletion_note' => 'Barang tidak digunakan lagi'])
+        ->assertRedirect('/v2/ops/admin/items');
+
+    $item->refresh();
+
+    expect(AtkItem::whereKey($item->id)->exists())->toBeTrue()
+        ->and($item->is_active)->toBeFalse()
+        ->and($item->deleted_at)->not->toBeNull()
+        ->and($item->deleted_by)->toBe($admin->id)
+        ->and($item->deletion_note)->toBe('Barang tidak digunakan lagi');
 });
 
 function createOpsTestItem(array $overrides = []): AtkItem

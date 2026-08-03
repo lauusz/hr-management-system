@@ -38,6 +38,8 @@ use App\Http\Controllers\OvertimeRequestController;
 use App\Http\Controllers\Ops\CartController as OpsCartController;
 use App\Http\Controllers\Ops\CatalogController as OpsCatalogController;
 use App\Http\Controllers\Ops\RequestController as OpsRequestController;
+use App\Http\Controllers\Ops\Admin\ItemController as OpsAdminItemController;
+use App\Http\Controllers\Ops\Admin\StockController as OpsAdminStockController;
 use App\Http\Controllers\PtController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SupervisorDataController;
@@ -64,6 +66,16 @@ Route::middleware('auth')->group(function () {
             Route::post('/cart/submit', [OpsCartController::class, 'store'])->name('cart.submit');
             Route::get('/requests', [OpsRequestController::class, 'index'])->name('requests.index');
             Route::get('/requests/{atkRequest}', [OpsRequestController::class, 'show'])->name('requests.show');
+
+            Route::middleware('ops.admin')->prefix('admin')->name('admin.')->group(function () {
+                Route::get('/items', [OpsAdminItemController::class, 'index'])->name('items.index');
+                Route::get('/items/create', [OpsAdminItemController::class, 'create'])->name('items.create');
+                Route::post('/items', [OpsAdminItemController::class, 'store'])->name('items.store');
+                Route::get('/items/{item}/edit', [OpsAdminItemController::class, 'edit'])->name('items.edit');
+                Route::put('/items/{item}', [OpsAdminItemController::class, 'update'])->name('items.update');
+                Route::delete('/items/{item}', [OpsAdminItemController::class, 'destroy'])->name('items.destroy');
+                Route::post('/items/{item}/stock', [OpsAdminStockController::class, 'store'])->name('items.stock.store');
+            });
         });
 
         Route::prefix('atk')->name('atk.')->group(function () {
