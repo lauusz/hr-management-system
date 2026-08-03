@@ -1,5 +1,6 @@
 @props(['title' => 'Kebutuhan Operasional'])
 @php
+    $opsCartCount = array_sum(session('ops_cart', []));
     $opsPendingRequestCount = auth()->check() && auth()->user()->canManageOps()
         ? \App\Models\AtkRequest::query()
             ->forModule(\App\Models\AtkRequest::MODULE_OPS)
@@ -91,7 +92,13 @@
         <nav class="ops-nav">
             <div class="ops-nav-title">Menu</div>
             <a class="{{ request()->routeIs('v2.ops.catalog') ? 'active' : '' }}" href="{{ route('v2.ops.catalog') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-catalog"/></svg>Katalog</a>
-            <a class="{{ request()->routeIs('v2.ops.cart.*') ? 'active' : '' }}" href="{{ route('v2.ops.cart.show') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-cart"/></svg>Keranjang</a>
+            <a class="{{ request()->routeIs('v2.ops.cart.*') ? 'active' : '' }}" href="{{ route('v2.ops.cart.show') }}">
+                <svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-cart"/></svg>
+                <span>Keranjang</span>
+                @if($opsCartCount > 0)
+                    <span class="ops-nav-badge ops-cart-nav-badge">{{ $opsCartCount > 99 ? '99+' : $opsCartCount }}</span>
+                @endif
+            </a>
             <a class="{{ request()->routeIs('v2.ops.requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.requests.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-request"/></svg>Pengajuan Saya</a>
             @if(auth()->user()->canManageOps() && Route::has('v2.ops.admin.requests.index'))
                 <div class="ops-nav-title">Admin OPS</div>
@@ -115,7 +122,6 @@
         <header class="ops-topbar">
             <button class="ops-burger" id="opsBurger" type="button" aria-label="Buka menu">☰</button>
             <div class="ops-topbar-title"><strong>Kebutuhan Operasional</strong><span>Kebutuhan operasional internal</span></div>
-            @php($opsCartCount = array_sum(session('ops_cart', [])))
             <a class="ops-cart-link" href="{{ route('v2.ops.cart.show') }}" aria-label="Keranjang">🛒@if($opsCartCount)<span class="ops-cart-count">{{ $opsCartCount > 99 ? '99+' : $opsCartCount }}</span>@endif</a>
         </header>
         <div class="ops-content">

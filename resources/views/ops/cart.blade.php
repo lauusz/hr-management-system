@@ -135,8 +135,9 @@
             }
 
             function updateCartBadge(count) {
-                var badge = document.querySelector('.ops-cart-count');
-                if (badge) badge.textContent = count > 99 ? '99+' : count;
+                document.querySelectorAll('.ops-cart-count, .ops-cart-nav-badge').forEach(function (badge) {
+                    badge.textContent = count > 99 ? '99+' : count;
+                });
             }
 
             document.querySelectorAll('[data-ops-cart-stepper]').forEach(function (stepper) {

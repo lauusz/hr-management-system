@@ -112,6 +112,17 @@ it('shows the pending ops request count in the admin sidebar', function () {
         ->assertSee('<span class="ops-nav-badge">2</span>', false);
 });
 
+it('shows the total ops cart quantity in the sidebar', function () {
+    $user = createOpsUser();
+    $firstItem = createOpsTestItem(['module' => 'OPS']);
+    $secondItem = createOpsTestItem(['module' => 'OPS']);
+
+    actingAs($user)->withSession(['ops_cart' => [$firstItem->id => 2, $secondItem->id => 3]])
+        ->get('/v2/ops')
+        ->assertOk()
+        ->assertSee('<span class="ops-nav-badge ops-cart-nav-badge">5</span>', false);
+});
+
 it('rejects users without ops access from the ops module', function () {
     actingAs(User::factory()->create())
         ->get('/v2/ops')
