@@ -20,16 +20,34 @@ class CartController extends Controller
         $validated = $request->validate(['qty' => ['required', 'integer', 'min:1']]);
         $cart = session('ops_cart', []);
 
-        abort_unless(isset($cart[$item->id]), 404);
+        if (! isset($cart[$item->id])) {
+            return $this->respondCartUpdate($request, 'Barang tidak ada di keranjang.');
+        }
 
         if ((int) $validated['qty'] > $item->stock_qty) {
-            return back()->with('warning', 'Jumlah melebihi stok tersedia.');
+            return $this->respondCartUpdate($request, 'Jumlah melebihi stok tersedia ('.$item->stock_qty.').');
         }
 
         $cart[$item->id] = (int) $validated['qty'];
         session(['ops_cart' => $cart]);
 
-        return back()->with('success', 'Jumlah diperbarui.');
+        return $this->respondCartUpdate($request, null, (int) $validated['qty']);
+    }
+
+    private function respondCartUpdate(Request $request, ?string $warning = null, ?int $qty = null)
+    {
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => $warning === null,
+                'message' => $warning ?? 'Jumlah barang diperbarui.',
+                'qty' => $qty,
+                'cartCount' => array_sum(session('ops_cart', [])),
+            ]);
+        }
+
+        return $warning === null
+            ? back()->with('success', 'Jumlah barang diperbarui.')
+            : back()->with('warning', $warning);
     }
 
     public function remove(AtkItem $item)

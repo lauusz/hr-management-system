@@ -142,6 +142,36 @@ it('keeps the ops cart separate from the atk cart', function () {
         ->assertSessionMissing('atk_cart');
 });
 
+it('renders the ops cart with the atk cart table and quantity stepper', function () {
+    $user = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS', 'name' => 'Helm Keranjang OPS', 'stock_qty' => 8]);
+
+    actingAs($user)->withSession(['ops_cart' => [$item->id => 2]])
+        ->get('/v2/ops/cart')
+        ->assertOk()
+        ->assertSee('ops-cart-table', false)
+        ->assertSee('data-ops-cart-stepper', false)
+        ->assertSee('aria-label="Kurangi jumlah Helm Keranjang OPS"', false)
+        ->assertSee('aria-label="Tambah jumlah Helm Keranjang OPS"', false)
+        ->assertSee('Tambah Barang')
+        ->assertSee('Ajukan Permintaan');
+});
+
+it('updates the ops cart quantity without reloading the page', function () {
+    $user = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS', 'stock_qty' => 8]);
+
+    actingAs($user)->withSession(['ops_cart' => [$item->id => 2]])
+        ->putJson('/v2/ops/cart/'.$item->id, ['qty' => 3])
+        ->assertOk()
+        ->assertJson([
+            'success' => true,
+            'qty' => 3,
+            'cartCount' => 3,
+        ])
+        ->assertSessionHas('ops_cart.'.$item->id, 3);
+});
+
 it('submits an ops cart without reducing stock', function () {
     $user = createOpsUser();
     $item = createOpsTestItem(['module' => 'OPS', 'stock_qty' => 8]);
