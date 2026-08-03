@@ -219,6 +219,29 @@ it('renders and filters the ops request history with the atk responsive layout',
         ->assertDontSee($pending->request_number);
 });
 
+it('renders an ops request detail with the atk responsive summary and item layout', function () {
+    $user = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS', 'name' => 'Rompi Detail OPS', 'unit_name' => 'pcs']);
+    $opsRequest = AtkRequest::createPending($user, collect([['item' => $item, 'qty' => 2]]), 'Dipakai untuk kunjungan.', 'OPS');
+    $opsRequest->update(['pt_name_snapshot' => 'TRIGUNA OPS']);
+    $opsRequest->items()->firstOrFail()->update([
+        'status' => AtkRequestItem::STATUS_REJECTED,
+        'admin_note' => 'Gunakan stok tim terlebih dahulu.',
+    ]);
+
+    actingAs($user)->get('/v2/ops/requests/'.$opsRequest->id)
+        ->assertOk()
+        ->assertSee('ops-request-summary', false)
+        ->assertSee('ops-request-item-mobile-list', false)
+        ->assertSee('ops-request-item-desktop-table', false)
+        ->assertSee('TRIGUNA OPS')
+        ->assertSee('Rompi Detail OPS')
+        ->assertSee('2 pcs')
+        ->assertSee('Tidak diproses')
+        ->assertSee('Catatan Pengaju')
+        ->assertSee('Gunakan stok tim terlebih dahulu.');
+});
+
 it('creates an ops item with an opening stock movement', function () {
     $admin = createOpsUser('ADMIN OPS');
 
