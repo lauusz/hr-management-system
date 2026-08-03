@@ -13,10 +13,16 @@
             </a>
 
             <a class="access-card access-card-atk" href="{{ route('v2.atk.catalog') }}">
-                <span class="access-kicker">V2 Testing</span>
+                <span class="access-kicker">Existing</span>
                 <strong>Kebutuhan Kantor</strong>
                 <small>Katalog ATK, keranjang, request barang, stok, dan approval Admin ATK.</small>
             </a>
+
+            <div class="access-card access-card-ops" aria-disabled="true">
+                <span class="access-kicker">Testing</span>
+                <strong>Kebutuhan Operasional</strong>
+                <small>Penyimpanan dan pengajuan kebutuhan operasional untuk divisi OPS.</small>
+            </div>
         </div>
     </div>
 
@@ -31,7 +37,7 @@
         }
         .access-hero h1 { margin: 0; font-size: 1.35rem; font-weight: 800; color: var(--text-primary, #111827); }
         .access-hero p { margin: 6px 0 0; color: var(--text-muted, #6B7280); font-size: .875rem; }
-        .access-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .access-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
         .access-card {
             display: flex;
             flex-direction: column;
@@ -53,6 +59,9 @@
         .access-card-hrd .access-kicker { background: rgba(20, 93, 160, .1); color: #145DA0; }
         .access-card-atk { border-color: #E4D8FF; }
         .access-card-atk .access-kicker { background: #F3EEFF; color: #5B35B7; }
+        .access-card-ops { border-color: #BFE8DD; cursor: default; }
+        .access-card-ops:hover { transform: none; box-shadow: 0 8px 24px rgba(17,24,39,.06); }
+        .access-card-ops .access-kicker { background: #E8F8F3; color: #0F766E; }
         @media (max-width: 720px) { .access-grid { grid-template-columns: 1fr; } }
     </style>
 </x-app>

@@ -18,11 +18,17 @@ use function Pest\Laravel\actingAs;
 it('shows the v2 access portal for authenticated users', function () {
     $user = User::factory()->create();
 
-    actingAs($user)
+    $response = actingAs($user)
         ->get(route('v2.access'))
         ->assertOk()
         ->assertSee('HRD System')
-        ->assertSee('Kebutuhan Kantor');
+        ->assertSee('Kebutuhan Kantor')
+        ->assertSee('Kebutuhan Operasional')
+        ->assertSee('<div class="access-card access-card-ops" aria-disabled="true">', false)
+        ->assertSee('<span class="access-kicker">Testing</span>', false)
+        ->assertDontSee('V2 Testing');
+
+    expect(substr_count($response->getContent(), '<span class="access-kicker">Existing</span>'))->toBe(2);
 });
 
 it('allows only users with ADMIN ATK access to open the admin dashboard', function () {
