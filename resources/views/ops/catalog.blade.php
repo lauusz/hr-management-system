@@ -7,6 +7,14 @@
     <div class="ops-grid" data-ops-mobile-cards>
         @forelse($items as $item)
             <article class="ops-card">
+                <div class="ops-product-media">
+                    @if($item->image_path)
+                        <img src="{{ asset('storage/'.$item->image_path) }}" alt="{{ $item->name }}" onerror="this.hidden=true;this.nextElementSibling.hidden=false">
+                        <span hidden>Tanpa foto</span>
+                    @else
+                        <span>Tanpa foto</span>
+                    @endif
+                </div>
                 <h2>{{ $item->name }}</h2>
                 @if($item->description)<p class="ops-muted">{{ $item->description }}</p>@endif
                 <p><span class="ops-badge">Stok {{ $item->stock_qty }} {{ $item->unit_name }}</span></p>
@@ -22,4 +30,8 @@
         @endforelse
     </div>
     <x-pagination :items="$items" preserve-query />
+    <style>
+        .ops-product-media { display:flex; align-items:center; justify-content:center; width:100%; aspect-ratio:4/3; margin-bottom:12px; overflow:hidden; border-radius:14px; background:var(--ops-soft); color:var(--ops-muted); font-size:12px; font-weight:700; }
+        .ops-product-media img { width:100%; height:100%; object-fit:cover; }
+    </style>
 </x-ops-app>

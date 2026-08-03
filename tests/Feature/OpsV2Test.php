@@ -8,6 +8,8 @@ use App\Models\Division;
 use App\Models\OpsAccessDivision;
 use App\Models\User;
 use App\Models\UserAccessRole;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\Support\InstallsOpsSchema;
 
 use function Pest\Laravel\actingAs;
@@ -189,6 +191,54 @@ it('creates an ops item with an opening stock movement', function () {
         ->and($movement->movement_type)->toBe(AtkStockMovement::TYPE_IN)
         ->and($movement->stock_before)->toBe(0)
         ->and($movement->stock_after)->toBe(12);
+});
+
+it('stores and displays an optional ops item photo', function () {
+    Storage::fake('public');
+    $admin = createOpsUser('ADMIN OPS');
+
+    actingAs($admin)->post('/v2/ops/admin/items', [
+        'name' => 'Helm Foto OPS',
+        'image' => UploadedFile::fake()->image('helm.png', 1200, 800),
+        'unit_name' => 'pcs',
+        'stock_qty' => 3,
+    ])->assertRedirect('/v2/ops/admin/items');
+
+    $item = AtkItem::forModule('OPS')->where('name', 'Helm Foto OPS')->firstOrFail();
+
+    expect($item->image_path)->toEndWith('.jpg');
+    Storage::disk('public')->assertExists($item->image_path);
+
+    actingAs($admin)->get('/v2/ops')
+        ->assertOk()
+        ->assertSee(asset('storage/'.$item->image_path))
+        ->assertSee('alt="Helm Foto OPS"', false);
+});
+
+it('keeps the ops item photo when editing without a new upload and renders form fallbacks', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $item = createOpsTestItem(['module' => 'OPS', 'name' => 'Rompi Foto OPS', 'image_path' => 'ops-items/rompi.jpg']);
+    createOpsTestItem(['module' => 'OPS', 'name' => 'Barang Tanpa Foto', 'image_path' => null]);
+
+    actingAs($admin)->get('/v2/ops/admin/items/create')
+        ->assertOk()
+        ->assertSee('enctype="multipart/form-data"', false)
+        ->assertSee('Foto barang (opsional)');
+
+    actingAs($admin)->get('/v2/ops/admin/items/'.$item->id.'/edit')
+        ->assertOk()
+        ->assertSee('enctype="multipart/form-data"', false)
+        ->assertSee(asset('storage/'.$item->image_path));
+
+    actingAs($admin)->put('/v2/ops/admin/items/'.$item->id, [
+        'name' => $item->name,
+        'unit_name' => $item->unit_name,
+        'description' => $item->description,
+        'is_active' => '1',
+    ])->assertRedirect('/v2/ops/admin/items');
+
+    expect($item->fresh()->image_path)->toBe('ops-items/rompi.jpg');
+    actingAs($admin)->get('/v2/ops')->assertOk()->assertSee('Tanpa foto');
 });
 
 it('adds and subtracts ops stock without allowing negative stock', function () {

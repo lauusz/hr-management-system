@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Ops\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AtkItem;
 use App\Models\AtkStockMovement;
+use App\Services\Image\ImageCompressor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ItemController extends Controller
 {
+    public function __construct(protected ImageCompressor $imageCompressor) {}
+
     public function index(Request $request)
     {
         $items = AtkItem::query()
@@ -31,6 +35,10 @@ class ItemController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateItem($request, true);
+        if ($request->hasFile('image')) {
+            $validated['image_path'] = $this->storeItemImage($request);
+        }
+        unset($validated['image']);
 
         DB::transaction(function () use ($validated, $request): void {
             $item = AtkItem::create($validated + [
@@ -71,6 +79,10 @@ class ItemController extends Controller
     {
         $this->ensureOpsItem($item);
         $validated = $this->validateItem($request, false);
+        if ($request->hasFile('image')) {
+            $validated['image_path'] = $this->storeItemImage($request);
+        }
+        unset($validated['image']);
         $validated['is_active'] = $request->boolean('is_active');
         $item->update($validated);
 
@@ -98,9 +110,25 @@ class ItemController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'unit_name' => ['required', 'string', 'max:30'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif', 'max:2048'],
             'stock_qty' => [$withStock ? 'required' : 'nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ]);
+    }
+
+    private function storeItemImage(Request $request): ?string
+    {
+        $file = $request->file('image');
+
+        try {
+            return $this->imageCompressor->compressAndStore($file, 'photo', 'ops-items', 'ops_');
+        } catch (ValidationException $exception) {
+            if (! in_array(strtolower($file->getClientOriginalExtension()), ['heic', 'heif'], true)) {
+                throw $exception;
+            }
+
+            return $file->store('ops-items', 'public');
+        }
     }
 
     private function ensureOpsItem(AtkItem $item): void
