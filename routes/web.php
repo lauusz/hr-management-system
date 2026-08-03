@@ -52,6 +52,7 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('v2')->name('v2.')->group(function () {
         Route::get('/access', V2AccessController::class)->name('access');
+        Route::view('/ops', 'v2.ops.index')->name('ops.index');
 
         Route::prefix('atk')->name('atk.')->group(function () {
             Route::get('/', [AtkCatalogController::class, 'index'])->name('catalog');

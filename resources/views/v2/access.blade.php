@@ -18,11 +18,11 @@
                 <small>Katalog ATK, keranjang, request barang, stok, dan approval Admin ATK.</small>
             </a>
 
-            <div class="access-card access-card-ops" aria-disabled="true">
+            <a class="access-card access-card-ops" href="{{ route('v2.ops.index') }}">
                 <span class="access-kicker">Testing</span>
                 <strong>Kebutuhan Operasional</strong>
                 <small>Penyimpanan dan pengajuan kebutuhan operasional untuk divisi OPS.</small>
-            </div>
+            </a>
         </div>
     </div>
 
@@ -59,8 +59,7 @@
         .access-card-hrd .access-kicker { background: rgba(20, 93, 160, .1); color: #145DA0; }
         .access-card-atk { border-color: #E4D8FF; }
         .access-card-atk .access-kicker { background: #F3EEFF; color: #5B35B7; }
-        .access-card-ops { border-color: #BFE8DD; cursor: default; }
-        .access-card-ops:hover { transform: none; box-shadow: 0 8px 24px rgba(17,24,39,.06); }
+        .access-card-ops { border-color: #BFE8DD; }
         .access-card-ops .access-kicker { background: #E8F8F3; color: #0F766E; }
         @media (max-width: 720px) { .access-grid { grid-template-columns: 1fr; } }
     </style>
