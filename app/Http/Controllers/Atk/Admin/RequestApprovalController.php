@@ -17,6 +17,7 @@ class RequestApprovalController extends Controller
     public function index(Request $request)
     {
         $requests = AtkRequest::with('items')
+            ->forModule(AtkRequest::MODULE_ATK)
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
             ->when($request->filled('q'), function ($query) use ($request): void {
                 $keyword = '%'.$request->string('q')->toString().'%';
@@ -43,6 +44,7 @@ class RequestApprovalController extends Controller
             ->orderBy('name')
             ->get();
         $items = AtkItem::query()
+            ->forModule(AtkItem::MODULE_ATK)
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -71,6 +73,7 @@ class RequestApprovalController extends Controller
         }
 
         $items = AtkItem::query()
+            ->forModule(AtkItem::MODULE_ATK)
             ->where('is_active', true)
             ->whereIn('id', $quantities->keys())
             ->get()
@@ -93,6 +96,8 @@ class RequestApprovalController extends Controller
 
     public function show(AtkRequest $atkRequest)
     {
+        $this->ensureAtkRequest($atkRequest);
+
         $atkRequest->load('items.item', 'user');
 
         return view('atk.admin.requests.show', compact('atkRequest'));
@@ -100,6 +105,8 @@ class RequestApprovalController extends Controller
 
     public function approve(Request $request, AtkRequest $atkRequest)
     {
+        $this->ensureAtkRequest($atkRequest);
+
         // Guard UX cepat: jika sudah tidak pending, arahkan ke halaman dengan warning.
         // Cek otoritatif tetap di dalam transaksi dengan lock (cegah double-approve konkuren).
         if ($atkRequest->status !== AtkRequest::STATUS_PENDING) {
@@ -112,7 +119,7 @@ class RequestApprovalController extends Controller
         try {
             DB::transaction(function () use ($request, $atkRequest, &$autoRejectedMessage, &$approvedItemIds): void {
                 // Lock baris request untuk mencegah 2 admin approve paralel lolos bersamaan.
-                $lockedRequest = AtkRequest::whereKey($atkRequest->id)->lockForUpdate()->firstOrFail();
+                $lockedRequest = AtkRequest::forModule(AtkRequest::MODULE_ATK)->whereKey($atkRequest->id)->lockForUpdate()->firstOrFail();
 
                 // Re-check status di dalam transaksi: bila sudah diproses transaksi lain, batal.
                 if ($lockedRequest->status !== AtkRequest::STATUS_PENDING) {
@@ -127,7 +134,7 @@ class RequestApprovalController extends Controller
                     ->map(fn ($items) => $items->sum('qty'));
 
                 foreach ($requiredQtyByItem as $itemId => $requiredQty) {
-                    $item = AtkItem::whereKey($itemId)->lockForUpdate()->firstOrFail();
+                    $item = AtkItem::forModule(AtkItem::MODULE_ATK)->whereKey($itemId)->lockForUpdate()->firstOrFail();
 
                     if ($item->stock_qty < $requiredQty) {
                         $autoRejectedMessage = 'Pengajuan otomatis ditolak karena stok '.$item->name.' tidak cukup.';
@@ -216,6 +223,7 @@ class RequestApprovalController extends Controller
             ->join('atk_items', 'atk_request_items.atk_item_id', '=', 'atk_items.id')
             ->join('atk_requests', 'atk_request_items.atk_request_id', '=', 'atk_requests.id')
             ->where('atk_requests.status', AtkRequest::STATUS_PENDING)
+            ->where('atk_requests.module', AtkRequest::MODULE_ATK)
             ->whereIn('atk_request_items.atk_item_id', $itemIds)
             ->whereColumn('atk_request_items.qty', '>', 'atk_items.stock_qty')
             ->pluck('atk_request_items.atk_request_id')
@@ -227,6 +235,7 @@ class RequestApprovalController extends Controller
         }
 
         return AtkRequest::query()
+            ->forModule(AtkRequest::MODULE_ATK)
             ->whereIn('id', $requestIds)
             ->where('status', AtkRequest::STATUS_PENDING)
             ->update([
@@ -239,6 +248,8 @@ class RequestApprovalController extends Controller
 
     public function reject(Request $request, AtkRequest $atkRequest)
     {
+        $this->ensureAtkRequest($atkRequest);
+
         if ($atkRequest->status !== AtkRequest::STATUS_PENDING) {
             return back()->with('warning', 'Pengajuan ini sudah diproses.');
         }
@@ -249,7 +260,7 @@ class RequestApprovalController extends Controller
 
         try {
             DB::transaction(function () use ($validated, $request, $atkRequest): void {
-                $lockedRequest = AtkRequest::whereKey($atkRequest->id)->lockForUpdate()->firstOrFail();
+                $lockedRequest = AtkRequest::forModule(AtkRequest::MODULE_ATK)->whereKey($atkRequest->id)->lockForUpdate()->firstOrFail();
 
                 if ($lockedRequest->status !== AtkRequest::STATUS_PENDING) {
                     throw new \RuntimeException('Pengajuan ini baru saja diproses.');
@@ -288,6 +299,8 @@ class RequestApprovalController extends Controller
      */
     public function reviewItem(Request $request, AtkRequest $atkRequest, AtkRequestItem $requestItem)
     {
+        $this->ensureAtkRequest($atkRequest);
+
         if ((int) $requestItem->atk_request_id !== (int) $atkRequest->id) {
             return back()->with('warning', 'Item tidak termasuk dalam pengajuan ini.');
         }
@@ -310,6 +323,7 @@ class RequestApprovalController extends Controller
 
         if ($validated['status'] === AtkRequestItem::STATUS_APPROVED) {
             $item = AtkItem::query()
+                ->forModule(AtkItem::MODULE_ATK)
                 ->select(['id', 'name', 'stock_qty'])
                 ->find($requestItem->atk_item_id);
 
@@ -341,6 +355,8 @@ class RequestApprovalController extends Controller
      */
     public function finalize(Request $request, AtkRequest $atkRequest)
     {
+        $this->ensureAtkRequest($atkRequest);
+
         if ($atkRequest->status !== AtkRequest::STATUS_PENDING) {
             return back()->with('warning', 'Pengajuan ini sudah difinalisasi.');
         }
@@ -348,7 +364,7 @@ class RequestApprovalController extends Controller
         try {
             $finalStatus = DB::transaction(function () use ($request, $atkRequest): string {
                 // Lock baris request — cegah 2 admin finalisasi paralel.
-                $lockedRequest = AtkRequest::whereKey($atkRequest->id)->lockForUpdate()->firstOrFail();
+                $lockedRequest = AtkRequest::forModule(AtkRequest::MODULE_ATK)->whereKey($atkRequest->id)->lockForUpdate()->firstOrFail();
 
                 if ($lockedRequest->status !== AtkRequest::STATUS_PENDING) {
                     throw new \RuntimeException('Pengajuan ini baru saja difinalisasi.');
@@ -371,7 +387,7 @@ class RequestApprovalController extends Controller
 
                 $lockedItems = [];
                 foreach ($requiredQtyByItem as $itemId => $requiredQty) {
-                    $item = AtkItem::whereKey($itemId)->lockForUpdate()->firstOrFail();
+                    $item = AtkItem::forModule(AtkItem::MODULE_ATK)->whereKey($itemId)->lockForUpdate()->firstOrFail();
 
                     if ($item->stock_qty < $requiredQty) {
                         throw new \RuntimeException('Stok '.$item->name.' tidak cukup ('.$item->stock_qty.' tersedia, '.$requiredQty.' diminta).');
@@ -437,5 +453,10 @@ class RequestApprovalController extends Controller
         return redirect()
             ->route('v2.atk.admin.requests.show', $atkRequest)
             ->with('success', $message);
+    }
+
+    private function ensureAtkRequest(AtkRequest $atkRequest): void
+    {
+        abort_unless($atkRequest->module === AtkRequest::MODULE_ATK, 404);
     }
 }

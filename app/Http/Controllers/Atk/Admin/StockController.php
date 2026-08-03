@@ -12,6 +12,8 @@ class StockController extends Controller
 {
     public function store(Request $request, AtkItem $item)
     {
+        abort_unless($item->module === AtkItem::MODULE_ATK, 404);
+
         $validated = $request->validate([
             'movement_type' => ['required', 'in:'.AtkStockMovement::TYPE_IN.','.AtkStockMovement::TYPE_ADJUSTMENT],
             'qty' => [
@@ -24,7 +26,7 @@ class StockController extends Controller
         ]);
 
         DB::transaction(function () use ($item, $validated, $request): void {
-            $lockedItem = AtkItem::whereKey($item->id)->lockForUpdate()->firstOrFail();
+            $lockedItem = AtkItem::forModule(AtkItem::MODULE_ATK)->whereKey($item->id)->lockForUpdate()->firstOrFail();
             $before = $lockedItem->stock_qty;
             $after = $validated['movement_type'] === AtkStockMovement::TYPE_ADJUSTMENT
                 ? (int) $validated['qty']

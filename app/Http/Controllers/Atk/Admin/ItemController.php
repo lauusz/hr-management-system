@@ -18,6 +18,7 @@ class ItemController extends Controller
     public function index()
     {
         $items = AtkItem::with('category')
+            ->forModule(AtkItem::MODULE_ATK)
             ->when(request()->filled('q'), function ($query): void {
                 $keyword = '%'.request()->string('q')->toString().'%';
                 $query->where('name', 'like', $keyword);
@@ -65,6 +66,7 @@ class ItemController extends Controller
 
         DB::transaction(function () use ($validated, $request): void {
             $item = AtkItem::create($validated + [
+                'module' => AtkItem::MODULE_ATK,
                 'is_active' => true,
                 'created_by' => $request->user()->id,
             ]);
@@ -90,6 +92,8 @@ class ItemController extends Controller
 
     public function edit(AtkItem $item)
     {
+        $this->ensureAtkItem($item);
+
         return view('atk.admin.items.edit', [
             'item' => $item,
             'categories' => AtkCategory::where('is_active', true)->orderBy('name')->get(),
@@ -98,6 +102,8 @@ class ItemController extends Controller
 
     public function update(Request $request, AtkItem $item)
     {
+        $this->ensureAtkItem($item);
+
         $validated = $request->validate([
             'atk_category_id' => ['nullable', 'exists:atk_categories,id'],
             'name' => ['required', 'string', 'max:150'],
@@ -142,5 +148,10 @@ class ItemController extends Controller
 
             return $file->store('atk-items', 'public');
         }
+    }
+
+    private function ensureAtkItem(AtkItem $item): void
+    {
+        abort_unless($item->module === AtkItem::MODULE_ATK, 404);
     }
 }

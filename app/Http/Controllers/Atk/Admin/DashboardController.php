@@ -19,12 +19,14 @@ class DashboardController extends Controller
         $monthEnd = now()->endOfMonth();
         $trendStart = now()->subMonths(5)->startOfMonth();
 
-        $approvedThisMonth = AtkRequest::whereIn('status', [AtkRequest::STATUS_APPROVED, AtkRequest::STATUS_PARTIAL])
+        $approvedThisMonth = AtkRequest::forModule(AtkRequest::MODULE_ATK)
+            ->whereIn('status', [AtkRequest::STATUS_APPROVED, AtkRequest::STATUS_PARTIAL])
             ->whereBetween('approved_at', [$monthStart, $monthEnd])
             ->count();
 
         $qtyOutThisMonth = DB::table('atk_request_items')
             ->join('atk_requests', 'atk_requests.id', '=', 'atk_request_items.atk_request_id')
+            ->where('atk_requests.module', AtkRequest::MODULE_ATK)
             ->whereIn('atk_requests.status', [AtkRequest::STATUS_APPROVED, AtkRequest::STATUS_PARTIAL])
             ->where('atk_request_items.status', AtkRequestItem::STATUS_APPROVED)
             ->whereBetween('atk_requests.approved_at', [$monthStart, $monthEnd])
@@ -32,6 +34,7 @@ class DashboardController extends Controller
 
         $topItemsThisMonth = DB::table('atk_request_items')
             ->join('atk_requests', 'atk_requests.id', '=', 'atk_request_items.atk_request_id')
+            ->where('atk_requests.module', AtkRequest::MODULE_ATK)
             ->whereIn('atk_requests.status', [AtkRequest::STATUS_APPROVED, AtkRequest::STATUS_PARTIAL])
             ->where('atk_request_items.status', AtkRequestItem::STATUS_APPROVED)
             ->whereBetween('atk_requests.approved_at', [$monthStart, $monthEnd])
@@ -56,6 +59,7 @@ class DashboardController extends Controller
 
         DB::table('atk_request_items')
             ->join('atk_requests', 'atk_requests.id', '=', 'atk_request_items.atk_request_id')
+            ->where('atk_requests.module', AtkRequest::MODULE_ATK)
             ->whereIn('atk_requests.status', [AtkRequest::STATUS_APPROVED, AtkRequest::STATUS_PARTIAL])
             ->where('atk_request_items.status', AtkRequestItem::STATUS_APPROVED)
             ->whereBetween('atk_requests.approved_at', [$trendStart, $monthEnd])
@@ -70,6 +74,7 @@ class DashboardController extends Controller
 
         $topPtsThisMonth = DB::table('atk_request_items')
             ->join('atk_requests', 'atk_requests.id', '=', 'atk_request_items.atk_request_id')
+            ->where('atk_requests.module', AtkRequest::MODULE_ATK)
             ->whereIn('atk_requests.status', [AtkRequest::STATUS_APPROVED, AtkRequest::STATUS_PARTIAL])
             ->where('atk_request_items.status', AtkRequestItem::STATUS_APPROVED)
             ->whereBetween('atk_requests.approved_at', [$monthStart, $monthEnd])
@@ -84,32 +89,32 @@ class DashboardController extends Controller
             ->get();
 
         $masterWarnings = [
-            ['label' => 'Tanpa kategori', 'count' => AtkItem::whereNull('atk_category_id')->count()],
-            ['label' => 'Tanpa gambar', 'count' => AtkItem::whereNull('image_path')->orWhere('image_path', '')->count()],
-            ['label' => 'Minimum stok belum diisi', 'count' => AtkItem::where('minimum_stock', '<=', 0)->count()],
+            ['label' => 'Tanpa kategori', 'count' => AtkItem::forModule(AtkItem::MODULE_ATK)->whereNull('atk_category_id')->count()],
+            ['label' => 'Tanpa gambar', 'count' => AtkItem::forModule(AtkItem::MODULE_ATK)->where(fn ($query) => $query->whereNull('image_path')->orWhere('image_path', ''))->count()],
+            ['label' => 'Minimum stok belum diisi', 'count' => AtkItem::forModule(AtkItem::MODULE_ATK)->where('minimum_stock', '<=', 0)->count()],
         ];
 
         return view('atk.admin.dashboard', [
-            'pendingRequests' => AtkRequest::where('status', AtkRequest::STATUS_PENDING)->count(),
-            'lowStockItems' => AtkItem::whereColumn('stock_qty', '<=', 'minimum_stock')
+            'pendingRequests' => AtkRequest::forModule(AtkRequest::MODULE_ATK)->where('status', AtkRequest::STATUS_PENDING)->count(),
+            'lowStockItems' => AtkItem::forModule(AtkItem::MODULE_ATK)->whereColumn('stock_qty', '<=', 'minimum_stock')
                 ->where('minimum_stock', '>', 0)
                 ->count(),
-            'outOfStockItems' => AtkItem::where('stock_qty', '<=', 0)->count(),
+            'outOfStockItems' => AtkItem::forModule(AtkItem::MODULE_ATK)->where('stock_qty', '<=', 0)->count(),
             'needRequests' => AtkNeedRequest::where('status', 'PENDING')->count(),
-            'itemsCount' => AtkItem::count(),
+            'itemsCount' => AtkItem::forModule(AtkItem::MODULE_ATK)->count(),
             'approvedThisMonth' => $approvedThisMonth,
             'qtyOutThisMonth' => $qtyOutThisMonth,
             'topItemsThisMonth' => $topItemsThisMonth,
             'trendRows' => array_values($trendRows),
             'topPtsThisMonth' => $topPtsThisMonth,
-            'recentStockMovements' => AtkStockMovement::with('item')->latest()->limit(5)->get(),
+            'recentStockMovements' => AtkStockMovement::with('item')->whereHas('item', fn ($query) => $query->forModule(AtkItem::MODULE_ATK))->latest()->limit(5)->get(),
             'masterWarnings' => $masterWarnings,
-            'lowStockPreview' => AtkItem::whereColumn('stock_qty', '<=', 'minimum_stock')
+            'lowStockPreview' => AtkItem::forModule(AtkItem::MODULE_ATK)->whereColumn('stock_qty', '<=', 'minimum_stock')
                 ->where('minimum_stock', '>', 0)
                 ->orderBy('stock_qty')
                 ->limit(5)
                 ->get(),
-            'latestRequests' => AtkRequest::latest()->limit(5)->get(),
+            'latestRequests' => AtkRequest::forModule(AtkRequest::MODULE_ATK)->latest()->limit(5)->get(),
         ]);
     }
 }

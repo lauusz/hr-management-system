@@ -1,7 +1,7 @@
 <x-ops-app title="Katalog OPS">
     <div class="ops-header"><h1 class="ops-title">Katalog</h1><p class="ops-subtitle">Pilih barang yang dibutuhkan.</p></div>
     <form method="GET" class="ops-card ops-actions" style="margin-bottom:14px">
-        <input class="ops-input" style="flex:1" name="q" value="{{ request('q') }}" placeholder="Cari barang">
+        <input class="ops-input" style="flex:1" name="q" value="{{ request('q') }}" placeholder="Cari barang" autocomplete="off">
         <button class="ops-btn ops-btn-primary" type="submit">Cari</button>
     </form>
     <div class="ops-grid" data-ops-mobile-cards>

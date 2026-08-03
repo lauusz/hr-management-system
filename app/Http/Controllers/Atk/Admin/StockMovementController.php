@@ -13,12 +13,13 @@ class StockMovementController extends Controller
     public function index(Request $request)
     {
         $movements = AtkStockMovement::with(['item', 'createdBy'])
+            ->whereHas('item', fn ($query) => $query->forModule(AtkItem::MODULE_ATK))
             ->when($request->filled('item_id'), fn ($query) => $query->where('atk_item_id', $request->integer('item_id')))
             ->when($request->filled('movement_type'), fn ($query) => $query->where('movement_type', $request->string('movement_type')))
             ->latest()
             ->paginate(20)
             ->withQueryString();
-        $requestSources = AtkRequest::whereIn(
+        $requestSources = AtkRequest::forModule(AtkRequest::MODULE_ATK)->whereIn(
             'id',
             $movements->getCollection()
                 ->where('source_type', AtkStockMovement::SOURCE_REQUEST)
@@ -26,7 +27,7 @@ class StockMovementController extends Controller
                 ->filter()
                 ->unique()
         )->get(['id', 'pt_name_snapshot', 'user_name_snapshot'])->keyBy('id');
-        $items = AtkItem::orderBy('name')->get();
+        $items = AtkItem::forModule(AtkItem::MODULE_ATK)->orderBy('name')->get();
 
         return view('atk.admin.stock_movements.index', compact('items', 'movements', 'requestSources'));
     }

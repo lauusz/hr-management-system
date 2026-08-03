@@ -4,7 +4,7 @@
         <a class="ops-btn ops-btn-primary" href="{{ route('v2.ops.admin.items.create') }}">Tambah Barang</a>
     </div>
     <form class="ops-card ops-actions" method="GET" style="margin-bottom:14px">
-        <input class="ops-input" style="flex:1" name="q" value="{{ request('q') }}" placeholder="Cari barang">
+        <input class="ops-input" style="flex:1" name="q" value="{{ request('q') }}" placeholder="Cari barang" autocomplete="off">
         <button class="ops-btn ops-btn-primary" type="submit">Cari</button>
     </form>
     <div class="ops-grid" data-ops-mobile-cards>

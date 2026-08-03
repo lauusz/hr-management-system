@@ -18,6 +18,8 @@ class CartController extends Controller
 
     public function remove(AtkItem $item)
     {
+        $this->ensureAtkItem($item);
+
         $cart = session('atk_cart', []);
         unset($cart[$item->id]);
         session(['atk_cart' => $cart]);
@@ -27,6 +29,8 @@ class CartController extends Controller
 
     public function update(Request $request, AtkItem $item)
     {
+        $this->ensureAtkItem($item);
+
         $validated = $request->validate([
             'qty' => ['required', 'integer', 'min:1'],
         ]);
@@ -121,7 +125,8 @@ class CartController extends Controller
         // Hanya item aktif yang boleh di-submit — konsisten dengan CatalogController@addToCart
         // yang sudah filter `is_active=true`. Mencegah item yang baru dinonaktifkan admin
         // tetap lolos submit dari cart lama.
-        $items = AtkItem::where('is_active', true)
+        $items = AtkItem::forModule(AtkItem::MODULE_ATK)
+            ->available()
             ->whereIn('id', $cart->pluck('id'))
             ->get()
             ->keyBy('id');
@@ -130,5 +135,10 @@ class CartController extends Controller
             'item' => $items->get($row['id']),
             'qty' => $row['qty'],
         ])->filter(fn ($row) => $row['item']);
+    }
+
+    private function ensureAtkItem(AtkItem $item): void
+    {
+        abort_unless($item->module === AtkItem::MODULE_ATK && $item->deleted_at === null, 404);
     }
 }

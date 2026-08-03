@@ -11,7 +11,8 @@ class CatalogController extends Controller
     public function index(Request $request)
     {
         $items = AtkItem::with('category')
-            ->where('is_active', true)
+            ->forModule(AtkItem::MODULE_ATK)
+            ->available()
             ->when($request->filled('q'), function ($query) use ($request) {
                 $query->where('name', 'like', '%'.$request->string('q')->toString().'%');
             })
@@ -33,7 +34,7 @@ class CatalogController extends Controller
             'qty' => ['required', 'integer', 'min:1'],
         ]);
 
-        $item = AtkItem::where('is_active', true)->findOrFail($validated['atk_item_id']);
+        $item = AtkItem::forModule(AtkItem::MODULE_ATK)->available()->findOrFail($validated['atk_item_id']);
 
         if ($item->stock_qty <= 0) {
             return back()->with('warning', 'Stok barang habis. Silakan ajukan restock.');

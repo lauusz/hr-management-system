@@ -9,7 +9,8 @@ class RequestController extends Controller
 {
     public function index()
     {
-        $requests = AtkRequest::where('user_id', auth()->id())
+        $requests = AtkRequest::forModule(AtkRequest::MODULE_ATK)
+            ->where('user_id', auth()->id())
             ->when(request()->filled('status'), fn ($query) => $query->where('status', request()->string('status')))
             ->with('items')
             ->latest()
@@ -21,6 +22,7 @@ class RequestController extends Controller
 
     public function show(AtkRequest $atkRequest)
     {
+        abort_unless($atkRequest->module === AtkRequest::MODULE_ATK, 404);
         abort_unless($atkRequest->user_id === auth()->id() || auth()->user()->canManageAtk(), 403);
 
         $atkRequest->load('items.item');

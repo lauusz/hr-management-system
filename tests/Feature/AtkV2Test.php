@@ -22,6 +22,46 @@ beforeEach(function () {
     $this->installOpsSchema();
 });
 
+it('keeps ops items out of atk catalog and admin inventory', function () {
+    $admin = User::factory()->create();
+    UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
+    $atkItem = AtkItem::create(['module' => 'ATK', 'name' => 'Pulpen Khusus ATK', 'unit_name' => 'pcs', 'stock_qty' => 5, 'is_active' => true]);
+    $opsItem = AtkItem::create(['module' => 'OPS', 'name' => 'Sepatu Khusus OPS', 'unit_name' => 'pasang', 'stock_qty' => 5, 'is_active' => true]);
+
+    actingAs($admin)->get('/v2/atk')->assertOk()->assertSee($atkItem->name)->assertDontSee($opsItem->name);
+    actingAs($admin)->get('/v2/atk/admin/items')->assertOk()->assertSee($atkItem->name)->assertDontSee($opsItem->name);
+    actingAs($admin)->get('/v2/atk/admin/items/'.$opsItem->id.'/edit')->assertNotFound();
+});
+
+it('keeps ops requests out of atk request pages', function () {
+    $admin = User::factory()->create();
+    $requester = User::factory()->create();
+    UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
+    $base = ['user_id' => $requester->id, 'user_name_snapshot' => $requester->name, 'status' => AtkRequest::STATUS_PENDING];
+    $atkRequest = AtkRequest::create($base + ['module' => 'ATK', 'request_number' => 'ATK-ONLY-001']);
+    $opsRequest = AtkRequest::create($base + ['module' => 'OPS', 'request_number' => 'OPS-ONLY-001']);
+
+    actingAs($requester)->get('/v2/atk/requests')->assertOk()->assertSee($atkRequest->request_number)->assertDontSee($opsRequest->request_number);
+    actingAs($admin)->get('/v2/atk/admin/requests')
+        ->assertOk()
+        ->assertSee('href="'.route('v2.atk.admin.requests.show', $atkRequest).'"', false)
+        ->assertDontSee('href="'.route('v2.atk.admin.requests.show', $opsRequest).'"', false);
+    actingAs($admin)->get('/v2/atk/admin/requests/'.$opsRequest->id)->assertNotFound();
+});
+
+it('keeps ops movements out of atk stock history', function () {
+    $admin = User::factory()->create();
+    UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
+    $atkItem = AtkItem::create(['module' => 'ATK', 'name' => 'Kertas ATK', 'unit_name' => 'rim', 'stock_qty' => 1, 'is_active' => true]);
+    $opsItem = AtkItem::create(['module' => 'OPS', 'name' => 'Rompi OPS', 'unit_name' => 'pcs', 'stock_qty' => 1, 'is_active' => true]);
+
+    foreach ([[$atkItem, 'Gerak ATK'], [$opsItem, 'Gerak OPS']] as [$item, $notes]) {
+        AtkStockMovement::create(['atk_item_id' => $item->id, 'movement_type' => 'IN', 'qty' => 1, 'stock_before' => 0, 'stock_after' => 1, 'notes' => $notes, 'created_by' => $admin->id]);
+    }
+
+    actingAs($admin)->get('/v2/atk/admin/stock-movements')->assertOk()->assertSee($atkItem->name)->assertDontSee($opsItem->name);
+});
+
 it('shows the v2 access portal for authenticated users', function () {
     $user = User::factory()->create();
     UserAccessRole::create(['user_id' => $user->id, 'role' => 'ADMIN ATK']);

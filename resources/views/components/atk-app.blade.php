@@ -4,6 +4,7 @@
 
     if (auth()->check() && auth()->user()->canManageAtk()) {
         $atkPendingRequestCount = \App\Models\AtkRequest::query()
+            ->forModule(\App\Models\AtkRequest::MODULE_ATK)
             ->where('status', \App\Models\AtkRequest::STATUS_PENDING)
             ->count();
 

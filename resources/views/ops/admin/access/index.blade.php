@@ -5,7 +5,7 @@
     </div>
 
     <form method="GET" class="ops-card ops-form-grid" style="margin-bottom:12px">
-        <input class="ops-input" name="q" value="{{ request('q') }}" placeholder="Cari nama, email, atau PT">
+        <input class="ops-input" name="q" value="{{ request('q') }}" placeholder="Cari nama, email, atau PT" autocomplete="off">
         <div class="ops-actions">
             <button class="ops-btn ops-btn-primary" type="submit">Cari</button>
             <a class="ops-btn ops-btn-soft" href="{{ route('v2.ops.admin.access.index') }}">Reset</a>

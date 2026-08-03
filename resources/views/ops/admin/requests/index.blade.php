@@ -1,7 +1,7 @@
 <x-ops-app title="Request Masuk OPS">
     <div class="ops-header"><h1 class="ops-title">Request Masuk</h1><p class="ops-subtitle">Periksa pengajuan kebutuhan operasional.</p></div>
     <form method="GET" class="ops-card ops-form-grid" style="margin-bottom:14px">
-        <input class="ops-input" name="q" value="{{ request('q') }}" placeholder="Cari nomor atau nama">
+        <input class="ops-input" name="q" value="{{ request('q') }}" placeholder="Cari nomor atau nama" autocomplete="off">
         <select class="ops-select" name="status"><option value="">Semua status</option><option value="PENDING" @selected(request('status') === 'PENDING')>Menunggu</option><option value="APPROVED" @selected(request('status') === 'APPROVED')>Disetujui</option><option value="PARTIAL" @selected(request('status') === 'PARTIAL')>Sebagian</option><option value="REJECTED" @selected(request('status') === 'REJECTED')>Ditolak</option></select>
         <button class="ops-btn ops-btn-primary" type="submit">Cari</button>
     </form>

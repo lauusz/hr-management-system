@@ -26,6 +26,7 @@ class AtkUsageReportExport implements FromView, ShouldAutoSize
         $baseQuery = function () use ($dateFrom, $dateTo) {
             return DB::table('atk_request_items')
                 ->join('atk_requests', 'atk_requests.id', '=', 'atk_request_items.atk_request_id')
+                ->where('atk_requests.module', AtkRequest::MODULE_ATK)
                 ->whereIn('atk_requests.status', [AtkRequest::STATUS_APPROVED, AtkRequest::STATUS_PARTIAL])
                 ->where('atk_request_items.status', AtkRequestItem::STATUS_APPROVED)
                 ->whereBetween('atk_requests.approved_at', [$dateFrom, $dateTo])

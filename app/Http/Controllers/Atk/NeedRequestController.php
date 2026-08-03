@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AtkItem;
 use App\Models\AtkNeedRequest;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class NeedRequestController extends Controller
 {
@@ -22,14 +23,16 @@ class NeedRequestController extends Controller
     public function create(Request $request)
     {
         return view('atk.need_requests.create', [
-            'item' => $request->filled('item') ? AtkItem::find($request->integer('item')) : null,
+            'item' => $request->filled('item')
+                ? AtkItem::forModule(AtkItem::MODULE_ATK)->available()->find($request->integer('item'))
+                : null,
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'atk_item_id' => ['nullable', 'exists:atk_items,id'],
+            'atk_item_id' => ['nullable', Rule::exists('atk_items', 'id')->where('module', AtkItem::MODULE_ATK)->whereNull('deleted_at')],
             'requested_item_name' => ['required', 'string', 'max:150'],
             'qty' => ['required', 'integer', 'min:1'],
             'unit_name' => ['required', 'string', 'max:30'],
