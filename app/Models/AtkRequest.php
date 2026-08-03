@@ -3,12 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class AtkRequest extends Model
 {
+    public const MODULE_ATK = 'ATK';
+
+    public const MODULE_OPS = 'OPS';
+
     public const STATUS_PENDING = 'PENDING';
 
     public const STATUS_APPROVED = 'APPROVED';
@@ -18,6 +23,7 @@ class AtkRequest extends Model
     public const STATUS_PARTIAL = 'PARTIAL';
 
     protected $fillable = [
+        'module',
         'request_number',
         'user_id',
         'user_name_snapshot',
@@ -65,13 +71,27 @@ class AtkRequest extends Model
         return $this->belongsTo(User::class, 'rejected_by');
     }
 
-    public static function createPending(User $user, Collection $rows, ?string $notes = null): self
+    public function scopeForModule(Builder $query, string $module): Builder
     {
+        return $query->where('module', $module);
+    }
+
+    public static function createPending(
+        User $user,
+        Collection $rows,
+        ?string $notes = null,
+        string $module = self::MODULE_ATK,
+    ): self
+    {
+        if (! in_array($module, [self::MODULE_ATK, self::MODULE_OPS], true)) {
+            throw new \InvalidArgumentException('Module pengajuan tidak valid.');
+        }
+
         $pt = $user->pt;
 
-        return DB::transaction(function () use ($user, $pt, $rows, $notes): self {
+        return DB::transaction(function () use ($user, $pt, $rows, $notes, $module): self {
             $atkRequest = null;
-            $prefix = 'ATK-'.now()->format('Ym').'-';
+            $prefix = $module.'-'.now()->format('Ym').'-';
 
             for ($attempt = 0; $attempt < 5; $attempt++) {
                 $maxSequence = self::query()
@@ -86,6 +106,7 @@ class AtkRequest extends Model
 
                 try {
                     $atkRequest = self::create([
+                        'module' => $module,
                         'request_number' => $prefix.str_pad((string) ($maxSequence + 1), 4, '0', STR_PAD_LEFT),
                         'user_id' => $user->id,
                         'user_name_snapshot' => $user->name,

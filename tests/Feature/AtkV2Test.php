@@ -12,8 +12,15 @@ use App\Models\UserAccessRole;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\InstallsOpsSchema;
 
 use function Pest\Laravel\actingAs;
+
+uses(InstallsOpsSchema::class);
+
+beforeEach(function () {
+    $this->installOpsSchema();
+});
 
 it('shows the v2 access portal for authenticated users', function () {
     $user = User::factory()->create();

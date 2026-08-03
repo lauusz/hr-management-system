@@ -2,10 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class AtkItem extends Model
 {
+    public const MODULE_ATK = 'ATK';
+
+    public const MODULE_OPS = 'OPS';
+
     /**
      * Pilihan satuan ambil untuk dropdown master barang.
      * Tambah nilai baru di sini jika dibutuhkan — otomatis dipakai di form create & edit.
@@ -22,6 +27,7 @@ class AtkItem extends Model
     ];
 
     protected $fillable = [
+        'module',
         'atk_category_id',
         'name',
         'description',
@@ -34,6 +40,9 @@ class AtkItem extends Model
         'min_request_qty',
         'is_active',
         'created_by',
+        'deleted_at',
+        'deleted_by',
+        'deletion_note',
     ];
 
     protected function casts(): array
@@ -44,7 +53,18 @@ class AtkItem extends Model
             'stock_qty' => 'integer',
             'minimum_stock' => 'integer',
             'min_request_qty' => 'integer',
+            'deleted_at' => 'datetime',
         ];
+    }
+
+    public function scopeForModule(Builder $query, string $module): Builder
+    {
+        return $query->where('module', $module);
+    }
+
+    public function scopeAvailable(Builder $query): Builder
+    {
+        return $query->where('is_active', true)->whereNull('deleted_at');
     }
 
     public function category()
@@ -65,6 +85,11 @@ class AtkItem extends Model
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     public function getStockStatusAttribute(): string
