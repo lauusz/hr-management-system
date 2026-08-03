@@ -63,6 +63,18 @@ it('allows selected users to see and open the ops module', function () {
         ->assertOk();
 });
 
+it('shows matching svg icons in the ops sidebar', function () {
+    actingAs(createOpsUser('ADMIN OPS'))
+        ->get('/v2/ops')
+        ->assertOk()
+        ->assertSee('id="ops-icon-catalog"', false)
+        ->assertSee('href="#ops-icon-cart"', false)
+        ->assertSee('href="#ops-icon-request"', false)
+        ->assertSee('href="#ops-icon-stock"', false)
+        ->assertSee('href="#ops-icon-access"', false)
+        ->assertSee('href="#ops-icon-portal"', false);
+});
+
 it('rejects users without ops access from the ops module', function () {
     actingAs(User::factory()->create())
         ->get('/v2/ops')

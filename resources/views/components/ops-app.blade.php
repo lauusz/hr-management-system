@@ -23,8 +23,10 @@
         .ops-brand span { color:var(--ops-muted); font-size:11px; }
         .ops-nav { flex:1; overflow:auto; padding-top:10px; }
         .ops-nav-title { margin:14px 10px 7px; color:#9CA3AF; font-size:10px; font-weight:800; text-transform:uppercase; }
-        .ops-nav a { display:flex; align-items:center; min-height:44px; margin-bottom:4px; padding:10px 12px; border-radius:12px; color:var(--ops-muted); font-size:13px; font-weight:600; text-decoration:none; }
+        .ops-nav a { display:flex; align-items:center; gap:10px; min-height:44px; margin-bottom:4px; padding:10px 12px; border-radius:12px; color:var(--ops-muted); font-size:13px; font-weight:600; text-decoration:none; }
         .ops-nav a:hover,.ops-nav a.active { color:var(--ops-dark); background:var(--ops-soft); }
+        .ops-icon-sprite { position:absolute; width:0; height:0; overflow:hidden; }
+        .ops-nav-icon { width:18px; height:18px; flex:0 0 18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
         .ops-user { padding:12px; border-radius:14px; background:var(--ops-soft); font-size:12px; }
         .ops-user strong { display:block; }
         .ops-user span { color:var(--ops-muted); font-size:11px; }
@@ -66,21 +68,31 @@
 <div class="ops-shell">
     <div class="ops-backdrop" id="opsBackdrop"></div>
     <aside class="ops-sidebar" id="opsSidebar">
+        <svg class="ops-icon-sprite" aria-hidden="true">
+            <symbol id="ops-icon-catalog" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></symbol>
+            <symbol id="ops-icon-cart" viewBox="0 0 24 24"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L20.5 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></symbol>
+            <symbol id="ops-icon-request" viewBox="0 0 24 24"><path d="M9 5h6M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="M9 11h6M9 15h6"/></symbol>
+            <symbol id="ops-icon-inbox" viewBox="0 0 24 24"><path d="M4 4h16l2 10v6H2v-6L4 4Z"/><path d="M2 14h6l2 3h4l2-3h6"/></symbol>
+            <symbol id="ops-icon-box" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
+            <symbol id="ops-icon-stock" viewBox="0 0 24 24"><path d="M7 3v15M3 7l4-4 4 4M17 21V6M13 17l4 4 4-4"/></symbol>
+            <symbol id="ops-icon-access" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 11h6M19 8v6"/></symbol>
+            <symbol id="ops-icon-portal" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+        </svg>
         <div class="ops-brand"><strong>Kebutuhan Operasional</strong><span>Kebutuhan operasional internal</span></div>
         <nav class="ops-nav">
             <div class="ops-nav-title">Menu</div>
-            <a class="{{ request()->routeIs('v2.ops.catalog') ? 'active' : '' }}" href="{{ route('v2.ops.catalog') }}">Katalog</a>
-            <a class="{{ request()->routeIs('v2.ops.cart.*') ? 'active' : '' }}" href="{{ route('v2.ops.cart.show') }}">Keranjang</a>
-            <a class="{{ request()->routeIs('v2.ops.requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.requests.index') }}">Pengajuan Saya</a>
+            <a class="{{ request()->routeIs('v2.ops.catalog') ? 'active' : '' }}" href="{{ route('v2.ops.catalog') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-catalog"/></svg>Katalog</a>
+            <a class="{{ request()->routeIs('v2.ops.cart.*') ? 'active' : '' }}" href="{{ route('v2.ops.cart.show') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-cart"/></svg>Keranjang</a>
+            <a class="{{ request()->routeIs('v2.ops.requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.requests.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-request"/></svg>Pengajuan Saya</a>
             @if(auth()->user()->canManageOps() && Route::has('v2.ops.admin.requests.index'))
                 <div class="ops-nav-title">Admin OPS</div>
-                <a class="{{ request()->routeIs('v2.ops.admin.requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.requests.index') }}">Request Masuk</a>
-                @if(Route::has('v2.ops.admin.items.index'))<a class="{{ request()->routeIs('v2.ops.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.items.index') }}">Master Barang OPS</a>@endif
-                @if(Route::has('v2.ops.admin.stock-movements.index'))<a class="{{ request()->routeIs('v2.ops.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.stock-movements.index') }}">Riwayat Stok</a>@endif
-                @if(Route::has('v2.ops.admin.access.index'))<a class="{{ request()->routeIs('v2.ops.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.access.index') }}">Akses</a>@endif
+                <a class="{{ request()->routeIs('v2.ops.admin.requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.requests.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-inbox"/></svg>Request Masuk</a>
+                @if(Route::has('v2.ops.admin.items.index'))<a class="{{ request()->routeIs('v2.ops.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.items.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-box"/></svg>Master Barang OPS</a>@endif
+                @if(Route::has('v2.ops.admin.stock-movements.index'))<a class="{{ request()->routeIs('v2.ops.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.stock-movements.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-stock"/></svg>Riwayat Stok</a>@endif
+                @if(Route::has('v2.ops.admin.access.index'))<a class="{{ request()->routeIs('v2.ops.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.access.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-access"/></svg>Akses</a>@endif
             @endif
             <div class="ops-nav-title">Pindah</div>
-            <a href="{{ route('v2.access') }}">Pilih Layanan</a>
+            <a href="{{ route('v2.access') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-portal"/></svg>Pilih Layanan</a>
         </nav>
         <div class="ops-user"><strong>{{ auth()->user()->name }}</strong><span>{{ auth()->user()->role->label() }}</span></div>
     </aside>
