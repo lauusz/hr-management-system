@@ -86,8 +86,9 @@ class User extends Authenticatable
     public function canAccessOps(): bool
     {
         return $this->canManageAtk()
-            || $this->hasAccessRole(UserRole::OPS->value)
-            || $this->hasAccessRole(UserRole::ADMIN_OPS->value);
+            || $this->hasAccessRole(UserRole::ADMIN_OPS->value)
+            || ($this->division_id !== null
+                && OpsAccessDivision::where('division_id', $this->division_id)->exists());
     }
 
     public function canManageOps(): bool

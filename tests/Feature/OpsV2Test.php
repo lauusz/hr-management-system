@@ -4,6 +4,8 @@ use App\Models\AtkItem;
 use App\Models\AtkRequest;
 use App\Models\AtkRequestItem;
 use App\Models\AtkStockMovement;
+use App\Models\Division;
+use App\Models\OpsAccessDivision;
 use App\Models\User;
 use App\Models\UserAccessRole;
 use Tests\Support\InstallsOpsSchema;
@@ -39,6 +41,21 @@ it('creates pending ops requests with an ops number and module', function () {
         ->and($request->request_number)->toStartWith('OPS-');
 });
 
+it('bases regular ops access on selected divisions instead of individual ops roles', function () {
+    $selectedDivision = Division::create(['name' => 'Operasional Terpilih']);
+    $otherDivision = Division::create(['name' => 'Divisi Lain']);
+    $selectedUser = User::factory()->create(['division_id' => $selectedDivision->id]);
+    $otherUser = User::factory()->create(['division_id' => $otherDivision->id]);
+    $legacyRoleUser = User::factory()->create(['division_id' => $otherDivision->id]);
+
+    UserAccessRole::create(['user_id' => $legacyRoleUser->id, 'role' => 'OPS']);
+    OpsAccessDivision::create(['division_id' => $selectedDivision->id]);
+
+    expect($selectedUser->canAccessOps())->toBeTrue()
+        ->and($otherUser->canAccessOps())->toBeFalse()
+        ->and($legacyRoleUser->canAccessOps())->toBeFalse();
+});
+
 it('hides the ops access card from users without ops access', function () {
     $user = User::factory()->create();
 
@@ -49,8 +66,9 @@ it('hides the ops access card from users without ops access', function () {
 });
 
 it('allows selected users to see and open the ops module', function () {
-    $user = User::factory()->create();
-    UserAccessRole::create(['user_id' => $user->id, 'role' => 'OPS']);
+    $division = Division::factory()->create();
+    $user = User::factory()->create(['division_id' => $division->id]);
+    OpsAccessDivision::create(['division_id' => $division->id]);
 
     actingAs($user)
         ->get(route('v2.access'))
@@ -345,6 +363,14 @@ function createOpsTestItem(array $overrides = []): AtkItem
 
 function createOpsUser(string $role = 'OPS'): User
 {
+    if ($role === 'OPS') {
+        $division = Division::factory()->create();
+        $user = User::factory()->create(['division_id' => $division->id]);
+        OpsAccessDivision::create(['division_id' => $division->id]);
+
+        return $user;
+    }
+
     $user = User::factory()->create();
     UserAccessRole::create(['user_id' => $user->id, 'role' => $role]);
 

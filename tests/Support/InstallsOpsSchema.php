@@ -23,5 +23,14 @@ trait InstallsOpsSchema
                 $table->string('module', 10)->default('ATK')->index();
             });
         }
+
+        if (! Schema::hasTable('ops_access_divisions')) {
+            Schema::create('ops_access_divisions', function (Blueprint $table): void {
+                $table->id();
+                $table->unsignedBigInteger('division_id')->unique();
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 }
