@@ -241,6 +241,25 @@ it('keeps the ops item photo when editing without a new upload and renders form 
     actingAs($admin)->get('/v2/ops')->assertOk()->assertSee('Tanpa foto');
 });
 
+it('renders the ops master items as an atk-style responsive table without unit and restock columns', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $item = createOpsTestItem(['module' => 'OPS', 'name' => 'Rompi Master OPS', 'stock_qty' => 7]);
+
+    actingAs($admin)->get('/v2/ops/admin/items')
+        ->assertOk()
+        ->assertSee('ops-admin-items-table', false)
+        ->assertSee('<th>Barang</th>', false)
+        ->assertSee('<th>Stok</th>', false)
+        ->assertSee('<th>Status</th>', false)
+        ->assertSee('<th>Aksi</th>', false)
+        ->assertDontSee('<th>Satuan</th>', false)
+        ->assertDontSee('<th>Tambah Stok</th>', false)
+        ->assertDontSee('name="movement_type" value="IN"', false)
+        ->assertSee(route('v2.ops.admin.items.edit', $item), false)
+        ->assertSee('Kurangi Stok')
+        ->assertSee('Hapus');
+});
+
 it('renders an atk-style green quantity stepper on ops catalog cards', function () {
     $user = createOpsUser();
     createOpsTestItem(['module' => 'OPS', 'name' => 'Sarung Tangan Stepper', 'stock_qty' => 5]);
