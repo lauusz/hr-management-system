@@ -24,6 +24,7 @@ beforeEach(function () {
 
 it('shows the v2 access portal for authenticated users', function () {
     $user = User::factory()->create();
+    UserAccessRole::create(['user_id' => $user->id, 'role' => 'ADMIN ATK']);
 
     $response = actingAs($user)
         ->get(route('v2.access'))
@@ -40,6 +41,7 @@ it('shows the v2 access portal for authenticated users', function () {
 
 it('shows the ops placeholder page for authenticated users', function () {
     $user = User::factory()->create();
+    UserAccessRole::create(['user_id' => $user->id, 'role' => 'OPS']);
 
     actingAs($user)
         ->get('/v2/ops')

@@ -10,6 +10,8 @@ enum UserRole: string
     case SUPERVISOR = 'SUPERVISOR';
     case EMPLOYEE = 'EMPLOYEE';
     case ADMIN_ATK = 'ADMIN ATK';
+    case OPS = 'OPS';
+    case ADMIN_OPS = 'ADMIN OPS';
 
     // Helper untuk label tampilan (Opsional, biar rapi di UI nanti)
     public function label(): string
@@ -21,6 +23,8 @@ enum UserRole: string
             self::SUPERVISOR => 'Supervisor',
             self::EMPLOYEE => 'Karyawan',
             self::ADMIN_ATK => 'Admin ATK',
+            self::OPS => 'Pengguna OPS',
+            self::ADMIN_OPS => 'Admin OPS',
         };
     }
 }

@@ -18,11 +18,13 @@
                 <small>Katalog ATK, keranjang, request barang, stok, dan approval Admin ATK.</small>
             </a>
 
-            <a class="access-card access-card-ops" href="{{ route('v2.ops.index') }}">
-                <span class="access-kicker">Testing</span>
-                <strong>Kebutuhan Operasional</strong>
-                <small>Penyimpanan dan pengajuan kebutuhan operasional untuk divisi OPS.</small>
-            </a>
+            @if(auth()->user()->canAccessOps())
+                <a class="access-card access-card-ops" href="{{ route('v2.ops.index') }}">
+                    <span class="access-kicker">Testing</span>
+                    <strong>Kebutuhan Operasional</strong>
+                    <small>Penyimpanan dan pengajuan kebutuhan operasional untuk divisi OPS.</small>
+                </a>
+            @endif
         </div>
     </div>
 

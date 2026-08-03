@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureAtkAdmin;
+use App\Http\Middleware\EnsureOpsAccess;
+use App\Http\Middleware\EnsureOpsAdmin;
 use App\Http\Middleware\HasSubordinates;
 use App\Http\Middleware\PreventBrowserCache;
 use Illuminate\Foundation\Application;
@@ -19,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
             'atk.admin' => EnsureAtkAdmin::class,
+            'ops.access' => EnsureOpsAccess::class,
+            'ops.admin' => EnsureOpsAdmin::class,
             'has.subordinates' => HasSubordinates::class,
             'prevent.cache' => PreventBrowserCache::class,
         ]);

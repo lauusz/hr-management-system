@@ -83,6 +83,19 @@ class User extends Authenticatable
         return $this->hasAccessRole(UserRole::ADMIN_ATK->value);
     }
 
+    public function canAccessOps(): bool
+    {
+        return $this->canManageAtk()
+            || $this->hasAccessRole(UserRole::OPS->value)
+            || $this->hasAccessRole(UserRole::ADMIN_OPS->value);
+    }
+
+    public function canManageOps(): bool
+    {
+        return $this->canManageAtk()
+            || $this->hasAccessRole(UserRole::ADMIN_OPS->value);
+    }
+
     public function isHR(): bool
     {
         return in_array($this->role, [
