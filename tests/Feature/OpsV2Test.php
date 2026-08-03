@@ -123,6 +123,15 @@ it('shows the total ops cart quantity in the sidebar', function () {
         ->assertSee('<span class="ops-nav-badge ops-cart-nav-badge">5</span>', false);
 });
 
+it('shows a logout form in the ops sidebar', function () {
+    actingAs(createOpsUser())
+        ->get('/v2/ops')
+        ->assertOk()
+        ->assertSee('class="ops-sidebar-footer"', false)
+        ->assertSee('action="'.route('logout').'"', false)
+        ->assertSee('>Keluar</button>', false);
+});
+
 it('rejects users without ops access from the ops module', function () {
     actingAs(User::factory()->create())
         ->get('/v2/ops')

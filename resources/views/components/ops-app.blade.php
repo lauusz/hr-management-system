@@ -40,6 +40,8 @@
         .ops-user { padding:12px; border-radius:14px; background:var(--ops-soft); font-size:12px; }
         .ops-user strong { display:block; }
         .ops-user span { color:var(--ops-muted); font-size:11px; }
+        .ops-sidebar-footer { padding-top:12px; border-top:1px solid #E5E7EB; }
+        .ops-logout { width:100%; margin-top:8px; color:var(--ops-muted); background:#F1F1F3; }
         .ops-main { min-height:100dvh; }
         .ops-topbar { position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px; min-height:62px; padding:9px 14px; background:rgba(246,248,248,.95); border-bottom:1px solid var(--ops-border); backdrop-filter:blur(10px); }
         .ops-burger,.ops-cart-link { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border:1px solid var(--ops-border); border-radius:13px; background:#fff; color:var(--ops-dark); text-decoration:none; cursor:pointer; }
@@ -116,7 +118,13 @@
             <div class="ops-nav-title">Pindah</div>
             <a href="{{ route('v2.access') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-portal"/></svg>Pilih Layanan</a>
         </nav>
-        <div class="ops-user"><strong>{{ auth()->user()->name }}</strong><span>{{ auth()->user()->role->label() }}</span></div>
+        <div class="ops-sidebar-footer">
+            <div class="ops-user"><strong>{{ auth()->user()->name }}</strong><span>{{ auth()->user()->role->label() }}</span></div>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button class="ops-btn ops-logout" type="submit">Keluar</button>
+            </form>
+        </div>
     </aside>
     <main class="ops-main">
         <header class="ops-topbar">
