@@ -20,6 +20,7 @@ Modul tersedia di `/v2/ops`. Pengguna hanya melihat kata dan tindakan yang penti
 - Request Masuk
 - Detail dan proses request
 - Master Barang OPS
+- Riwayat Stok
 - Akses
 
 ### Tidak Termasuk MVP
@@ -30,7 +31,6 @@ Modul tersedia di `/v2/ops`. Pengguna hanya melihat kata dan tindakan yang penti
 - Harga barang
 - Pengajuan barang baru di luar katalog
 - Rekap pemakaian
-- Halaman riwayat stok OPS
 - Penggabungan request OPS ke halaman admin ATK
 - Penggabungan riwayat stok OPS ke halaman ATK
 - Pemulihan barang yang sudah dihapus
@@ -108,6 +108,20 @@ Delete selalu berupa soft delete:
 - Pengajuan dan riwayat lama tetap dapat membaca barang tersebut.
 - Barang terhapus yang masih berada dalam session keranjang ditolak saat keranjang diperbarui atau diajukan.
 
+## Riwayat Stok OPS
+
+Halaman Riwayat Stok hanya dapat dibuka oleh `ADMIN OPS` dan `ADMIN ATK`.
+
+- Hanya menampilkan pergerakan dari barang dengan `module = OPS`.
+- Menampilkan tanggal, nama barang, jenis perubahan, jumlah, stok sebelum, stok sesudah, pelaku, dan keterangan.
+- Jenis perubahan memakai kata sederhana: “Stok Masuk”, “Stok Keluar”, dan “Koreksi”.
+- Daftar terbaru tampil lebih dahulu.
+- Tersedia pencarian berdasarkan nama barang dan filter bulan.
+- Mobile menggunakan card satu kolom; desktop boleh menggunakan tabel.
+- Riwayat tidak dapat diubah atau dihapus.
+
+Penggabungan riwayat OPS ke halaman ATK tetap berada di luar MVP.
+
 ## Keranjang dan Pengajuan
 
 - Session keranjang OPS terpisah dari keranjang ATK.
@@ -184,6 +198,7 @@ Feature test mencakup:
 - Route pengguna dan admin menolak pengguna tanpa akses.
 - Admin ATK dapat membuka seluruh halaman OPS.
 - Katalog hanya menampilkan barang OPS aktif dan belum dihapus.
+- Riwayat stok OPS hanya menampilkan pergerakan barang OPS.
 - Keranjang OPS terpisah dari ATK.
 - Pengguna hanya melihat pengajuannya sendiri.
 - Approval mengurangi stok sekali saja.
@@ -195,6 +210,7 @@ Feature test mencakup:
 
 - Pengguna terpilih dapat menjalankan alur katalog sampai melihat hasil pengajuan.
 - Admin OPS dan Admin ATK dapat mengelola barang serta menyelesaikan request OPS.
+- Admin OPS dan Admin ATK dapat melihat riwayat stok OPS.
 - Admin dapat mengelola akses OPS.
 - Pengguna tanpa akses tidak melihat card dan tidak dapat membuka modul.
 - Seluruh halaman OPS memakai tema hijau dan bahasa sederhana.
