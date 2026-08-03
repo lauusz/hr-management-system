@@ -241,6 +241,24 @@ it('keeps the ops item photo when editing without a new upload and renders form 
     actingAs($admin)->get('/v2/ops')->assertOk()->assertSee('Tanpa foto');
 });
 
+it('renders an atk-style green quantity stepper on ops catalog cards', function () {
+    $user = createOpsUser();
+    createOpsTestItem(['module' => 'OPS', 'name' => 'Sarung Tangan Stepper', 'stock_qty' => 5]);
+
+    actingAs($user)->get('/v2/ops')
+        ->assertOk()
+        ->assertSee('ops-catalog-grid', false)
+        ->assertSee('data-ops-stepper', false)
+        ->assertSee('data-ops-stepper-decrease', false)
+        ->assertSee('data-ops-stepper-input', false)
+        ->assertSee('data-ops-stepper-increase', false)
+        ->assertSee('aria-label="Kurangi jumlah Sarung Tangan Stepper"', false)
+        ->assertSee('aria-label="Tambah jumlah Sarung Tangan Stepper"', false)
+        ->assertSee('ops-add-button', false)
+        ->assertSee('quantityInput.stepDown()', false)
+        ->assertSee('quantityInput.stepUp()', false);
+});
+
 it('adds and subtracts ops stock without allowing negative stock', function () {
     $admin = createOpsUser('ADMIN OPS');
     $item = createOpsTestItem(['module' => 'OPS', 'stock_qty' => 10]);
