@@ -40,6 +40,7 @@ use App\Http\Controllers\Ops\CatalogController as OpsCatalogController;
 use App\Http\Controllers\Ops\RequestController as OpsRequestController;
 use App\Http\Controllers\Ops\Admin\ItemController as OpsAdminItemController;
 use App\Http\Controllers\Ops\Admin\StockController as OpsAdminStockController;
+use App\Http\Controllers\Ops\Admin\RequestApprovalController as OpsAdminRequestApprovalController;
 use App\Http\Controllers\PtController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SupervisorDataController;
@@ -68,6 +69,10 @@ Route::middleware('auth')->group(function () {
             Route::get('/requests/{atkRequest}', [OpsRequestController::class, 'show'])->name('requests.show');
 
             Route::middleware('ops.admin')->prefix('admin')->name('admin.')->group(function () {
+                Route::get('/requests', [OpsAdminRequestApprovalController::class, 'index'])->name('requests.index');
+                Route::get('/requests/{atkRequest}', [OpsAdminRequestApprovalController::class, 'show'])->name('requests.show');
+                Route::post('/requests/{atkRequest}/items/{requestItem}/review', [OpsAdminRequestApprovalController::class, 'reviewItem'])->name('requests.items.review');
+                Route::post('/requests/{atkRequest}/finalize', [OpsAdminRequestApprovalController::class, 'finalize'])->name('requests.finalize');
                 Route::get('/items', [OpsAdminItemController::class, 'index'])->name('items.index');
                 Route::get('/items/create', [OpsAdminItemController::class, 'create'])->name('items.create');
                 Route::post('/items', [OpsAdminItemController::class, 'store'])->name('items.store');

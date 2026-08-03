@@ -75,9 +75,9 @@
             @if(auth()->user()->canManageOps() && Route::has('v2.ops.admin.requests.index'))
                 <div class="ops-nav-title">Admin OPS</div>
                 <a class="{{ request()->routeIs('v2.ops.admin.requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.requests.index') }}">Request Masuk</a>
-                <a class="{{ request()->routeIs('v2.ops.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.items.index') }}">Master Barang OPS</a>
-                <a class="{{ request()->routeIs('v2.ops.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.stock-movements.index') }}">Riwayat Stok</a>
-                <a class="{{ request()->routeIs('v2.ops.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.access.index') }}">Akses</a>
+                @if(Route::has('v2.ops.admin.items.index'))<a class="{{ request()->routeIs('v2.ops.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.items.index') }}">Master Barang OPS</a>@endif
+                @if(Route::has('v2.ops.admin.stock-movements.index'))<a class="{{ request()->routeIs('v2.ops.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.stock-movements.index') }}">Riwayat Stok</a>@endif
+                @if(Route::has('v2.ops.admin.access.index'))<a class="{{ request()->routeIs('v2.ops.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.access.index') }}">Akses</a>@endif
             @endif
             <div class="ops-nav-title">Pindah</div>
             <a href="{{ route('v2.access') }}">Pilih Layanan</a>

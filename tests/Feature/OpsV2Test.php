@@ -2,6 +2,7 @@
 
 use App\Models\AtkItem;
 use App\Models\AtkRequest;
+use App\Models\AtkRequestItem;
 use App\Models\AtkStockMovement;
 use App\Models\User;
 use App\Models\UserAccessRole;
@@ -204,6 +205,68 @@ it('soft deletes ops items with a required reason', function () {
         ->and($item->deleted_at)->not->toBeNull()
         ->and($item->deleted_by)->toBe($admin->id)
         ->and($item->deletion_note)->toBe('Barang tidak digunakan lagi');
+});
+
+it('lists only ops requests for ops approval', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $requester = createOpsUser();
+    $opsItem = createOpsTestItem(['module' => 'OPS']);
+    $atkItem = createOpsTestItem(['module' => 'ATK']);
+    $opsRequest = AtkRequest::createPending($requester, collect([['item' => $opsItem, 'qty' => 1]]), null, 'OPS');
+    $atkRequest = AtkRequest::createPending($requester, collect([['item' => $atkItem, 'qty' => 1]]));
+
+    actingAs($admin)
+        ->get('/v2/ops/admin/requests')
+        ->assertOk()
+        ->assertSee($opsRequest->request_number)
+        ->assertDontSee($atkRequest->request_number);
+});
+
+it('finalizes a partial ops approval once and reduces only approved stock', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $requester = createOpsUser();
+    $approvedItem = createOpsTestItem(['module' => 'OPS', 'name' => 'Helm', 'stock_qty' => 10]);
+    $rejectedItem = createOpsTestItem(['module' => 'OPS', 'name' => 'Jas Hujan', 'stock_qty' => 10]);
+    $opsRequest = AtkRequest::createPending($requester, collect([
+        ['item' => $approvedItem, 'qty' => 3],
+        ['item' => $rejectedItem, 'qty' => 2],
+    ]), null, 'OPS');
+    [$approveRow, $rejectRow] = $opsRequest->items()->orderBy('id')->get();
+
+    actingAs($admin)->post('/v2/ops/admin/requests/'.$opsRequest->id.'/items/'.$approveRow->id.'/review', [
+        'status' => AtkRequestItem::STATUS_APPROVED,
+    ])->assertRedirect();
+
+    actingAs($admin)->post('/v2/ops/admin/requests/'.$opsRequest->id.'/items/'.$rejectRow->id.'/review', [
+        'status' => AtkRequestItem::STATUS_REJECTED,
+        'admin_note' => 'Belum diperlukan',
+    ])->assertRedirect();
+
+    expect($approvedItem->fresh()->stock_qty)->toBe(10);
+
+    actingAs($admin)->post('/v2/ops/admin/requests/'.$opsRequest->id.'/finalize')->assertRedirect();
+
+    expect($opsRequest->fresh()->status)->toBe(AtkRequest::STATUS_PARTIAL)
+        ->and($approvedItem->fresh()->stock_qty)->toBe(7)
+        ->and($rejectedItem->fresh()->stock_qty)->toBe(10)
+        ->and(AtkStockMovement::where('atk_item_id', $approvedItem->id)->count())->toBe(1);
+
+    actingAs($admin)->post('/v2/ops/admin/requests/'.$opsRequest->id.'/finalize')->assertSessionHas('warning');
+
+    expect($approvedItem->fresh()->stock_qty)->toBe(7)
+        ->and(AtkStockMovement::where('atk_item_id', $approvedItem->id)->count())->toBe(1);
+});
+
+it('lets atk admins process ops approvals from the ops module', function () {
+    $admin = createOpsUser('ADMIN ATK');
+    $requester = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS']);
+    $opsRequest = AtkRequest::createPending($requester, collect([['item' => $item, 'qty' => 1]]), null, 'OPS');
+
+    actingAs($admin)
+        ->get('/v2/ops/admin/requests/'.$opsRequest->id)
+        ->assertOk()
+        ->assertSee($opsRequest->request_number);
 });
 
 function createOpsTestItem(array $overrides = []): AtkItem
