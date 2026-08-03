@@ -41,6 +41,8 @@ use App\Http\Controllers\Ops\RequestController as OpsRequestController;
 use App\Http\Controllers\Ops\Admin\ItemController as OpsAdminItemController;
 use App\Http\Controllers\Ops\Admin\StockController as OpsAdminStockController;
 use App\Http\Controllers\Ops\Admin\RequestApprovalController as OpsAdminRequestApprovalController;
+use App\Http\Controllers\Ops\Admin\AccessController as OpsAdminAccessController;
+use App\Http\Controllers\Ops\Admin\StockMovementController as OpsAdminStockMovementController;
 use App\Http\Controllers\PtController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SupervisorDataController;
@@ -80,6 +82,12 @@ Route::middleware('auth')->group(function () {
                 Route::put('/items/{item}', [OpsAdminItemController::class, 'update'])->name('items.update');
                 Route::delete('/items/{item}', [OpsAdminItemController::class, 'destroy'])->name('items.destroy');
                 Route::post('/items/{item}/stock', [OpsAdminStockController::class, 'store'])->name('items.stock.store');
+                Route::get('/stock-movements', [OpsAdminStockMovementController::class, 'index'])->name('stock-movements.index');
+                Route::get('/access', [OpsAdminAccessController::class, 'index'])->name('access.index');
+                Route::post('/access/{user}/grant-user', [OpsAdminAccessController::class, 'grantUser'])->name('access.grant-user');
+                Route::post('/access/{user}/grant-admin', [OpsAdminAccessController::class, 'grantAdmin'])->name('access.grant-admin');
+                Route::delete('/access/{user}/revoke-user', [OpsAdminAccessController::class, 'revokeUser'])->name('access.revoke-user');
+                Route::delete('/access/{user}/revoke-admin', [OpsAdminAccessController::class, 'revokeAdmin'])->name('access.revoke-admin');
             });
         });
 

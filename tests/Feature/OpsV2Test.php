@@ -269,6 +269,52 @@ it('lets atk admins process ops approvals from the ops module', function () {
         ->assertSee($opsRequest->request_number);
 });
 
+it('shows only ops item movements in ops stock history', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $opsItem = createOpsTestItem(['module' => 'OPS', 'name' => 'Sepatu Safety']);
+    $atkItem = createOpsTestItem(['module' => 'ATK', 'name' => 'Pulpen ATK']);
+
+    foreach ([[$opsItem, 'Stok OPS'], [$atkItem, 'Stok ATK']] as [$item, $notes]) {
+        AtkStockMovement::create([
+            'atk_item_id' => $item->id,
+            'movement_type' => 'IN',
+            'qty' => 5,
+            'stock_before' => 0,
+            'stock_after' => 5,
+            'notes' => $notes,
+            'created_by' => $admin->id,
+        ]);
+    }
+
+    actingAs($admin)
+        ->get('/v2/ops/admin/stock-movements?q=Sepatu')
+        ->assertOk()
+        ->assertSee('Sepatu Safety')
+        ->assertSee('Stok OPS')
+        ->assertDontSee('Pulpen ATK')
+        ->assertDontSee('Stok ATK');
+});
+
+it('lets ops admins manage ops access without revoking themselves', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $user = User::factory()->create();
+
+    actingAs($admin)->post('/v2/ops/admin/access/'.$user->id.'/grant-user')->assertRedirect();
+    expect($user->fresh()->hasAccessRole('OPS'))->toBeTrue();
+
+    actingAs($admin)->post('/v2/ops/admin/access/'.$user->id.'/grant-admin')->assertRedirect();
+    actingAs($admin)->delete('/v2/ops/admin/access/'.$user->id.'/revoke-user')->assertRedirect();
+
+    expect($user->fresh()->hasAccessRole('OPS'))->toBeFalse()
+        ->and($user->fresh()->canAccessOps())->toBeTrue()
+        ->and($user->fresh()->canManageOps())->toBeTrue();
+
+    actingAs($admin)->delete('/v2/ops/admin/access/'.$admin->id.'/revoke-admin')
+        ->assertSessionHas('warning');
+
+    expect($admin->fresh()->hasAccessRole('ADMIN OPS'))->toBeTrue();
+});
+
 function createOpsTestItem(array $overrides = []): AtkItem
 {
     return AtkItem::create(array_merge([
