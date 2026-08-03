@@ -34,15 +34,15 @@ use App\Http\Controllers\HrLeaveController;
 use App\Http\Controllers\HrLoanRequestController;
 use App\Http\Controllers\HrOvertimeController;
 use App\Http\Controllers\LeaveRequestController;
-use App\Http\Controllers\OvertimeRequestController;
+use App\Http\Controllers\Ops\Admin\AccessController as OpsAdminAccessController;
+use App\Http\Controllers\Ops\Admin\ItemController as OpsAdminItemController;
+use App\Http\Controllers\Ops\Admin\RequestApprovalController as OpsAdminRequestApprovalController;
+use App\Http\Controllers\Ops\Admin\StockController as OpsAdminStockController;
+use App\Http\Controllers\Ops\Admin\StockMovementController as OpsAdminStockMovementController;
 use App\Http\Controllers\Ops\CartController as OpsCartController;
 use App\Http\Controllers\Ops\CatalogController as OpsCatalogController;
 use App\Http\Controllers\Ops\RequestController as OpsRequestController;
-use App\Http\Controllers\Ops\Admin\ItemController as OpsAdminItemController;
-use App\Http\Controllers\Ops\Admin\StockController as OpsAdminStockController;
-use App\Http\Controllers\Ops\Admin\RequestApprovalController as OpsAdminRequestApprovalController;
-use App\Http\Controllers\Ops\Admin\AccessController as OpsAdminAccessController;
-use App\Http\Controllers\Ops\Admin\StockMovementController as OpsAdminStockMovementController;
+use App\Http\Controllers\OvertimeRequestController;
 use App\Http\Controllers\PtController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SupervisorDataController;
@@ -72,7 +72,10 @@ Route::middleware('auth')->group(function () {
 
             Route::middleware('ops.admin')->prefix('admin')->name('admin.')->group(function () {
                 Route::get('/requests', [OpsAdminRequestApprovalController::class, 'index'])->name('requests.index');
+                Route::get('/requests/manual/create', [OpsAdminRequestApprovalController::class, 'createManual'])->name('requests.manual.create');
+                Route::post('/requests/manual', [OpsAdminRequestApprovalController::class, 'storeManual'])->name('requests.manual.store');
                 Route::get('/requests/{atkRequest}', [OpsAdminRequestApprovalController::class, 'show'])->name('requests.show');
+                Route::post('/requests/{atkRequest}/reject', [OpsAdminRequestApprovalController::class, 'reject'])->name('requests.reject');
                 Route::post('/requests/{atkRequest}/items/{requestItem}/review', [OpsAdminRequestApprovalController::class, 'reviewItem'])->name('requests.items.review');
                 Route::post('/requests/{atkRequest}/finalize', [OpsAdminRequestApprovalController::class, 'finalize'])->name('requests.finalize');
                 Route::get('/items', [OpsAdminItemController::class, 'index'])->name('items.index');

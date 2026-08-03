@@ -7,8 +7,10 @@ use App\Models\AtkItem;
 use App\Models\AtkRequest;
 use App\Models\AtkRequestItem;
 use App\Models\AtkStockMovement;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class RequestApprovalController extends Controller
 {
@@ -21,14 +23,58 @@ class RequestApprovalController extends Controller
             ->when($request->filled('q'), function ($query) use ($request): void {
                 $keyword = '%'.$request->string('q').'%';
                 $query->where(fn ($query) => $query->where('request_number', 'like', $keyword)
-                    ->orWhere('user_name_snapshot', 'like', $keyword));
+                    ->orWhere('user_name_snapshot', 'like', $keyword)
+                    ->orWhere('pt_name_snapshot', 'like', $keyword));
             })
             ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [AtkRequest::STATUS_PENDING])
-            ->latest()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
         return view('ops.admin.requests.index', compact('requests'));
+    }
+
+    public function createManual()
+    {
+        $users = User::query()->active()->with('profile.pt')->orderBy('name')->get();
+        $items = AtkItem::query()->forModule(AtkItem::MODULE_OPS)->available()->orderBy('name')->get();
+
+        return view('ops.admin.requests.manual-create', compact('users', 'items'));
+    }
+
+    public function storeManual(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => ['required', Rule::exists('users', 'id')->where('status', User::STATUS_ACTIVE)],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'quantities' => ['required', 'array'],
+            'quantities.*' => ['nullable', 'integer', 'min:1'],
+        ]);
+        $quantities = collect($validated['quantities'])
+            ->filter(fn ($qty) => $qty !== null && (int) $qty > 0)
+            ->map(fn ($qty) => (int) $qty);
+
+        if ($quantities->isEmpty()) {
+            return back()->withErrors(['quantities' => 'Pilih minimal satu barang.'])->withInput();
+        }
+
+        $items = AtkItem::query()->forModule(AtkItem::MODULE_OPS)->available()
+            ->whereIn('id', $quantities->keys())->get()->keyBy('id');
+
+        if ($items->count() !== $quantities->count()) {
+            return back()->withErrors(['quantities' => 'Terdapat barang yang tidak aktif atau tidak ditemukan.'])->withInput();
+        }
+
+        $rows = $quantities->map(fn (int $qty, int|string $itemId) => [
+            'item' => $items->get((int) $itemId),
+            'qty' => $qty,
+        ])->values();
+        $user = User::query()->active()->findOrFail($validated['user_id']);
+        $opsRequest = AtkRequest::createPending($user, $rows, $validated['notes'] ?? null, AtkRequest::MODULE_OPS);
+
+        return redirect()->route('v2.ops.admin.requests.show', $opsRequest)
+            ->with('success', 'Pengambilan manual berhasil dibuat. Silakan periksa setiap barang.');
     }
 
     public function show(AtkRequest $atkRequest)
@@ -73,6 +119,45 @@ class RequestApprovalController extends Controller
         ]);
 
         return back()->with('success', $validated['status'] === AtkRequestItem::STATUS_APPROVED ? 'Barang disetujui.' : 'Barang ditolak.');
+    }
+
+    public function reject(Request $request, AtkRequest $atkRequest)
+    {
+        $this->ensureOpsRequest($atkRequest);
+
+        if ($atkRequest->status !== AtkRequest::STATUS_PENDING) {
+            return back()->with('warning', 'Pengajuan sudah selesai.');
+        }
+
+        $validated = $request->validate(['admin_note' => ['required', 'string', 'max:1000']]);
+
+        try {
+            DB::transaction(function () use ($validated, $request, $atkRequest): void {
+                $lockedRequest = AtkRequest::query()->forModule(AtkRequest::MODULE_OPS)
+                    ->whereKey($atkRequest->id)->lockForUpdate()->firstOrFail();
+
+                if ($lockedRequest->status !== AtkRequest::STATUS_PENDING) {
+                    throw new \RuntimeException('Pengajuan baru saja diselesaikan.');
+                }
+
+                $lockedRequest->update([
+                    'status' => AtkRequest::STATUS_REJECTED,
+                    'rejected_by' => $request->user()->id,
+                    'rejected_at' => now(),
+                    'admin_note' => $validated['admin_note'],
+                ]);
+                $lockedRequest->items()->update([
+                    'status' => AtkRequestItem::STATUS_REJECTED,
+                    'reviewed_by' => $request->user()->id,
+                    'reviewed_at' => now(),
+                    'admin_note' => $validated['admin_note'],
+                ]);
+            });
+        } catch (\RuntimeException $exception) {
+            return redirect()->route('v2.ops.admin.requests.show', $atkRequest)->with('warning', $exception->getMessage());
+        }
+
+        return redirect()->route('v2.ops.admin.requests.show', $atkRequest)->with('success', 'Pengajuan ditolak.');
     }
 
     public function finalize(Request $request, AtkRequest $atkRequest)

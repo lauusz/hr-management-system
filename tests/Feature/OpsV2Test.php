@@ -370,8 +370,79 @@ it('lists only ops requests for ops approval', function () {
     actingAs($admin)
         ->get('/v2/ops/admin/requests')
         ->assertOk()
-        ->assertSee($opsRequest->request_number)
-        ->assertDontSee($atkRequest->request_number);
+        ->assertSee('href="'.route('v2.ops.admin.requests.show', $opsRequest).'"', false)
+        ->assertDontSee('href="'.route('v2.ops.admin.requests.show', $atkRequest).'"', false);
+});
+
+it('renders the ops admin request list with the same responsive flow as atk', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $requester = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS']);
+    $opsRequest = AtkRequest::createPending($requester, collect([['item' => $item, 'qty' => 1]]), null, 'OPS');
+    $opsRequest->update(['pt_name_snapshot' => 'TRIGUNA OPS']);
+
+    actingAs($admin)->get('/v2/ops/admin/requests?q=TRIGUNA+OPS&status=PENDING')
+        ->assertOk()
+        ->assertSee('ops-admin-request-mobile-list', false)
+        ->assertSee('ops-admin-request-desktop-table', false)
+        ->assertSee('Cari no request, user, atau PT')
+        ->assertSee('/v2/ops/admin/requests/manual/create', false)
+        ->assertSee($requester->name)
+        ->assertSee('TRIGUNA OPS')
+        ->assertSee('Review Admin');
+});
+
+it('creates a manual ops request using only active ops items', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $requester = User::factory()->create(['name' => 'Pengambil Manual OPS']);
+    $opsItem = createOpsTestItem(['module' => 'OPS', 'name' => 'Helm Manual OPS', 'stock_qty' => 8]);
+    $atkItem = createOpsTestItem(['module' => 'ATK', 'name' => 'Pulpen Manual ATK']);
+
+    actingAs($admin)->get('/v2/ops/admin/requests/manual/create')
+        ->assertOk()
+        ->assertSee('Input Pengambilan Manual')
+        ->assertSee($requester->name)
+        ->assertSee($opsItem->name)
+        ->assertDontSee($atkItem->name);
+
+    $response = actingAs($admin)->post('/v2/ops/admin/requests/manual', [
+        'user_id' => $requester->id,
+        'notes' => 'Dicatat admin OPS.',
+        'quantities' => [$opsItem->id => 2],
+    ]);
+
+    $opsRequest = AtkRequest::forModule('OPS')->where('user_id', $requester->id)->sole();
+    $response->assertRedirect('/v2/ops/admin/requests/'.$opsRequest->id);
+
+    expect($opsRequest->status)->toBe(AtkRequest::STATUS_PENDING)
+        ->and($opsRequest->notes)->toBe('Dicatat admin OPS.')
+        ->and($opsRequest->items()->sole()->atk_item_id)->toBe($opsItem->id);
+});
+
+it('renders the atk-style ops review and lets the admin reject all items', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $requester = createOpsUser();
+    $item = createOpsTestItem(['module' => 'OPS', 'name' => 'Rompi Review OPS', 'stock_qty' => 5]);
+    $opsRequest = AtkRequest::createPending($requester, collect([['item' => $item, 'qty' => 2]]), null, 'OPS');
+
+    actingAs($admin)->get('/v2/ops/admin/requests/'.$opsRequest->id)
+        ->assertOk()
+        ->assertSee('ops-admin-review-header', false)
+        ->assertSee('ops-admin-review-table', false)
+        ->assertSee('ops-admin-review-item', false)
+        ->assertSee('data-label="Jumlah"', false)
+        ->assertSee('data-label="Stok Saat Ini"', false)
+        ->assertSee('Tolak Semua')
+        ->assertSee('Selesaikan Review');
+
+    actingAs($admin)->post('/v2/ops/admin/requests/'.$opsRequest->id.'/reject', [
+        'admin_note' => 'Tidak digunakan.',
+    ])->assertRedirect('/v2/ops/admin/requests/'.$opsRequest->id);
+
+    $freshRequest = $opsRequest->fresh();
+    expect($freshRequest->status)->toBe(AtkRequest::STATUS_REJECTED)
+        ->and($freshRequest->admin_note)->toBe('Tidak digunakan.')
+        ->and($opsRequest->items()->sole()->status)->toBe(AtkRequestItem::STATUS_REJECTED);
 });
 
 it('finalizes a partial ops approval once and reduces only approved stock', function () {
