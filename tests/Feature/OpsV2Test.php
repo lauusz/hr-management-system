@@ -123,13 +123,14 @@ it('shows the total ops cart quantity in the sidebar', function () {
         ->assertSee('<span class="ops-nav-badge ops-cart-nav-badge">5</span>', false);
 });
 
-it('shows a logout form in the ops sidebar', function () {
-    actingAs(createOpsUser())
-        ->get('/v2/ops')
-        ->assertOk()
-        ->assertSee('class="ops-sidebar-footer"', false)
-        ->assertSee('action="'.route('logout').'"', false)
-        ->assertSee('>Keluar</button>', false);
+it('asks for confirmation before logout from the ops sidebar', function () {
+    $response = actingAs(createOpsUser())->get('/v2/ops')->assertOk();
+    $dom = new DOMDocument;
+    @$dom->loadHTML($response->getContent());
+    $xpath = new DOMXPath($dom);
+
+    expect($xpath->query('//button[@type="button" and @data-modal-target="confirm-logout"]')->length)->toBe(1)
+        ->and($xpath->query('//*[@id="confirm-logout"]//form[@method="POST" and @action="'.route('logout').'"]')->length)->toBe(1);
 });
 
 it('rejects users without ops access from the ops module', function () {

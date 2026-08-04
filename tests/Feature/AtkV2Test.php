@@ -24,6 +24,19 @@ beforeEach(function () {
     $this->installOpsSchema();
 });
 
+it('asks for confirmation before logout from the atk sidebar', function () {
+    $user = User::factory()->create();
+    UserAccessRole::create(['user_id' => $user->id, 'role' => 'ADMIN ATK']);
+
+    $response = actingAs($user)->get('/v2/atk')->assertOk();
+    $dom = new DOMDocument;
+    @$dom->loadHTML($response->getContent());
+    $xpath = new DOMXPath($dom);
+
+    expect($xpath->query('//button[@type="button" and @data-modal-target="confirm-logout"]')->length)->toBe(1)
+        ->and($xpath->query('//*[@id="confirm-logout"]//form[@method="POST" and @action="'.route('logout').'"]')->length)->toBe(1);
+});
+
 it('keeps ops items out of atk catalog and admin inventory', function () {
     $admin = User::factory()->create();
     UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);

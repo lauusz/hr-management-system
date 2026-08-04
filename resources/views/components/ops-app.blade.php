@@ -120,10 +120,7 @@
         </nav>
         <div class="ops-sidebar-footer">
             <div class="ops-user"><strong>{{ auth()->user()->name }}</strong><span>{{ auth()->user()->role->label() }}</span></div>
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <button class="ops-btn ops-logout" type="submit">Keluar</button>
-            </form>
+            <button class="ops-btn ops-logout" type="button" data-modal-target="confirm-logout" aria-haspopup="dialog" aria-controls="confirm-logout">Keluar</button>
         </div>
     </aside>
     <main class="ops-main">
@@ -140,8 +137,31 @@
         </div>
     </main>
 </div>
+<x-modal
+    id="confirm-logout"
+    title="Keluar dari Sistem?"
+    type="confirm"
+    variant="danger"
+    confirmLabel="Ya, Keluar"
+    cancelLabel="Batal"
+    :confirmFormAction="route('logout')"
+    confirmFormMethod="POST">
+    <p style="margin:0;">Apakah Anda yakin ingin mengakhiri sesi ini?</p>
+</x-modal>
 <script>
-    (() => { const side=document.getElementById('opsSidebar'), btn=document.getElementById('opsBurger'), back=document.getElementById('opsBackdrop'); if(!side||!btn||!back)return; const open=value=>{side.classList.toggle('open',value);back.classList.toggle('show',value);document.body.style.overflow=value?'hidden':''}; btn.addEventListener('click',()=>open(!side.classList.contains('open'))); back.addEventListener('click',()=>open(false)); side.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>open(false))); })();
+    (() => {
+        const side=document.getElementById('opsSidebar'), btn=document.getElementById('opsBurger'), back=document.getElementById('opsBackdrop');
+        const logoutModal=document.getElementById('confirm-logout'), logoutTrigger=document.querySelector('[data-modal-target="confirm-logout"]');
+        if(!side||!btn||!back)return;
+        const open=value=>{side.classList.toggle('open',value);back.classList.toggle('show',value);document.body.style.overflow=value?'hidden':''};
+        const openLogout=value=>{if(!logoutModal)return;logoutModal.style.display=value?'flex':'none';document.body.style.overflow=value?'hidden':''};
+        btn.addEventListener('click',()=>open(!side.classList.contains('open')));
+        back.addEventListener('click',()=>open(false));
+        side.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>open(false)));
+        logoutTrigger?.addEventListener('click',()=>{open(false);openLogout(true)});
+        logoutModal?.addEventListener('click',event=>{if(event.target===logoutModal||event.target.closest('[data-modal-close]'))openLogout(false)});
+        document.addEventListener('keydown',event=>{if(event.key==='Escape'){open(false);openLogout(false)}});
+    })();
 </script>
 </body>
 </html>

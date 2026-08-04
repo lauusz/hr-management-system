@@ -482,10 +482,7 @@
                     <div class="atk-user-name">{{ auth()->user()->name }}</div>
                     <div class="atk-user-role">{{ auth()->user()->role->label() }}</div>
                 </div>
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-                    <button class="atk-btn atk-btn-muted" style="width:100%" type="submit">Keluar</button>
-                </form>
+                <button class="atk-btn atk-btn-muted" style="width:100%" type="button" data-modal-target="confirm-logout" aria-haspopup="dialog" aria-controls="confirm-logout">Keluar</button>
             </div>
         </aside>
         <main class="atk-main">
@@ -525,11 +522,24 @@
             </div>
         </main>
     </div>
+    <x-modal
+        id="confirm-logout"
+        title="Keluar dari Sistem?"
+        type="confirm"
+        variant="danger"
+        confirmLabel="Ya, Keluar"
+        cancelLabel="Batal"
+        :confirmFormAction="route('logout')"
+        confirmFormMethod="POST">
+        <p style="margin:0;">Apakah Anda yakin ingin mengakhiri sesi ini?</p>
+    </x-modal>
     <script>
         (function () {
             const sidebar = document.getElementById('atkSidebar');
             const burger = document.getElementById('atkBurger');
             const backdrop = document.getElementById('atkBackdrop');
+            const logoutModal = document.getElementById('confirm-logout');
+            const logoutTrigger = document.querySelector('[data-modal-target="confirm-logout"]');
 
             if (!sidebar || !burger || !backdrop) return;
 
@@ -540,13 +550,29 @@
                 document.body.style.overflow = open ? 'hidden' : '';
             }
 
+            function setLogoutOpen(open) {
+                if (!logoutModal) return;
+                logoutModal.style.display = open ? 'flex' : 'none';
+                document.body.style.overflow = open ? 'hidden' : '';
+            }
+
             burger.addEventListener('click', () => setOpen(!sidebar.classList.contains('open')));
             backdrop.addEventListener('click', () => setOpen(false));
             sidebar.querySelectorAll('a').forEach((link) => {
                 link.addEventListener('click', () => setOpen(false));
             });
+            logoutTrigger?.addEventListener('click', () => {
+                setOpen(false);
+                setLogoutOpen(true);
+            });
+            logoutModal?.addEventListener('click', (event) => {
+                if (event.target === logoutModal || event.target.closest('[data-modal-close]')) setLogoutOpen(false);
+            });
             document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape') setOpen(false);
+                if (event.key === 'Escape') {
+                    setOpen(false);
+                    setLogoutOpen(false);
+                }
             });
         })();
     </script>
