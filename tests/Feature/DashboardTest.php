@@ -23,6 +23,19 @@ it('shows employee tenure on dashboard', function () {
         ->assertSee('2 Tahun 3 Bulan');
 });
 
+it('marks the tenure card to span the full mobile summary row', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk();
+    $dom = new DOMDocument;
+    @$dom->loadHTML($response->getContent());
+    $xpath = new DOMXPath($dom);
+
+    expect($xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " summary-item--mobile-wide ")][.//div[normalize-space()="Masa Kerja"]]')->length)->toBe(1);
+});
+
 it('shows division in the hero badge instead of role', function () {
     $division = Division::create(['name' => 'Operasional']);
     $user = User::factory()->create(['division_id' => $division->id]);
