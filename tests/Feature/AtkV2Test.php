@@ -1078,26 +1078,55 @@ it('renders an ATK success notification only once on the item edit page', functi
     expect(substr_count($response->getContent(), 'Stok berhasil diperbarui.'))->toBe(1);
 });
 
-it('allows admin atk to create and update categories', function () {
+it('does not expose atk category management routes', function () {
     $admin = User::factory()->create();
     UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
 
     actingAs($admin)
-        ->post(route('v2.atk.admin.categories.store'), ['name' => 'Peralatan Tulis'])
-        ->assertRedirect(route('v2.atk.admin.categories.index'));
+        ->get('/v2/atk/admin/categories')
+        ->assertNotFound();
+});
 
-    $category = AtkCategory::where('name', 'Peralatan Tulis')->firstOrFail();
+it('does not show atk category controls or labels', function () {
+    $admin = User::factory()->create();
+    UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
+
+    $category = AtkCategory::create([
+        'name' => 'Kategori Tersimpan',
+        'is_active' => true,
+    ]);
+    $item = AtkItem::create([
+        'atk_category_id' => $category->id,
+        'name' => 'Barang Berkategori',
+        'unit_name' => 'pcs',
+        'unit_size' => 1,
+        'content_unit_name' => 'pcs',
+        'stock_qty' => 5,
+        'is_active' => true,
+    ]);
 
     actingAs($admin)
-        ->put(route('v2.atk.admin.categories.update', $category), [
-            'name' => 'Alat Tulis',
-            'is_active' => '0',
-        ])
-        ->assertRedirect(route('v2.atk.admin.categories.index'));
+        ->get(route('v2.atk.catalog'))
+        ->assertOk()
+        ->assertDontSee('Kategori Tersimpan');
 
-    expect($category->fresh())
-        ->name->toBe('Alat Tulis')
-        ->is_active->toBeFalse();
+    actingAs($admin)
+        ->get(route('v2.atk.admin.items.index'))
+        ->assertOk()
+        ->assertDontSee('name="category_id"', false)
+        ->assertDontSee('data-label="Kategori"', false);
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.items.create'))
+        ->assertOk()
+        ->assertDontSee('name="atk_category_id"', false);
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.items.edit', $item))
+        ->assertOk()
+        ->assertDontSee('name="atk_category_id"', false);
+
+    expect($category->fresh())->not->toBeNull();
 });
 
 it('uses the project pagination component on v2 atk pages', function () {

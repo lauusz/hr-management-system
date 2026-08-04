@@ -89,7 +89,6 @@ class DashboardController extends Controller
             ->get();
 
         $masterWarnings = [
-            ['label' => 'Tanpa kategori', 'count' => AtkItem::forModule(AtkItem::MODULE_ATK)->whereNull('atk_category_id')->count()],
             ['label' => 'Tanpa gambar', 'count' => AtkItem::forModule(AtkItem::MODULE_ATK)->where(fn ($query) => $query->whereNull('image_path')->orWhere('image_path', ''))->count()],
             ['label' => 'Minimum stok belum diisi', 'count' => AtkItem::forModule(AtkItem::MODULE_ATK)->where('minimum_stock', '<=', 0)->count()],
         ];

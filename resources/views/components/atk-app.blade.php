@@ -430,7 +430,6 @@
                 <symbol id="atk-icon-inbox" viewBox="0 0 24 24"><path d="M4 4h16l2 10v6H2v-6L4 4Z"/><path d="M2 14h6l2 3h4l2-3h6"/></symbol>
                 <symbol id="atk-icon-restock" viewBox="0 0 24 24"><path d="m12 3 8 4-8 4-8-4 8-4Z"/><path d="m4 7 8 4 8-4v10l-8 4-8-4V7Z"/><path d="M12 11v10M16 14h4M18 12v4"/></symbol>
                 <symbol id="atk-icon-items" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
-                <symbol id="atk-icon-category" viewBox="0 0 24 24"><path d="M20 13 11 22l-9-9V3h10l8 8a1.4 1.4 0 0 1 0 2Z"/><circle cx="7" cy="8" r="1.5"/></symbol>
                 <symbol id="atk-icon-stock" viewBox="0 0 24 24"><path d="M7 3v15M3 7l4-4 4 4M17 21V6M13 17l4 4 4-4"/></symbol>
                 <symbol id="atk-icon-report" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
                 <symbol id="atk-icon-access" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 11h6M19 8v6"/></symbol>
@@ -467,7 +466,6 @@
                         @endif
                     </a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.items.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-items"/></svg><span>Master Barang</span></a>
-                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.categories.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.categories.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-category"/></svg><span>Kategori</span></a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.stock-movements.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-stock"/></svg><span>Riwayat Stok</span></a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.reports.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.reports.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-report"/></svg><span>Rekap PT</span></a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.access.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-access"/></svg><span>Akses</span></a>

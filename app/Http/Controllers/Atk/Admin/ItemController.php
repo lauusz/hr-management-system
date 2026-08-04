@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Atk\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AtkCategory;
 use App\Models\AtkItem;
 use App\Models\AtkStockMovement;
 use App\Services\Image\ImageCompressor;
@@ -17,34 +16,29 @@ class ItemController extends Controller
 
     public function index()
     {
-        $items = AtkItem::with('category')
+        $items = AtkItem::query()
             ->forModule(AtkItem::MODULE_ATK)
             ->when(request()->filled('q'), function ($query): void {
                 $keyword = '%'.request()->string('q')->toString().'%';
                 $query->where('name', 'like', $keyword);
             })
-            ->when(request()->filled('category_id'), fn ($query) => $query->where('atk_category_id', request()->integer('category_id')))
             ->when(request('stock') === 'out', fn ($query) => $query->where('stock_qty', 0))
             ->when(request('stock') === 'low', fn ($query) => $query->whereColumn('stock_qty', '<=', 'minimum_stock')->where('minimum_stock', '>', 0))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
-        $categories = AtkCategory::where('is_active', true)->orderBy('name')->get();
 
-        return view('atk.admin.items.index', compact('categories', 'items'));
+        return view('atk.admin.items.index', compact('items'));
     }
 
     public function create()
     {
-        return view('atk.admin.items.create', [
-            'categories' => AtkCategory::where('is_active', true)->orderBy('name')->get(),
-        ]);
+        return view('atk.admin.items.create');
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'atk_category_id' => ['nullable', 'exists:atk_categories,id'],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
             'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif', 'max:2048'],
@@ -96,7 +90,6 @@ class ItemController extends Controller
 
         return view('atk.admin.items.edit', [
             'item' => $item,
-            'categories' => AtkCategory::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -105,7 +98,6 @@ class ItemController extends Controller
         $this->ensureAtkItem($item);
 
         $validated = $request->validate([
-            'atk_category_id' => ['nullable', 'exists:atk_categories,id'],
             'name' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string'],
             'image' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,gif,bmp,tif,tiff,avif', 'max:2048'],

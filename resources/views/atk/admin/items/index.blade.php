@@ -8,12 +8,6 @@
     </div>
     <form method="GET" class="atk-card atk-form-grid" style="margin-bottom:14px">
         <input class="atk-input" name="q" value="{{ request('q') }}" placeholder="Cari barang" autocomplete="off">
-        <select class="atk-select" name="category_id">
-            <option value="">Semua kategori</option>
-            @foreach($categories as $category)
-                <option value="{{ $category->id }}" @selected((string) request('category_id') === (string) $category->id)>{{ $category->name }}</option>
-            @endforeach
-        </select>
         <select class="atk-select" name="stock">
             <option value="">Semua stok</option>
             <option value="out" @selected(request('stock') === 'out')>Habis</option>
@@ -26,12 +20,11 @@
     </form>
     <div class="atk-table-wrap atk-admin-items-mobile-table">
         <table class="atk-table atk-admin-items-table">
-            <thead><tr><th>Barang</th><th>Kategori</th><th>Stok</th><th>Satuan</th><th>Tambah Stok</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Barang</th><th>Stok</th><th>Satuan</th><th>Tambah Stok</th><th>Aksi</th></tr></thead>
             <tbody>
                 @forelse($items as $item)
                     <tr class="atk-admin-item-card">
                         <td class="atk-admin-item-name" data-label="Barang"><strong>{{ $item->name }}</strong></td>
-                        <td class="atk-admin-item-category" data-label="Kategori">{{ $item->category?->name ?? '-' }}</td>
                         <td class="atk-admin-item-stock" data-label="Stok">
                             <div class="atk-stock-cell">
                                 <span class="atk-stock-row">
@@ -62,7 +55,7 @@
                         <td class="atk-admin-item-actions" data-label="Aksi"><a class="atk-btn atk-btn-muted" href="{{ route('v2.atk.admin.items.edit', $item) }}">Edit</a></td>
                     </tr>
                 @empty
-                    <tr class="atk-admin-items-empty"><td colspan="6">Belum ada barang.</td></tr>
+                    <tr class="atk-admin-items-empty"><td colspan="5">Belum ada barang.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -121,7 +114,6 @@
                 grid-template-columns: minmax(0, 1fr) auto;
                 grid-template-areas:
                     "name stock"
-                    "category category"
                     "unit unit"
                     "restock restock"
                     "actions actions";
@@ -174,7 +166,6 @@
                 text-align: right;
                 white-space: normal;
             }
-            .atk-admin-item-category { grid-area: category; }
             .atk-admin-item-unit { grid-area: unit; }
             .atk-admin-item-restock {
                 grid-area: restock;

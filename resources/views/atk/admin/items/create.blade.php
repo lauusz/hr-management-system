@@ -13,15 +13,6 @@
                 <input class="atk-input" name="name" required>
             </div>
             <div>
-                <label class="atk-label">Kategori</label>
-                <select class="atk-select" name="atk_category_id">
-                    <option value="">Tanpa kategori</option>
-                    @foreach($categories as $category)
-                        <option value="{{ $category->id }}">{{ $category->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
                 <label class="atk-label">Satuan Ambil</label>
                 <select class="atk-select" id="unit_name" name="unit_name" required>
                     @foreach(App\Models\AtkItem::UNIT_OPTIONS as $option)

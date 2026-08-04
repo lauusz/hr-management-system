@@ -32,9 +32,6 @@
                     </div>
                     <div class="atk-product-copy">
                         <h2 class="atk-product-title">{{ $item->name }}</h2>
-                        @if($item->category)
-                            <p class="atk-product-meta">{{ $item->category->name }}</p>
-                        @endif
                     </div>
                     <div class="atk-product-stock">
                         @if($inCartQty)

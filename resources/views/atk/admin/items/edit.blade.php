@@ -43,15 +43,6 @@
                 <input class="atk-input" name="name" value="{{ old('name', $item->name) }}" required>
             </div>
             <div>
-                <label class="atk-label">Kategori</label>
-                <select class="atk-select" name="atk_category_id">
-                    <option value="">Tanpa kategori</option>
-                    @foreach($categories as $category)
-                        <option value="{{ $category->id }}" @selected(old('atk_category_id', $item->atk_category_id) == $category->id)>{{ $category->name }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
                 <label class="atk-label">Satuan Ambil</label>
                 @php($currentUnit = old('unit_name', $item->unit_name))
                 <select class="atk-select" id="unit_name" name="unit_name" required>

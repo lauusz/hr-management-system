@@ -10,7 +10,7 @@ class CatalogController extends Controller
 {
     public function index(Request $request)
     {
-        $items = AtkItem::with('category')
+        $items = AtkItem::query()
             ->forModule(AtkItem::MODULE_ATK)
             ->available()
             ->when($request->filled('q'), function ($query) use ($request) {

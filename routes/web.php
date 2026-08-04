@@ -3,7 +3,6 @@
 use App\Http\Controllers\ApprovalAttendanceController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Atk\Admin\AccessController as AtkAdminAccessController;
-use App\Http\Controllers\Atk\Admin\CategoryController as AtkAdminCategoryController;
 use App\Http\Controllers\Atk\Admin\DashboardController as AtkAdminDashboardController;
 use App\Http\Controllers\Atk\Admin\ItemController as AtkAdminItemController;
 use App\Http\Controllers\Atk\Admin\NeedRequestController as AtkAdminNeedRequestController;
@@ -119,9 +118,6 @@ Route::middleware('auth')->group(function () {
                 Route::get('/access', [AtkAdminAccessController::class, 'index'])->name('access.index');
                 Route::post('/access/{user}/grant', [AtkAdminAccessController::class, 'grant'])->name('access.grant');
                 Route::delete('/access/{user}/revoke', [AtkAdminAccessController::class, 'revoke'])->name('access.revoke');
-                Route::get('/categories', [AtkAdminCategoryController::class, 'index'])->name('categories.index');
-                Route::post('/categories', [AtkAdminCategoryController::class, 'store'])->name('categories.store');
-                Route::put('/categories/{category}', [AtkAdminCategoryController::class, 'update'])->name('categories.update');
                 Route::get('/requests', [AtkAdminRequestApprovalController::class, 'index'])->name('requests.index');
                 Route::get('/requests/manual/create', [AtkAdminRequestApprovalController::class, 'createManual'])->name('requests.manual.create');
                 Route::post('/requests/manual', [AtkAdminRequestApprovalController::class, 'storeManual'])->name('requests.manual.store');
