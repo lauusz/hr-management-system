@@ -64,17 +64,43 @@ it('keeps ops requests out of atk request pages', function () {
     actingAs($admin)->get('/v2/atk/admin/requests/'.$opsRequest->id)->assertNotFound();
 });
 
-it('keeps ops movements out of atk stock history', function () {
+it('shows atk and ops movements in global chronological order', function () {
     $admin = User::factory()->create();
     UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
     $atkItem = AtkItem::create(['module' => 'ATK', 'name' => 'Kertas ATK', 'unit_name' => 'rim', 'stock_qty' => 1, 'is_active' => true]);
     $opsItem = AtkItem::create(['module' => 'OPS', 'name' => 'Rompi OPS', 'unit_name' => 'pcs', 'stock_qty' => 1, 'is_active' => true]);
 
-    foreach ([[$atkItem, 'Gerak ATK'], [$opsItem, 'Gerak OPS']] as [$item, $notes]) {
-        AtkStockMovement::create(['atk_item_id' => $item->id, 'movement_type' => 'IN', 'qty' => 1, 'stock_before' => 0, 'stock_after' => 1, 'notes' => $notes, 'created_by' => $admin->id]);
+    $atkMovement = AtkStockMovement::create(['atk_item_id' => $atkItem->id, 'movement_type' => 'IN', 'qty' => 1, 'stock_before' => 0, 'stock_after' => 1, 'notes' => 'Gerak ATK', 'created_by' => $admin->id]);
+    $opsMovement = AtkStockMovement::create(['atk_item_id' => $opsItem->id, 'movement_type' => 'OUT', 'qty' => 1, 'stock_before' => 2, 'stock_after' => 1, 'notes' => 'Gerak OPS', 'created_by' => $admin->id]);
+
+    DB::table('atk_stock_movements')->where('id', $atkMovement->id)->update(['created_at' => '2026-08-04 09:00:00']);
+    DB::table('atk_stock_movements')->where('id', $opsMovement->id)->update(['created_at' => '2026-08-04 10:00:00']);
+
+    actingAs($admin)
+        ->get('/v2/atk/admin/stock-movements')
+        ->assertOk()
+        ->assertSeeInOrder([$opsItem->name, $atkItem->name])
+        ->assertSee('name="module"', false)
+        ->assertSee('data-label="Modul"', false)
+        ->assertSee('>ATK</span>', false)
+        ->assertSee('>OPS</span>', false);
+});
+
+it('filters combined stock history by module', function () {
+    $admin = User::factory()->create();
+    UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
+    $atkItem = AtkItem::create(['module' => 'ATK', 'name' => 'Map ATK', 'unit_name' => 'pcs', 'stock_qty' => 1, 'is_active' => true]);
+    $opsItem = AtkItem::create(['module' => 'OPS', 'name' => 'Helm OPS', 'unit_name' => 'pcs', 'stock_qty' => 1, 'is_active' => true]);
+
+    foreach ([$atkItem, $opsItem] as $item) {
+        AtkStockMovement::create(['atk_item_id' => $item->id, 'movement_type' => 'IN', 'qty' => 1, 'stock_before' => 0, 'stock_after' => 1, 'created_by' => $admin->id]);
     }
 
-    actingAs($admin)->get('/v2/atk/admin/stock-movements')->assertOk()->assertSee($atkItem->name)->assertDontSee($opsItem->name);
+    actingAs($admin)
+        ->get('/v2/atk/admin/stock-movements?module=OPS')
+        ->assertOk()
+        ->assertSee($opsItem->name)
+        ->assertDontSee($atkItem->name);
 });
 
 it('shows the v2 access portal for authenticated users', function () {

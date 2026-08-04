@@ -2,7 +2,7 @@
     <div class="atk-header">
         <div>
             <h1 class="atk-title">Riwayat Stok</h1>
-            <p class="atk-subtitle">Catatan stok masuk, keluar, dan adjustment.</p>
+            <p class="atk-subtitle">Catatan stok masuk dan keluar barang ATK serta OPS.</p>
         </div>
     </div>
     <form method="GET" class="atk-card atk-form-grid" style="margin-bottom:14px">
@@ -11,6 +11,11 @@
             @foreach($items as $item)
                 <option value="{{ $item->id }}" @selected((string) request('item_id') === (string) $item->id)>{{ $item->name }}</option>
             @endforeach
+        </select>
+        <select class="atk-select" name="module">
+            <option value="">Semua modul</option>
+            <option value="ATK" @selected(request('module') === 'ATK')>ATK</option>
+            <option value="OPS" @selected(request('module') === 'OPS')>OPS</option>
         </select>
         <select class="atk-select" name="movement_type">
             <option value="">Semua tipe</option>
@@ -25,7 +30,7 @@
     </form>
     <div class="atk-table-wrap atk-stock-movements-mobile-table">
         <table class="atk-table atk-stock-movements-table">
-            <thead><tr><th>Tanggal</th><th>Barang</th><th>Tipe</th><th>Qty</th><th>PT</th><th>Nama Pengambil</th><th>Diproses Oleh</th><th>Stok</th></tr></thead>
+            <thead><tr><th>Tanggal</th><th>Barang</th><th>Modul</th><th>Tipe</th><th>Qty</th><th>PT</th><th>Nama Pengambil</th><th>Diproses Oleh</th><th>Stok</th></tr></thead>
             <tbody>
                 @forelse($movements as $movement)
                     @php
@@ -42,6 +47,7 @@
                     <tr class="atk-stock-movement-card">
                         <td class="atk-stock-movement-date" data-label="Tanggal">{{ $movement->created_at?->format('d/m/Y H:i') }}</td>
                         <td class="atk-stock-movement-item" data-label="Barang"><strong>{{ $movement->item?->name ?? '-' }}</strong></td>
+                        <td class="atk-stock-movement-module" data-label="Modul"><span class="atk-badge {{ $movement->item?->module === 'OPS' ? 'atk-badge-success' : 'atk-badge-brand' }}">{{ $movement->item?->module ?? '-' }}</span></td>
                         <td class="atk-stock-movement-type" data-label="Tipe"><span class="atk-badge atk-badge-{{ $typeLabel[1] }}">{{ $typeLabel[0] }}</span></td>
                         <td class="atk-stock-movement-qty" data-label="Jumlah">{{ $movement->qty }} {{ $movement->item?->unit_name }}</td>
                         <td class="atk-stock-movement-pt" data-label="PT">{{ $sourceRequest?->pt_name_snapshot ?? '-' }}</td>
@@ -50,7 +56,7 @@
                         <td class="atk-stock-movement-stock" data-label="Perubahan Stok">{{ $movement->stock_before }} → {{ $movement->stock_after }}</td>
                     </tr>
                 @empty
-                    <tr class="atk-stock-movements-empty"><td colspan="8">Belum ada riwayat stok.</td></tr>
+                    <tr class="atk-stock-movements-empty"><td colspan="9">Belum ada riwayat stok.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -81,6 +87,7 @@
                 grid-template-columns: minmax(0, 1fr) auto;
                 grid-template-areas:
                     "item type"
+                    "module module"
                     "date date"
                     "qty qty"
                     "pt pt"
@@ -135,6 +142,7 @@
                 padding-top: 12px !important;
             }
             .atk-stock-movement-qty { grid-area: qty; }
+            .atk-stock-movement-module { grid-area: module; }
             .atk-stock-movement-pt { grid-area: pt; }
             .atk-stock-movement-requester { grid-area: requester; }
             .atk-stock-movement-processor { grid-area: processor; }
