@@ -1,15 +1,17 @@
-# Desain Form Pengambilan Manual ATK
+# Desain Pencarian dan Stepper Admin ATK
 
 ## Tujuan
 
-Menyederhanakan `/v2/atk/admin/requests/manual/create` agar admin dapat mencari lalu memilih nama pengguna, mencari barang, dan mengatur jumlah dengan stepper seperti katalog.
+Menyederhanakan `/v2/atk/admin/requests/manual/create` agar admin dapat mencari lalu memilih nama pengguna, mencari barang, dan mengatur jumlah dengan stepper seperti katalog. Pola stepper yang sama juga diterapkan pada jumlah `Tambah Stok` di `/v2/atk/admin/items`.
 
 ## Ruang Lingkup
 
 - Mengganti dropdown pengguna dengan pencarian nama dan hasil yang dapat diklik.
 - Menambahkan pencarian barang langsung tanpa tombol `Cari`.
 - Mengganti input jumlah biasa dengan stepper `− / jumlah / +`.
+- Mengganti input jumlah `Tambah Stok` di Master Barang dengan stepper.
 - Mempertahankan catatan, tombol `Buat dan Review`, validasi hak akses, serta alur penyimpanan pengajuan yang sudah ada.
+- Mempertahankan input harga/unit, tombol `Tambah`, dan tombol `Edit` di Master Barang.
 - Tidak mengubah database, route, atau struktur tabel.
 
 ## Pencarian Nama
@@ -68,6 +70,18 @@ Aturan jumlah:
 - Hasil pencarian nama dibatasi tinggi dan dapat digulir agar form tidak terlalu panjang.
 - Lebar form tetap mengikuti konten modul ATK.
 
+## Stepper Tambah Stok di Master Barang
+
+Pada `/v2/atk/admin/items`, hanya input jumlah stok masuk yang diubah menjadi stepper. Input harga/unit tetap berupa input angka biasa.
+
+- Stepper menampilkan tombol minus, angka, dan tombol plus.
+- Nilai awal dan minimum tetap `1` agar kontrak penambahan stok tidak berubah.
+- Tombol minus nonaktif pada nilai `1`.
+- Tombol plus menambah satu tanpa batas maksimum baru karena stok masuk tidak dibatasi stok saat ini.
+- Input angka manual tetap diperbolehkan dan nilai di bawah `1` dinormalisasi menjadi `1`.
+- Pada mobile, stepper memakai lebar yang nyaman; input harga dan tombol `Tambah` tetap berada dalam form stok barang yang sama.
+- Form tetap mengirim `movement_type=IN`, `qty`, dan `unit_price` ke route yang sudah ada.
+
 ## Aksesibilitas
 
 - Input pencarian memiliki label yang terlihat.
@@ -75,6 +89,7 @@ Aturan jumlah:
 - Nama pengguna yang dipilih diumumkan melalui teks yang terlihat, bukan warna saja.
 - Tombol stepper memiliki `aria-label` yang menyebut nama barang.
 - Status nonaktif stepper memakai atribut `disabled` dan `aria-disabled`.
+- Stepper stok masuk juga memakai label tombol yang menyebut nama barang.
 - Pesan tidak ditemukan tetap berupa teks yang dapat dibaca pembaca layar.
 
 ## Penanganan Error
@@ -93,4 +108,5 @@ Aturan jumlah:
 - Tombol stepper memakai batas `0` sampai stok.
 - Jumlah `0` tidak membuat item request dan jumlah positif tetap dibuat.
 - Pengajuan tanpa jumlah positif tetap ditolak.
-
+- Master Barang merender stepper pada jumlah stok masuk tanpa mengubah input harga/unit.
+- Stepper stok masuk tidak dapat diturunkan di bawah `1`.
