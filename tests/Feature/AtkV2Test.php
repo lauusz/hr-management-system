@@ -680,7 +680,16 @@ it('shows the manual ATK request form only to ATK admins', function () {
         ->assertOk()
         ->assertSee('Input Pengambilan Manual')
         ->assertSee('User Pengambilan Manual')
-        ->assertSee('Pulpen Input Manual');
+        ->assertSee('Pulpen Input Manual')
+        ->assertSee('data-manual-user-search', false)
+        ->assertSee('data-manual-user-option', false)
+        ->assertSee('data-manual-item-search', false)
+        ->assertSee('data-manual-item', false)
+        ->assertSee('data-manual-stepper', false)
+        ->assertSee('data-manual-stepper-decrease', false)
+        ->assertSee('data-manual-stepper-increase', false)
+        ->assertSee('min="0"', false)
+        ->assertDontSee('type="submit">Cari', false);
 });
 
 it('creates a pending manual request that can be finalized as partial', function () {
@@ -709,6 +718,12 @@ it('creates a pending manual request that can be finalized as partial', function
         'stock_qty' => 10,
         'is_active' => true,
     ]);
+    $ignoredItem = AtkItem::create([
+        'name' => 'Barang Manual Tidak Dipilih',
+        'unit_name' => 'pcs',
+        'stock_qty' => 10,
+        'is_active' => true,
+    ]);
 
     $response = actingAs($admin)->post('/v2/atk/admin/requests/manual', [
         'user_id' => $user->id,
@@ -716,6 +731,7 @@ it('creates a pending manual request that can be finalized as partial', function
         'quantities' => [
             $approvedItem->id => 2,
             $rejectedItem->id => 1,
+            $ignoredItem->id => 0,
         ],
     ]);
 
@@ -729,6 +745,8 @@ it('creates a pending manual request that can be finalized as partial', function
         ->pt_name_snapshot->toBe('PT Input Manual')
         ->notes->toBe('Dicatat manual oleh admin.')
         ->and($atkRequest->items)->toHaveCount(2);
+
+    expect($atkRequest->items->pluck('atk_item_id'))->not->toContain($ignoredItem->id);
 
     $approvedRequestItem = $atkRequest->items->firstWhere('atk_item_id', $approvedItem->id);
     $rejectedRequestItem = $atkRequest->items->firstWhere('atk_item_id', $rejectedItem->id);
@@ -1103,7 +1121,12 @@ it('records unit price when admin adds incoming stock', function () {
     actingAs($admin)
         ->get(route('v2.atk.admin.items.index'))
         ->assertOk()
-        ->assertSee('Harga/unit');
+        ->assertSee('Harga/unit')
+        ->assertSee('data-stock-stepper', false)
+        ->assertSee('data-stock-stepper-decrease', false)
+        ->assertSee('data-stock-stepper-increase', false)
+        ->assertSee('name="qty" value="1"', false)
+        ->assertSee('name="unit_price"', false);
 
     actingAs($admin)
         ->get(route('v2.atk.admin.stock-movements.index'))

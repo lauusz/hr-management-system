@@ -61,7 +61,7 @@ class RequestApprovalController extends Controller
             ],
             'notes' => ['nullable', 'string', 'max:1000'],
             'quantities' => ['required', 'array'],
-            'quantities.*' => ['nullable', 'integer', 'min:1'],
+            'quantities.*' => ['nullable', 'integer', 'min:0'],
         ]);
 
         $quantities = collect($validated['quantities'])
