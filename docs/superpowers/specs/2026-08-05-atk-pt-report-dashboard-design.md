@@ -33,7 +33,7 @@ Urutan halaman:
 1. Header ringkas berisi judul `Rekap ATK`, periode aktif, dan tombol `Unduh Excel`.
 2. Filter bulan dan PT dalam satu panel ringkas.
 3. Empat kartu angka utama: Pengajuan, Pengambil, PT, dan Jenis Barang.
-4. Grafik `Pengajuan per PT`.
+4. Donut chart `Pengajuan per PT`.
 5. Grafik `Barang Terbanyak`.
 6. Ranking `Sering Mengambil`.
 7. `Riwayat Pengambilan` yang tertutup secara default dan dapat dibuka dengan kontrol native `<details>`.
@@ -55,7 +55,7 @@ Warna utama mengikuti modul ATK:
 - Muted: `#6B7280`
 - Border: `#E5E7EB`
 
-Semua bar memakai warna utama ATK. Nama, jumlah, dan persentase menjadi identitas data sehingga pengguna tidak perlu mengingat arti warna.
+Donut memakai palet pembeda PT yang sudah tersedia di controller. Nama, jumlah, dan persentase tetap ditampilkan pada legenda sehingga informasi tidak bergantung pada warna saja.
 
 ### Tipografi dan Angka
 
@@ -75,11 +75,11 @@ Semua bar memakai warna utama ATK. Nama, jumlah, dan persentase menjadi identita
 
 ## Komponen
 
-### 1. Bar Horizontal Pengajuan per PT
+### 1. Donut Chart Pengajuan per PT
 
-Gunakan bar horizontal yang diurutkan dari jumlah pengajuan terbesar. Bar lebih mudah dibandingkan daripada donut ketika jumlah PT bertambah dan lebih nyaman dibaca pada layar kecil.
+Pertahankan donut chart dari versi awal dashboard. Bagian tengah menampilkan total seluruh pengajuan dan teks `pengajuan`.
 
-Setiap baris menampilkan nama PT, jumlah pengajuan, persentase, dan bar proporsional. Semua PT yang memiliki aktivitas ditampilkan; PT tanpa aktivitas tidak dirender. Warna ungu ATK cukup digunakan secara konsisten sehingga tidak memerlukan legenda warna terpisah.
+Legenda menampilkan warna, nama PT, jumlah pengajuan, dan persentase. Semua PT yang memiliki aktivitas ditampilkan; PT tanpa aktivitas tidak dirender. Pada mobile legenda berada di bawah donut, sedangkan desktop menempatkan legenda di samping donut jika ruang mencukupi.
 
 ### 2. Bar Horizontal Barang Terbanyak
 
@@ -117,7 +117,8 @@ Jika hanya salah satu dataset kosong, komponen lain tetap tampil normal dan hany
 - Header menumpuk secara alami; tombol `Unduh Excel` memakai lebar penuh.
 - Filter bulan, PT, dan tombol `Tampilkan` memakai lebar penuh.
 - Empat angka utama tetap dalam grid dua kolom.
-- Grafik PT dan barang memakai bar horizontal selebar layar.
+- Donut PT berada di tengah dengan legenda di bawahnya.
+- Grafik barang memakai bar horizontal selebar layar.
 - Bar memakai lebar penuh dan label dapat membungkus maksimal dua baris.
 - Daftar nama memakai baris ringkas dengan area sentuh yang nyaman.
 - Riwayat hanya mengambil ruang setelah dibuka dan tetap memakai kartu responsif.
@@ -133,7 +134,8 @@ Jika hanya salah satu dataset kosong, komponen lain tetap tampil normal dan hany
 
 ## Aksesibilitas
 
-- Setiap bar selalu disertai nama dan angka aktual; panjang dan warna bukan satu-satunya pembeda.
+- Donut selalu disertai legenda berisi nama dan angka aktual; warna bukan satu-satunya pembeda.
+- Setiap bar barang selalu disertai nama dan angka aktual.
 - Komponen chart diberi judul yang terhubung melalui `aria-labelledby`.
 - Data tetap dapat dipahami ketika CSS gagal dimuat karena nama dan angka berada di HTML.
 - Tidak menambahkan interaksi hover-only atau tooltip yang tidak tersedia di perangkat sentuh.
