@@ -34,7 +34,7 @@ Urutan halaman:
 2. Filter bulan dan PT dalam satu panel ringkas.
 3. Empat kartu angka utama: Pengajuan, Pengambil, PT, dan Jenis Barang.
 4. Donut chart `Pengajuan per PT`.
-5. Grafik `Barang Terbanyak`.
+5. Donut chart `Barang Keluar Terbanyak`.
 6. Ranking `Sering Mengambil`.
 7. `Riwayat Pengambilan` yang tertutup secara default dan dapat dibuka dengan kontrol native `<details>`.
 
@@ -55,7 +55,7 @@ Warna utama mengikuti modul ATK:
 - Muted: `#6B7280`
 - Border: `#E5E7EB`
 
-Donut memakai palet pembeda PT yang sudah tersedia di controller. Nama, jumlah, dan persentase tetap ditampilkan pada legenda sehingga informasi tidak bergantung pada warna saja.
+Kedua donut memakai palet pembeda yang sama. Nama, jumlah, dan persentase tetap ditampilkan pada legenda sehingga informasi tidak bergantung pada warna saja.
 
 ### Tipografi dan Angka
 
@@ -81,17 +81,17 @@ Pertahankan donut chart dari versi awal dashboard. Bagian tengah menampilkan tot
 
 Legenda menampilkan warna, nama PT, jumlah pengajuan, dan persentase. Semua PT yang memiliki aktivitas ditampilkan; PT tanpa aktivitas tidak dirender. Pada mobile legenda berada di bawah donut, sedangkan desktop menempatkan legenda di samping donut jika ruang mencukupi.
 
-### 2. Bar Horizontal Barang Terbanyak
+### 2. Donut Chart Barang Keluar Terbanyak
 
-Bar horizontal dipilih karena nama barang dapat panjang. Panjang bar dihitung terhadap barang dengan total tertinggi pada hasil filter.
+Donut menampilkan lima barang dengan total kuantitas keluar terbesar. Barang selain lima teratas digabung menjadi satu irisan `Lainnya` agar chart tetap mudah dibaca.
 
-Setiap baris menampilkan:
+Bagian tengah menampilkan total kuantitas seluruh barang dan teks `barang keluar`. Legenda menampilkan:
 
 - nama barang;
-- total kuantitas dan satuan;
-- bar proporsional sebagai bantuan perbandingan.
+- total kuantitas;
+- persentase dari seluruh kuantitas barang keluar.
 
-Tampilkan maksimal 10 barang teratas. Data lengkap tetap tersedia melalui detail transaksi dan Export Excel.
+Karena data dapat memiliki satuan berbeda, angka pada donut diperlakukan sebagai total kuantitas operasional dan tidak menampilkan satuan gabungan pada bagian tengah. Data lengkap beserta satuannya tetap tersedia melalui riwayat transaksi dan Export Excel.
 
 ### 3. Daftar Sering Mengambil
 
@@ -118,8 +118,7 @@ Jika hanya salah satu dataset kosong, komponen lain tetap tampil normal dan hany
 - Filter bulan, PT, dan tombol `Tampilkan` memakai lebar penuh.
 - Empat angka utama tetap dalam grid dua kolom.
 - Donut PT berada di tengah dengan legenda di bawahnya.
-- Grafik barang memakai bar horizontal selebar layar.
-- Bar memakai lebar penuh dan label dapat membungkus maksimal dua baris.
+- Donut barang berada di tengah dengan legenda di bawahnya.
 - Daftar nama memakai baris ringkas dengan area sentuh yang nyaman.
 - Riwayat hanya mengambil ruang setelah dibuka dan tetap memakai kartu responsif.
 
@@ -128,14 +127,14 @@ Jika hanya salah satu dataset kosong, komponen lain tetap tampil normal dan hany
 - Header menempatkan judul dan periode di kiri serta tombol `Unduh Excel` di kanan.
 - Filter berada dalam satu baris.
 - Empat angka utama berada dalam empat kolom.
-- Grafik PT dan ranking nama berdampingan.
-- Grafik barang memakai satu baris penuh agar nama dan skala mudah dibandingkan.
+- Donut PT dan donut barang berdampingan.
+- Ranking nama memakai satu baris penuh di bawah kedua donut.
 - Riwayat memakai lebar penuh.
 
 ## Aksesibilitas
 
 - Donut selalu disertai legenda berisi nama dan angka aktual; warna bukan satu-satunya pembeda.
-- Setiap bar barang selalu disertai nama dan angka aktual.
+- Donut barang selalu disertai legenda berisi nama dan angka aktual.
 - Komponen chart diberi judul yang terhubung melalui `aria-labelledby`.
 - Data tetap dapat dipahami ketika CSS gagal dimuat karena nama dan angka berada di HTML.
 - Tidak menambahkan interaksi hover-only atau tooltip yang tidak tersedia di perangkat sentuh.
@@ -154,7 +153,7 @@ Jika hanya salah satu dataset kosong, komponen lain tetap tampil normal dan hany
 - PT tanpa aktivitas tidak muncul pada dataset/chart PT.
 - Jumlah pengajuan dihitung unik per request, bukan per item.
 - Ranking pengambil menghitung satu request satu kali.
-- Barang diurutkan berdasarkan total kuantitas dan dibatasi 10 item.
+- Barang diurutkan berdasarkan total kuantitas; lima teratas menjadi irisan sendiri dan sisanya digabung sebagai `Lainnya`.
 - Empty state tampil tanpa error saat periode tidak memiliki data.
 - Struktur label chart tetap tersedia pada desktop dan mobile.
 - Riwayat transaksi tertutup secara default dan dapat dibuka tanpa JavaScript.
