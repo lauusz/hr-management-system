@@ -64,6 +64,21 @@ class ReportController extends Controller
             ->orderBy('atk_requests.pt_name_snapshot')
             ->get();
 
+        $ptColors = ['#7C4DDE', '#0F766E', '#2563EB', '#D97706', '#DB2777', '#4F46E5', '#16A34A', '#DC2626'];
+        $ptRequestTotal = (int) $ptRows->sum('request_count');
+        $ptChartPosition = 0.0;
+        $ptChartSegments = [];
+
+        foreach ($ptRows as $index => $row) {
+            $percentage = $ptRequestTotal > 0 ? ((int) $row->request_count / $ptRequestTotal) * 100 : 0;
+            $row->percentage = round($percentage, 1);
+            $row->color = $ptColors[$index % count($ptColors)];
+            $ptChartSegments[] = sprintf('%s %.2f%% %.2f%%', $row->color, $ptChartPosition, $ptChartPosition + $percentage);
+            $ptChartPosition += $percentage;
+        }
+
+        $ptChartGradient = $ptChartSegments ? implode(', ', $ptChartSegments) : '#E5E7EB 0% 100%';
+
         $itemRows = $baseQuery()
             ->select([
                 'atk_request_items.item_name_snapshot',
@@ -75,6 +90,18 @@ class ReportController extends Controller
             ->groupBy('atk_request_items.item_name_snapshot', 'atk_request_items.unit_name_snapshot')
             ->orderByDesc('total_qty')
             ->orderBy('atk_request_items.item_name_snapshot')
+            ->limit(10)
+            ->get();
+
+        $requesterRows = $baseQuery()
+            ->select([
+                'atk_requests.user_name_snapshot',
+                DB::raw('COUNT(DISTINCT atk_requests.id) as request_count'),
+            ])
+            ->groupBy('atk_requests.user_name_snapshot')
+            ->orderByDesc('request_count')
+            ->orderBy('atk_requests.user_name_snapshot')
+            ->limit(10)
             ->get();
 
         $detailRows = $baseQuery()
@@ -105,7 +132,9 @@ class ReportController extends Controller
             'generatedAt',
             'summary',
             'ptRows',
+            'ptChartGradient',
             'itemRows',
+            'requesterRows',
             'detailRows'
         ));
     }

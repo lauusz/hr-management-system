@@ -906,25 +906,86 @@ it('filters usage report by pt', function () {
         ->assertSeeInOrder([
             'Laporan Pemakaian ATK',
             'Ringkasan Eksekutif',
-            'Rekap Penggunaan per PT',
-            'Rekap Konsumsi per Barang',
+            'Banyak Pengajuan per PT',
+            'Barang Paling Banyak Diambil',
+            'Sering Mengambil',
             'Detail Transaksi',
         ])
         ->assertSee('Request Disetujui')
         ->assertSee('Pengambil Aktif')
         ->assertSee('PT Aktif')
         ->assertSee('Jenis Barang')
-        ->assertSee('Jumlah Pengambil')
-        ->assertSee('Jumlah Request')
-        ->assertSee('PT Pengguna')
         ->assertSee('atk-report-summary-grid')
-        ->assertSee('atk-report-section')
+        ->assertSee('atk-report-visual-grid')
+        ->assertSee('atk-report-donut')
+        ->assertSee('atk-report-bars')
+        ->assertSee('atk-report-ranking')
         ->assertSee($user->name)
         ->assertSee('PT A')
         ->assertSee('Spidol')
-        ->assertDontSee('<td>PT B</td>', false)
+        ->assertSee('data-pt-name="PT A"', false)
+        ->assertDontSee('data-pt-name="PT B"', false)
         ->assertDontSee('Barang Bulan Lalu')
         ->assertDontSee('Barang Pending');
+});
+
+it('renders an informative pt report dashboard', function () {
+    $admin = User::factory()->create();
+    UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
+    $frequentUser = User::factory()->create(['name' => 'Budi Paling Sering']);
+    $otherUser = User::factory()->create(['name' => 'Sari Pengambil']);
+    $activePt = Pt::create(['name' => 'PT Aktif Chart']);
+    Pt::create(['name' => 'PT Tanpa Aktivitas']);
+    $marker = AtkItem::create(['name' => 'Spidol Dashboard', 'unit_name' => 'pcs', 'stock_qty' => 20, 'is_active' => true]);
+    $pen = AtkItem::create(['name' => 'Pulpen Dashboard', 'unit_name' => 'pcs', 'stock_qty' => 20, 'is_active' => true]);
+
+    $requests = [
+        [$frequentUser, 'ATK-DASHBOARD-1', [[$marker, 5], [$pen, 2]]],
+        [$frequentUser, 'ATK-DASHBOARD-2', [[$marker, 3]]],
+        [$otherUser, 'ATK-DASHBOARD-3', [[$pen, 1]]],
+    ];
+
+    foreach ($requests as [$user, $number, $items]) {
+        $atkRequest = AtkRequest::create([
+            'request_number' => $number,
+            'user_id' => $user->id,
+            'user_name_snapshot' => $user->name,
+            'pt_id' => $activePt->id,
+            'pt_name_snapshot' => $activePt->name,
+            'status' => AtkRequest::STATUS_APPROVED,
+            'approved_at' => now(),
+        ]);
+
+        foreach ($items as [$item, $qty]) {
+            AtkRequestItem::create([
+                'atk_request_id' => $atkRequest->id,
+                'atk_item_id' => $item->id,
+                'qty' => $qty,
+                'item_name_snapshot' => $item->name,
+                'unit_name_snapshot' => $item->unit_name,
+                'unit_size_snapshot' => 1,
+                'content_unit_name_snapshot' => 'pcs',
+                'status' => AtkRequestItem::STATUS_APPROVED,
+            ]);
+        }
+    }
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.reports.index'))
+        ->assertOk()
+        ->assertSee('Banyak Pengajuan per PT')
+        ->assertSee('Barang Paling Banyak Diambil')
+        ->assertSee('Sering Mengambil')
+        ->assertSee('aria-labelledby="atk-report-pt-chart-title"', false)
+        ->assertSee('data-pt-name="PT Aktif Chart"', false)
+        ->assertDontSee('data-pt-name="PT Tanpa Aktivitas"', false)
+        ->assertSee('8 pcs')
+        ->assertSeeInOrder([
+            'Budi Paling Sering',
+            '2 banyak pengajuan',
+            'Sari Pengambil',
+            '1 banyak pengajuan',
+        ]);
 });
 
 it('shows stock movement history', function () {

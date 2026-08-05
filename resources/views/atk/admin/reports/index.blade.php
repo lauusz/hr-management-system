@@ -69,63 +69,94 @@
         </div>
     </section>
 
-    <section class="atk-card atk-report-section">
-        <div class="atk-report-section-header">
-            <span>02</span>
-            <div>
-                <h2>Rekap Penggunaan per PT</h2>
-                <p>Perbandingan aktivitas berdasarkan perusahaan.</p>
+    <div class="atk-report-visual-grid">
+        <section class="atk-card atk-report-section atk-report-pt-chart" aria-labelledby="atk-report-pt-chart-title">
+            <div class="atk-report-section-header">
+                <span>02</span>
+                <div>
+                    <h2 id="atk-report-pt-chart-title">Banyak Pengajuan per PT</h2>
+                    <p>Perbandingan pengajuan yang telah disetujui.</p>
+                </div>
             </div>
-        </div>
-        <div class="atk-table-wrap atk-report-table-wrap">
-            <table class="atk-table atk-report-table">
-                <thead><tr><th>PT</th><th>Jumlah Request</th><th>Jumlah Pengambil</th><th>Jenis Barang</th></tr></thead>
-                <tbody>
-                    @forelse($ptRows as $row)
-                        <tr>
-                            <td data-label="PT"><strong>{{ $row->pt_name_snapshot ?? '-' }}</strong></td>
-                            <td data-label="Jumlah Request">{{ $row->request_count }}</td>
-                            <td data-label="Jumlah Pengambil">{{ $row->user_count }}</td>
-                            <td data-label="Jenis Barang">{{ $row->item_count }}</td>
-                        </tr>
-                    @empty
-                        <tr class="atk-report-empty"><td colspan="4">Belum ada pemakaian yang disetujui pada periode ini.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </section>
+            @if($ptRows->isNotEmpty())
+                <div class="atk-report-donut-layout">
+                    <div class="atk-report-donut" style="--atk-report-donut: conic-gradient({{ $ptChartGradient }})" role="img" aria-label="Pembagian {{ $summary['request_count'] }} pengajuan disetujui berdasarkan PT">
+                        <div class="atk-report-donut-center">
+                            <strong>{{ $summary['request_count'] }}</strong>
+                            <span>banyak pengajuan</span>
+                        </div>
+                    </div>
+                    <div class="atk-report-legend" aria-label="Rincian pengajuan per PT">
+                        @foreach($ptRows as $row)
+                            <div class="atk-report-legend-row" data-pt-name="{{ $row->pt_name_snapshot ?? '-' }}">
+                                <span class="atk-report-legend-dot" style="--legend-color: {{ $row->color }}" aria-hidden="true"></span>
+                                <strong>{{ $row->pt_name_snapshot ?? '-' }}</strong>
+                                <span>{{ $row->request_count }} banyak pengajuan</span>
+                                <small>{{ number_format($row->percentage, 1, ',', '.') }}%</small>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @else
+                <div class="atk-report-visual-empty">Belum ada pengajuan disetujui pada periode ini.</div>
+            @endif
+        </section>
+
+        <section class="atk-card atk-report-section atk-report-item-chart" aria-labelledby="atk-report-item-chart-title">
+            <div class="atk-report-section-header">
+                <span>03</span>
+                <div>
+                    <h2 id="atk-report-item-chart-title">Barang Paling Banyak Diambil</h2>
+                    <p>Sepuluh barang dengan jumlah pengambilan terbesar.</p>
+                </div>
+            </div>
+            @if($itemRows->isNotEmpty())
+                @php($maxItemQty = max(1, (int) $itemRows->max('total_qty')))
+                <div class="atk-report-bars">
+                    @foreach($itemRows as $row)
+                        <div class="atk-report-bar-row">
+                            <div class="atk-report-bar-label">
+                                <strong>{{ $row->item_name_snapshot }}</strong>
+                                <span>{{ $row->total_qty }} {{ $row->unit_name_snapshot }}</span>
+                            </div>
+                            <div class="atk-report-bar-track" aria-hidden="true">
+                                <span style="--bar-width: {{ round(((int) $row->total_qty / $maxItemQty) * 100, 1) }}%"></span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="atk-report-visual-empty">Belum ada pengajuan disetujui pada periode ini.</div>
+            @endif
+        </section>
+
+        <section class="atk-card atk-report-section atk-report-requester-chart" aria-labelledby="atk-report-requester-chart-title">
+            <div class="atk-report-section-header">
+                <span>04</span>
+                <div>
+                    <h2 id="atk-report-requester-chart-title">Sering Mengambil</h2>
+                    <p>Nama dengan pengajuan disetujui terbanyak.</p>
+                </div>
+            </div>
+            @if($requesterRows->isNotEmpty())
+                <div class="atk-report-ranking">
+                    @foreach($requesterRows as $row)
+                        <div class="atk-report-ranking-row">
+                            <span>{{ $loop->iteration }}</span>
+                            <strong>{{ $row->user_name_snapshot }}</strong>
+                            <small>{{ $row->request_count }} banyak pengajuan</small>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="atk-report-visual-empty">Belum ada pengajuan disetujui pada periode ini.</div>
+            @endif
+        </section>
+    </div>
 
     <section class="atk-card atk-report-section">
         <div class="atk-report-section-header">
-            <span>03</span>
-            <div>
-                <h2>Rekap Konsumsi per Barang</h2>
-                <p>Barang yang paling banyak digunakan beserta jangkauan pemakaiannya.</p>
-            </div>
-        </div>
-        <div class="atk-table-wrap atk-report-table-wrap">
-            <table class="atk-table atk-report-table">
-                <thead><tr><th>Barang</th><th>Total Keluar</th><th>Jumlah Request</th><th>PT Pengguna</th></tr></thead>
-                <tbody>
-                    @forelse($itemRows as $row)
-                        <tr>
-                            <td data-label="Barang"><strong>{{ $row->item_name_snapshot }}</strong></td>
-                            <td data-label="Total Keluar">{{ $row->total_qty }} {{ $row->unit_name_snapshot }}</td>
-                            <td data-label="Jumlah Request">{{ $row->request_count }}</td>
-                            <td data-label="PT Pengguna">{{ $row->pt_count }}</td>
-                        </tr>
-                    @empty
-                        <tr class="atk-report-empty"><td colspan="4">Belum ada barang keluar pada periode ini.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </section>
-
-    <section class="atk-card atk-report-section">
-        <div class="atk-report-section-header">
-            <span>04</span>
+            <span>05</span>
             <div>
                 <h2>Detail Transaksi</h2>
                 <p>Rincian pengambilan untuk kebutuhan penelusuran.</p>
@@ -238,6 +269,85 @@
         .atk-report-stat span { color: var(--atk-muted); font-size: 10px; font-weight: 700; }
         .atk-report-stat strong { margin: 8px 0 5px; color: var(--atk-primary-dark); font-size: 26px; }
         .atk-report-stat small { color: var(--atk-muted); font-size: 9px; line-height: 1.45; }
+        .atk-report-visual-grid {
+            display: grid;
+            gap: 14px;
+        }
+        .atk-report-visual-grid .atk-report-section { margin-bottom: 0; }
+        .atk-report-donut-layout {
+            display: grid;
+            gap: 18px;
+            align-items: center;
+        }
+        .atk-report-donut {
+            width: min(220px, 72vw);
+            aspect-ratio: 1;
+            margin: 4px auto;
+            padding: 24px;
+            border-radius: 50%;
+            background: var(--atk-report-donut);
+        }
+        .atk-report-donut-center {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border-radius: 50%;
+            background: var(--atk-surface);
+            text-align: center;
+        }
+        .atk-report-donut-center strong { color: var(--atk-primary-dark); font-size: 28px; line-height: 1; }
+        .atk-report-donut-center span { margin-top: 7px; color: var(--atk-muted); font-size: 10px; font-weight: 700; }
+        .atk-report-legend,
+        .atk-report-ranking,
+        .atk-report-bars { display: grid; gap: 9px; }
+        .atk-report-legend-row {
+            display: grid;
+            grid-template-columns: 10px minmax(0, 1fr) auto;
+            gap: 3px 8px;
+            align-items: center;
+            padding: 9px 0;
+            border-bottom: 1px solid var(--atk-border-soft);
+        }
+        .atk-report-legend-row:last-child { border-bottom: 0; }
+        .atk-report-legend-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--legend-color); }
+        .atk-report-legend-row strong { min-width: 0; font-size: 11px; overflow-wrap: anywhere; }
+        .atk-report-legend-row span:not(.atk-report-legend-dot) { grid-column: 2; color: var(--atk-muted); font-size: 9px; }
+        .atk-report-legend-row small { grid-column: 3; grid-row: 1 / 3; color: var(--atk-muted); font-size: 10px; font-weight: 700; }
+        .atk-report-bar-row { display: grid; gap: 7px; }
+        .atk-report-bar-label { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+        .atk-report-bar-label strong { min-width: 0; font-size: 11px; overflow-wrap: anywhere; }
+        .atk-report-bar-label span { flex: 0 0 auto; color: var(--atk-primary-dark); font-size: 10px; font-weight: 800; }
+        .atk-report-bar-track { height: 10px; overflow: hidden; border-radius: 999px; background: var(--atk-primary-soft); }
+        .atk-report-bar-track span { display: block; width: var(--bar-width); min-width: 3px; height: 100%; border-radius: inherit; background: var(--atk-primary); }
+        .atk-report-ranking-row {
+            display: grid;
+            grid-template-columns: 30px minmax(0, 1fr);
+            gap: 2px 10px;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid var(--atk-border-soft);
+            border-radius: 12px;
+            background: var(--atk-primary-softer);
+        }
+        .atk-report-ranking-row > span {
+            display: inline-flex;
+            grid-row: 1 / 3;
+            width: 30px;
+            height: 30px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9px;
+            background: var(--atk-primary-soft);
+            color: var(--atk-primary-dark);
+            font-size: 11px;
+            font-weight: 800;
+        }
+        .atk-report-ranking-row strong { min-width: 0; font-size: 11px; overflow-wrap: anywhere; }
+        .atk-report-ranking-row small { color: var(--atk-muted); font-size: 9px; }
+        .atk-report-visual-empty { padding: 26px 12px; color: var(--atk-muted); font-size: 11px; text-align: center; }
         @media (max-width: 639px) {
             .atk-report-meta { grid-template-columns: 1fr; }
             .atk-report-filter-actions,
@@ -282,6 +392,19 @@
             .atk-report-filter { grid-template-columns: minmax(220px, .8fr) minmax(180px, .7fr) minmax(280px, auto); align-items: end; }
             .atk-report-filter-title { grid-column: 1 / -1; }
             .atk-report-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+            .atk-report-visual-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-areas:
+                    "pt requester"
+                    "items items";
+                align-items: start;
+            }
+            .atk-report-pt-chart { grid-area: pt; }
+            .atk-report-item-chart { grid-area: items; }
+            .atk-report-requester-chart { grid-area: requester; }
+        }
+        @media (min-width: 1100px) {
+            .atk-report-donut-layout { grid-template-columns: minmax(160px, .8fr) minmax(160px, 1fr); }
         }
     </style>
 </x-atk-app>
