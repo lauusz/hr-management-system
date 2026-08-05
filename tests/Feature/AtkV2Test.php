@@ -904,22 +904,25 @@ it('filters usage report by pt', function () {
         ->get(route('v2.atk.admin.reports.index', ['pt_id' => $ptA->id]))
         ->assertOk()
         ->assertSeeInOrder([
-            'Laporan Pemakaian ATK',
-            'Ringkasan Eksekutif',
+            'Rekap ATK',
             'Pengajuan per PT',
-            'Barang Paling Banyak Diambil',
+            'Barang Terbanyak',
             'Sering Mengambil',
-            'Detail Transaksi',
+            'Lihat Riwayat Pengambilan',
         ])
-        ->assertSee('Request Disetujui')
-        ->assertSee('Pengambil Aktif')
-        ->assertSee('PT Aktif')
+        ->assertSee('Pengajuan')
+        ->assertSee('Pengambil')
+        ->assertSee('PT')
         ->assertSee('Jenis Barang')
         ->assertSee('atk-report-summary-grid')
         ->assertSee('atk-report-visual-grid')
-        ->assertSee('atk-report-donut')
+        ->assertSee('atk-report-pt-bars')
         ->assertSee('atk-report-bars')
         ->assertSee('atk-report-ranking')
+        ->assertSee('<details class="atk-card atk-report-history">', false)
+        ->assertDontSee('atk-report-donut')
+        ->assertDontSee('Ringkasan Eksekutif')
+        ->assertDontSee('Laporan Manajemen')
         ->assertSee($user->name)
         ->assertSee('PT A')
         ->assertSee('Spidol')
@@ -974,7 +977,7 @@ it('renders an informative pt report dashboard', function () {
         ->get(route('v2.atk.admin.reports.index'))
         ->assertOk()
         ->assertSee('Pengajuan per PT')
-        ->assertSee('Barang Paling Banyak Diambil')
+        ->assertSee('Barang Terbanyak')
         ->assertSee('Sering Mengambil')
         ->assertSee('aria-labelledby="atk-report-pt-chart-title"', false)
         ->assertSee('data-pt-name="PT Aktif Chart"', false)
