@@ -3,7 +3,6 @@
 use App\Http\Controllers\ApprovalAttendanceController;
 use App\Http\Controllers\ApprovalController;
 use App\Http\Controllers\Atk\Admin\AccessController as AtkAdminAccessController;
-use App\Http\Controllers\Atk\Admin\DashboardController as AtkAdminDashboardController;
 use App\Http\Controllers\Atk\Admin\ItemController as AtkAdminItemController;
 use App\Http\Controllers\Atk\Admin\NeedRequestController as AtkAdminNeedRequestController;
 use App\Http\Controllers\Atk\Admin\ReportController as AtkAdminReportController;
@@ -107,7 +106,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/need-requests', [AtkNeedRequestController::class, 'store'])->name('need-requests.store');
 
             Route::middleware('atk.admin')->prefix('admin')->name('admin.')->group(function () {
-                Route::get('/', AtkAdminDashboardController::class)->name('dashboard');
+                Route::get('/', fn () => redirect()->route('v2.atk.admin.items.index'))->name('dashboard');
                 Route::get('/items', [AtkAdminItemController::class, 'index'])->name('items.index');
                 Route::get('/items/create', [AtkAdminItemController::class, 'create'])->name('items.create');
                 Route::post('/items', [AtkAdminItemController::class, 'store'])->name('items.store');

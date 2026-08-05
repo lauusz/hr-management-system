@@ -426,7 +426,6 @@
                 <symbol id="atk-icon-request" viewBox="0 0 24 24"><path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="M9 11h6M9 15h6"/></symbol>
                 <symbol id="atk-icon-history" viewBox="0 0 24 24"><path d="M4 7h16v13H4z"/><path d="M3 4h18v3H3zM9 11h6"/></symbol>
                 <symbol id="atk-icon-add" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></symbol>
-                <symbol id="atk-icon-dashboard" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="4" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="11" width="7" height="10" rx="2"/></symbol>
                 <symbol id="atk-icon-inbox" viewBox="0 0 24 24"><path d="M4 4h16l2 10v6H2v-6L4 4Z"/><path d="M2 14h6l2 3h4l2-3h6"/></symbol>
                 <symbol id="atk-icon-restock" viewBox="0 0 24 24"><path d="m12 3 8 4-8 4-8-4 8-4Z"/><path d="m4 7 8 4 8-4v10l-8 4-8-4V7Z"/><path d="M12 11v10M16 14h4M18 12v4"/></symbol>
                 <symbol id="atk-icon-items" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
@@ -450,7 +449,7 @@
 
                 @if(auth()->user()->canManageAtk())
                     <div class="atk-menu-title">Admin ATK</div>
-                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.dashboard') ? 'active' : '' }}" href="{{ route('v2.atk.admin.dashboard') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-dashboard"/></svg><span>Dashboard Admin</span></a>
+                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.items.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-items"/></svg><span>Master Barang</span></a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.requests.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.requests.index') }}">
                         <svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-inbox"/></svg>
                         <span>Request Masuk</span>
@@ -465,7 +464,6 @@
                             <span class="atk-menu-badge">{{ $atkPendingNeedRequestCount > 99 ? '99+' : $atkPendingNeedRequestCount }}</span>
                         @endif
                     </a>
-                    <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.items.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-items"/></svg><span>Master Barang</span></a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.stock-movements.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-stock"/></svg><span>Riwayat Stok</span></a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.reports.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.reports.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-report"/></svg><span>Rekap PT</span></a>
                     <a class="atk-menu-item {{ request()->routeIs('v2.atk.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.atk.admin.access.index') }}"><svg class="atk-menu-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#atk-icon-access"/></svg><span>Akses</span></a>

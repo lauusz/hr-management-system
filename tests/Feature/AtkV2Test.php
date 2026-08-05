@@ -138,7 +138,7 @@ it('redirects guests from the ops placeholder page to login', function () {
         ->assertRedirect(route('login'));
 });
 
-it('allows only users with ADMIN ATK access to open the admin dashboard', function () {
+it('protects the admin root and redirects atk admins to master items', function () {
     $user = User::factory()->create();
     $admin = User::factory()->create();
 
@@ -153,74 +153,13 @@ it('allows only users with ADMIN ATK access to open the admin dashboard', functi
 
     actingAs($admin)
         ->get(route('v2.atk.admin.dashboard'))
-        ->assertOk()
-        ->assertSee('Dashboard Admin ATK');
-});
-
-it('shows admin atk dashboard operational summary', function () {
-    $admin = User::factory()->create();
-    $user = User::factory()->create(['name' => 'User Dashboard ATK']);
-    $pt = Pt::create(['name' => 'PT Dashboard']);
-    UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
-
-    $item = AtkItem::create([
-        'name' => 'Spidol Boardmarker',
-        'unit_name' => 'pcs',
-        'unit_size' => 1,
-        'content_unit_name' => 'pcs',
-        'stock_qty' => 0,
-        'minimum_stock' => 2,
-        'is_active' => true,
-    ]);
-
-    $approvedRequest = AtkRequest::create([
-        'request_number' => 'ATK-DASH-APPROVED',
-        'user_id' => $user->id,
-        'user_name_snapshot' => $user->name,
-        'pt_id' => $pt->id,
-        'pt_name_snapshot' => $pt->name,
-        'status' => AtkRequest::STATUS_APPROVED,
-        'approved_at' => now(),
-    ]);
-
-    AtkRequestItem::create([
-        'atk_request_id' => $approvedRequest->id,
-        'atk_item_id' => $item->id,
-        'qty' => 3,
-        'item_name_snapshot' => $item->name,
-        'unit_name_snapshot' => $item->unit_name,
-        'unit_size_snapshot' => $item->unit_size,
-        'content_unit_name_snapshot' => $item->content_unit_name,
-        'status' => 'APPROVED',
-    ]);
-
-    AtkStockMovement::create([
-        'atk_item_id' => $item->id,
-        'movement_type' => 'IN',
-        'qty' => 5,
-        'stock_before' => 0,
-        'stock_after' => 5,
-        'source_type' => 'MANUAL',
-        'notes' => 'Stok awal dashboard',
-        'created_by' => $admin->id,
-    ]);
+        ->assertRedirect(route('v2.atk.admin.items.index'));
 
     actingAs($admin)
-        ->get(route('v2.atk.admin.dashboard'))
+        ->get(route('v2.atk.admin.items.index'))
         ->assertOk()
-        ->assertSee('Approved bulan ini')
-        ->assertSee('Qty keluar bulan ini')
-        ->assertSee('Stok habis')
-        ->assertSee('Tindakan perlu diproses')
-        ->assertSee('Trend 6 bulan')
-        ->assertSee('Top PT bulan ini')
-        ->assertSee('PT Dashboard')
-        ->assertSee('Aktivitas stok terbaru')
-        ->assertSee('Stok awal dashboard')
-        ->assertSee('Data master perlu dilengkapi')
-        ->assertSee('Barang paling banyak keluar')
-        ->assertSee('Spidol Boardmarker')
-        ->assertSee('Lihat report');
+        ->assertDontSee('Dashboard Admin')
+        ->assertSeeInOrder(['Admin ATK', 'Master Barang', 'Request Masuk']);
 });
 
 it('decreases stock when an ATK request is approved', function () {
