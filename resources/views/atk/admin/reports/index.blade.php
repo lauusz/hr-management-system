@@ -74,7 +74,7 @@
             <div class="atk-report-section-header">
                 <span>02</span>
                 <div>
-                    <h2 id="atk-report-pt-chart-title">Banyak Pengajuan per PT</h2>
+                    <h2 id="atk-report-pt-chart-title">Pengajuan per PT</h2>
                     <p>Perbandingan pengajuan yang telah disetujui.</p>
                 </div>
             </div>
@@ -83,7 +83,7 @@
                     <div class="atk-report-donut" style="--atk-report-donut: conic-gradient({{ $ptChartGradient }})" role="img" aria-label="Pembagian {{ $summary['request_count'] }} pengajuan disetujui berdasarkan PT">
                         <div class="atk-report-donut-center">
                             <strong>{{ $summary['request_count'] }}</strong>
-                            <span>banyak pengajuan</span>
+                            <span>pengajuan</span>
                         </div>
                     </div>
                     <div class="atk-report-legend" aria-label="Rincian pengajuan per PT">
@@ -91,7 +91,7 @@
                             <div class="atk-report-legend-row" data-pt-name="{{ $row->pt_name_snapshot ?? '-' }}">
                                 <span class="atk-report-legend-dot" style="--legend-color: {{ $row->color }}" aria-hidden="true"></span>
                                 <strong>{{ $row->pt_name_snapshot ?? '-' }}</strong>
-                                <span>{{ $row->request_count }} banyak pengajuan</span>
+                                <span>{{ $row->request_count }} pengajuan</span>
                                 <small>{{ number_format($row->percentage, 1, ',', '.') }}%</small>
                             </div>
                         @endforeach
@@ -144,7 +144,7 @@
                         <div class="atk-report-ranking-row">
                             <span>{{ $loop->iteration }}</span>
                             <strong>{{ $row->user_name_snapshot }}</strong>
-                            <small>{{ $row->request_count }} banyak pengajuan</small>
+                            <small>{{ $row->request_count }} pengajuan</small>
                         </div>
                     @endforeach
                 </div>

@@ -4,7 +4,7 @@
 
 Mengubah halaman Rekap PT dari kumpulan tabel menjadi dashboard yang dapat menjawab tiga pertanyaan dengan cepat:
 
-1. PT mana yang memiliki banyak pengajuan disetujui?
+1. Berapa pengajuan disetujui pada setiap PT?
 2. Barang apa yang paling banyak diambil secara keseluruhan?
 3. Siapa yang paling sering mengambil barang?
 
@@ -24,7 +24,7 @@ Urutan konten dibuat dari informasi paling ringkas menuju detail:
 
 1. Header laporan dan parameter periode/PT.
 2. Empat kartu ringkasan yang sudah ada.
-3. Visual `Banyak Pengajuan per PT`.
+3. Visual `Pengajuan per PT`.
 4. Visual `Barang Paling Banyak Diambil`.
 5. Daftar `Sering Mengambil`.
 6. Detail transaksi untuk penelusuran.
@@ -66,7 +66,7 @@ Jika jumlah PT lebih dari delapan, warna dapat berulang. Nama dan angka pada leg
 - Nilai utama: 18–24px, berat 800.
 - Label data: 11–12px, berat 600–700.
 - Angka memakai format bilangan bulat tanpa desimal.
-- Istilah yang tampil kepada pengguna memakai bahasa sederhana: `banyak pengajuan`, `barang diambil`, dan `sering mengambil`.
+- Istilah yang tampil kepada pengguna memakai bahasa sederhana: `pengajuan`, `barang diambil`, dan `sering mengambil`.
 
 ### Bentuk dan Jarak
 
@@ -77,9 +77,9 @@ Jika jumlah PT lebih dari delapan, warna dapat berulang. Nama dan angka pada leg
 
 ## Komponen
 
-### 1. Donut Banyak Pengajuan per PT
+### 1. Donut Pengajuan per PT
 
-Donut dibuat dengan CSS `conic-gradient`, tanpa library JavaScript. Bagian tengah menampilkan total seluruh pengajuan dan teks `banyak pengajuan`.
+Donut dibuat dengan CSS `conic-gradient`, tanpa library JavaScript. Bagian tengah menampilkan total seluruh pengajuan dan teks `pengajuan`.
 
 Legenda berada di bawah donut pada mobile dan di samping donut pada desktop. Setiap baris legenda berisi titik warna, nama PT, jumlah pengajuan, dan persentase. Semua PT yang memiliki aktivitas ditampilkan; PT tanpa aktivitas tidak dirender.
 
@@ -99,7 +99,7 @@ Tampilkan maksimal 10 barang teratas. Data lengkap tetap tersedia melalui detail
 
 Daftar ranking lebih tepat daripada chart karena fokus utamanya nama. Tampilkan maksimal 10 nama berdasarkan jumlah pengajuan unik terbanyak.
 
-Setiap baris berisi nomor urut, nama, dan keterangan kecil seperti `8 banyak pengajuan`. Tidak menampilkan avatar atau data tambahan yang tidak dibutuhkan.
+Setiap baris berisi nomor urut, nama, dan keterangan kecil seperti `8 pengajuan`. Tidak menampilkan avatar atau data tambahan yang tidak dibutuhkan.
 
 ### 4. Empty State
 

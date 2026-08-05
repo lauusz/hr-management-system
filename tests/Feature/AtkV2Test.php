@@ -906,7 +906,7 @@ it('filters usage report by pt', function () {
         ->assertSeeInOrder([
             'Laporan Pemakaian ATK',
             'Ringkasan Eksekutif',
-            'Banyak Pengajuan per PT',
+            'Pengajuan per PT',
             'Barang Paling Banyak Diambil',
             'Sering Mengambil',
             'Detail Transaksi',
@@ -973,7 +973,7 @@ it('renders an informative pt report dashboard', function () {
     actingAs($admin)
         ->get(route('v2.atk.admin.reports.index'))
         ->assertOk()
-        ->assertSee('Banyak Pengajuan per PT')
+        ->assertSee('Pengajuan per PT')
         ->assertSee('Barang Paling Banyak Diambil')
         ->assertSee('Sering Mengambil')
         ->assertSee('aria-labelledby="atk-report-pt-chart-title"', false)
@@ -982,9 +982,9 @@ it('renders an informative pt report dashboard', function () {
         ->assertSee('8 pcs')
         ->assertSeeInOrder([
             'Budi Paling Sering',
-            '2 banyak pengajuan',
+            '2 pengajuan',
             'Sari Pengambil',
-            '1 banyak pengajuan',
+            '1 pengajuan',
         ]);
 });
 
