@@ -924,7 +924,7 @@ it('filters usage report by pt', function () {
         ->assertSeeInOrder([
             'Rekap ATK',
             'Pengajuan per PT',
-            'Barang Terbanyak',
+            'Barang Keluar Terbanyak',
             'Sering Mengambil',
             'Lihat Riwayat Pengambilan',
         ])
@@ -934,11 +934,10 @@ it('filters usage report by pt', function () {
         ->assertSee('Jenis Barang')
         ->assertSee('atk-report-summary-grid')
         ->assertSee('atk-report-visual-grid')
-        ->assertSee('atk-report-pt-bars')
-        ->assertSee('atk-report-bars')
+        ->assertSee('atk-report-donut')
+        ->assertSee('atk-report-donut-legend')
         ->assertSee('atk-report-ranking')
         ->assertSee('<details class="atk-card atk-report-history">', false)
-        ->assertDontSee('atk-report-donut')
         ->assertDontSee('Ringkasan Eksekutif')
         ->assertDontSee('Laporan Manajemen')
         ->assertSee($user->name)
@@ -995,18 +994,64 @@ it('renders an informative pt report dashboard', function () {
         ->get(route('v2.atk.admin.reports.index'))
         ->assertOk()
         ->assertSee('Pengajuan per PT')
-        ->assertSee('Barang Terbanyak')
+        ->assertSee('Barang Keluar Terbanyak')
         ->assertSee('Sering Mengambil')
         ->assertSee('aria-labelledby="atk-report-pt-chart-title"', false)
+        ->assertSee('aria-labelledby="atk-report-item-chart-title"', false)
+        ->assertSee('data-item-segment="Spidol Dashboard"', false)
         ->assertSee('data-pt-name="PT Aktif Chart"', false)
         ->assertDontSee('data-pt-name="PT Tanpa Aktivitas"', false)
-        ->assertSee('8 pcs')
+        ->assertSee('data-chart="items" data-donut-total="11"', false)
         ->assertSeeInOrder([
             'Budi Paling Sering',
             '2 pengajuan',
             'Sari Pengambil',
             '1 pengajuan',
         ]);
+});
+
+it('groups item donut after the five largest outgoing items', function () {
+    $admin = User::factory()->create();
+    UserAccessRole::create(['user_id' => $admin->id, 'role' => 'ADMIN ATK']);
+    $user = User::factory()->create();
+    $pt = Pt::create(['name' => 'PT Donut Barang']);
+    $atkRequest = AtkRequest::create([
+        'request_number' => 'ATK-DONUT-ITEMS',
+        'user_id' => $user->id,
+        'user_name_snapshot' => $user->name,
+        'pt_id' => $pt->id,
+        'pt_name_snapshot' => $pt->name,
+        'status' => AtkRequest::STATUS_APPROVED,
+        'approved_at' => now(),
+    ]);
+
+    foreach ([60, 50, 40, 30, 20, 10] as $index => $qty) {
+        $item = AtkItem::create([
+            'name' => 'Barang Donut '.($index + 1),
+            'unit_name' => 'pcs',
+            'stock_qty' => 100,
+            'is_active' => true,
+        ]);
+        AtkRequestItem::create([
+            'atk_request_id' => $atkRequest->id,
+            'atk_item_id' => $item->id,
+            'qty' => $qty,
+            'item_name_snapshot' => $item->name,
+            'unit_name_snapshot' => 'pcs',
+            'unit_size_snapshot' => 1,
+            'content_unit_name_snapshot' => 'pcs',
+            'status' => AtkRequestItem::STATUS_APPROVED,
+        ]);
+    }
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.reports.index'))
+        ->assertOk()
+        ->assertSee('data-chart="items" data-donut-total="210"', false)
+        ->assertSee('data-item-segment="Barang Donut 1"', false)
+        ->assertSee('data-item-segment="Barang Donut 5"', false)
+        ->assertSee('data-item-segment="Lainnya"', false)
+        ->assertDontSee('data-item-segment="Barang Donut 6"', false);
 });
 
 it('shows stock movement history', function () {

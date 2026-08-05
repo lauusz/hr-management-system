@@ -90,8 +90,31 @@ class ReportController extends Controller
             ->groupBy('atk_request_items.item_name_snapshot', 'atk_request_items.unit_name_snapshot')
             ->orderByDesc('total_qty')
             ->orderBy('atk_request_items.item_name_snapshot')
-            ->limit(10)
             ->get();
+
+        $itemQtyTotal = (int) $itemRows->sum('total_qty');
+        $itemChartRows = $itemRows->take(5)->values();
+        $otherQty = (int) $itemRows->skip(5)->sum('total_qty');
+
+        if ($otherQty > 0) {
+            $itemChartRows->push((object) [
+                'item_name_snapshot' => 'Lainnya',
+                'total_qty' => $otherQty,
+            ]);
+        }
+
+        $itemChartPosition = 0.0;
+        $itemChartSegments = [];
+
+        foreach ($itemChartRows as $index => $row) {
+            $percentage = $itemQtyTotal > 0 ? ((int) $row->total_qty / $itemQtyTotal) * 100 : 0;
+            $row->percentage = round($percentage, 1);
+            $row->color = $ptColors[$index % count($ptColors)];
+            $itemChartSegments[] = sprintf('%s %.2f%% %.2f%%', $row->color, $itemChartPosition, $itemChartPosition + $percentage);
+            $itemChartPosition += $percentage;
+        }
+
+        $itemChartGradient = $itemChartSegments ? implode(', ', $itemChartSegments) : '#E5E7EB 0% 100%';
 
         $requesterRows = $baseQuery()
             ->select([
@@ -133,7 +156,10 @@ class ReportController extends Controller
             'summary',
             'ptRows',
             'ptChartGradient',
-            'itemRows',
+            'ptRequestTotal',
+            'itemChartRows',
+            'itemChartGradient',
+            'itemQtyTotal',
             'requesterRows',
             'detailRows'
         ));
