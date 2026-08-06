@@ -23,6 +23,12 @@ Membuat halaman `/hr/employees` lebih cepat digunakan dengan pencarian otomatis 
 - Pada tiga kolom, padding, avatar, gap, chip, dan teks kontak dipadatkan secukupnya tanpa menghapus informasi atau kontrol shift.
 - Empty state tetap memenuhi seluruh lebar grid.
 
+## Format Tanggal Card
+
+- Tanggal bergabung pada card memakai format singkat bahasa Indonesia seperti `1 Des 2025`.
+- Tanggal berakhir percobaan/kontrak yang muncul pada filter terkait memakai format singkat yang sama.
+- Perubahan hanya berlaku pada card `/hr/employees`; format pada halaman detail, edit, dan data tersimpan tidak berubah.
+
 ## Aksesibilitas dan Umpan Balik
 
 - Input memakai `type="search"`, `autocomplete="off"`, dan label aksesibel.
@@ -43,4 +49,5 @@ Membuat halaman `/hr/employees` lebih cepat digunakan dengan pencarian otomatis 
 - Input memiliki penanda live search.
 - Container hasil memiliki target yang dapat diganti dan status `aria-live`.
 - CSS memuat grid tiga kolom pada breakpoint 1280px.
+- Card merender nama bulan singkat untuk tanggal bergabung dan tanggal berakhir yang tampil.
 - Query `q` yang sudah ada tetap memfilter hasil server-side.
