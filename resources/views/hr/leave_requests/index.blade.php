@@ -808,6 +808,12 @@
                 grid-column: 1 / -1;
             }
         }
+
+        @media (min-width: 1280px) {
+            .apv-list {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
     </style>
 
     <script>
