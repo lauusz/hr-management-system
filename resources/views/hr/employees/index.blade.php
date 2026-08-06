@@ -171,7 +171,9 @@
                     }
                 }
 
-                $joinDateFormatted = $joinDate ? \Carbon\Carbon::parse($joinDate)->translatedFormat('j F Y') : '-';
+                $joinDateFormatted = $joinDate ? \Carbon\Carbon::parse($joinDate)->translatedFormat('j M Y') : '-';
+                $probationEnd = $emp->profile?->tgl_akhir_percobaan;
+                $probationEndFormatted = $probationEnd ? \Carbon\Carbon::parse($probationEnd)->translatedFormat('j M Y') : null;
                 $email = $emp->email ?? '-';
                 $phone = $emp->phone ?? '-';
             @endphp
@@ -223,10 +225,10 @@
                         <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         {{ $joinDateFormatted }}
                     </span>
-                    @if($nearExpiry && $emp->probation_end_label)
+                    @if($nearExpiry && $probationEndFormatted)
                     <span class="emp-chip emp-chip--warning">
                         <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Berakhir: {{ $emp->probation_end_label }}
+                        Berakhir: {{ $probationEndFormatted }}
                     </span>
                     @endif
                     <span class="emp-chip emp-chip--info">

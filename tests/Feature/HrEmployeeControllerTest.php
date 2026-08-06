@@ -22,6 +22,24 @@ it('renders live employee search and a three column desktop grid', function () {
         ->assertDontSee('emp-btn-search', false);
 });
 
+it('renders compact Indonesian dates on employee cards', function () {
+    $this->travelTo(\Carbon\Carbon::parse('2026-08-06'));
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $employee = User::factory()->create(['status' => 'ACTIVE']);
+    EmployeeProfile::create([
+        'user_id' => $employee->id,
+        'tgl_bergabung' => '2025-12-01',
+        'tgl_akhir_percobaan' => '2026-12-01',
+    ]);
+
+    $this->actingAs($hrd, 'web')
+        ->get(route('hr.employees.index', ['near_expiry' => 1]))
+        ->assertOk()
+        ->assertSee('1 Des 2025')
+        ->assertSee('Berakhir: 1 Des 2026')
+        ->assertDontSee('1 Desember 2025');
+});
+
 it('uses global image viewer for stored employee documents', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);
     $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
