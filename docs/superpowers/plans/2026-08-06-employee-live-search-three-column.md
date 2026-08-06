@@ -101,3 +101,69 @@ Expected: both test files pass and the diff has no whitespace errors.
 git add resources/views/hr/employees/index.blade.php tests/Feature/HrEmployeeControllerTest.php
 git commit -m "feat: add live employee search grid"
 ```
+
+---
+
+### Task 2: Compact Card Dates
+
+**Files:**
+- Modify: `tests/Feature/HrEmployeeControllerTest.php`
+- Modify: `resources/views/hr/employees/index.blade.php`
+
+**Interfaces:**
+- Consumes: `EmployeeProfile::tgl_bergabung` and the existing `probation_end_label` view property.
+- Produces: visible Indonesian short dates such as `1 Des 2025` only on `/hr/employees` cards.
+
+- [ ] **Step 1: Add a failing card-date test**
+
+```php
+it('renders compact Indonesian dates on employee cards', function () {
+    $this->travelTo(\Carbon\Carbon::parse('2026-08-06'));
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $employee = User::factory()->create(['status' => 'ACTIVE']);
+    EmployeeProfile::create([
+        'user_id' => $employee->id,
+        'tgl_bergabung' => '2025-12-01',
+        'tgl_akhir_percobaan' => '2026-12-01',
+    ]);
+
+    $this->actingAs($hrd, 'web')
+        ->get(route('hr.employees.index', ['near_expiry' => 1]))
+        ->assertOk()
+        ->assertSee('1 Des 2025')
+        ->assertSee('Berakhir: 1 Des 2026')
+        ->assertDontSee('1 Desember 2025');
+});
+```
+
+- [ ] **Step 2: Run the focused test to verify RED**
+
+Run: `php artisan test tests\Feature\HrEmployeeControllerTest.php --filter="compact Indonesian dates"`
+
+Expected: FAIL because the join date uses the full month name and the ending date uses numeric `d-m-Y`.
+
+- [ ] **Step 3: Use the short translated month format in the card view**
+
+```php
+$joinDateFormatted = $joinDate
+    ? \Carbon\Carbon::parse($joinDate)->translatedFormat('j M Y')
+    : '-';
+```
+
+Parse `probation_end_label` and render it with the same `j M Y` format inside the existing conditional chip.
+
+- [ ] **Step 4: Run verification**
+
+```powershell
+php artisan test tests\Feature\HrEmployeeControllerTest.php --compact
+git diff --check
+```
+
+Expected: all employee controller tests pass and the diff has no whitespace errors.
+
+- [ ] **Step 5: Commit**
+
+```powershell
+git add resources/views/hr/employees/index.blade.php tests/Feature/HrEmployeeControllerTest.php
+git commit -m "fix: shorten employee card dates"
+```
