@@ -8,6 +8,20 @@ use App\Models\User;
 pest()->extend(Tests\TestCase::class)
     ->in('Feature');
 
+it('renders live employee search and a three column desktop grid', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+
+    $this->actingAs($hrd, 'web')
+        ->get(route('hr.employees.index'))
+        ->assertOk()
+        ->assertSee('data-employee-live-search', false)
+        ->assertSee('data-employee-results aria-live="polite" aria-busy="false"', false)
+        ->assertSee('data-employee-list', false)
+        ->assertSee('data-employee-pagination', false)
+        ->assertSee('grid-template-columns: repeat(3, minmax(0, 1fr))', false)
+        ->assertDontSee('emp-btn-search', false);
+});
+
 it('uses global image viewer for stored employee documents', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);
     $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);

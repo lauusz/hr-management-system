@@ -35,12 +35,8 @@
             <div class="emp-search-row">
                 <div class="emp-search-input-wrap">
                     <svg class="emp-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    <input type="text" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama, username, email, atau telepon..." autocomplete="off" class="emp-search-input">
+                    <input type="search" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama, username, email, atau telepon..." autocomplete="off" class="emp-search-input" aria-label="Cari karyawan" data-employee-live-search>
                 </div>
-                <button type="submit" class="emp-btn-search">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                    Cari
-                </button>
                 @if(($search ?? null) || ($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false) || ($noLeaveBalance ?? false) || ($noShift ?? false))
                 <a href="{{ route('hr.employees.index') }}" class="emp-btn-reset">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -132,13 +128,14 @@
         </form>
     </div>
 
-    {{-- RESULTS BAR --}}
-    <div class="emp-results-bar">
-        <span>Menampilkan {{ $items->count() }} dari {{ $totalEmployees }} karyawan</span>
-    </div>
+    <div data-employee-results aria-live="polite" aria-busy="false">
+        {{-- RESULTS BAR --}}
+        <div class="emp-results-bar" data-employee-results-bar>
+            <span>Menampilkan {{ $items->count() }} dari {{ $totalEmployees }} karyawan</span>
+        </div>
 
-    {{-- EMPLOYEE LIST --}}
-    <div class="emp-list">
+        {{-- EMPLOYEE LIST --}}
+        <div class="emp-list" data-employee-list>
         @forelse($items as $emp)
             @php
                 $statusRaw = $emp->status ?? '-';
@@ -265,10 +262,11 @@
                 <p class="emp-empty-desc">Coba ubah kata kunci pencarian atau filter yang digunakan</p>
             </div>
         @endforelse
-    </div>
+        </div>
 
-    <div class="emp-pagination">
-        <x-pagination :items="$items" />
+        <div class="emp-pagination" data-employee-pagination>
+            <x-pagination :items="$items" />
+        </div>
     </div>
 
     <style>
@@ -409,26 +407,6 @@
             box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
         }
         .emp-search-input::placeholder { color: var(--text-light); }
-
-        .emp-btn-search {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 16px;
-            background: var(--primary);
-            color: #fff;
-            border: none;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-family: inherit;
-            white-space: nowrap;
-            width: 100%;
-        }
-        .emp-btn-search:hover { background: var(--primary-dark); }
 
         .emp-btn-reset {
             display: inline-flex;
@@ -625,6 +603,12 @@
             font-size: 12px;
             font-weight: 500;
             color: var(--text-muted);
+        }
+        [data-employee-results] {
+            transition: opacity .15s ease;
+        }
+        [data-employee-results].is-loading {
+            opacity: .55;
         }
 
         /* ========================================== */
@@ -907,7 +891,6 @@
             .emp-search-input-wrap {
                 min-width: 260px;
             }
-            .emp-btn-search,
             .emp-btn-reset,
             .emp-btn-toggle-filter {
                 flex-shrink: 0;
@@ -982,19 +965,95 @@
         }
 
         /* ========================================== */
-        /* WIDE DESKTOP - keep 2-col grid comfortable  */
+        /* WIDE DESKTOP - 3 COLUMN GRID               */
         /* ========================================== */
         @media (min-width: 1280px) {
             .emp-list {
-                gap: 14px;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 12px;
             }
             .emp-card {
-                padding: 20px;
+                min-width: 0;
+                padding: 14px;
+                gap: 12px;
+            }
+            .emp-avatar {
+                width: 40px;
+                height: 40px;
+                font-size: 15px;
+            }
+            .emp-contact-item {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .emp-chip {
+                padding: 4px 8px;
             }
         }
     </style>
 
     <script>
+    (function () {
+        const form = document.getElementById('filterForm');
+        const input = form?.querySelector('[data-employee-live-search]');
+        const results = document.querySelector('[data-employee-results]');
+        let timer;
+        let request;
+
+        if (!form || !input || !results) return;
+
+        async function loadEmployeeResults() {
+            const url = new URL(form.action, window.location.origin);
+            const params = new URLSearchParams(new FormData(form));
+            params.delete('page');
+            url.search = params.toString();
+
+            request?.abort();
+            const currentRequest = new AbortController();
+            request = currentRequest;
+            results.classList.add('is-loading');
+            results.setAttribute('aria-busy', 'true');
+
+            try {
+                const response = await fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    signal: currentRequest.signal,
+                });
+                if (!response.ok) throw new Error('Pencarian karyawan gagal');
+
+                const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
+                const selectors = [
+                    '[data-employee-results-bar]',
+                    '[data-employee-list]',
+                    '[data-employee-pagination]',
+                ];
+
+                selectors.forEach((selector) => {
+                    const current = document.querySelector(selector);
+                    const next = documentResult.querySelector(selector);
+                    if (!current || !next) throw new Error('Hasil pencarian tidak lengkap');
+                    current.innerHTML = next.innerHTML;
+                });
+
+                window.history.replaceState(null, '', url);
+            } catch (error) {
+                if (error.name !== 'AbortError') console.error(error);
+            } finally {
+                if (request === currentRequest) {
+                    results.classList.remove('is-loading');
+                    results.setAttribute('aria-busy', 'false');
+                }
+            }
+        }
+
+        input.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(loadEmployeeResults, 350);
+        });
+    })();
+
     function toggleFilterPanel() {
         const panel = document.getElementById('filterPanel');
         const btn = document.querySelector('.emp-btn-toggle-filter');
