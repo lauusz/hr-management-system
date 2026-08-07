@@ -7,7 +7,7 @@ Menampilkan asal PT pada daftar **Sering Mengambil** di `/v2/atk/admin/reports`.
 ## Desain
 
 - Bentuk ranking yang sudah ada tetap dipakai.
-- Baris utama menampilkan `NAMA - PT`.
+- Baris utama menampilkan `NAMA · PT` dengan pemisah titik tengah.
 - Jumlah pengajuan tetap ditampilkan pada baris di bawahnya.
 - PT menggunakan `atk_requests.pt_name_snapshot` agar sesuai dengan PT saat pengajuan dibuat.
 - Pengelompokan dilakukan berdasarkan nama dan PT. Nama yang tercatat pada dua PT berbeda ditampilkan sebagai dua baris terpisah.
@@ -22,4 +22,3 @@ Menampilkan asal PT pada daftar **Sering Mengambil** di `/v2/atk/admin/reports`.
 ## Di Luar Scope
 
 - Tidak mengubah filter, donut chart, riwayat pengambilan, export, database, atau laporan OPS.
-
