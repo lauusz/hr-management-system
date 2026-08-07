@@ -131,7 +131,6 @@ class ReportController extends Controller
         $detailRows = $baseQuery()
             ->select([
                 'atk_requests.approved_at',
-                'atk_requests.request_number',
                 'atk_requests.user_name_snapshot',
                 'atk_requests.pt_name_snapshot',
                 'atk_request_items.item_name_snapshot',

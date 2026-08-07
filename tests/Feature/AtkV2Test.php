@@ -885,7 +885,9 @@ it('filters usage report by pt', function () {
         ->assertSee('data-pt-name="PT A"', false)
         ->assertDontSee('data-pt-name="PT B"', false)
         ->assertDontSee('Barang Bulan Lalu')
-        ->assertDontSee('Barang Pending');
+        ->assertDontSee('Barang Pending')
+        ->assertDontSee('No. Request')
+        ->assertDontSee('ATK-REPORT-1');
 });
 
 it('renders an informative pt report dashboard', function () {

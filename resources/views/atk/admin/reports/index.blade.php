@@ -142,19 +142,18 @@
         <div class="atk-report-history-content">
             <div class="atk-table-wrap atk-report-table-wrap">
                 <table class="atk-table atk-report-table">
-                    <thead><tr><th>Tanggal</th><th>No. Request</th><th>Nama Pengambil</th><th>PT</th><th>Barang</th><th>Qty</th></tr></thead>
+                    <thead><tr><th>Tanggal</th><th>Nama Pengambil</th><th>PT</th><th>Barang</th><th>Qty</th></tr></thead>
                     <tbody>
                         @forelse($detailRows as $row)
                             <tr>
                                 <td data-label="Tanggal">{{ $row->approved_at ? \Carbon\Carbon::parse($row->approved_at)->format('d/m/Y H:i') : '-' }}</td>
-                                <td data-label="No. Request">{{ $row->request_number }}</td>
                                 <td data-label="Nama Pengambil">{{ $row->user_name_snapshot }}</td>
                                 <td data-label="PT">{{ $row->pt_name_snapshot ?? '-' }}</td>
                                 <td data-label="Barang"><strong>{{ $row->item_name_snapshot }}</strong></td>
                                 <td data-label="Qty">{{ $row->qty }} {{ $row->unit_name_snapshot }}</td>
                             </tr>
                         @empty
-                            <tr class="atk-report-empty"><td colspan="6">Belum ada riwayat pengambilan pada periode ini.</td></tr>
+                            <tr class="atk-report-empty"><td colspan="5">Belum ada riwayat pengambilan pada periode ini.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
