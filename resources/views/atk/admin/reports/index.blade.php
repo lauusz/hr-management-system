@@ -123,7 +123,7 @@
                     @foreach($requesterRows as $row)
                         <div class="atk-report-ranking-row">
                             <span>{{ $loop->iteration }}</span>
-                            <strong>{{ $row->user_name_snapshot }} · {{ $row->pt_name_snapshot ?: '-' }}</strong>
+                            <strong>{{ $row->user_name_snapshot }} · {{ $row->pt_name_snapshot ? 'PT. '.preg_replace('/^PT\.?\s*/i', '', $row->pt_name_snapshot) : '-' }}</strong>
                             <small>{{ $row->request_count }} pengajuan</small>
                         </div>
                     @endforeach

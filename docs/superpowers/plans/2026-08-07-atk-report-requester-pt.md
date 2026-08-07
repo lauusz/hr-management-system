@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Menampilkan nama dan PT dengan format `NAMA · PT` pada ranking Sering Mengambil.
+**Goal:** Menampilkan nama dan PT dengan format `NAMA · PT. NAMA PT` pada ranking Sering Mengambil.
 
 **Architecture:** Perluas query agregasi yang sudah ada dengan snapshot PT dan kelompokkan nama bersama PT. View tetap memakai komponen ranking yang sama, hanya menambahkan nilai PT pada baris nama.
 
@@ -50,7 +50,7 @@ Tambahkan `atk_requests.pt_name_snapshot` pada `select()` dan `groupBy()` query 
 Ubah isi elemen `strong` menjadi:
 
 ```blade
-{{ $row->user_name_snapshot }} · {{ $row->pt_name_snapshot ?: '-' }}
+{{ $row->user_name_snapshot }} · {{ $row->pt_name_snapshot ? 'PT. '.preg_replace('/^PT\.?\s*/i', '', $row->pt_name_snapshot) : '-' }}
 ```
 
 - [ ] **Step 5: Jalankan tes laporan ATK**
@@ -64,4 +64,3 @@ Expected: seluruh tes lulus.
 Run: `git diff --check`
 
 Expected: tidak ada error whitespace dan tidak ada file di luar scope yang ikut di-stage.
-

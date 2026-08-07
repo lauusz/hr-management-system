@@ -935,7 +935,7 @@ it('renders an informative pt report dashboard', function () {
         ->assertSee('Pengajuan per PT')
         ->assertSee('Barang Keluar Terbanyak')
         ->assertSee('Sering Mengambil')
-        ->assertSee('Budi Paling Sering · PT Aktif Chart')
+        ->assertSee('Budi Paling Sering · PT. Aktif Chart')
         ->assertSee('aria-labelledby="atk-report-pt-chart-title"', false)
         ->assertSee('aria-labelledby="atk-report-item-chart-title"', false)
         ->assertSee('data-item-segment="Spidol Dashboard"', false)
