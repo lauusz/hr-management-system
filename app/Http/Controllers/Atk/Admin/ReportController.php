@@ -119,9 +119,10 @@ class ReportController extends Controller
         $requesterRows = $baseQuery()
             ->select([
                 'atk_requests.user_name_snapshot',
+                'atk_requests.pt_name_snapshot',
                 DB::raw('COUNT(DISTINCT atk_requests.id) as request_count'),
             ])
-            ->groupBy('atk_requests.user_name_snapshot')
+            ->groupBy('atk_requests.user_name_snapshot', 'atk_requests.pt_name_snapshot')
             ->orderByDesc('request_count')
             ->orderBy('atk_requests.user_name_snapshot')
             ->limit(10)
