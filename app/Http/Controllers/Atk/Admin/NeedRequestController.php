@@ -10,7 +10,7 @@ class NeedRequestController extends Controller
 {
     public function index()
     {
-        $needRequests = AtkNeedRequest::latest()->paginate(20);
+        $needRequests = AtkNeedRequest::with('item')->latest()->paginate(20);
 
         return view('atk.admin.need_requests.index', compact('needRequests'));
     }

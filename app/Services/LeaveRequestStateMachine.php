@@ -174,7 +174,7 @@ class LeaveRequestStateMachine
                 $callbackAttributes = $callback($lockedLeave, $attributes);
 
                 if ($callbackAttributes !== null && ! is_array($callbackAttributes)) {
-                    throw new RuntimeException('Callback state machine harus mengembalikan array atau null.');
+                    throw new RuntimeException('Proses pengajuan gagal karena hasil pemrosesan tidak valid.');
                 }
 
                 $callbackAttributes ??= [];

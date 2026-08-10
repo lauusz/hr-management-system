@@ -16,8 +16,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="HRD System">
 
-  <link rel="manifest" href="/hrd/manifest.json">
-  <link rel="apple-touch-icon" href="/hrd/images/icons/icon-192x192.png">
+  <link rel="manifest" href="{{ asset('manifest.json') }}">
+  <link rel="apple-touch-icon" href="{{ asset('images/icons/icon-192x192.png') }}">
 
   <title>{{ $title ?? 'HRD System' }}</title>
 
@@ -880,7 +880,6 @@
 
   </style>
 
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 
 <body>
@@ -1472,13 +1471,11 @@
   <x-image-viewer />
 
   @stack('scripts')
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
   {{-- Service Worker Registration for PWA --}}
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/hrd/sw.js')
+        navigator.serviceWorker.register('{{ asset('sw.js') }}')
           .then(function(registration) {
             console.log('SW registered:', registration.scope);
           })

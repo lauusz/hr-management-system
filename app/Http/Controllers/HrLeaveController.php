@@ -923,7 +923,9 @@ class HrLeaveController extends Controller
             return redirect()->route('hr.leave.index')->with('success', 'Pengajuan berhasil disetujui.');
 
         } catch (\Exception $e) {
-            return redirect()->route('hr.leave.index')->with('error', $e->getMessage());
+            report($e);
+
+            return redirect()->route('hr.leave.index')->with('error', 'Pengajuan tidak dapat diproses. Silakan coba lagi.');
         }
     }
 

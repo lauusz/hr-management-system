@@ -89,7 +89,7 @@
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                     </svg>
-                    Clock Out
+                    Presensi Keluar
                 </button>
             </div>
         </div>
@@ -627,7 +627,7 @@
         function checkReadiness() {
             if (video.srcObject && isLocationValid) {
                 btnCapture.disabled = false;
-                statusMsg.textContent = 'Siap untuk Clock Out.';
+                statusMsg.textContent = 'Siap untuk presensi keluar.';
                 statusMsg.style.color = 'var(--success, #22C55E)';
             }
         }
@@ -657,7 +657,7 @@
 
                 groupCapture.style.display = 'none';
                 groupAction.style.display = 'flex';
-                statusMsg.textContent = 'Konfirmasi Clock Out.';
+                statusMsg.textContent = 'Konfirmasi presensi keluar.';
                 statusMsg.style.color = 'var(--text-muted, #6B7280)';
             }, 'image/jpeg', 0.85);
         });
@@ -733,7 +733,7 @@
                         btn.onclick = () => window.location.href = '{{ url("/attendance") }}';
                     });
                 } else {
-                    window.showToast(firstErrorMessage(data, 'Gagal melakukan clock-out.'), 'error');
+                    window.showToast(firstErrorMessage(data, 'Gagal melakukan presensi keluar.'), 'error');
                     btnSubmit.disabled = false;
                     btnSubmit.innerHTML = originalText;
                     btnRetake.disabled = false;

@@ -34,6 +34,7 @@ use App\Http\Controllers\HrOvertimeController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\Ops\Admin\AccessController as OpsAdminAccessController;
 use App\Http\Controllers\Ops\Admin\ItemController as OpsAdminItemController;
+use App\Http\Controllers\Ops\Admin\NeedRequestController as OpsAdminNeedRequestController;
 use App\Http\Controllers\Ops\Admin\RequestApprovalController as OpsAdminRequestApprovalController;
 use App\Http\Controllers\Ops\Admin\StockController as OpsAdminStockController;
 use App\Http\Controllers\Ops\Admin\StockMovementController as OpsAdminStockMovementController;
@@ -69,6 +70,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/requests/{atkRequest}', [OpsRequestController::class, 'show'])->name('requests.show');
 
             Route::middleware('ops.admin')->prefix('admin')->name('admin.')->group(function () {
+                Route::get('/need-requests', [OpsAdminNeedRequestController::class, 'index'])->name('need-requests.index');
+                Route::get('/need-requests/create', [OpsAdminNeedRequestController::class, 'create'])->name('need-requests.create');
+                Route::post('/need-requests', [OpsAdminNeedRequestController::class, 'store'])->name('need-requests.store');
                 Route::get('/requests', [OpsAdminRequestApprovalController::class, 'index'])->name('requests.index');
                 Route::get('/requests/manual/create', [OpsAdminRequestApprovalController::class, 'createManual'])->name('requests.manual.create');
                 Route::post('/requests/manual', [OpsAdminRequestApprovalController::class, 'storeManual'])->name('requests.manual.store');

@@ -36,3 +36,8 @@ Thumbs.db
 
 settings.local.json
 /.worktrees
+# Added by code-review-graph
+.code-review-graph/
+
+# Keep Codex project instructions versioned.
+!AGENTS.md

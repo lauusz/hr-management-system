@@ -104,6 +104,7 @@ return new class extends Migration
 
         Schema::create('atk_need_requests', function (Blueprint $table): void {
             $table->id();
+            $table->string('module', 10)->default('ATK');
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('user_name_snapshot');
             $table->foreignId('pt_id')->nullable()->constrained('pts')->nullOnDelete();
@@ -123,6 +124,7 @@ return new class extends Migration
             $table->index(['pt_id', 'status']);
             $table->index('atk_item_id');
             $table->index(['status', 'created_at']);
+            $table->index(['module', 'status', 'created_at']);
         });
     }
 

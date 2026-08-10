@@ -2,7 +2,7 @@
     <div class="atk-header">
         <div>
             <h1 class="atk-title">Ajukan Barang</h1>
-            <p class="atk-subtitle">Gunakan untuk restock atau kebutuhan barang baru.</p>
+            <p class="atk-subtitle">Gunakan untuk penambahan stok atau kebutuhan barang baru.</p>
         </div>
     </div>
     <form class="atk-card" method="POST" action="{{ route('v2.atk.need-requests.store') }}">

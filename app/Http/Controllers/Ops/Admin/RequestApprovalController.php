@@ -204,7 +204,7 @@ class RequestApprovalController extends Controller
         }
 
         return redirect()->route('v2.ops.admin.requests.show', $atkRequest)
-            ->with('success', 'Semua barang disetujui. Selesaikan review untuk menyimpan.');
+            ->with('success', 'Semua barang disetujui. Selesaikan pemeriksaan untuk menyimpan.');
     }
 
     public function finalize(Request $request, AtkRequest $atkRequest)

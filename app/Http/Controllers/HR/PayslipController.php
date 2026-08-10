@@ -178,7 +178,7 @@ class PayslipController extends Controller
         $year = $request->input('year', now()->year);
 
         if (!$userId) {
-            return redirect()->route('hr.payroll.index')->with('error', 'User ID is required to create a payslip.');
+            return redirect()->route('hr.payroll.index')->with('error', 'Karyawan wajib dipilih untuk membuat slip gaji.');
         }
 
         $user = User::query()->active()->find($userId);

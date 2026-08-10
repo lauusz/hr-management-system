@@ -55,7 +55,7 @@
                         </form>
                     @else
                         <div class="atk-actions atk-product-actions">
-                            <a class="atk-btn atk-btn-secondary" href="{{ route('v2.atk.need-requests.create', ['item' => $item->id]) }}">Ajukan Restock</a>
+                            <a class="atk-btn atk-btn-secondary" href="{{ route('v2.atk.need-requests.create', ['item' => $item->id]) }}">Ajukan Tambah Stok</a>
                         </div>
                     @endif
                 </article>

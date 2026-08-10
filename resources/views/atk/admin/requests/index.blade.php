@@ -33,7 +33,7 @@
                 </div>
                 <div class="atk-admin-request-count">{{ $request->items->count() }} Item</div>
                 <a class="atk-btn atk-btn-secondary atk-admin-request-action" href="{{ route('v2.atk.admin.requests.show', $request) }}">
-                    {{ $request->status === 'PENDING' ? 'Review Admin' : 'Lihat Review' }}
+                    {{ $request->status === 'PENDING' ? 'Periksa Pengajuan' : 'Lihat Pemeriksaan' }}
                 </a>
             </article>
         @empty
@@ -54,7 +54,7 @@
                         <td><span class="atk-badge atk-badge-{{ $request->status === 'APPROVED' ? 'success' : ($request->status === 'REJECTED' ? 'error' : 'warning') }}">{{ $request->status }}</span></td>
                         <td>
                             <a class="atk-btn atk-btn-secondary atk-btn-sm" href="{{ route('v2.atk.admin.requests.show', $request) }}">
-                                {{ $request->status === 'PENDING' ? 'Review Admin' : 'Lihat Review' }}
+                                {{ $request->status === 'PENDING' ? 'Periksa Pengajuan' : 'Lihat Pemeriksaan' }}
                             </a>
                         </td>
                     </tr>

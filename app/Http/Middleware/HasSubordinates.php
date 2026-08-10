@@ -20,7 +20,7 @@ class HasSubordinates
         $user = $request->user();
 
         if (! $user) {
-            abort(403, 'Unauthorized.');
+            abort(403, 'Anda tidak memiliki akses.');
         }
 
         // Cek apakah user ini adalah atasan (supervisor atau manager) dari siapa pun

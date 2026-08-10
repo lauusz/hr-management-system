@@ -178,14 +178,14 @@ class AttendanceController extends Controller
             $activePrevious = $this->findActivePreviousOpenAttendance($user, $now);
             if ($activePrevious) {
                 return response()->json([
-                    'message' => 'Masih ada sesi presensi sebelumnya yang berjalan. Silakan clock-out terlebih dahulu.',
+                    'message' => 'Masih ada sesi presensi sebelumnya yang berjalan. Silakan lakukan presensi keluar terlebih dahulu.',
                 ], 400);
             }
 
             // 7. Cek Double Absen (fast path tanpa lock)
             $existing = Attendance::where('user_id', $user->id)->whereDate('date', $today)->first();
             if ($existing && $existing->clock_in_at) {
-                return response()->json(['message' => 'Anda sudah melakukan clock-in hari ini.'], 400);
+                return response()->json(['message' => 'Anda sudah melakukan presensi masuk hari ini.'], 400);
             }
 
             // 8. Validasi Radius (Hanya untuk WFO)
@@ -268,23 +268,23 @@ class AttendanceController extends Controller
                 });
             } catch (\RuntimeException $e) {
                 if ($e->getMessage() === 'ALREADY_CLOCKED_IN') {
-                    return response()->json(['message' => 'Anda sudah melakukan clock-in hari ini.'], 400);
+                    return response()->json(['message' => 'Anda sudah melakukan presensi masuk hari ini.'], 400);
                 }
 
                 throw $e;
             } catch (UniqueConstraintViolationException $e) {
-                return response()->json(['message' => 'Anda sudah melakukan clock-in hari ini.'], 400);
+                return response()->json(['message' => 'Anda sudah melakukan presensi masuk hari ini.'], 400);
             }
 
             return response()->json([
-                'message' => 'Clock In Berhasil.',
+                'message' => 'Presensi masuk berhasil.',
                 'data' => $attendance,
             ]);
 
         } catch (\Exception $e) {
             Log::error('ClockIn Error: '.$e->getMessage());
 
-            return response()->json(['message' => 'Terjadi kesalahan server: '.$e->getMessage()], 500);
+            return response()->json(['message' => 'Presensi masuk gagal. Silakan coba lagi.'], 500);
         }
     }
 
@@ -308,12 +308,12 @@ class AttendanceController extends Controller
             $attendance = $this->findOpenAttendance($user);
 
             if (! $attendance) {
-                return response()->json(['message' => 'Tidak ada sesi absensi aktif untuk di-close.'], 400);
+                return response()->json(['message' => 'Tidak ada sesi presensi aktif untuk ditutup.'], 400);
             }
 
             // [GUARD] Cegah menimpa clock out yang sudah ada
             if ($attendance->clock_out_at !== null) {
-                return response()->json(['message' => 'Anda sudah melakukan clock-out.'], 400);
+                return response()->json(['message' => 'Anda sudah melakukan presensi keluar.'], 400);
             }
 
             // 3. Deteksi Tipe Absensi
@@ -331,7 +331,7 @@ class AttendanceController extends Controller
                     ));
 
                     if ($distance > $loc->radius_meters) {
-                        return response()->json(['message' => "Anda harus berada di kantor untuk Clock Out ($distance m)."], 400);
+                        return response()->json(['message' => "Anda harus berada di kantor untuk melakukan presensi keluar ($distance m)."], 400);
                     }
                 }
             }
@@ -389,14 +389,14 @@ class AttendanceController extends Controller
             ]);
 
             return response()->json([
-                'message' => 'Clock Out Berhasil.',
+                'message' => 'Presensi keluar berhasil.',
                 'data' => $attendance,
             ]);
 
         } catch (\Exception $e) {
             Log::error("ClockOut Error User {$user->id}: ".$e->getMessage());
 
-            return response()->json(['message' => 'Terjadi kesalahan sistem: '.$e->getMessage()], 500);
+            return response()->json(['message' => 'Presensi keluar gagal. Silakan coba lagi.'], 500);
         }
     }
 

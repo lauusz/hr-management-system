@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AtkItem;
+use App\Models\AtkNeedRequest;
 use App\Models\AtkRequest;
 use App\Models\AtkRequestItem;
 use App\Models\AtkStockMovement;
@@ -9,6 +10,7 @@ use App\Models\OpsAccessDivision;
 use App\Models\User;
 use App\Models\UserAccessRole;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\InstallsOpsSchema;
 
@@ -18,6 +20,102 @@ uses(InstallsOpsSchema::class);
 
 beforeEach(function () {
     $this->installOpsSchema();
+});
+
+it('separates need requests by module', function () {
+    $user = User::factory()->create();
+    $base = [
+        'user_id' => $user->id,
+        'user_name_snapshot' => $user->name,
+        'requested_item_name' => 'Barang Baru',
+        'qty' => 1,
+        'unit_name' => 'pcs',
+        'reason' => 'Persediaan habis',
+        'status' => AtkNeedRequest::STATUS_PENDING,
+    ];
+
+    $atk = AtkNeedRequest::create($base + ['module' => 'ATK']);
+    $ops = AtkNeedRequest::create($base + ['module' => 'OPS']);
+
+    expect(AtkNeedRequest::forModule('OPS')->pluck('id')->all())->toBe([$ops->id])
+        ->and(AtkNeedRequest::forModule('ATK')->pluck('id')->all())->toBe([$atk->id]);
+});
+
+it('lets ops admins create and monitor ops need requests', function () {
+    $admin = createOpsUser('ADMIN OPS');
+    $item = createOpsTestItem(['module' => 'OPS', 'name' => 'Sarung Tangan']);
+
+    actingAs($admin)
+        ->get(route('v2.ops.admin.need-requests.create', ['item' => $item->id]))
+        ->assertOk()
+        ->assertSee('Request Barang')
+        ->assertSee('data-need-stepper', false);
+
+    actingAs($admin)
+        ->post(route('v2.ops.admin.need-requests.store'), [
+            'atk_item_id' => $item->id,
+            'requested_item_name' => 'Sarung Tangan',
+            'qty' => 3,
+            'unit_name' => 'pasang',
+            'reason' => 'Persediaan lapangan menipis',
+        ])
+        ->assertRedirect(route('v2.ops.admin.need-requests.index'));
+
+    $needRequest = AtkNeedRequest::latest('id')->firstOrFail();
+
+    expect($needRequest->module)->toBe(AtkNeedRequest::MODULE_OPS)
+        ->and($needRequest->user_id)->toBe($admin->id)
+        ->and($needRequest->status)->toBe(AtkNeedRequest::STATUS_PENDING);
+
+    actingAs($admin)
+        ->get(route('v2.ops.admin.need-requests.index'))
+        ->assertOk()
+        ->assertSee('Sarung Tangan')
+        ->assertSee(route('v2.ops.admin.need-requests.index'), false)
+        ->assertDontSee('Tandai Selesai');
+
+    expect(Route::has('v2.ops.admin.need-requests.process'))->toBeFalse();
+});
+
+it('keeps ops need request processing exclusive to atk admins', function () {
+    $opsAdmin = createOpsUser('ADMIN OPS');
+    $regularOps = createOpsUser();
+    $atkAdmin = createOpsUser('ADMIN ATK');
+    $needRequest = AtkNeedRequest::create([
+        'module' => AtkNeedRequest::MODULE_OPS,
+        'user_id' => $opsAdmin->id,
+        'user_name_snapshot' => $opsAdmin->name,
+        'requested_item_name' => 'Sepatu Safety',
+        'qty' => 2,
+        'unit_name' => 'pasang',
+        'reason' => 'Kebutuhan tim lapangan',
+        'status' => AtkNeedRequest::STATUS_PENDING,
+    ]);
+
+    actingAs($regularOps)
+        ->get('/v2/ops/admin/need-requests/create')
+        ->assertForbidden();
+
+    actingAs($opsAdmin)
+        ->post(route('v2.atk.admin.need-requests.process', $needRequest), [
+            'status' => AtkNeedRequest::STATUS_DONE,
+        ])
+        ->assertForbidden();
+
+    actingAs($atkAdmin)
+        ->get(route('v2.atk.admin.need-requests.index'))
+        ->assertOk()
+        ->assertSee('Sepatu Safety')
+        ->assertSee('OPS');
+
+    actingAs($atkAdmin)
+        ->post(route('v2.atk.admin.need-requests.process', $needRequest), [
+            'status' => AtkNeedRequest::STATUS_DONE,
+        ])
+        ->assertRedirect(route('v2.atk.admin.need-requests.index'));
+
+    expect($needRequest->fresh()->status)->toBe(AtkNeedRequest::STATUS_DONE)
+        ->and($needRequest->fresh()->processed_by)->toBe($atkAdmin->id);
 });
 
 it('filters shared items by module', function () {
@@ -497,7 +595,7 @@ it('renders the ops admin request list with the same responsive flow as atk', fu
         ->assertSee('/v2/ops/admin/requests/manual/create', false)
         ->assertSee($requester->name)
         ->assertSee('TRIGUNA OPS')
-        ->assertSee('Review Admin');
+        ->assertSee('Periksa Pengajuan');
 });
 
 it('creates a manual ops request using only active ops items', function () {
@@ -542,7 +640,7 @@ it('renders the atk-style ops review and lets the admin reject all items', funct
         ->assertSee('data-label="Stok Saat Ini"', false)
         ->assertSee('Setujui Semua')
         ->assertSee('Tolak Semua')
-        ->assertSee('Selesaikan Review');
+        ->assertSee('Selesaikan Pemeriksaan');
 
     actingAs($admin)->post('/v2/ops/admin/requests/'.$opsRequest->id.'/reject', [
         'admin_note' => 'Tidak digunakan.',

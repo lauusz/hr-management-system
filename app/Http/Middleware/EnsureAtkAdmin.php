@@ -11,7 +11,7 @@ class EnsureAtkAdmin
     public function handle(Request $request, Closure $next): Response
     {
         if (! $request->user()?->canManageAtk()) {
-            abort(403, 'Unauthorized ATK access.');
+            abort(403, 'Anda tidak memiliki akses admin ATK.');
         }
 
         return $next($request);

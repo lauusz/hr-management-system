@@ -1620,7 +1620,7 @@ describe('HrLeaveController', function () {
                 'change_reason' => 'Permintaan karyawan',
             ]);
 
-            $response->assertSessionHas('error', fn (string $message) => str_contains($message, 'Ledger pemotongan cuti belum tersedia'));
+            $response->assertSessionHas('error', fn (string $message) => str_contains($message, 'Data pemotongan cuti belum tersedia'));
             expect($leave->fresh()->start_date->toDateString())->toBe('2026-07-18')
                 ->and((float) $employee->fresh()->leave_balance)->toBe(9.5);
         });

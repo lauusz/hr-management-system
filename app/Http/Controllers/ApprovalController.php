@@ -369,7 +369,7 @@ class ApprovalController extends Controller
                 return redirect()->route('approval.index')->with('error', 'Status pengajuan sudah berubah.');
             }
 
-            return redirect()->route('approval.index')->with('success', 'Pengajuan HRD telah disetujui sepenuhnya (Auto-Approved).');
+            return redirect()->route('approval.index')->with('success', 'Pengajuan HRD telah disetujui secara otomatis.');
         }
 
         $approved = $this->stateMachine->perform(

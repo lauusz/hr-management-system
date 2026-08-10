@@ -36,7 +36,7 @@
                 </div>
                 <div class="ops-admin-request-count">{{ $request->items->count() }} barang</div>
                 <a class="ops-btn ops-btn-soft ops-admin-request-action" href="{{ route('v2.ops.admin.requests.show', $request) }}">
-                    {{ $request->status === 'PENDING' ? 'Review Admin' : 'Lihat Review' }}
+                    {{ $request->status === 'PENDING' ? 'Periksa Pengajuan' : 'Lihat Pemeriksaan' }}
                 </a>
             </article>
         @empty
@@ -56,7 +56,7 @@
                         <td>{{ $request->pt_name_snapshot ?? '-' }}</td>
                         <td>{{ $request->items->count() }}</td>
                         <td><span class="ops-badge ops-request-status-{{ strtolower($request->status) }}">{{ $statusLabel }}</span></td>
-                        <td><a class="ops-btn ops-btn-soft ops-btn-sm" href="{{ route('v2.ops.admin.requests.show', $request) }}">{{ $request->status === 'PENDING' ? 'Review Admin' : 'Lihat Review' }}</a></td>
+                        <td><a class="ops-btn ops-btn-soft ops-btn-sm" href="{{ route('v2.ops.admin.requests.show', $request) }}">{{ $request->status === 'PENDING' ? 'Periksa Pengajuan' : 'Lihat Pemeriksaan' }}</a></td>
                     </tr>
                 @empty
                     <tr><td colspan="6">Belum ada request.</td></tr>

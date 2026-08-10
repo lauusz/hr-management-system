@@ -28,7 +28,7 @@ class ApprovalAttendanceController extends Controller
         }
 
         if ($attendance->approval_status !== 'PENDING') {
-            return back()->with('error', 'Absensi ini tidak dalam status pending.');
+            return back()->with('error', 'Absensi ini tidak dalam status menunggu.');
         }
 
         $attendance->update([
@@ -48,7 +48,7 @@ class ApprovalAttendanceController extends Controller
         }
 
         if ($attendance->approval_status !== 'PENDING') {
-            return back()->with('error', 'Absensi ini tidak dalam status pending.');
+            return back()->with('error', 'Absensi ini tidak dalam status menunggu.');
         }
 
         $request->validate([

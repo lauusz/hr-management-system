@@ -2,7 +2,7 @@
     <div class="ops-header ops-manual-header">
         <div>
             <h1 class="ops-title">Input Pengambilan Manual</h1>
-            <p class="ops-subtitle">Catat pengambilan atas nama pengguna, lalu lanjutkan ke review.</p>
+            <p class="ops-subtitle">Catat pengambilan atas nama pengguna, lalu lanjutkan ke pemeriksaan.</p>
         </div>
         <a class="ops-btn ops-btn-soft" href="{{ route('v2.ops.admin.requests.index') }}">Kembali</a>
     </div>
@@ -35,7 +35,7 @@
                 @endforelse
             </div>
         </div>
-        <div class="ops-actions"><button class="ops-btn ops-btn-primary" type="submit">Buat dan Review</button></div>
+        <div class="ops-actions"><button class="ops-btn ops-btn-primary" type="submit">Buat dan Periksa</button></div>
     </form>
 
     <style>

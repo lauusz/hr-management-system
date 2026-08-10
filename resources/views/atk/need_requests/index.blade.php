@@ -2,7 +2,7 @@
     <div class="atk-header">
         <div>
             <h1 class="atk-title">Pengajuan Barang Saya</h1>
-            <p class="atk-subtitle">Pantau status pengajuan restock atau barang baru.</p>
+            <p class="atk-subtitle">Pantau status pengajuan penambahan stok atau barang baru.</p>
         </div>
         <a class="atk-btn atk-btn-secondary" href="{{ route('v2.atk.need-requests.create') }}">Ajukan Barang</a>
     </div>

@@ -594,7 +594,7 @@ it('renders responsive admin request cards on mobile', function () {
         ->assertSee($atkRequest->pt_name_snapshot)
         ->assertSee('2 Item')
         ->assertSee($submittedAt->format('d/m/Y H:i'))
-        ->assertSee('Review Admin')
+        ->assertSee('Periksa Pengajuan')
         ->assertSee(route('v2.atk.admin.requests.show', $atkRequest));
 });
 
@@ -726,7 +726,7 @@ it('renders a responsive admin review detail with mobile item cards', function (
         ->assertSee('Binder Detail Mobile')
         ->assertSee('Setujui')
         ->assertSee('Tidak Diproses')
-        ->assertSee('Selesaikan Review');
+        ->assertSee('Selesaikan Pemeriksaan');
 });
 
 it('filters admin items by out of stock status', function () {
@@ -1340,7 +1340,7 @@ it('renders compact and responsive atk catalog cards on mobile', function () {
         ->assertDontSee('Tanpa kategori')
         ->assertDontSee('1 pcs = 1 pcs')
         ->assertSee('1 box = 12 pcs')
-        ->assertSee('Ajukan Restock')
+        ->assertSee('Ajukan Tambah Stok')
         ->assertDontSee('<button class="atk-btn atk-btn-muted" disabled>Stok Habis</button>', false);
 });
 
@@ -1694,6 +1694,26 @@ it('shows a user their own need-request history only', function () {
         ->assertOk()
         ->assertSee('Buku Saya')
         ->assertDontSee('Buku Orang Lain');
+});
+
+it('keeps ops need requests out of the general atk need request history', function () {
+    $user = User::factory()->create();
+
+    AtkNeedRequest::create([
+        'module' => AtkNeedRequest::MODULE_OPS,
+        'user_id' => $user->id,
+        'user_name_snapshot' => $user->name,
+        'requested_item_name' => 'Barang Khusus OPS',
+        'qty' => 1,
+        'unit_name' => 'pcs',
+        'reason' => 'Kebutuhan operasional',
+        'status' => AtkNeedRequest::STATUS_PENDING,
+    ]);
+
+    actingAs($user)
+        ->get(route('v2.atk.need-requests.index'))
+        ->assertOk()
+        ->assertDontSee('Barang Khusus OPS');
 });
 
 it('renders responsive need request cards on mobile', function () {
@@ -2238,7 +2258,7 @@ it('shows a warning and keeps finalize disabled when approved item stock becomes
         ->get(route('v2.atk.admin.requests.show', $atkRequest))
         ->assertOk()
         ->assertSee('Perlu ditinjau ulang, stok saat ini tidak cukup.')
-        ->assertSee('Ada 1 item yang sudah disetujui tetapi stok saat ini tidak cukup. Ubah review item atau tunggu restock.')
+        ->assertSee('Ada 1 barang yang sudah disetujui tetapi stok saat ini tidak cukup. Ubah pemeriksaan barang atau tunggu penambahan stok.')
         ->assertSee('disabled', false);
 });
 

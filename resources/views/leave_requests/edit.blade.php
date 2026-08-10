@@ -8,7 +8,7 @@
             </div>
             <div>
                 <h1 class="section-title">Edit Pengajuan</h1>
-                <p class="section-subtitle">Ubah data pengajuan izin/cuti yang masih pending</p>
+                <p class="section-subtitle">Ubah data pengajuan izin/cuti yang masih menunggu</p>
             </div>
         </div>
     </x-slot>
@@ -279,8 +279,8 @@
     </div>
 
     @push('scripts')
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
+    <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const typeSelect = document.getElementById('edit_type');

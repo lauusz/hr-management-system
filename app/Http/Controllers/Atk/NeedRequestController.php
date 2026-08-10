@@ -13,6 +13,7 @@ class NeedRequestController extends Controller
     public function index()
     {
         $needRequests = AtkNeedRequest::with('item')
+            ->forModule(AtkNeedRequest::MODULE_ATK)
             ->where('user_id', auth()->id())
             ->latest()
             ->paginate(15);
@@ -43,11 +44,12 @@ class NeedRequestController extends Controller
         $pt = $user->pt;
 
         AtkNeedRequest::create($validated + [
+            'module' => AtkNeedRequest::MODULE_ATK,
             'user_id' => $user->id,
             'user_name_snapshot' => $user->name,
             'pt_id' => $pt?->id,
             'pt_name_snapshot' => $pt?->name,
-            'status' => 'PENDING',
+            'status' => AtkNeedRequest::STATUS_PENDING,
         ]);
 
         return redirect()->route('v2.atk.catalog')->with('success', 'Pengajuan kebutuhan barang berhasil dikirim.');

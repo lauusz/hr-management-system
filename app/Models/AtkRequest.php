@@ -84,7 +84,7 @@ class AtkRequest extends Model
     ): self
     {
         if (! in_array($module, [self::MODULE_ATK, self::MODULE_OPS], true)) {
-            throw new \InvalidArgumentException('Module pengajuan tidak valid.');
+            throw new \InvalidArgumentException('Jenis pengajuan tidak valid.');
         }
 
         $pt = $user->pt;

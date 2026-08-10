@@ -1,13 +1,13 @@
 @php
     $statusLabels = ['PENDING'=>'Menunggu','APPROVED'=>'Disetujui','REJECTED'=>'Ditolak','PARTIAL'=>'Sebagian'];
-    $itemStatusLabels = ['PENDING'=>'Menunggu review','APPROVED'=>'Disetujui','REJECTED'=>'Tidak diproses'];
+    $itemStatusLabels = ['PENDING'=>'Menunggu pemeriksaan','APPROVED'=>'Disetujui','REJECTED'=>'Tidak diproses'];
     $pendingCount = $atkRequest->items->where('status', 'PENDING')->count();
     $insufficientApprovedCount = $atkRequest->items
         ->filter(fn ($item) => ($item->status ?? 'PENDING') === 'APPROVED' && (($item->item?->stock_qty ?? 0) < $item->qty))
         ->count();
     $isPending = $atkRequest->status === 'PENDING';
 @endphp
-<x-ops-app title="Review Pengajuan OPS">
+<x-ops-app title="Periksa Pengajuan OPS">
     <div class="ops-header ops-admin-review-header">
         <div>
             <h1 class="ops-title">{{ $atkRequest->request_number }}</h1>
@@ -26,7 +26,7 @@
     <div class="ops-card ops-admin-review-panel">
         <div class="ops-admin-review-table-wrap">
             <table class="ops-admin-review-table">
-                <thead><tr><th>Barang</th><th>Qty</th><th>Stok Saat Ini</th><th>Status Item</th><th>{{ $isPending ? 'Aksi Review' : 'Keterangan Review' }}</th></tr></thead>
+                <thead><tr><th>Barang</th><th>Jumlah</th><th>Stok Saat Ini</th><th>Status Barang</th><th>{{ $isPending ? 'Aksi Pemeriksaan' : 'Keterangan Pemeriksaan' }}</th></tr></thead>
                 <tbody>
                     @foreach($atkRequest->items as $requestItem)
                         @php
@@ -37,7 +37,7 @@
                                 $itemStatus === 'APPROVED' && $isPending && $isInsufficient => 'Perlu ditinjau ulang, stok tidak cukup.',
                                 $itemStatus === 'APPROVED' => 'Stok dikurangi saat finalisasi.',
                                 $itemStatus === 'REJECTED' => 'Tidak mengurangi stok.',
-                                default => 'Menunggu review admin.',
+                                default => 'Menunggu pemeriksaan admin.',
                             };
                         @endphp
                         <tr class="ops-admin-review-item">
@@ -91,11 +91,11 @@
                 </form>
                 <form method="POST" action="{{ route('v2.ops.admin.requests.finalize', $atkRequest) }}">
                     @csrf
-                    <button class="ops-btn ops-btn-primary" type="submit" @disabled($pendingCount > 0 || $insufficientApprovedCount > 0)>Selesaikan Review</button>
+                    <button class="ops-btn ops-btn-primary" type="submit" @disabled($pendingCount > 0 || $insufficientApprovedCount > 0)>Selesaikan Pemeriksaan</button>
                 </form>
             </div>
             @if($pendingCount > 0 || $insufficientApprovedCount > 0)
-                <p class="ops-finalize-hint">{{ $pendingCount > 0 ? $pendingCount.' barang belum direview.' : 'Ada barang disetujui yang stoknya tidak cukup.' }}</p>
+                <p class="ops-finalize-hint">{{ $pendingCount > 0 ? $pendingCount.' barang belum diperiksa.' : 'Ada barang disetujui yang stoknya tidak cukup.' }}</p>
             @endif
         @endif
     </div>

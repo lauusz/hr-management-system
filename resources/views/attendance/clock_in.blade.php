@@ -825,7 +825,7 @@
         function checkReadiness() {
             if (video.srcObject && isLocationValid) {
                 btnCapture.disabled = false;
-                statusMsg.textContent = 'Siap untuk Clock In.';
+                statusMsg.textContent = 'Siap untuk presensi masuk.';
                 statusMsg.style.color = 'var(--success, #22C55E)';
             }
         }

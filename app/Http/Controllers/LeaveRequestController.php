@@ -754,7 +754,7 @@ class LeaveRequestController extends Controller
         } elseif ($isOwner) {
             // Owner non-HR hanya dapat membatalkan pengajuan pending.
             if (! in_array($leaveRequest->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
-                return redirect()->route('leave-requests.index')->with('error', 'Hanya pengajuan yang masih pending yang bisa dibatalkan oleh pemohon.');
+                return redirect()->route('leave-requests.index')->with('error', 'Hanya pengajuan yang masih menunggu yang bisa dibatalkan oleh pemohon.');
             }
         }
 

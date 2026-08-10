@@ -7,7 +7,7 @@
                         {{ isset($payslip) ? 'Edit Slip Gaji' : 'Input Slip Gaji' }}
                     </h4>
                     <p class="card-subtitle-sm">
-                        {{ $user->name ?? 'User not found' }} | {{ \Carbon\Carbon::create()->month((int)($month ?: date('m')))->locale('id')->translatedFormat('F') }} {{ $year ?: date('Y') }}
+                        {{ $user->name ?? 'Karyawan tidak ditemukan' }} | {{ \Carbon\Carbon::create()->month((int)($month ?: date('m')))->locale('id')->translatedFormat('F') }} {{ $year ?: date('Y') }}
                     </p>
                 </div>
                 <div>

@@ -11,7 +11,7 @@
         'REJECTED' => 'error',
     ];
     $itemStatusLabel = [
-        'PENDING' => 'Menunggu review',
+        'PENDING' => 'Menunggu pemeriksaan',
         'APPROVED' => 'Disetujui',
         'REJECTED' => 'Tidak diproses',
     ];

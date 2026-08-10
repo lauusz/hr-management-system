@@ -2,10 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class AtkNeedRequest extends Model
 {
+    public const MODULE_ATK = 'ATK';
+
+    public const MODULE_OPS = 'OPS';
+
     /**
      * Status pengajuan kebutuhan barang / restock.
      */
@@ -16,6 +21,7 @@ class AtkNeedRequest extends Model
     public const STATUS_REJECTED = 'REJECTED';
 
     protected $fillable = [
+        'module',
         'user_id',
         'user_name_snapshot',
         'pt_id',
@@ -30,6 +36,11 @@ class AtkNeedRequest extends Model
         'processed_at',
         'admin_note',
     ];
+
+    public function scopeForModule(Builder $query, string $module): Builder
+    {
+        return $query->where('module', $module);
+    }
 
     protected function casts(): array
     {

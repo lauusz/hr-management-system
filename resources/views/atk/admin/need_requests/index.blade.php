@@ -2,7 +2,7 @@
     <div class="atk-header">
         <div>
             <h1 class="atk-title">Pengajuan Barang</h1>
-            <p class="atk-subtitle">Review pengajuan dan perbarui statusnya. Penambahan stok dilakukan melalui Master Barang.</p>
+            <p class="atk-subtitle">Periksa pengajuan dan perbarui statusnya. Penambahan stok dilakukan melalui Master Barang.</p>
         </div>
     </div>
 
@@ -25,6 +25,9 @@
                         <td class="atk-admin-need-pt" data-label="PT">{{ $needRequest->pt_name_snapshot ?? '-' }}</td>
                         <td class="atk-admin-need-item" data-label="Barang">
                             <strong>{{ $needRequest->requested_item_name }}</strong>
+                            <span class="atk-badge atk-badge-{{ $needRequest->module === \App\Models\AtkNeedRequest::MODULE_OPS ? 'success' : 'warning' }}" style="margin-top:6px">
+                                {{ $needRequest->module }}
+                            </span>
                             <div class="atk-product-meta">{{ $needRequest->reason }}</div>
                         </td>
                         <td class="atk-admin-need-qty" data-label="Jumlah">{{ $needRequest->qty }} {{ $needRequest->unit_name }}</td>

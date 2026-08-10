@@ -7,6 +7,17 @@ use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
+it('uses environment-aware PWA asset URLs', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user, 'web')
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('href="'.asset('manifest.json').'"', false)
+        ->assertSee('href="'.asset('images/icons/icon-192x192.png').'"', false)
+        ->assertSee("navigator.serviceWorker.register('".asset('sw.js')."')", false);
+});
+
 it('shows employee tenure on dashboard', function () {
     Carbon::setTestNow('2026-06-29');
 

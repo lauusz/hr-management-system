@@ -1,7 +1,7 @@
 @php
     $statusLabels = ['PENDING' => 'Menunggu', 'APPROVED' => 'Disetujui', 'PARTIAL' => 'Sebagian', 'REJECTED' => 'Ditolak'];
     $statusClasses = ['APPROVED' => 'success', 'REJECTED' => 'error'];
-    $itemStatusLabels = ['PENDING' => 'Menunggu review', 'APPROVED' => 'Disetujui', 'REJECTED' => 'Tidak diproses'];
+    $itemStatusLabels = ['PENDING' => 'Menunggu pemeriksaan', 'APPROVED' => 'Disetujui', 'REJECTED' => 'Tidak diproses'];
 @endphp
 
 <x-ops-app title="Detail Pengajuan OPS">

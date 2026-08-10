@@ -37,7 +37,7 @@ class CatalogController extends Controller
         $item = AtkItem::forModule(AtkItem::MODULE_ATK)->available()->findOrFail($validated['atk_item_id']);
 
         if ($item->stock_qty <= 0) {
-            return back()->with('warning', 'Stok barang habis. Silakan ajukan restock.');
+            return back()->with('warning', 'Stok barang habis. Silakan ajukan penambahan stok.');
         }
 
         $cart = session('atk_cart', []);

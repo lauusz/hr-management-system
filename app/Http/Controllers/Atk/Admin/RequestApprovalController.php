@@ -91,7 +91,7 @@ class RequestApprovalController extends Controller
 
         return redirect()
             ->route('v2.atk.admin.requests.show', $atkRequest)
-            ->with('success', 'Pengambilan manual berhasil dibuat. Silakan review setiap item.');
+            ->with('success', 'Pengambilan manual berhasil dibuat. Silakan periksa setiap barang.');
     }
 
     public function show(AtkRequest $atkRequest)
@@ -331,7 +331,7 @@ class RequestApprovalController extends Controller
                 $availableStock = $item?->stock_qty ?? 0;
                 $itemName = $item?->name ?? $requestItem->item_name_snapshot;
 
-                return back()->with('warning', 'Stok '.$itemName.' tidak cukup ('.$availableStock.' tersedia, '.$requestItem->qty.' diminta). Tandai item ini sebagai Tidak diproses atau tunggu restock.');
+                return back()->with('warning', 'Stok '.$itemName.' tidak cukup ('.$availableStock.' tersedia, '.$requestItem->qty.' diminta). Tandai barang ini sebagai Tidak diproses atau tunggu penambahan stok.');
             }
         }
 
@@ -374,7 +374,7 @@ class RequestApprovalController extends Controller
 
                 // Validasi: tidak boleh ada item yang masih PENDING.
                 if ($lockedRequest->items->contains(fn ($item) => $item->status === AtkRequestItem::STATUS_PENDING)) {
-                    throw new \RuntimeException('Masih ada item yang belum direview.');
+                    throw new \RuntimeException('Masih ada barang yang belum diperiksa.');
                 }
 
                 $approvedItems = $lockedRequest->items->where('status', AtkRequestItem::STATUS_APPROVED);

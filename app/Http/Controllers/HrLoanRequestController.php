@@ -112,7 +112,7 @@ class HrLoanRequestController extends Controller
 
         return redirect()
             ->route('hr.loan_requests.show', $loan->id)
-            ->with('success', 'Detail pinjaman berhasil diupdate.');
+            ->with('success', 'Detail pinjaman berhasil diperbarui.');
     }
 
     public function approve(Request $request, $id)
@@ -278,7 +278,7 @@ class HrLoanRequestController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Cicilan berhasil diupdate.');
+        return redirect()->back()->with('success', 'Cicilan berhasil diperbarui.');
     }
 
     public function destroyRepayment($id, $repaymentId)

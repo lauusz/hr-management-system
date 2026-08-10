@@ -3,7 +3,7 @@
 @section('content')
 <div class="container">
     <h1>Admin Dashboard</h1>
-    <p>Welcome to the admin panel. Here you can manage your application.</p>
+    <p>Kelola data aplikasi melalui menu admin.</p>
     <a href="{{ route('admin.users') }}" class="btn btn-primary">Manage Users</a>
     <a href="{{ route('admin.settings') }}" class="btn btn-secondary">Settings</a>
 </div>

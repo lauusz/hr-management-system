@@ -24,6 +24,12 @@ trait InstallsOpsSchema
             });
         }
 
+        if (! Schema::hasColumn('atk_need_requests', 'module')) {
+            Schema::table('atk_need_requests', function (Blueprint $table): void {
+                $table->string('module', 10)->default('ATK')->index();
+            });
+        }
+
         if (! Schema::hasTable('ops_access_divisions')) {
             Schema::create('ops_access_divisions', function (Blueprint $table): void {
                 $table->id();

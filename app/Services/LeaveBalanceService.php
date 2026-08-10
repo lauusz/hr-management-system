@@ -241,7 +241,7 @@ class LeaveBalanceService
             $currentBalance = (float) $lockedUser->leave_balance;
             if ($difference > 0 && $currentBalance < $difference) {
                 throw new RuntimeException(
-                    "Gagal Approve: Saldo cuti tidak cukup. User punya: {$currentBalance}, Tambahan dibutuhkan: {$difference} hari."
+                    "Persetujuan gagal: Saldo cuti tidak cukup. Saldo tersedia: {$currentBalance}, tambahan yang dibutuhkan: {$difference} hari."
                 );
             }
 
@@ -301,7 +301,7 @@ class LeaveBalanceService
             $currentBalance = (float) $lockedUser->leave_balance;
 
             if ($currentBalance < $daysToDeduct) {
-                throw new RuntimeException("Gagal Approve: Saldo cuti tidak cukup. User punya: {$currentBalance}, Butuh (Efektif): {$daysToDeduct} hari.");
+                throw new RuntimeException("Persetujuan gagal: Saldo cuti tidak cukup. Saldo tersedia: {$currentBalance}, kebutuhan: {$daysToDeduct} hari.");
             }
 
             $newBalance = $currentBalance - $daysToDeduct;
@@ -352,7 +352,7 @@ class LeaveBalanceService
                 ->first();
 
             if (! $deductTransaction) {
-                throw new RuntimeException('Ledger pemotongan cuti belum tersedia. Jalankan backfill ledger terlebih dahulu.');
+                throw new RuntimeException('Data pemotongan cuti belum tersedia. Hubungi tim IT.');
             }
 
             $adjustmentPrefix = "ADJUST_DATE:LEAVE:{$leave->id}:";

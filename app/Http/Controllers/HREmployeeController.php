@@ -584,7 +584,7 @@ class HREmployeeController extends Controller
         $employee->password = Hash::make('123456');
         $employee->save();
 
-        return redirect()->back()->with('success', "Password untuk {$employee->name} berhasil di-reset menjadi '123456'.");
+        return redirect()->back()->with('success', "Password untuk {$employee->name} berhasil diatur ulang menjadi '123456'.");
     }
 
     public function exit(Request $request, User $employee)

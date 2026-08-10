@@ -14,7 +14,7 @@ class EnsureRole
         $user = $request->user();
 
         if (! $user) {
-            abort(403, 'Unauthorized.');
+            abort(403, 'Anda tidak memiliki akses.');
         }
 
         // KONVERSI: Ambil value string dari Enum jika user->role adalah object Enum
@@ -25,7 +25,7 @@ class EnsureRole
         // Cek apakah role user ada di dalam daftar role yang diizinkan route
         // (Sekarang kita membandingkan String vs String, jadi aman)
         if (! in_array($userRole, $roles)) {
-            abort(403, 'Unauthorized role.');
+            abort(403, 'Jabatan Anda tidak memiliki akses.');
         }
 
         return $next($request);

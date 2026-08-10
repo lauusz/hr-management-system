@@ -160,7 +160,7 @@ describe('AttendanceController', function () {
             ]);
 
             $response->assertStatus(200);
-            $response->assertJson(['message' => 'Clock In Berhasil.']);
+            $response->assertJson(['message' => 'Presensi masuk berhasil.']);
 
             $attendance = Attendance::where('user_id', $user->id)->whereDate('date', now()->toDateString())->first();
             expect($attendance)->toBeTruthy()
@@ -213,7 +213,7 @@ describe('AttendanceController', function () {
             ]);
 
             $response->assertStatus(400);
-            $response->assertJsonFragment(['message' => 'Anda sudah melakukan clock-in hari ini.']);
+            $response->assertJsonFragment(['message' => 'Anda sudah melakukan presensi masuk hari ini.']);
         });
 
         it('rejects clock in when no shift assigned', function () {
@@ -379,7 +379,7 @@ describe('AttendanceController', function () {
             ]);
 
             $response->assertStatus(200);
-            $response->assertJson(['message' => 'Clock Out Berhasil.']);
+            $response->assertJson(['message' => 'Presensi keluar berhasil.']);
 
             $attendance->refresh();
             expect($attendance->clock_out_at)->toBeTruthy();
@@ -416,7 +416,7 @@ describe('AttendanceController', function () {
             ]);
 
             $response->assertStatus(400);
-            $response->assertJson(['message' => 'Tidak ada sesi absensi aktif untuk di-close.']);
+            $response->assertJson(['message' => 'Tidak ada sesi presensi aktif untuk ditutup.']);
 
             $attendance->refresh();
             expect($attendance->completion_status)->toBe(Attendance::COMPLETION_CLOSED);
@@ -443,7 +443,7 @@ describe('AttendanceController', function () {
             ]);
 
             $response->assertStatus(400);
-            $response->assertJsonFragment(['message' => 'Anda harus berada di kantor untuk Clock Out (556 m).']);
+            $response->assertJsonFragment(['message' => 'Anda harus berada di kantor untuk melakukan presensi keluar (556 m).']);
         });
 
         it('returns error when no active attendance to clock out', function () {
@@ -459,7 +459,7 @@ describe('AttendanceController', function () {
             ]);
 
             $response->assertStatus(400);
-            $response->assertJson(['message' => 'Tidak ada sesi absensi aktif untuk di-close.']);
+            $response->assertJson(['message' => 'Tidak ada sesi presensi aktif untuk ditutup.']);
         });
 
         it('calculates early leave when clocking out before shift end', function () {
@@ -552,7 +552,7 @@ describe('AttendanceController', function () {
             ]);
 
             $response->assertStatus(200);
-            $response->assertJson(['message' => 'Clock In Berhasil.']);
+            $response->assertJson(['message' => 'Presensi masuk berhasil.']);
 
             $attendance = Attendance::where('user_id', $user->id)->whereDate('date', now()->toDateString())->first();
             expect($attendance)->toBeTruthy()
@@ -678,7 +678,7 @@ describe('AttendanceController', function () {
 
             // Should succeed if within 100m
             if ($response->status() === 200) {
-                $response->assertJson(['message' => 'Clock In Berhasil.']);
+                $response->assertJson(['message' => 'Presensi masuk berhasil.']);
             }
         });
 

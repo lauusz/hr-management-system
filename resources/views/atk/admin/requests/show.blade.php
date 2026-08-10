@@ -11,7 +11,7 @@
         'REJECTED' => 'error',
     ];
     $itemStatusLabel = [
-        'PENDING' => 'Menunggu review',
+        'PENDING' => 'Menunggu pemeriksaan',
         'APPROVED' => 'Disetujui',
         'REJECTED' => 'Tidak diproses',
     ];
@@ -23,7 +23,7 @@
         ->count();
     $isPending = $atkRequest->status === 'PENDING';
 @endphp
-<x-atk-app title="Review Pengajuan ATK">
+<x-atk-app title="Periksa Pengajuan ATK">
     <div class="atk-header atk-admin-review-header">
         <div>
             <h1 class="atk-title">{{ $atkRequest->request_number }}</h1>
@@ -37,7 +37,7 @@
     </div>
 
     <div class="atk-alert atk-alert-warning">
-        Halaman ini khusus admin untuk review item dan finalisasi stok, jadi semua informasi yang dibutuhkan admin dirangkum di sini.
+        Halaman ini khusus admin untuk memeriksa barang dan menyelesaikan stok.
     </div>
 
     @if($atkRequest->notes)
@@ -50,7 +50,7 @@
     <div class="atk-card atk-admin-review-panel">
         <div class="atk-table-wrap atk-admin-review-table-wrap">
             <table class="atk-table atk-admin-review-table">
-                <thead><tr><th>Barang</th><th>Qty</th><th>Stok Saat Ini</th><th>Status Item</th><th>{{ $isPending ? 'Aksi Review' : 'Keterangan Review' }}</th></tr></thead>
+                <thead><tr><th>Barang</th><th>Jumlah</th><th>Stok Saat Ini</th><th>Status Barang</th><th>{{ $isPending ? 'Aksi Pemeriksaan' : 'Keterangan Pemeriksaan' }}</th></tr></thead>
                 <tbody>
                     @foreach($atkRequest->items as $requestItem)
                         @php
@@ -61,7 +61,7 @@
                                 $itemStatus === 'APPROVED' && $isPending && $isInsufficient => 'Perlu ditinjau ulang, stok saat ini tidak cukup.',
                                 $itemStatus === 'APPROVED' => 'Stok dikurangi saat finalisasi.',
                                 'REJECTED' => 'Tidak mengurangi stok.',
-                                default => 'Menunggu review admin.',
+                                default => 'Menunggu pemeriksaan admin.',
                             };
                         @endphp
                         <tr class="atk-admin-review-item">
@@ -102,7 +102,7 @@
                                     <div class="atk-review-note {{ $itemStatus === 'APPROVED' && $isPending && $isInsufficient ? 'is-warning' : '' }}">
                                         <strong>{{ $reviewSummary }}</strong>
                                         @if($requestItem->reviewed_at)
-                                            <span>Direview {{ $requestItem->reviewed_at->format('d M Y H:i') }}</span>
+                                            <span>Diperiksa {{ $requestItem->reviewed_at->format('d M Y H:i') }}</span>
                                         @endif
                                     </div>
                                 @endif
@@ -129,15 +129,15 @@
                 </form>
                 <form method="POST" action="{{ route('v2.atk.admin.requests.finalize', $atkRequest) }}" class="atk-admin-finalize-form">
                     @csrf
-                    <button class="atk-btn atk-btn-primary" type="submit" @disabled($pendingCount > 0 || $insufficientApprovedCount > 0)>Selesaikan Review</button>
+                    <button class="atk-btn atk-btn-primary" type="submit" @disabled($pendingCount > 0 || $insufficientApprovedCount > 0)>Selesaikan Pemeriksaan</button>
                 </form>
             </div>
             @if($pendingCount > 0 || $insufficientApprovedCount > 0)
                 <p class="atk-finalize-hint">
                     @if($pendingCount > 0)
-                        Tombol final aktif setelah semua item direview ({{ $pendingCount }} item belum direview).
+                        Tombol selesai aktif setelah semua barang diperiksa ({{ $pendingCount }} barang belum diperiksa).
                     @elseif($insufficientApprovedCount > 0)
-                        Ada {{ $insufficientApprovedCount }} item yang sudah disetujui tetapi stok saat ini tidak cukup. Ubah review item atau tunggu restock.
+                        Ada {{ $insufficientApprovedCount }} barang yang sudah disetujui tetapi stok saat ini tidak cukup. Ubah pemeriksaan barang atau tunggu penambahan stok.
                     @endif
                 </p>
             @endif
