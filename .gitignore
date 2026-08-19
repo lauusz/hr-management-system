@@ -31,7 +31,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 *.md
-
+STRICT-RULES.md
 # Superpowers subagent helper scripts
 .kimi/skills/superpowers-subagent-development/scripts/*.ps1
 
@@ -42,4 +42,4 @@ settings.local.json
 .code-review-graph/
 
 # Keep Codex project instructions versioned.
-!AGENTS.md
+AGENTS.md
