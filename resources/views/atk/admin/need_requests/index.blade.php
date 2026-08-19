@@ -25,9 +25,7 @@
                         <td class="atk-admin-need-pt" data-label="PT">{{ $needRequest->pt_name_snapshot ?? '-' }}</td>
                         <td class="atk-admin-need-item" data-label="Barang">
                             <strong>{{ $needRequest->requested_item_name }}</strong>
-                            <span class="atk-badge atk-badge-{{ $needRequest->module === \App\Models\AtkNeedRequest::MODULE_OPS ? 'success' : 'warning' }}" style="margin-top:6px">
-                                {{ $needRequest->module }}
-                            </span>
+                            <span class="atk-badge atk-badge-{{ $needRequest->module === \App\Models\AtkNeedRequest::MODULE_OPS ? 'success' : 'warning' }}" style="margin-top:6px">{{ str_replace('_', ' ', $needRequest->module) }}</span>
                             <div class="atk-product-meta">{{ $needRequest->reason }}</div>
                         </td>
                         <td class="atk-admin-need-qty" data-label="Jumlah">{{ $needRequest->qty }} {{ $needRequest->unit_name }}</td>

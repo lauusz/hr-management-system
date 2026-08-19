@@ -14,6 +14,8 @@ class AtkRequest extends Model
 
     public const MODULE_OPS = 'OPS';
 
+    public const MODULE_ATK_MKS = 'ATK_MKS';
+
     public const STATUS_PENDING = 'PENDING';
 
     public const STATUS_APPROVED = 'APPROVED';
@@ -83,7 +85,7 @@ class AtkRequest extends Model
         string $module = self::MODULE_ATK,
     ): self
     {
-        if (! in_array($module, [self::MODULE_ATK, self::MODULE_OPS], true)) {
+        if (! in_array($module, [self::MODULE_ATK, self::MODULE_OPS, self::MODULE_ATK_MKS], true)) {
             throw new \InvalidArgumentException('Jenis pengajuan tidak valid.');
         }
 

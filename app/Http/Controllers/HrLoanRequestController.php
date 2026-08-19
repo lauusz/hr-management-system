@@ -17,7 +17,7 @@ class HrLoanRequestController extends Controller
 
     public function index(Request $request)
     {
-        $query = LoanRequest::orderByDesc('created_at');
+        $query = LoanRequest::with('user.profile')->orderByDesc('created_at');
 
         if ($request->status) {
             $query->where('status', $request->status);
@@ -37,6 +37,39 @@ class HrLoanRequestController extends Controller
         $rejectedCount = (clone $query)->where('status', 'REJECTED')->count();
 
         $loans = $query->paginate(20)->withQueryString();
+
+        $loans->getCollection()->each(function (LoanRequest $loan): void {
+            $joinDate = $loan->user?->profile?->tgl_bergabung;
+            $loan->employee_tenure = '-';
+
+            if (! $joinDate) {
+                return;
+            }
+
+            $start = $joinDate->copy()->startOfDay();
+            $end = now()->startOfDay();
+
+            if ($end->lessThan($start)) {
+                return;
+            }
+
+            $diff = $start->diff($end);
+            $parts = [];
+
+            if ($diff->y > 0) {
+                $parts[] = $diff->y.' thn';
+            }
+
+            if ($diff->m > 0) {
+                $parts[] = $diff->m.' bln';
+            }
+
+            if ($parts === []) {
+                $parts[] = $diff->d.' hari';
+            }
+
+            $loan->employee_tenure = implode(' ', array_slice($parts, 0, 2));
+        });
 
         return view('hr.loan_requests.index', compact(
             'loans',

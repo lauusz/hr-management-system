@@ -97,6 +97,19 @@ class User extends Authenticatable
             || $this->hasAccessRole(UserRole::ADMIN_OPS->value);
     }
 
+    public function canAccessAtkMks(): bool
+    {
+        return $this->canManageAtkMks()
+            || ($this->profile?->pt_id !== null
+                && AtkMksAccessPt::where('pt_id', $this->profile->pt_id)->exists());
+    }
+
+    public function canManageAtkMks(): bool
+    {
+        return $this->canManageAtk()
+            || $this->hasAccessRole(UserRole::ADMIN_ATK_MKS->value);
+    }
+
     public function isHR(): bool
     {
         return in_array($this->role, [
@@ -118,6 +131,14 @@ class User extends Authenticatable
     public function isEmployee(): bool
     {
         return $this->role === UserRole::EMPLOYEE;
+    }
+
+    public function isEligibleForEmployeeLoan(): bool
+    {
+        $joinDate = $this->profile?->tgl_bergabung;
+
+        return $joinDate
+            && $joinDate->copy()->startOfDay()->addYearNoOverflow()->lte(now()->startOfDay());
     }
 
     public function allowsHrStaffNonCutiApproval(): bool

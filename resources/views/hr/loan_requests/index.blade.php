@@ -205,6 +205,7 @@
                     <div class="ln-employee-info">
                         <span class="ln-employee-name">{{ $loan->snapshot_name }}</span>
                         <span class="ln-employee-detail">{{ $loan->snapshot_position ?? '-' }} - {{ $loan->snapshot_company ?? '-' }}</span>
+                        <span class="ln-employee-detail">Lama Bekerja: {{ $loan->employee_tenure }}</span>
                     </div>
                 </div>
 
@@ -257,6 +258,7 @@
                     <thead>
                         <tr>
                             <th style="min-width: 220px;">Karyawan</th>
+                            <th>Lama Bekerja</th>
                             <th>Besar Pinjaman</th>
                             <th>Metode Bayar</th>
                             <th>Tgl Pengajuan</th>
@@ -304,6 +306,10 @@
                                 </td>
 
                                 <td>
+                                    <span class="ln-table-date">{{ $loan->employee_tenure }}</span>
+                                </td>
+
+                                <td>
                                     <div class="ln-table-money">
                                         <span class="ln-table-money-amount">Rp {{ number_format($loan->amount, 0, ',', '.') }}</span>
                                         <span class="ln-table-money-words" title="{{ $loan->amount_in_words }}">
@@ -337,7 +343,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="ln-table-empty">
+                                <td colspan="7" class="ln-table-empty">
                                     <div class="ln-empty">
                                         <div class="ln-empty-icon">
                                             <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">

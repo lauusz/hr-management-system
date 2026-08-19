@@ -374,10 +374,6 @@ class LeaveRequestController extends Controller
                 $initialStatus = LeaveRequest::PENDING_HR;
         }
 
-        if ($isOffSpv) {
-            $initialStatus = LeaveRequest::PENDING_HR;
-        }
-
         $leaveData = [
             'user_id' => $userId,
             'off_spv_period_id' => $offSpvPeriodId,
@@ -675,9 +671,17 @@ class LeaveRequestController extends Controller
             $validated['photo'] = basename($uploadedPhotoPath);
         }
 
+        $offSpvRequiresManagerApproval = $isOffSpv
+            && ! $isHRD
+            && ! empty($applicant->manager_id)
+            && User::whereKey($applicant->manager_id)->exists();
+        $updateAction = $isOffSpv && ! $offSpvRequiresManagerApproval
+            ? LeaveRequestStateMachine::REVISE_FOR_HR
+            : LeaveRequestStateMachine::EDIT_PENDING;
+
         $updated = $this->stateMachine->perform(
             $leaveRequest,
-            $isOffSpv ? LeaveRequestStateMachine::REVISE_FOR_HR : LeaveRequestStateMachine::EDIT_PENDING,
+            $updateAction,
             function (LeaveRequest $lockedLeave) use ($request, $user, $validated, $isOffSpv, $isHRD) {
                 if ($isOffSpv && ! $isHRD && $validated['off_spv_period_id'] !== null) {
                     $period = OffSpvPeriod::lockForUpdate()->findOrFail($validated['off_spv_period_id']);

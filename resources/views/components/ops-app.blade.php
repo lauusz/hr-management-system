@@ -7,6 +7,12 @@
             ->where('status', \App\Models\AtkRequest::STATUS_PENDING)
             ->count()
         : 0;
+    $opsPendingNeedRequestCount = auth()->check() && auth()->user()->canManageOps()
+        ? \App\Models\AtkNeedRequest::query()
+            ->forModule(\App\Models\AtkNeedRequest::MODULE_OPS)
+            ->where('status', \App\Models\AtkNeedRequest::STATUS_PENDING)
+            ->count()
+        : 0;
 @endphp
 <!doctype html>
 <html lang="id">
@@ -111,7 +117,15 @@
                         <span class="ops-nav-badge">{{ $opsPendingRequestCount > 99 ? '99+' : $opsPendingRequestCount }}</span>
                     @endif
                 </a>
-                @if(Route::has('v2.ops.admin.need-requests.index'))<a class="{{ request()->routeIs('v2.ops.admin.need-requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.need-requests.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-request"/></svg>Request Barang</a>@endif
+                @if(Route::has('v2.ops.admin.need-requests.index'))
+                    <a class="{{ request()->routeIs('v2.ops.admin.need-requests.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.need-requests.index') }}">
+                        <svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-request"/></svg>
+                        <span>Request Barang</span>
+                        @if($opsPendingNeedRequestCount > 0)
+                            <span class="ops-nav-badge ops-need-request-nav-badge">{{ $opsPendingNeedRequestCount > 99 ? '99+' : $opsPendingNeedRequestCount }}</span>
+                        @endif
+                    </a>
+                @endif
                 @if(Route::has('v2.ops.admin.items.index'))<a class="{{ request()->routeIs('v2.ops.admin.items.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.items.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-box"/></svg>Master Barang OPS</a>@endif
                 @if(Route::has('v2.ops.admin.stock-movements.index'))<a class="{{ request()->routeIs('v2.ops.admin.stock-movements.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.stock-movements.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-stock"/></svg>Riwayat Stok</a>@endif
                 @if(Route::has('v2.ops.admin.access.index'))<a class="{{ request()->routeIs('v2.ops.admin.access.*') ? 'active' : '' }}" href="{{ route('v2.ops.admin.access.index') }}"><svg class="ops-nav-icon" aria-hidden="true"><use href="#ops-icon-access"/></svg>Akses</a>@endif

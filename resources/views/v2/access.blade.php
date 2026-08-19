@@ -25,6 +25,14 @@
                     <small>Penyimpanan dan pengajuan kebutuhan operasional untuk divisi OPS.</small>
                 </a>
             @endif
+
+            @if(auth()->user()->canAccessAtkMks())
+                <a class="access-card access-card-atk-mks" href="{{ route('v2.atk-mks.catalog') }}">
+                    <span class="access-kicker">Testing</span>
+                    <strong>Stok ATK MKS</strong>
+                    <small>Katalog dan pengajuan ATK khusus untuk kebutuhan MKS.</small>
+                </a>
+            @endif
         </div>
     </div>
 
@@ -63,6 +71,8 @@
         .access-card-atk .access-kicker { background: #F3EEFF; color: #5B35B7; }
         .access-card-ops { border-color: #BFE8DD; }
         .access-card-ops .access-kicker { background: #E8F8F3; color: #0F766E; }
+        .access-card-atk-mks { border-color: #F5D77C; }
+        .access-card-atk-mks .access-kicker { background: #FEF3C7; color: #A16207; }
         @media (max-width: 720px) { .access-grid { grid-template-columns: 1fr; } }
     </style>
 </x-app>

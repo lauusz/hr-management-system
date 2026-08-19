@@ -16,6 +16,7 @@
             <option value="">Semua modul</option>
             <option value="ATK" @selected(request('module') === 'ATK')>ATK</option>
             <option value="OPS" @selected(request('module') === 'OPS')>OPS</option>
+            <option value="ATK_MKS" @selected(request('module') === 'ATK_MKS')>ATK MKS</option>
         </select>
         <select class="atk-select" name="movement_type">
             <option value="">Semua tipe</option>
@@ -47,7 +48,7 @@
                     <tr class="atk-stock-movement-card">
                         <td class="atk-stock-movement-date" data-label="Tanggal">{{ $movement->created_at?->format('d/m/Y H:i') }}</td>
                         <td class="atk-stock-movement-item" data-label="Barang"><strong>{{ $movement->item?->name ?? '-' }}</strong></td>
-                        <td class="atk-stock-movement-module" data-label="Modul"><span class="atk-badge {{ $movement->item?->module === 'OPS' ? 'atk-badge-success' : 'atk-badge-brand' }}">{{ $movement->item?->module ?? '-' }}</span></td>
+                        <td class="atk-stock-movement-module" data-label="Modul"><span class="atk-badge {{ in_array($movement->item?->module, ['OPS', 'ATK_MKS'], true) ? 'atk-badge-success' : 'atk-badge-brand' }}">{{ $movement->item?->module === 'ATK_MKS' ? 'ATK MKS' : ($movement->item?->module ?? '-') }}</span></td>
                         <td class="atk-stock-movement-type" data-label="Tipe"><span class="atk-badge atk-badge-{{ $typeLabel[1] }}">{{ $typeLabel[0] }}</span></td>
                         <td class="atk-stock-movement-qty" data-label="Jumlah">{{ $movement->qty }} {{ $movement->item?->unit_name }}</td>
                         <td class="atk-stock-movement-pt" data-label="PT">{{ $sourceRequest?->pt_name_snapshot ?? '-' }}</td>

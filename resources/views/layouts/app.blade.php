@@ -952,12 +952,14 @@
             <span class="menu-text">Pengajuan Lembur</span>
           </a>
 
+          @if(auth()->user()->isEligibleForEmployeeLoan())
           <a href="{{ route('employee.loan_requests.index') }}" class="menu-item {{ request()->routeIs('employee.loan_requests.*') ? 'active' : '' }}">
             <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
             </svg>
             <span class="menu-text">Pengajuan Hutang</span>
           </a>
+          @endif
 
           <a href="{{ route('settings.password') }}" class="menu-item {{ request()->routeIs('settings.password') ? 'active' : '' }}">
             <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">

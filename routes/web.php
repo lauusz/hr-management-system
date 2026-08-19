@@ -47,6 +47,15 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SupervisorDataController;
 use App\Http\Controllers\SupervisorOvertimeController;
 use App\Http\Controllers\V2AccessController;
+use App\Http\Controllers\AtkMks\CatalogController as AtkMksCatalogController;
+use App\Http\Controllers\AtkMks\CartController as AtkMksCartController;
+use App\Http\Controllers\AtkMks\RequestController as AtkMksRequestController;
+use App\Http\Controllers\AtkMks\Admin\AccessController as AtkMksAdminAccessController;
+use App\Http\Controllers\AtkMks\Admin\ItemController as AtkMksAdminItemController;
+use App\Http\Controllers\AtkMks\Admin\NeedRequestController as AtkMksAdminNeedRequestController;
+use App\Http\Controllers\AtkMks\Admin\RequestApprovalController as AtkMksAdminRequestApprovalController;
+use App\Http\Controllers\AtkMks\Admin\StockController as AtkMksAdminStockController;
+use App\Http\Controllers\AtkMks\Admin\StockMovementController as AtkMksAdminStockMovementController;
 use App\Models\Asset;
 use Illuminate\Support\Facades\Route;
 
@@ -59,6 +68,42 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('v2')->name('v2.')->group(function () {
         Route::get('/access', V2AccessController::class)->name('access');
+        Route::middleware('atk-mks.access')->prefix('atk-mks')->name('atk-mks.')->group(function () {
+            Route::get('/', [AtkMksCatalogController::class, 'index'])->name('catalog');
+            Route::post('/cart', [AtkMksCatalogController::class, 'addToCart'])->name('cart.add');
+            Route::get('/cart', [AtkMksCartController::class, 'show'])->name('cart.show');
+            Route::put('/cart/{item}', [AtkMksCartController::class, 'update'])->name('cart.update');
+            Route::delete('/cart/{item}', [AtkMksCartController::class, 'remove'])->name('cart.remove');
+            Route::post('/cart/submit', [AtkMksCartController::class, 'store'])->name('cart.submit');
+            Route::get('/requests', [AtkMksRequestController::class, 'index'])->name('requests.index');
+            Route::get('/requests/{atkRequest}', [AtkMksRequestController::class, 'show'])->name('requests.show');
+
+            Route::middleware('atk-mks.admin')->prefix('admin')->name('admin.')->group(function () {
+                Route::get('/need-requests', [AtkMksAdminNeedRequestController::class, 'index'])->name('need-requests.index');
+                Route::get('/need-requests/create', [AtkMksAdminNeedRequestController::class, 'create'])->name('need-requests.create');
+                Route::post('/need-requests', [AtkMksAdminNeedRequestController::class, 'store'])->name('need-requests.store');
+                Route::get('/requests', [AtkMksAdminRequestApprovalController::class, 'index'])->name('requests.index');
+                Route::get('/requests/manual/create', [AtkMksAdminRequestApprovalController::class, 'createManual'])->name('requests.manual.create');
+                Route::post('/requests/manual', [AtkMksAdminRequestApprovalController::class, 'storeManual'])->name('requests.manual.store');
+                Route::get('/requests/{atkRequest}', [AtkMksAdminRequestApprovalController::class, 'show'])->name('requests.show');
+                Route::post('/requests/{atkRequest}/approve-all', [AtkMksAdminRequestApprovalController::class, 'approveAll'])->name('requests.approve-all');
+                Route::post('/requests/{atkRequest}/reject', [AtkMksAdminRequestApprovalController::class, 'reject'])->name('requests.reject');
+                Route::post('/requests/{atkRequest}/items/{requestItem}/review', [AtkMksAdminRequestApprovalController::class, 'reviewItem'])->name('requests.items.review');
+                Route::post('/requests/{atkRequest}/finalize', [AtkMksAdminRequestApprovalController::class, 'finalize'])->name('requests.finalize');
+                Route::get('/items', [AtkMksAdminItemController::class, 'index'])->name('items.index');
+                Route::get('/items/create', [AtkMksAdminItemController::class, 'create'])->name('items.create');
+                Route::post('/items', [AtkMksAdminItemController::class, 'store'])->name('items.store');
+                Route::get('/items/{item}/edit', [AtkMksAdminItemController::class, 'edit'])->name('items.edit');
+                Route::put('/items/{item}', [AtkMksAdminItemController::class, 'update'])->name('items.update');
+                Route::delete('/items/{item}', [AtkMksAdminItemController::class, 'destroy'])->name('items.destroy');
+                Route::post('/items/{item}/stock', [AtkMksAdminStockController::class, 'store'])->name('items.stock.store');
+                Route::get('/stock-movements', [AtkMksAdminStockMovementController::class, 'index'])->name('stock-movements.index');
+                Route::get('/access', [AtkMksAdminAccessController::class, 'index'])->name('access.index');
+                Route::post('/access/pts', [AtkMksAdminAccessController::class, 'syncPts'])->name('access.pts.sync');
+                Route::post('/access/{user}/grant-admin', [AtkMksAdminAccessController::class, 'grantAdmin'])->name('access.grant-admin');
+                Route::delete('/access/{user}/revoke-admin', [AtkMksAdminAccessController::class, 'revokeAdmin'])->name('access.revoke-admin');
+            });
+        });
         Route::middleware('ops.access')->prefix('ops')->name('ops.')->group(function () {
             Route::get('/', [OpsCatalogController::class, 'index'])->name('catalog');
             Route::post('/cart', [OpsCatalogController::class, 'addToCart'])->name('cart.add');
@@ -180,11 +225,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/clock-out', [AttendanceController::class, 'remoteClockOut'])->name('clockOut');
     });
 
-    Route::get('/loan-requests', [EmployeeLoanRequestController::class, 'index'])->name('employee.loan_requests.index');
-    Route::get('/loan-requests/create', [EmployeeLoanRequestController::class, 'create'])->name('employee.loan_requests.create');
-    Route::post('/loan-requests', [EmployeeLoanRequestController::class, 'store'])->name('employee.loan_requests.store');
-    Route::get('/loan-requests/{loan}', [EmployeeLoanRequestController::class, 'show'])->name('employee.loan_requests.show');
-    Route::delete('/loan-requests/{loan}', [EmployeeLoanRequestController::class, 'destroy'])->name('employee.loan_requests.destroy');
+    Route::middleware('loan.eligible')->group(function () {
+        Route::get('/loan-requests', [EmployeeLoanRequestController::class, 'index'])->name('employee.loan_requests.index');
+        Route::get('/loan-requests/create', [EmployeeLoanRequestController::class, 'create'])->name('employee.loan_requests.create');
+        Route::post('/loan-requests', [EmployeeLoanRequestController::class, 'store'])->name('employee.loan_requests.store');
+        Route::get('/loan-requests/{loan}', [EmployeeLoanRequestController::class, 'show'])->name('employee.loan_requests.show');
+        Route::delete('/loan-requests/{loan}', [EmployeeLoanRequestController::class, 'destroy'])->name('employee.loan_requests.destroy');
+    });
 
     Route::get('/settings/password', [AuthController::class, 'showChangePasswordForm'])->name('settings.password');
     Route::put('/settings/password', [AuthController::class, 'updatePassword'])->name('settings.password.update');

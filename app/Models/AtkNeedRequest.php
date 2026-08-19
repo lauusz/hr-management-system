@@ -11,6 +11,8 @@ class AtkNeedRequest extends Model
 
     public const MODULE_OPS = 'OPS';
 
+    public const MODULE_ATK_MKS = 'ATK_MKS';
+
     /**
      * Status pengajuan kebutuhan barang / restock.
      */

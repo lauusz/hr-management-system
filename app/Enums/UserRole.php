@@ -12,6 +12,7 @@ enum UserRole: string
     case ADMIN_ATK = 'ADMIN ATK';
     case OPS = 'OPS';
     case ADMIN_OPS = 'ADMIN OPS';
+    case ADMIN_ATK_MKS = 'ADMIN ATK MKS';
 
     // Helper untuk label tampilan (Opsional, biar rapi di UI nanti)
     public function label(): string
@@ -25,6 +26,7 @@ enum UserRole: string
             self::ADMIN_ATK => 'Admin ATK',
             self::OPS => 'Pengguna OPS',
             self::ADMIN_OPS => 'Admin OPS',
+            self::ADMIN_ATK_MKS => 'Admin ATK MKS',
         };
     }
 }

@@ -38,5 +38,23 @@ trait InstallsOpsSchema
                 $table->timestamps();
             });
         }
+
+        if (! Schema::hasTable('atk_mks_access_divisions')) {
+            Schema::create('atk_mks_access_divisions', function (Blueprint $table): void {
+                $table->id();
+                $table->unsignedBigInteger('division_id')->unique();
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('atk_mks_access_pts')) {
+            Schema::create('atk_mks_access_pts', function (Blueprint $table): void {
+                $table->id();
+                $table->unsignedBigInteger('pt_id')->unique();
+                $table->unsignedBigInteger('created_by')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 }

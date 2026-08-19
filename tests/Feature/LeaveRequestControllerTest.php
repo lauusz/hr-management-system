@@ -613,7 +613,7 @@ describe('LeaveRequestController', function () {
             $response->assertSessionHas('error');
         });
 
-        it('accepts OFF_SPV for supervisor on Saturday within the active cutoff period', function () {
+        it('routes OFF_SPV through the supervisor manager before HR', function () {
             Carbon::withTestNow('2026-07-27', function () {
                 $manager = User::factory()->create(['role' => UserRole::MANAGER]);
                 $user = User::factory()->create([
@@ -629,6 +629,28 @@ describe('LeaveRequestController', function () {
                     'end_date' => '2026-08-01',
                     'reason' => 'Off SPV',
                     'manager_id' => $manager->id,
+                ]);
+
+                $response->assertSessionDoesntHaveErrors();
+                expect(LeaveRequest::where('user_id', $user->id)->first()?->status)
+                    ->toBe(LeaveRequest::PENDING_SUPERVISOR);
+            });
+        });
+
+        it('routes OFF_SPV directly to HR when the supervisor has no manager', function () {
+            Carbon::withTestNow('2026-07-27', function () {
+                $user = User::factory()->create([
+                    'role' => UserRole::SUPERVISOR,
+                    'manager_id' => null,
+                ]);
+
+                actingAs($user, 'web');
+
+                $response = $this->post(route('leave-requests.store'), [
+                    'type' => LeaveType::OFF_SPV->value,
+                    'start_date' => '2026-08-01',
+                    'end_date' => '2026-08-01',
+                    'reason' => 'Off SPV tanpa manager',
                 ]);
 
                 $response->assertSessionDoesntHaveErrors();
@@ -1631,7 +1653,7 @@ describe('LeaveRequestController', function () {
             $response->assertSessionHas('error');
         });
 
-        it('forwards pending supervisor request to HR when changed to OFF_SPV', function () {
+        it('keeps manager approval pending when a supervisor changes a request to OFF_SPV', function () {
             Carbon::setTestNow('2026-07-20 09:00:00');
             $manager = User::factory()->create(['role' => UserRole::MANAGER]);
             $user = User::factory()->create([
@@ -1653,7 +1675,7 @@ describe('LeaveRequestController', function () {
                 'reason' => 'Update menjadi OFF SPV',
             ]);
 
-            expect($leave->fresh()->status)->toBe(LeaveRequest::PENDING_HR);
+            expect($leave->fresh()->status)->toBe(LeaveRequest::PENDING_SUPERVISOR);
         });
     });
 

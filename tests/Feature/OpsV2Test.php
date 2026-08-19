@@ -210,6 +210,39 @@ it('shows the pending ops request count in the admin sidebar', function () {
         ->assertSee('<span class="ops-nav-badge">2</span>', false);
 });
 
+it('shows the pending ops need request count in the admin sidebar', function () {
+    $admin = createOpsUser('ADMIN OPS');
+
+    foreach ([AtkNeedRequest::STATUS_PENDING, AtkNeedRequest::STATUS_PENDING, AtkNeedRequest::STATUS_DONE] as $status) {
+        AtkNeedRequest::create([
+            'module' => AtkNeedRequest::MODULE_OPS,
+            'user_id' => $admin->id,
+            'user_name_snapshot' => $admin->name,
+            'requested_item_name' => 'Barang kebutuhan OPS',
+            'qty' => 1,
+            'unit_name' => 'pcs',
+            'reason' => 'Tes badge sidebar',
+            'status' => $status,
+        ]);
+    }
+
+    AtkNeedRequest::create([
+        'module' => AtkNeedRequest::MODULE_ATK_MKS,
+        'user_id' => $admin->id,
+        'user_name_snapshot' => $admin->name,
+        'requested_item_name' => 'Barang MKS',
+        'qty' => 1,
+        'unit_name' => 'pcs',
+        'reason' => 'Tidak masuk hitungan OPS',
+        'status' => AtkNeedRequest::STATUS_PENDING,
+    ]);
+
+    actingAs($admin)
+        ->get('/v2/ops/admin/items')
+        ->assertOk()
+        ->assertSee('class="ops-nav-badge ops-need-request-nav-badge">2</span>', false);
+});
+
 it('shows the total ops cart quantity in the sidebar', function () {
     $user = createOpsUser();
     $firstItem = createOpsTestItem(['module' => 'OPS']);

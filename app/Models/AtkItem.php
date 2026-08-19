@@ -11,6 +11,8 @@ class AtkItem extends Model
 
     public const MODULE_OPS = 'OPS';
 
+    public const MODULE_ATK_MKS = 'ATK_MKS';
+
     /**
      * Pilihan satuan ambil untuk dropdown master barang.
      * Tambah nilai baru di sini jika dibutuhkan — otomatis dipakai di form create & edit.

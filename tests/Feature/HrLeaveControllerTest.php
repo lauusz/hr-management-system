@@ -411,6 +411,64 @@ describe('HrLeaveController', function () {
                 ->and((float) $employee->leave_balance)->toBe(5.0);
         });
 
+        it('changes approved IZIN to CUTI when HRD selects Potong Cuti', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 5,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('hr.leave.approve', $leave->id), [
+                'deduct_leave_izin' => '1',
+                'deduct_amount_izin' => '1',
+            ])->assertRedirect();
+
+            $leave->refresh();
+            $employee->refresh();
+
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->type)->toBe(LeaveType::CUTI)
+                ->and((float) $employee->leave_balance)->toBe(4.0)
+                ->and(LeaveBalanceTransaction::where('leave_request_id', $leave->id)
+                    ->where('transaction_type', LeaveBalanceTransaction::DEDUCT)
+                    ->exists())->toBeTrue();
+        });
+
+        it('changes approved SAKIT to CUTI when HRD selects Potong Cuti', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 5,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::SAKIT->value,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('hr.leave.approve', $leave->id), [
+                'deduct_leave_sakit' => '1',
+                'deduct_amount_sakit' => '1',
+            ])->assertRedirect();
+
+            $leave->refresh();
+            $employee->refresh();
+
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->type)->toBe(LeaveType::CUTI)
+                ->and((float) $employee->leave_balance)->toBe(4.0)
+                ->and(LeaveBalanceTransaction::where('leave_request_id', $leave->id)
+                    ->where('transaction_type', LeaveBalanceTransaction::DEDUCT)
+                    ->exists())->toBeTrue();
+        });
+
         it('rejects SAKIT approval when both cuti and UM deductions are selected', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
@@ -482,6 +540,7 @@ describe('HrLeaveController', function () {
             $leave->refresh();
             $employee->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->type)->toBe(LeaveType::IZIN)
                 ->and($leave->deduct_um)->toBeTrue()
                 ->and((float) $employee->leave_balance)->toBe(12.0);
             expect(LeaveBalanceTransaction::where('leave_request_id', $leave->id)

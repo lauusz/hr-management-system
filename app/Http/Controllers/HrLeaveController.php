@@ -873,6 +873,15 @@ class HrLeaveController extends Controller
 
                     // SAKIT/IZIN: potong UM jika checkbox dicentang (tanpa cuti)
                     $shouldDeductUM = $request->filled('deduct_um');
+                    $shouldConvertToCuti = ! $shouldDeductUM && (
+                        ($leaveTypeValue === LeaveType::SAKIT->value && $shouldDeductSakit)
+                        || ($leaveTypeValue === LeaveType::IZIN->value && $shouldDeductIzin)
+                    );
+                    $approvedType = $shouldConvertToCuti
+                        ? LeaveType::CUTI->value
+                        : ($shouldDeductUM && $leaveTypeValue === LeaveType::CUTI->value
+                            ? LeaveType::IZIN->value
+                            : $leaveTypeValue);
 
                     // Potong cuti (CUTI: otomatis berdasarkan hari kerja efektif)
                     if (! $shouldDeductUM && $leaveTypeValue === LeaveType::CUTI->value) {
@@ -895,6 +904,7 @@ class HrLeaveController extends Controller
                     $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
 
                     return [
+                        'type' => $approvedType,
                         'approved_by' => $actor->id,
                         'approved_at' => now(),
                         'notes' => $newNotes,

@@ -1,13 +1,28 @@
 <?php
 
 use App\Enums\UserRole;
+use App\Models\EmployeeProfile;
 use App\Models\LoanRepayment;
 use App\Models\LoanRequest;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
-use function Pest\Laravel\actingAs;
+use function Pest\Laravel\actingAs as pestActingAs;
+
+function actingAs(User $user, string $guard = 'web'): void
+{
+    if (! $user->profile()->exists()) {
+        EmployeeProfile::create([
+            'user_id' => $user->id,
+            'tgl_bergabung' => now()->subYears(2)->toDateString(),
+        ]);
+    }
+
+    $user->unsetRelation('profile');
+    pestActingAs($user, $guard);
+}
 
 // ⚠️ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
 // karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
@@ -181,6 +196,81 @@ describe('EmployeeLoanRequestController', function () {
 
         $response->assertStatus(200);
         expect($response->viewData('loans')->count())->toBe(3);
+    });
+
+    it('sidebar shows loan request menu on the first work anniversary', function () {
+        Carbon::setTestNow('2026-08-15 12:00:00');
+
+        try {
+            $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+            EmployeeProfile::create([
+                'user_id' => $user->id,
+                'tgl_bergabung' => '2025-08-15',
+            ]);
+
+            actingAs($user, 'web');
+
+            $response = $this->get(route('employee.loan_requests.index'));
+
+            $response->assertOk()
+                ->assertSee('href="'.route('employee.loan_requests.index').'"', false);
+        } finally {
+            Carbon::setTestNow();
+        }
+    });
+
+    it('sidebar hides loan request menu before one year of service', function () {
+        Carbon::setTestNow('2026-08-15 12:00:00');
+
+        try {
+            $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+            EmployeeProfile::create([
+                'user_id' => $user->id,
+                'tgl_bergabung' => '2025-08-16',
+            ]);
+
+            actingAs($user, 'web');
+
+            $response = $this->get(route('settings.password'));
+
+            $response->assertOk()
+                ->assertDontSee('href="'.route('employee.loan_requests.index').'"', false);
+        } finally {
+            Carbon::setTestNow();
+        }
+    });
+
+    it('blocks every employee loan endpoint before one year of service', function () {
+        Carbon::setTestNow('2026-08-15 12:00:00');
+
+        try {
+            $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $loan = LoanRequest::factory()->create([
+                'user_id' => $user->id,
+                'status' => 'PENDING_HRD',
+            ]);
+
+            EmployeeProfile::create([
+                'user_id' => $user->id,
+                'tgl_bergabung' => '2025-08-16',
+            ]);
+
+            actingAs($user, 'web');
+
+            $this->get(route('employee.loan_requests.index'))->assertForbidden();
+            $this->get(route('employee.loan_requests.create'))->assertForbidden();
+            $this->post(route('employee.loan_requests.store'), [
+                'amount' => 1000000,
+                'monthly_installment' => 100000,
+                'payment_method' => 'POTONG_GAJI',
+            ])->assertForbidden();
+            $this->get(route('employee.loan_requests.show', $loan->id))->assertForbidden();
+            $this->delete(route('employee.loan_requests.destroy', $loan->id))->assertForbidden();
+        } finally {
+            Carbon::setTestNow();
+        }
     });
 
     // === SHOW ===
@@ -492,7 +582,7 @@ describe('EmployeeLoanRequestController', function () {
             'status' => 'PENDING_HRD',
         ]);
 
-        $this->actingAs($user, 'web');
+        actingAs($user, 'web');
 
         // Start session and generate CSRF token
         $this->startSession();
@@ -515,7 +605,7 @@ describe('EmployeeLoanRequestController', function () {
             'amount' => 3000000,
         ]);
 
-        $this->actingAs($user, 'web');
+        actingAs($user, 'web');
 
         $this->startSession();
         $token = $this->app['session']->token();
@@ -533,7 +623,7 @@ describe('EmployeeLoanRequestController', function () {
             'status' => 'APPROVED',
         ]);
 
-        $this->actingAs($user, 'web');
+        actingAs($user, 'web');
 
         $this->startSession();
         $token = $this->app['session']->token();
@@ -551,7 +641,7 @@ describe('EmployeeLoanRequestController', function () {
             'status' => 'REJECTED',
         ]);
 
-        $this->actingAs($user, 'web');
+        actingAs($user, 'web');
 
         $this->startSession();
         $token = $this->app['session']->token();
@@ -569,7 +659,7 @@ describe('EmployeeLoanRequestController', function () {
             'status' => 'LUNAS',
         ]);
 
-        $this->actingAs($user, 'web');
+        actingAs($user, 'web');
 
         $this->startSession();
         $token = $this->app['session']->token();
@@ -588,7 +678,7 @@ describe('EmployeeLoanRequestController', function () {
             'status' => 'PENDING_HRD',
         ]);
 
-        $this->actingAs($user, 'web');
+        actingAs($user, 'web');
 
         $this->startSession();
         $token = $this->app['session']->token();
@@ -629,6 +719,37 @@ describe('HrLoanRequestController', function () {
         $response = $this->get(route('hr.loan_requests.index'));
 
         $response->assertStatus(200);
+    });
+
+    it('index shows employee tenure calculated from join date until today', function () {
+        Carbon::setTestNow('2026-08-15 12:00:00');
+
+        try {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+            EmployeeProfile::create([
+                'user_id' => $employee->id,
+                'tgl_bergabung' => '2024-05-10',
+            ]);
+
+            LoanRequest::factory()->create([
+                'user_id' => $employee->id,
+                'snapshot_name' => 'Karyawan Masa Kerja',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.loan_requests.index', [
+                'q' => 'Karyawan Masa Kerja',
+            ]));
+
+            $response->assertOk()
+                ->assertSee('Lama Bekerja')
+                ->assertSee('2 thn 3 bln');
+        } finally {
+            Carbon::setTestNow();
+        }
     });
 
     it('index returns all loans for HRD', function () {
