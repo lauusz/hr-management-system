@@ -508,12 +508,23 @@ class HrLeaveController extends Controller
             || ((int) $leave->user->manager_id === (int) $me->id);
         $canApproveAsSupervisor = $isDirectApprover && ($leave->status === LeaveRequest::PENDING_SUPERVISOR);
 
+        $leaveBalance = (float) ($leave->user->leave_balance ?? 0);
+        $hasApprovedAnnualLeave = $leaveBalance <= 0 && LeaveRequest::query()
+            ->where('user_id', $leave->user_id)
+            ->where('type', LeaveType::CUTI->value)
+            ->where('status', LeaveRequest::STATUS_APPROVED)
+            ->exists();
+        $leaveBalanceLabel = $leaveBalance <= 0 && ! $hasApprovedAnnualLeave
+            ? 'Belum dapat cuti'
+            : rtrim(rtrim(number_format($leaveBalance, 1, ',', '.'), '0'), ',').' hari';
+
         return view('hr.leave_requests.show', [
             'item' => $leave,
             'canApprove' => $canApprove,
             'isHrStaff' => $isHrStaff,
             'isDirectApprover' => $isDirectApprover,
             'canApproveAsSupervisor' => $canApproveAsSupervisor,
+            'leaveBalanceLabel' => $leaveBalanceLabel,
         ]);
     }
 
@@ -542,6 +553,7 @@ class HrLeaveController extends Controller
             'substitute_phone' => ['nullable', 'string', 'max:50'],
             'special_leave_detail' => ['nullable', 'string'],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+            'deduction_mode_edit' => ['nullable', Rule::in(['NONE', 'LEAVE_BALANCE', 'MEAL_ALLOWANCE'])],
             'deduct_um_edit' => ['nullable', 'in:1'],
         ], [
             'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
@@ -606,7 +618,8 @@ class HrLeaveController extends Controller
 
         $actor = Auth::user();
         $oldPhoto = $leave->photo;
-        $deductUm = $request->filled('deduct_um_edit');
+        $deductionMode = $validated['deduction_mode_edit'] ?? null;
+        $legacyDeductUm = $request->filled('deduct_um_edit');
 
         try {
             $updated = $this->stateMachine->perform(
@@ -620,25 +633,40 @@ class HrLeaveController extends Controller
                     $offSpvPeriodId,
                     $uploadedPhotoPath,
                     $actor,
-                    $deductUm,
+                    $deductionMode,
+                    $legacyDeductUm,
                 ) {
                     $oldType = $lockedLeave->type instanceof LeaveType
                         ? $lockedLeave->type->value
                         : (string) $lockedLeave->type;
 
+                    $effectiveDeductionMode = $deductionMode;
+                    if ($effectiveDeductionMode === null && $legacyDeductUm) {
+                        $effectiveDeductionMode = 'MEAL_ALLOWANCE';
+                    }
+
                     $targetDeduction = 0.0;
-                    if (! $deductUm && $type === LeaveType::CUTI->value) {
+                    if ($effectiveDeductionMode === 'LEAVE_BALANCE') {
                         $targetDeduction = $this->leaveBalanceService->calculateEffectiveDaysForUser(
                             $lockedLeave->user,
                             $validated['start_date'],
                             $validated['end_date'],
                         );
-                    } elseif (! $deductUm
+                    } elseif ($effectiveDeductionMode === null && $type === LeaveType::CUTI->value) {
+                        // Kompatibilitas untuk request lama sebelum pilihan manual tersedia.
+                        $targetDeduction = $this->leaveBalanceService->calculateEffectiveDaysForUser(
+                            $lockedLeave->user,
+                            $validated['start_date'],
+                            $validated['end_date'],
+                        );
+                    } elseif ($effectiveDeductionMode === null
                         && $oldType === $type
                         && in_array($type, [LeaveType::SAKIT->value, LeaveType::IZIN->value], true)) {
                         $targetDeduction = $this->leaveBalanceService->currentNetDeductionForLeave($lockedLeave)
                             ?: $this->leaveBalanceService->historicalExplicitDeductionForLeave($lockedLeave);
                     }
+
+                    $deductUm = $effectiveDeductionMode === 'MEAL_ALLOWANCE';
 
                     $this->leaveBalanceService->reconcileLeaveBalanceForHrOverride(
                         $lockedLeave,
@@ -726,7 +754,7 @@ class HrLeaveController extends Controller
 
         return redirect()
             ->route('hr.leave.show', $leave->id)
-            ->with('success', 'Intervensi HR berhasil disimpan dan pengajuan telah disetujui.');
+            ->with('success', 'Data pengajuan berhasil diperbarui dan disetujui.');
     }
 
     public function adjustApprovedDate(Request $request, LeaveRequest $leave)

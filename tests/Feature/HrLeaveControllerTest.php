@@ -7,6 +7,7 @@ use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
 use App\Models\Pt;
 use App\Models\User;
+use App\Services\LeaveBalanceService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 
@@ -266,6 +267,8 @@ describe('HrLeaveController', function () {
 
             $html = $response->getContent();
             expect(str_contains($html, 'data-modal-target="modal-edit-hr"'))->toBeTrue()
+                ->and(str_contains($html, 'Intervensi HR'))->toBeFalse()
+                ->and((bool) preg_match('/data-modal-target="modal-edit-hr"[^>]*>.*?\bEdit\b.*?<\/button>/s', $html))->toBeTrue()
                 ->and(str_contains($html, 'Simpan & Setujui'))->toBeTrue()
                 ->and(str_contains($html, 'status pengajuan langsung menjadi APPROVED'))->toBeTrue();
         })->with([
@@ -340,6 +343,90 @@ describe('HrLeaveController', function () {
 
             $response->assertStatus(200)
                 ->assertSee('name="deduct_um"', false);
+        });
+
+        it('shows all manual deduction choices in CUTI intervention', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['leave_balance' => 5]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'type' => LeaveType::CUTI->value,
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('name="deduction_mode_edit"', false)
+                ->assertSee('value="NONE"', false)
+                ->assertSee('value="LEAVE_BALANCE"', false)
+                ->assertSee('value="MEAL_ALLOWANCE"', false);
+        });
+
+        it('shows a clear wallet icon for meal allowance deduction', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'deduct_um' => true,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('data-icon="meal-allowance-wallet"', false);
+        });
+
+        it('shows the current employee leave balance in HR intervention', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['leave_balance' => 5.5]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create();
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('Saldo Cuti Aktual')
+                ->assertSee('5,5 hari');
+        });
+
+        it('shows Belum dapat cuti when the employee has no balance or approved CUTI history', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['leave_balance' => 0]);
+            EmployeeProfile::create([
+                'user_id' => $employee->id,
+                'tgl_bergabung' => now()->subYears(2)->toDateString(),
+                'kategori' => 'KONTRAK',
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'type' => LeaveType::IZIN->value,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('Saldo Cuti Aktual')
+                ->assertSee('Belum dapat cuti');
+        });
+
+        it('shows zero leave balance when the employee cuti is exhausted', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['leave_balance' => 0]);
+            LeaveRequest::factory()->forUser($employee)->create([
+                'type' => LeaveType::CUTI->value,
+                'status' => LeaveRequest::STATUS_APPROVED,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'type' => LeaveType::IZIN->value,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('Saldo Cuti Aktual')
+                ->assertSee('0 hari');
         });
 
         it('employee cannot view leave in HR page', function () {
@@ -1333,6 +1420,90 @@ describe('HrLeaveController', function () {
     // UPDATE
     // =====================================================================
     describe('update', function () {
+        it('manual intervention refunds the existing cuti deduction when Potong UM is selected', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 10,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+            ]);
+            app(LeaveBalanceService::class)->deductLeaveBalanceForLeave($leave);
+
+            actingAs($hrd, 'web');
+
+            $this->put(route('hr.leave.update', $leave), [
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+                'deduction_mode_edit' => 'MEAL_ALLOWANCE',
+            ])->assertSessionHas('success');
+
+            expect($leave->fresh()->deduct_um)->toBeTrue()
+                ->and((float) $employee->fresh()->leave_balance)->toBe(10.0)
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(0.0);
+        });
+
+        it('manual intervention deducts leave for IZIN when Potong Cuti is selected', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 10,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->put(route('hr.leave.update', $leave), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+                'deduction_mode_edit' => 'LEAVE_BALANCE',
+            ])->assertSessionHas('success');
+
+            expect($leave->fresh()->type)->toBe(LeaveType::IZIN)
+                ->and($leave->fresh()->deduct_um)->toBeFalse()
+                ->and((float) $employee->fresh()->leave_balance)->toBe(9.0)
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(1.0);
+        });
+
+        it('manual intervention refunds the existing cuti deduction when Tanpa Potongan is selected', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 10,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::STATUS_APPROVED,
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+            ]);
+            app(LeaveBalanceService::class)->deductLeaveBalanceForLeave($leave);
+
+            actingAs($hrd, 'web');
+
+            $this->put(route('hr.leave.update', $leave), [
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+                'deduction_mode_edit' => 'NONE',
+            ])->assertSessionHas('success');
+
+            expect($leave->fresh()->deduct_um)->toBeFalse()
+                ->and((float) $employee->fresh()->leave_balance)->toBe(10.0)
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(0.0);
+        });
+
         it('HRD update on pending leave is a final approval', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();

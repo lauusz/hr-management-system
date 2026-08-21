@@ -696,6 +696,19 @@ describe('LeaveRequestController', function () {
             $response->assertStatus(200);
         });
 
+        it('shows a clear wallet icon for meal allowance deduction', function () {
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'deduct_um' => true,
+            ]);
+
+            actingAs($user, 'web');
+
+            $this->get(route('leave-requests.show', $leave))
+                ->assertOk()
+                ->assertSee('data-icon="meal-allowance-wallet"', false);
+        });
+
         it('prevents access to other users leave', function () {
             $user = User::factory()->create();
             $other = User::factory()->create();

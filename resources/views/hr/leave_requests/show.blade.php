@@ -63,6 +63,13 @@
         $days = app(\App\Services\LeaveBalanceService::class)->calculateEffectiveDaysForLeave($item);
         $formattedDays = rtrim(rtrim(number_format($days, 1), '0'), '.');
         $durationLabel = $formattedDays == 1 ? '1 hari' : $formattedDays . ' hari';
+        $currentNetDeduction = app(\App\Services\LeaveBalanceService::class)->currentNetDeductionForLeave($item);
+        $defaultDeductionMode = old('deduction_mode_edit');
+        if ($defaultDeductionMode === null) {
+            $defaultDeductionMode = $item->deduct_um
+                ? 'MEAL_ALLOWANCE'
+                : (($currentNetDeduction > 0 || $isTypeCuti) ? 'LEAVE_BALANCE' : 'NONE');
+        }
 
         // Time labels
         $startTimeLabel = $item->start_time ? $item->start_time->format('H:i') : null;
@@ -410,8 +417,9 @@
                 @if($item->deduct_um)
                 <div class="hr-note-box hr-note--warning">
                     <div class="hr-note-header">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"/>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" data-icon="meal-allowance-wallet">
+                            <rect x="3" y="5" width="18" height="14" rx="2" stroke-width="2"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9h18M15 14h3"/>
                         </svg>
                         Potong Uang Makan (UM)
                     </div>
@@ -470,7 +478,7 @@
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
-                        Intervensi HR
+                        Edit
                     </button>
                     <div class="apv-status-notice apv-status-notice--gray">
                         Pengajuan Sudah Dibatalkan
@@ -482,7 +490,7 @@
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                         </svg>
-                        Intervensi HR
+                        Edit
                     </button>
                     <button type="button" data-modal-target="modal-adjust-approved-date" class="apv-action-btn apv-action-btn--secondary">
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -788,26 +796,45 @@
                     </div>
                 </div>
 
-                @if(in_array($typeValue, ['SAKIT', 'IZIN']))
+                <div class="apv-status-notice apv-status-notice--info" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;">
+                    <span>Saldo Cuti Aktual</span>
+                    <strong>{{ $leaveBalanceLabel }}</strong>
+                </div>
+
                 <div class="edit-section edit-section--warning">
                     <div class="edit-section-header">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="12" r="9" stroke-width="2"/>
                             <path stroke-linecap="round" stroke-width="2" d="M8 12h8"/>
                         </svg>
-                        <span>Potongan</span>
+                        <span>Jenis Potongan</span>
                     </div>
                     <div class="edit-form-group">
                         <label class="edit-checkbox-wrapper">
-                            <input type="checkbox" name="deduct_um_edit" value="1" id="deduct_um_edit" style="width: 16px; height: 16px; accent-color: #f59e0b; cursor: pointer;" {{ $item->deduct_um ? 'checked' : '' }}>
+                            <input type="radio" name="deduction_mode_edit" value="NONE" {{ $defaultDeductionMode === 'NONE' ? 'checked' : '' }} required>
+                            <span>Tanpa Potongan</span>
+                        </label>
+                        <small style="display: block; margin: 4px 0 12px 24px; color: var(--text-muted, #6B7280); font-size: 12px;">
+                            Tidak memotong saldo cuti maupun uang makan.
+                        </small>
+
+                        <label class="edit-checkbox-wrapper">
+                            <input type="radio" name="deduction_mode_edit" value="LEAVE_BALANCE" {{ $defaultDeductionMode === 'LEAVE_BALANCE' ? 'checked' : '' }} required>
+                            <span>Potong Cuti</span>
+                        </label>
+                        <small style="display: block; margin: 4px 0 12px 24px; color: var(--text-muted, #6B7280); font-size: 12px;">
+                            Saldo dipotong otomatis berdasarkan hari kerja efektif pada tanggal yang dipilih.
+                        </small>
+
+                        <label class="edit-checkbox-wrapper">
+                            <input type="radio" name="deduction_mode_edit" value="MEAL_ALLOWANCE" {{ $defaultDeductionMode === 'MEAL_ALLOWANCE' ? 'checked' : '' }} required>
                             <span>Potong UM (Uang Makan)</span>
                         </label>
                         <small style="display: block; margin-top: 4px; color: #92400e; font-size: 12px; margin-left: 24px;">
-                            Centang jika potongan uang makan apply untuk izin ini.
+                            Tidak memotong saldo cuti. Potongan cuti lama pada pengajuan ini akan dikembalikan.
                         </small>
                     </div>
                 </div>
-                @endif
 
                 <div class="edit-section edit-section--upload">
                     <div class="edit-section-header">
