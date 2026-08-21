@@ -12,6 +12,8 @@
 *.md
 *.png
 *.codex-temp
+docs/superpowers/
+konsep/
 /.fleet
 /.idea
 /.nova
@@ -23,7 +25,6 @@
 /public/build
 /public/hot
 /public/storage
-
 /storage/*.key
 /storage/pail
 /vendor
