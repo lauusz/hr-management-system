@@ -148,6 +148,29 @@ describe('HrLeaveController', function () {
             $response->assertStatus(200);
         });
 
+        it('master renders the live search DOM contract without a search button', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.master'));
+
+            $response->assertStatus(200);
+
+            $dom = new DOMDocument;
+            $previousState = libxml_use_internal_errors(true);
+            $dom->loadHTML($response->getContent());
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousState);
+            $xpath = new DOMXPath($dom);
+
+            expect($xpath->query('//*[@data-leave-live-search and @aria-label="Cari nama karyawan"]')->length)->toBe(1)
+                ->and($xpath->query('//*[@data-leave-stats]')->length)->toBe(1)
+                ->and($xpath->query('//*[@data-leave-results]')->length)->toBe(1)
+                ->and($xpath->query('//*[@data-leave-pagination]')->length)->toBe(1)
+                ->and($xpath->query('//button[contains(concat(" ", normalize-space(@class), " "), " lm-btn-search ")]')->length)->toBe(0);
+        });
+
         it('master shows all statuses', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();

@@ -52,7 +52,7 @@
     </div>
 
     {{-- Stats Summary --}}
-    <div class="lm-stats">
+    <div class="lm-stats" data-leave-stats>
         <div class="lm-stat">
             <div class="lm-stat-value">{{ $items->total() }}</div>
             <div class="lm-stat-label">Total Data</div>
@@ -95,14 +95,8 @@
                     <svg class="lm-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
-                    <input type="text" name="q" value="{{ $q ?? '' }}" placeholder="Cari nama karyawan..." autocomplete="off" class="lm-search-input">
+                    <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="Cari nama karyawan..." autocomplete="off" class="lm-search-input" aria-label="Cari nama karyawan" data-leave-live-search>
                 </div>
-                <button type="submit" class="lm-btn-search">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                    Cari
-                </button>
                 @if(($q ?? null) || $hasAdvancedFilter)
                     <a href="{{ route('hr.leave.master') }}" class="lm-btn-reset">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -192,7 +186,7 @@
     </div>
 
     {{-- Table Card --}}
-    <div class="lm-table-card">
+    <div class="lm-table-card" data-leave-results aria-live="polite">
         @if($items->isEmpty())
             <div class="lm-empty">
                 <div class="lm-empty-icon">
@@ -344,15 +338,76 @@
     </div>
 
     {{-- Pagination --}}
-    @if($items->hasPages())
-        <div class="lm-pagination">
-            <x-pagination :items="$items" />
-        </div>
-    @endif
+    <div data-leave-pagination>
+        @if($items->hasPages())
+            <div class="lm-pagination">
+                <x-pagination :items="$items" />
+            </div>
+        @endif
+    </div>
 
     <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
     <script>
+        (function () {
+            const form = document.getElementById('filterForm');
+            const input = form?.querySelector('[data-leave-live-search]');
+            const results = document.querySelector('[data-leave-results]');
+            let timer;
+            let request;
+
+            if (!form || !input || !results) return;
+
+            async function loadLeaveResults() {
+                const url = new URL(form.action, window.location.origin);
+                const params = new URLSearchParams(new FormData(form));
+                params.delete('page');
+                url.search = params.toString();
+
+                request?.abort();
+                const currentRequest = new AbortController();
+                request = currentRequest;
+                results.classList.add('is-loading');
+                results.setAttribute('aria-busy', 'true');
+
+                try {
+                    const response = await fetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        signal: currentRequest.signal,
+                    });
+                    if (!response.ok) throw new Error('Pencarian izin dan cuti gagal');
+
+                    const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
+                    const selectors = [
+                        '[data-leave-stats]',
+                        '[data-leave-results]',
+                        '[data-leave-pagination]',
+                    ];
+
+                    selectors.forEach((selector) => {
+                        const current = document.querySelector(selector);
+                        const next = documentResult.querySelector(selector);
+                        if (!current || !next) throw new Error('Hasil pencarian tidak lengkap');
+                        current.innerHTML = next.innerHTML;
+                    });
+
+                    window.history.replaceState(null, '', url);
+                } catch (error) {
+                    if (error.name !== 'AbortError') console.error(error);
+                } finally {
+                    if (request === currentRequest) {
+                        results.classList.remove('is-loading');
+                        results.setAttribute('aria-busy', 'false');
+                    }
+                }
+            }
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(loadLeaveResults, 350);
+            });
+        })();
+
         document.addEventListener('DOMContentLoaded', function() {
             flatpickr("#submitted_range", {
                 mode: "range",
@@ -591,26 +646,6 @@
         }
         .lm-search-input::placeholder { color: var(--text-light); }
 
-        .lm-btn-search {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 16px;
-            background: var(--primary);
-            color: #fff;
-            border: none;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-family: inherit;
-            white-space: nowrap;
-            width: 100%;
-        }
-        .lm-btn-search:hover { background: var(--primary-dark); }
-
         .lm-btn-reset {
             display: inline-flex;
             align-items: center;
@@ -755,7 +790,9 @@
             border-radius: 16px;
             overflow: hidden;
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            transition: opacity 0.15s ease;
         }
+        .lm-table-card.is-loading { opacity: 0.55; pointer-events: none; }
         .lm-table-wrap {
             overflow-x: auto;
         }
@@ -1012,7 +1049,6 @@
             .lm-search-input-wrap {
                 min-width: 260px;
             }
-            .lm-btn-search,
             .lm-btn-reset,
             .lm-btn-toggle-filter {
                 flex-shrink: 0;

@@ -395,20 +395,8 @@
 
 </div>
 
-{{-- Service Worker Registration for PWA --}}
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-      navigator.serviceWorker.register('/hrd/sw.js')
-        .then(function(registration) {
-          console.log('SW registered:', registration.scope);
-        })
-        .catch(function(error) {
-          console.log('SW registration failed:', error);
-        });
-    });
-  }
-</script>
+{{-- PWA dinonaktifkan sementara; bersihkan Service Worker dan cache lama. --}}
+<script type="module" src="/hrd/js/disable-pwa.js"></script>
 
 </body>
 </html>
