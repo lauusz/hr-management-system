@@ -42,5 +42,5 @@ settings.local.json
 # Added by code-review-graph
 .code-review-graph/
 
-# Keep Codex project instructions versioned.
+# Project instructions for AI agents (local only, not versioned).
 AGENTS.md
