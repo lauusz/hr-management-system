@@ -22,6 +22,19 @@ it('renders live employee search and a three column desktop grid', function () {
         ->assertDontSee('emp-btn-search', false);
 });
 
+it('employee search ignores dots and spaces in employee names', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $matchingEmployee = User::factory()->create(['name' => 'MOH. AINUL YAQIN']);
+    User::factory()->create(['name' => 'MOHAMMAD FAJAR']);
+
+    $response = $this->actingAs($hrd, 'web')
+        ->get(route('hr.employees.index', ['q' => 'mohainul']));
+
+    $response->assertOk();
+    expect($response->viewData('items')->total())->toBe(1)
+        ->and($response->viewData('items')->first()->id)->toBe($matchingEmployee->id);
+});
+
 it('renders compact Indonesian dates on employee cards', function () {
     $this->travelTo(\Carbon\Carbon::parse('2026-08-06'));
     $hrd = User::factory()->create(['role' => UserRole::HRD]);

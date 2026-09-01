@@ -43,7 +43,7 @@ class HREmployeeController extends Controller
 
         if ($search) {
             $query->where(function ($q2) use ($search) {
-                $q2->where('name', 'like', "%{$search}%")
+                $q2->whereNormalizedNameContains((string) $search)
                     ->orWhere('username', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");

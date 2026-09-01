@@ -66,9 +66,13 @@
         $currentNetDeduction = app(\App\Services\LeaveBalanceService::class)->currentNetDeductionForLeave($item);
         $defaultDeductionMode = old('deduction_mode_edit');
         if ($defaultDeductionMode === null) {
-            $defaultDeductionMode = $item->deduct_um
-                ? 'MEAL_ALLOWANCE'
-                : (($currentNetDeduction > 0 || $isTypeCuti) ? 'LEAVE_BALANCE' : 'NONE');
+            if ($item->deduct_um) {
+                $defaultDeductionMode = 'MEAL_ALLOWANCE';
+            } elseif (abs($currentNetDeduction - 0.5) < 0.0001) {
+                $defaultDeductionMode = 'LEAVE_BALANCE_HALF_DAY';
+            } else {
+                $defaultDeductionMode = ($currentNetDeduction > 0 || $isTypeCuti) ? 'LEAVE_BALANCE' : 'NONE';
+            }
         }
 
         // Time labels
@@ -824,6 +828,14 @@
                         </label>
                         <small style="display: block; margin: 4px 0 12px 24px; color: var(--text-muted, #6B7280); font-size: 12px;">
                             Saldo dipotong otomatis berdasarkan hari kerja efektif pada tanggal yang dipilih.
+                        </small>
+
+                        <label class="edit-checkbox-wrapper">
+                            <input type="radio" name="deduction_mode_edit" value="LEAVE_BALANCE_HALF_DAY" {{ $defaultDeductionMode === 'LEAVE_BALANCE_HALF_DAY' ? 'checked' : '' }} required>
+                            <span>Potong Cuti Setengah Hari (0,5)</span>
+                        </label>
+                        <small style="display: block; margin: 4px 0 12px 24px; color: var(--text-muted, #6B7280); font-size: 12px;">
+                            Saldo cuti karyawan dipotong sebesar 0,5 hari.
                         </small>
 
                         <label class="edit-checkbox-wrapper">

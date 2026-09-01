@@ -67,7 +67,7 @@ class HRAttendanceController extends Controller
 
         if ($q) {
             $query->whereHas('user', function ($sub) use ($q) {
-                $sub->where('name', 'like', '%' . $q . '%');
+                $sub->whereNormalizedNameContains((string) $q);
             });
         }
 

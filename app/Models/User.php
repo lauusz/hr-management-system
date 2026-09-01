@@ -4,6 +4,7 @@ namespace App\Models;
 
 // PENTING: Import Enum UserRole
 use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -154,6 +155,20 @@ class User extends Authenticatable
     public function scopeActive($query)
     {
         return $query->where('status', self::STATUS_ACTIVE);
+    }
+
+    public function scopeWhereNormalizedNameContains(Builder $query, string $search): Builder
+    {
+        $normalizedSearch = mb_strtolower((string) preg_replace('/[.\s]+/u', '', $search));
+
+        if ($normalizedSearch === '') {
+            return $query->where('name', 'like', '%'.$search.'%');
+        }
+
+        return $query->whereRaw(
+            "LOWER(REPLACE(REPLACE(name, '.', ''), ' ', '')) LIKE ?",
+            ['%'.$normalizedSearch.'%'],
+        );
     }
 
     public function canApprove(): bool

@@ -225,7 +225,7 @@ class HrLeaveController extends Controller
         $q = $request->query('q');
         if ($q) {
             $query->whereHas('user', function ($sub) use ($q) {
-                $sub->where('name', 'like', '%'.$q.'%');
+                $sub->whereNormalizedNameContains((string) $q);
             });
         }
 
@@ -553,7 +553,7 @@ class HrLeaveController extends Controller
             'substitute_phone' => ['nullable', 'string', 'max:50'],
             'special_leave_detail' => ['nullable', 'string'],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
-            'deduction_mode_edit' => ['nullable', Rule::in(['NONE', 'LEAVE_BALANCE', 'MEAL_ALLOWANCE'])],
+            'deduction_mode_edit' => ['nullable', Rule::in(['NONE', 'LEAVE_BALANCE', 'LEAVE_BALANCE_HALF_DAY', 'MEAL_ALLOWANCE'])],
             'deduct_um_edit' => ['nullable', 'in:1'],
         ], [
             'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
@@ -646,7 +646,9 @@ class HrLeaveController extends Controller
                     }
 
                     $targetDeduction = 0.0;
-                    if ($effectiveDeductionMode === 'LEAVE_BALANCE') {
+                    if ($effectiveDeductionMode === 'LEAVE_BALANCE_HALF_DAY') {
+                        $targetDeduction = 0.5;
+                    } elseif ($effectiveDeductionMode === 'LEAVE_BALANCE') {
                         $targetDeduction = $this->leaveBalanceService->calculateEffectiveDaysForUser(
                             $lockedLeave->user,
                             $validated['start_date'],

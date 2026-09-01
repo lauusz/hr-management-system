@@ -83,6 +83,18 @@
             \App\Models\LeaveRequest::STATUS_CANCELLED => 'Dibatalkan',
             'CANCEL_REQ' => 'Pengajuan Batal',
         ];
+        $indonesianDayAbbreviations = [
+            0 => 'Min',
+            1 => 'Sen',
+            2 => 'Sel',
+            3 => 'Rab',
+            4 => 'Kam',
+            5 => 'Jum',
+            6 => 'Sab',
+        ];
+        $formatIndonesianShortDate = static function ($date) use ($indonesianDayAbbreviations): string {
+            return $indonesianDayAbbreviations[$date->dayOfWeek].', '.$date->format('d/m/Y');
+        };
         $hasAdvancedFilter = ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null) || ($periodRange ?? null) || ($pt_id ?? null);
         $activeFilterCount = collect([$typeFilter, $status, $submittedRange, $periodRange, $pt_id])->filter()->count();
     @endphp
@@ -287,15 +299,15 @@
                                 </td>
 
                                 <td class="lm-cell-muted lm-cell-sm">
-                                    {{ $row->created_at?->translatedFormat('j F Y') ?? '-' }}<br>
+                                    {{ $row->created_at ? $formatIndonesianShortDate($row->created_at) : '-' }}<br>
                                     <span class="lm-cell-xs">{{ $row->created_at?->format('H:i') ?? '' }}</span>
                                 </td>
 
                                 <td>
                                     <div class="lm-date-cell">
-                                        <span class="lm-date-main">{{ $row->start_date->translatedFormat('j F Y') }}</span>
+                                        <span class="lm-date-main">{{ $formatIndonesianShortDate($row->start_date) }}</span>
                                         @if($row->end_date && $row->end_date->ne($row->start_date))
-                                            <span class="lm-date-range">s/d {{ $row->end_date->translatedFormat('j F Y') }}</span>
+                                            <span class="lm-date-range">s/d {{ $formatIndonesianShortDate($row->end_date) }}</span>
                                         @endif
                                     </div>
                                 </td>

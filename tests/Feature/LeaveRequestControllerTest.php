@@ -150,6 +150,18 @@ describe('LeaveRequestController', function () {
             $response->assertStatus(200);
         });
 
+        it('create page offers maternity leave for 90 days', function () {
+            $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+            actingAs($user, 'web');
+
+            $this->get(route('leave-requests.create'))
+                ->assertOk()
+                ->assertSee('value="CUTI_MELAHIRKAN"', false)
+                ->assertSee('data-days="90"', false)
+                ->assertSee('Cuti Melahirkan');
+        });
+
         it('create page shows OFF_SPV info for supervisor', function () {
             $user = User::factory()->create(['role' => UserRole::SUPERVISOR]);
 
@@ -203,6 +215,22 @@ describe('LeaveRequestController', function () {
             expect($response->viewData('item')->id)->toBe($leave->id);
         });
 
+        it('edit page offers maternity leave for 90 days', function () {
+            $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::CUTI_KHUSUS,
+            ]);
+
+            actingAs($user, 'web');
+
+            $this->get(route('leave-requests.edit', $leave))
+                ->assertOk()
+                ->assertSee('value="CUTI_MELAHIRKAN"', false)
+                ->assertSee('data-days="90"', false)
+                ->assertSee('Cuti Melahirkan');
+        });
+
         it('owner cannot access edit page for approved leave', function () {
             $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
             $leave = LeaveRequest::factory()->forUser($user)->create([
@@ -236,6 +264,30 @@ describe('LeaveRequestController', function () {
     // STORE
     // =====================================================================
     describe('store', function () {
+        it('recognizes the 90 day limit for maternity leave', function () {
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+            actingAs($employee, 'web');
+
+            $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::CUTI_KHUSUS->value,
+                'start_date' => '2026-09-01',
+                'end_date' => '2027-01-31',
+                'reason' => 'Persiapan persalinan dan pemulihan',
+                'substitute_pic' => 'Rekan Kerja',
+                'substitute_phone' => '081234567890',
+                'special_leave_detail' => 'CUTI_MELAHIRKAN',
+            ])->assertRedirect(route('leave-requests.index'));
+
+            $leave = LeaveRequest::query()
+                ->where('user_id', $employee->id)
+                ->where('special_leave_category', 'CUTI_MELAHIRKAN')
+                ->first();
+
+            expect($leave)->not->toBeNull()
+                ->and($leave->notes)->toContain('batas maksimal 90 hari');
+        });
+
         it('creates leave request with PENDING_SUPERVISOR for employee with supervisor', function () {
             $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR]);
             $employee = User::factory()->create([

@@ -234,6 +234,23 @@ describe('HrLeaveController', function () {
             expect($response->viewData('items')->total())->toBe(1);
         });
 
+        it('master search ignores punctuation differences in employee names', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $matchingEmployee = User::factory()->create(['name' => 'MOH. AINUL YAQIN']);
+            $otherEmployee = User::factory()->create(['name' => 'MOHAMMAD FAJAR']);
+
+            LeaveRequest::factory()->forUser($matchingEmployee)->create();
+            LeaveRequest::factory()->forUser($otherEmployee)->create();
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.master', ['q' => 'mohainul']));
+
+            $response->assertOk();
+            expect($response->viewData('items')->total())->toBe(1)
+                ->and($response->viewData('items')->first()->user_id)->toBe($matchingEmployee->id);
+        });
+
         it('master filters by PT', function () {
             $pt1 = Pt::factory()->create(['name' => 'PT Alpha']);
             $pt2 = Pt::factory()->create(['name' => 'PT Beta']);
@@ -253,6 +270,27 @@ describe('HrLeaveController', function () {
 
             $response->assertStatus(200);
             expect($response->viewData('items')->total())->toBe(1);
+        });
+
+        it('master formats submission and leave period dates with Indonesian abbreviated days', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['name' => 'Karyawan Format Tanggal']);
+
+            LeaveRequest::factory()->forUser($employee)->create([
+                'created_at' => '2026-02-14 08:15:00',
+                'start_date' => '2026-02-14',
+                'end_date' => '2026-02-15',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.master'))
+                ->assertOk()
+                ->assertSee('Sab, 14/02/2026')
+                ->assertSee('Min, 15/02/2026')
+                ->assertSee('08:15')
+                ->assertDontSee('14 Februari 2026')
+                ->assertDontSee('15 Februari 2026');
         });
     });
 
@@ -383,7 +421,24 @@ describe('HrLeaveController', function () {
                 ->assertSee('name="deduction_mode_edit"', false)
                 ->assertSee('value="NONE"', false)
                 ->assertSee('value="LEAVE_BALANCE"', false)
+                ->assertSee('value="LEAVE_BALANCE_HALF_DAY"', false)
                 ->assertSee('value="MEAL_ALLOWANCE"', false);
+        });
+
+        it('selects the half-day deduction option for an existing half-day ledger', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['leave_balance' => 10]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'type' => LeaveType::IZIN->value,
+                'status' => LeaveRequest::STATUS_APPROVED,
+            ]);
+            app(LeaveBalanceService::class)->deductLeaveBalanceForLeave($leave, 0.5);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('value="LEAVE_BALANCE_HALF_DAY" checked', false);
         });
 
         it('shows a clear wallet icon for meal allowance deduction', function () {
@@ -1497,6 +1552,39 @@ describe('HrLeaveController', function () {
                 ->and($leave->fresh()->deduct_um)->toBeFalse()
                 ->and((float) $employee->fresh()->leave_balance)->toBe(9.0)
                 ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(1.0);
+        });
+
+        it('manual intervention deducts only half a leave day when saved repeatedly', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 10,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $payload = [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-08-03',
+                'end_date' => '2026-08-03',
+                'deduction_mode_edit' => 'LEAVE_BALANCE_HALF_DAY',
+            ];
+
+            $this->put(route('hr.leave.update', $leave), $payload)
+                ->assertSessionHas('success');
+            $this->put(route('hr.leave.update', $leave), $payload)
+                ->assertSessionHas('success');
+
+            expect($leave->fresh()->type)->toBe(LeaveType::IZIN)
+                ->and($leave->fresh()->deduct_um)->toBeFalse()
+                ->and((float) $employee->fresh()->leave_balance)->toBe(9.5)
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(0.5);
         });
 
         it('manual intervention refunds the existing cuti deduction when Tanpa Potongan is selected', function () {

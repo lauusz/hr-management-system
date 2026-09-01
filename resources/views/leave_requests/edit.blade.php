@@ -44,6 +44,7 @@
         $user = auth()->user();
         $typeValue = $item->type instanceof \App\Enums\LeaveType ? $item->type->value : (string) $item->type;
         $specialLeaveList = [
+            ['id'=>'CUTI_MELAHIRKAN','label'=>'Cuti Melahirkan','days'=>90],
             ['id'=>'NIKAH_KARYAWAN','label'=>'Menikah','days'=>3],
             ['id'=>'ISTRI_MELAHIRKAN','label'=>'Istri Melahirkan','days'=>2],
             ['id'=>'ISTRI_KEGUGURAN','label'=>'Istri Keguguran','days'=>2],

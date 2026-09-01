@@ -932,6 +932,7 @@ class LeaveRequestController extends Controller
         if ($type === LeaveType::CUTI_KHUSUS->value) {
             $category = $validated['special_leave_detail'] ?? null;
             $limits = [
+                'CUTI_MELAHIRKAN' => 90,
                 'NIKAH_KARYAWAN' => 3,
                 'ISTRI_MELAHIRKAN' => 2,
                 'ISTRI_KEGUGURAN' => 2,
