@@ -390,24 +390,17 @@
                     Bukti Pendukung <span id="photo-req-indicator" class="lrc-required" style="display:none">*</span>
                 </label>
                 <div class="lrc-upload" id="uploadBox">
-                    <input type="file" name="photo" id="photoInput" class="lrc-upload__input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB">
+                    <input type="file" name="photos[]" id="photoInput" class="lrc-upload__input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB" multiple>
                     <div class="lrc-upload__content">
                         <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                         </svg>
                         <span class="lrc-upload__title">Klik untuk upload file</span>
-                        <span class="lrc-upload__desc">JPG, PNG, PDF, DOCX (Maks 8MB)</span>
+                        <span class="lrc-upload__desc">JPG, PNG, PDF, DOCX (Maks 3 file · 8 MB per file)</span>
                     </div>
                 </div>
-                <div id="photoPreviewContainer" class="lrc-preview" style="display:none;">
-                    <img id="photoPreview" src="#" alt="Preview">
-                    <div id="photoFileInfo" class="lrc-file-info"></div>
-                    <button type="button" class="lrc-preview__remove" id="removePreview" aria-label="Hapus preview">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
+                <div id="photoError" style="display:none; color:#dc2626; font-size:13px; margin-top:6px;"></div>
+                <div id="photoListContainer" style="display:none; flex-direction:column; gap:8px; margin-top:8px;"></div>
             </div>
             <div class="lrc-field">
                 <label for="reason" class="lrc-label">
@@ -1422,10 +1415,13 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const input = document.getElementById('photoInput');
-            const previewContainer = document.getElementById('photoPreviewContainer');
-            const previewImg = document.getElementById('photoPreview');
-            const fileInfo = document.getElementById('photoFileInfo');
-            const removeBtn = document.getElementById('removePreview');
+            const listContainer = document.getElementById('photoListContainer');
+            const errorEl = document.getElementById('photoError');
+            if (!input || !listContainer) return;
+
+            const MAX_FILES = 3;
+            const MAX_SIZE = parseInt(input.getAttribute('data-max-file-size') || '8388608', 10);
+            const dt = new DataTransfer();
 
             function formatFileSize(bytes) {
                 if (bytes === 0) return '0 B';
@@ -1435,43 +1431,83 @@
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
             }
 
-            function renderFileInfo(file) {
-                if (!fileInfo || !file) return;
-                fileInfo.innerHTML = '<span class="lrc-file-info__name">' + file.name + '</span>' +
-                    '<span class="lrc-file-info__size">Ukuran: ' + formatFileSize(file.size) + '</span>';
+            function showError(msg) {
+                if (!errorEl) return;
+                errorEl.textContent = msg || '';
+                errorEl.style.display = msg ? 'block' : 'none';
             }
 
-            if (input) {
-                input.addEventListener('change', function() {
-                    const file = this.files[0];
-                    if (file) {
-                        renderFileInfo(file);
-                        if (file.type && file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                previewImg.src = e.target.result;
-                                previewContainer.style.display = 'block';
-                            };
-                            reader.readAsDataURL(file);
-                        } else {
-                            previewImg.src = '';
-                            previewContainer.style.display = 'block';
-                        }
-                    } else {
-                        previewContainer.style.display = 'none';
-                        previewImg.src = '';
-                        if (fileInfo) fileInfo.innerHTML = '';
+            function renderList() {
+                listContainer.innerHTML = '';
+                const files = Array.from(dt.files);
+                if (!files.length) {
+                    listContainer.style.display = 'none';
+                    return;
+                }
+                listContainer.style.display = 'flex';
+
+                files.forEach(function(file, idx) {
+                    const item = document.createElement('div');
+                    item.className = 'lrc-preview';
+                    item.style.cssText = 'display:flex; align-items:center; gap:10px; position:relative;';
+
+                    if (file.type && file.type.startsWith('image/')) {
+                        const img = document.createElement('img');
+                        img.alt = 'Preview';
+                        img.style.cssText = 'width:56px; height:56px; object-fit:cover; border-radius:8px; flex-shrink:0;';
+                        img.src = URL.createObjectURL(file);
+                        img.onload = function() { URL.revokeObjectURL(img.src); };
+                        item.appendChild(img);
                     }
+
+                    const info = document.createElement('div');
+                    info.className = 'lrc-file-info';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'lrc-file-info__name';
+                    nameSpan.textContent = file.name;
+                    const sizeSpan = document.createElement('span');
+                    sizeSpan.className = 'lrc-file-info__size';
+                    sizeSpan.textContent = 'Ukuran: ' + formatFileSize(file.size);
+                    info.appendChild(nameSpan);
+                    info.appendChild(sizeSpan);
+                    item.appendChild(info);
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'lrc-preview__remove';
+                    removeBtn.setAttribute('aria-label', 'Hapus file');
+                    removeBtn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+                    removeBtn.addEventListener('click', function() {
+                        const kept = Array.from(dt.files).filter(function(_, i) { return i !== idx; });
+                        dt.items.clear();
+                        kept.forEach(function(f) { dt.items.add(f); });
+                        input.files = dt.files;
+                        showError('');
+                        renderList();
+                    });
+                    item.appendChild(removeBtn);
+
+                    listContainer.appendChild(item);
                 });
             }
-            if (removeBtn) {
-                removeBtn.addEventListener('click', function() {
-                    input.value = '';
-                    previewImg.src = '#';
-                    previewContainer.style.display = 'none';
-                    if (fileInfo) fileInfo.innerHTML = '';
-                });
-            }
+
+            input.addEventListener('change', function() {
+                showError('');
+                const incoming = Array.from(this.files);
+                for (const file of incoming) {
+                    if (dt.files.length >= MAX_FILES) {
+                        showError('Maksimal ' + MAX_FILES + ' file bukti pendukung.');
+                        break;
+                    }
+                    if (file.size > MAX_SIZE) {
+                        showError('File "' + file.name + '" melebihi 8 MB.');
+                        continue;
+                    }
+                    dt.items.add(file);
+                }
+                this.files = dt.files;
+                renderList();
+            });
         });
     </script>
 

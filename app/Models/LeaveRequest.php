@@ -63,6 +63,8 @@ class LeaveRequest extends Model
 
     public const STATUS_CANCELLED = 'BATAL';
 
+    public const MAX_EVIDENCE_FILES = 3;
+
     public const STATUS_OPTIONS = [
         self::PENDING_SUPERVISOR => 'Menunggu Atasan',
         self::PENDING_HR => 'Menunggu HRD',
@@ -127,5 +129,60 @@ class LeaveRequest extends Model
     public function leaveBalanceTransactions()
     {
         return $this->hasMany(LeaveBalanceTransaction::class);
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(LeaveRequestAttachment::class)
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    /**
+     * Jumlah total bukti pendukung: baris attachments + kolom photo legacy
+     * (bila belum ter-backfill ke attachments).
+     */
+    public function evidenceFileCount(): int
+    {
+        return count($this->evidenceFiles());
+    }
+
+    /**
+     * Daftar gabungan bukti pendukung: attachments + kolom photo legacy.
+     * Dedupe by file_name agar foto lama yang sudah di-backfill tidak tampil dobel.
+     *
+     * Tiap item: ['name', 'original_name', 'is_image', 'attachment_id', 'is_legacy']
+     *
+     * @return array<int, array{name: string, original_name: string, is_image: bool, attachment_id: ?int, is_legacy: bool}>
+     */
+    public function evidenceFiles(): array
+    {
+        $files = [];
+        $seen = [];
+
+        foreach ($this->attachments as $attachment) {
+            $seen[$attachment->file_name] = true;
+            $files[] = [
+                'name' => $attachment->file_name,
+                'original_name' => $attachment->original_name ?: $attachment->file_name,
+                'is_image' => $attachment->is_image,
+                'attachment_id' => $attachment->id,
+                'is_legacy' => false,
+            ];
+        }
+
+        $legacyPhoto = $this->photo;
+        if ($legacyPhoto && ! isset($seen[$legacyPhoto])) {
+            $extension = strtolower(pathinfo($legacyPhoto, PATHINFO_EXTENSION));
+            $files[] = [
+                'name' => $legacyPhoto,
+                'original_name' => $legacyPhoto,
+                'is_image' => in_array($extension, LeaveRequestAttachment::IMAGE_EXTENSIONS, true),
+                'attachment_id' => null,
+                'is_legacy' => true,
+            ];
+        }
+
+        return $files;
     }
 }

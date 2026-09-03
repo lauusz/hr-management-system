@@ -150,10 +150,15 @@
                     <div class="apv-file-input-wrapper">
                         <input type="file" name="photo" id="photoInput" class="apv-form-control-file" accept="image/*,.pdf" data-max-file-size="8388608" data-max-file-label="8 MB">
                     </div>
-                    @if($leave->photo)
+                    @php
+                        $spvEvidenceFiles = $leave->evidenceFiles();
+                    @endphp
+                    @if(count($spvEvidenceFiles) > 0)
                         <div class="apv-current-file">
-                            <span class="apv-current-file-label">File saat ini:</span>
-                            <a href="{{ route('leave-requests.supporting-file', $leave) }}" target="_blank">Lihat File</a>
+                            <span class="apv-current-file-label">File saat ini ({{ count($spvEvidenceFiles) }}):</span>
+                            @foreach($spvEvidenceFiles as $evidence)
+                                <a href="{{ $evidence['is_legacy'] ? route('leave-requests.supporting-file', $leave) : route('leave-requests.attachment-file', [$leave, $evidence['attachment_id']]) }}" target="_blank" style="display:block;">{{ $evidence['original_name'] }}</a>
+                            @endforeach
                         </div>
                     @endif
                     <div id="photoPreviewContainer" class="apv-preview-container">

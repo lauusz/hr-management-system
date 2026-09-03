@@ -12,6 +12,7 @@
 *.md
 *.png
 *.codex-temp
+*.xlsx
 docs/superpowers/
 konsep/
 /.fleet

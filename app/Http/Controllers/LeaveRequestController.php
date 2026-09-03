@@ -6,6 +6,7 @@ use App\Enums\LeaveType;
 use App\Enums\UserRole;
 use App\Models\EmployeeShift;
 use App\Models\LeaveRequest;
+use App\Models\LeaveRequestAttachment;
 use App\Models\OffSpvPeriod;
 use App\Models\ShiftDay;
 use App\Models\User;
@@ -219,7 +220,8 @@ class LeaveRequestController extends Controller
             'start_time' => ['nullable', 'date_format:H:i'],
             'end_time' => ['nullable', 'date_format:H:i'],
             'reason' => ['required', 'string'],
-            'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+            'photos' => ['nullable', 'array', 'max:'.LeaveRequest::MAX_EVIDENCE_FILES],
+            'photos.*' => ['file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy_m' => ['nullable', 'numeric', 'min:0', 'max:5000'],
@@ -228,8 +230,10 @@ class LeaveRequestController extends Controller
             'substitute_phone' => ['nullable', 'string', 'max:50', Rule::requiredIf(fn () => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
             'special_leave_detail' => ['nullable', 'string', Rule::requiredIf(fn () => $request->type === LeaveType::CUTI_KHUSUS->value)],
         ], [
-            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
-            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+            'photos.max' => 'Maksimal '.LeaveRequest::MAX_EVIDENCE_FILES.' bukti pendukung per pengajuan.',
+            'photos.*.max' => 'Ukuran tiap file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photos.*.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+            'photos.*.mimes' => 'Format file bukti pendukung tidak didukung.',
         ]);
 
         $type = $validated['type'];
@@ -311,12 +315,7 @@ class LeaveRequestController extends Controller
             return redirect()->back()->withInput()->with('error', 'Jam pulang wajib diisi.');
         }
 
-        $fullPath = null;
-        $photoBasename = null;
-        if ($request->hasFile('photo')) {
-            $fullPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
-            $photoBasename = basename($fullPath);
-        }
+        $uploadedEvidenceFiles = $this->storeEvidenceFiles($request);
 
         // =====================================================================
         // ROLE-BASED INITIAL STATUS
@@ -383,7 +382,7 @@ class LeaveRequestController extends Controller
             'start_time' => ($isIzinTengahKerja || $isIzinPulangAwal || $isIzinTelat) ? $rawStartTime : null,
             'end_time' => $isIzinTengahKerja ? $rawEndTime : null,
             'reason' => $validated['reason'],
-            'photo' => $photoBasename,
+            'photo' => null,
             'status' => $initialStatus,
             'notes' => $notes,
             'latitude' => $validated['latitude'] ?? null,
@@ -396,25 +395,21 @@ class LeaveRequestController extends Controller
         ];
 
         try {
-            if ($offSpvPeriodId !== null) {
-                DB::transaction(function () use ($user, $offSpvPeriodId, $validated, $leaveData) {
+            DB::transaction(function () use ($user, $offSpvPeriodId, $validated, $leaveData, $uploadedEvidenceFiles) {
+                if ($offSpvPeriodId !== null) {
                     $period = OffSpvPeriod::lockForUpdate()->findOrFail($offSpvPeriodId);
                     $this->offSpvQuotaService->assertRequestAvailable($user, $period, $validated['start_date']);
-                    LeaveRequest::create($leaveData);
-                });
-            } else {
-                LeaveRequest::create($leaveData);
-            }
+                }
+
+                $leave = LeaveRequest::create($leaveData);
+                $this->createEvidenceAttachments($leave, $uploadedEvidenceFiles);
+            });
         } catch (\RuntimeException $exception) {
-            if ($fullPath !== null) {
-                Storage::disk('public')->delete($fullPath);
-            }
+            $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);
 
             return redirect()->back()->withInput()->with('error', $exception->getMessage());
         } catch (\Throwable $exception) {
-            if ($fullPath !== null) {
-                Storage::disk('public')->delete($fullPath);
-            }
+            $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);
 
             throw $exception;
         }
@@ -488,33 +483,125 @@ class LeaveRequestController extends Controller
         }
 
         $validated = $request->validate([
-            'photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+            'photos' => ['required', 'array', 'min:1', 'max:'.LeaveRequest::MAX_EVIDENCE_FILES],
+            'photos.*' => ['file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
         ], [
-            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
-            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+            'photos.required' => 'Silakan pilih minimal 1 file bukti pendukung.',
+            'photos.max' => 'Maksimal '.LeaveRequest::MAX_EVIDENCE_FILES.' bukti pendukung per pengajuan.',
+            'photos.*.max' => 'Ukuran tiap file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photos.*.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+            'photos.*.mimes' => 'Format file bukti pendukung tidak didukung.',
         ]);
 
-        $fullPath = $this->imageCompressor->compressAndStore($validated['photo'], 'photo', 'leave_photos', 'leave_');
+        $uploadedEvidenceFiles = $this->storeEvidenceFiles($request);
 
-        $updated = $this->stateMachine->perform(
-            $leave_request,
-            LeaveRequestStateMachine::EDIT_PENDING,
-            function (LeaveRequest $lockedLeave) use ($fullPath) {
-                if ($lockedLeave->photo) {
-                    Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
+        try {
+            $updated = $this->stateMachine->perform(
+                $leave_request,
+                LeaveRequestStateMachine::EDIT_PENDING,
+                function (LeaveRequest $lockedLeave) use ($uploadedEvidenceFiles) {
+                    if ($lockedLeave->evidenceFileCount() + count($uploadedEvidenceFiles) > LeaveRequest::MAX_EVIDENCE_FILES) {
+                        throw new \RuntimeException('Maksimal '.LeaveRequest::MAX_EVIDENCE_FILES.' bukti pendukung per pengajuan.');
+                    }
+
+                    $this->createEvidenceAttachments($lockedLeave, $uploadedEvidenceFiles);
+
+                    return [];
                 }
+            );
+        } catch (\RuntimeException $exception) {
+            $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);
 
-                return ['photo' => basename($fullPath)];
-            }
-        );
+            return back()->with('error', $exception->getMessage());
+        }
 
         if (! $updated) {
-            Storage::disk('public')->delete($fullPath);
+            $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);
 
             return back()->with('error', 'Pengajuan sudah diproses, bukti pendukung tidak dapat diunggah.');
         }
 
         return back()->with('success', 'Bukti pendukung berhasil diunggah.');
+    }
+
+    public function attachmentFile(LeaveRequest $leave_request, LeaveRequestAttachment $attachment): StreamedResponse|
+    \Illuminate\Http\RedirectResponse
+    {
+        $user = Auth::user();
+        $leave_request->loadMissing('user');
+
+        $canView = $leave_request->user_id === $user->id
+            || $user->isHR()
+            || (int) $leave_request->user->direct_supervisor_id === (int) $user->id
+            || (int) $leave_request->user->manager_id === (int) $user->id;
+
+        if (! $canView) {
+            return redirect()->back()->with('error', 'Anda tidak berhak melihat bukti pendukung ini.');
+        }
+
+        abort_unless((int) $attachment->leave_request_id === (int) $leave_request->id, 404);
+
+        $filename = basename(str_replace('\\', '/', $attachment->file_name));
+        $path = 'leave_photos/'.$filename;
+        $disk = Storage::disk('public');
+
+        abort_unless($disk->exists($path), 404, 'File bukti pendukung tidak ditemukan.');
+
+        $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        $mimeType = match ($extension) {
+            'heic' => 'image/heic',
+            'heif' => 'image/heif',
+            default => $disk->mimeType($path) ?: 'application/octet-stream',
+        };
+
+        return $disk->response($path, $attachment->original_name ?: $filename, [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'private, max-age=3600',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    public function destroyAttachment(LeaveRequest $leave_request, LeaveRequestAttachment $attachment)
+    {
+        $user = Auth::user();
+        $isOwner = $user->id === $leave_request->user_id;
+        $isHRD = $user->isHR();
+
+        if (! $isOwner && ! $isHRD) {
+            return redirect()->back()->with('error', 'Anda tidak berhak menghapus lampiran ini.');
+        }
+
+        abort_unless((int) $attachment->leave_request_id === (int) $leave_request->id, 404);
+
+        if (! in_array($leave_request->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
+            return back()->with('error', 'Pengajuan sudah diproses, lampiran tidak dapat dihapus.');
+        }
+
+        try {
+            $deleted = $this->stateMachine->perform(
+                $leave_request,
+                LeaveRequestStateMachine::EDIT_PENDING,
+                function (LeaveRequest $lockedLeave) use ($attachment) {
+                    $lockedAttachment = $lockedLeave->attachments()->whereKey($attachment->id)->first();
+                    if (! $lockedAttachment) {
+                        throw new \RuntimeException('Lampiran tidak ditemukan.');
+                    }
+
+                    Storage::disk('public')->delete('leave_photos/'.$lockedAttachment->file_name);
+                    $lockedAttachment->delete();
+
+                    return [];
+                }
+            );
+        } catch (\RuntimeException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        if (! $deleted) {
+            return back()->with('error', 'Pengajuan sudah diproses, lampiran tidak dapat dihapus.');
+        }
+
+        return back()->with('success', 'Lampiran berhasil dihapus.');
     }
 
     public function update(Request $request, LeaveRequest $leaveRequest)
@@ -544,14 +631,19 @@ class LeaveRequestController extends Controller
             'substitute_pic' => ['nullable', 'string', 'max:255', Rule::requiredIf(fn () => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
             'substitute_phone' => ['nullable', 'string', 'max:50', Rule::requiredIf(fn () => in_array($request->type, [LeaveType::CUTI->value, LeaveType::CUTI_KHUSUS->value, LeaveType::SAKIT->value]))],
             'special_leave_detail' => ['nullable', 'string', Rule::requiredIf(fn () => $request->type === LeaveType::CUTI_KHUSUS->value)],
-            'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+            'photos' => ['nullable', 'array', 'max:'.LeaveRequest::MAX_EVIDENCE_FILES],
+            'photos.*' => ['file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+            'remove_attachments' => ['nullable', 'array'],
+            'remove_attachments.*' => ['integer'],
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'accuracy_m' => ['nullable', 'numeric', 'min:0', 'max:5000'],
             'location_captured_at' => ['nullable', 'date'],
         ], [
-            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
-            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+            'photos.max' => 'Maksimal '.LeaveRequest::MAX_EVIDENCE_FILES.' bukti pendukung per pengajuan.',
+            'photos.*.max' => 'Ukuran tiap file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photos.*.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+            'photos.*.mimes' => 'Format file bukti pendukung tidak didukung.',
         ]);
 
         if ($validated['type'] === LeaveType::CUTI_KHUSUS->value) {
@@ -559,7 +651,7 @@ class LeaveRequestController extends Controller
         } else {
             $validated['special_leave_category'] = null;
         }
-        unset($validated['special_leave_detail']);
+        unset($validated['special_leave_detail'], $validated['photos'], $validated['remove_attachments']);
 
         $type = $validated['type'];
         $isIzinTelat = $type === LeaveType::IZIN_TELAT->value;
@@ -665,11 +757,8 @@ class LeaveRequestController extends Controller
 
         // Upload foto di luar transaction; jika terjadi race/rollback,
         // file yang baru diunggah akan dihapus agar tidak orphan.
-        $uploadedPhotoPath = null;
-        if ($request->hasFile('photo')) {
-            $uploadedPhotoPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
-            $validated['photo'] = basename($uploadedPhotoPath);
-        }
+        $uploadedEvidenceFiles = $this->storeEvidenceFiles($request);
+        $removeAttachmentIds = array_map('intval', (array) $request->input('remove_attachments', []));
 
         $offSpvRequiresManagerApproval = $isOffSpv
             && ! $isHRD
@@ -679,59 +768,74 @@ class LeaveRequestController extends Controller
             ? LeaveRequestStateMachine::REVISE_FOR_HR
             : LeaveRequestStateMachine::EDIT_PENDING;
 
-        $updated = $this->stateMachine->perform(
-            $leaveRequest,
-            $updateAction,
-            function (LeaveRequest $lockedLeave) use ($request, $user, $validated, $isOffSpv, $isHRD) {
-                if ($isOffSpv && ! $isHRD && $validated['off_spv_period_id'] !== null) {
-                    $period = OffSpvPeriod::lockForUpdate()->findOrFail($validated['off_spv_period_id']);
-                    $this->offSpvQuotaService->assertRequestAvailable(
-                        $lockedLeave->user,
-                        $period,
-                        $validated['start_date'],
-                        $lockedLeave->id,
-                    );
-                }
-
-                if ($request->hasFile('photo')) {
-                    if ($lockedLeave->photo) {
-                        Storage::disk('public')->delete('leave_photos/'.$lockedLeave->photo);
+        try {
+            $updated = $this->stateMachine->perform(
+                $leaveRequest,
+                $updateAction,
+                function (LeaveRequest $lockedLeave) use ($user, $validated, $isOffSpv, $isHRD, $uploadedEvidenceFiles, $removeAttachmentIds) {
+                    if ($isOffSpv && ! $isHRD && $validated['off_spv_period_id'] !== null) {
+                        $period = OffSpvPeriod::lockForUpdate()->findOrFail($validated['off_spv_period_id']);
+                        $this->offSpvQuotaService->assertRequestAvailable(
+                            $lockedLeave->user,
+                            $period,
+                            $validated['start_date'],
+                            $lockedLeave->id,
+                        );
                     }
+
+                    if (! empty($removeAttachmentIds)) {
+                        $toRemove = $lockedLeave->attachments()->whereIn('id', $removeAttachmentIds)->get();
+                        foreach ($toRemove as $attachmentRow) {
+                            Storage::disk('public')->delete('leave_photos/'.$attachmentRow->file_name);
+                            $attachmentRow->delete();
+                        }
+                        $lockedLeave->unsetRelation('attachments');
+                    }
+
+                    if (! empty($uploadedEvidenceFiles)) {
+                        if ($lockedLeave->evidenceFileCount() + count($uploadedEvidenceFiles) > LeaveRequest::MAX_EVIDENCE_FILES) {
+                            throw new \RuntimeException('Maksimal '.LeaveRequest::MAX_EVIDENCE_FILES.' bukti pendukung per pengajuan.');
+                        }
+
+                        $this->createEvidenceAttachments($lockedLeave, $uploadedEvidenceFiles);
+                    }
+
+                    $dataToUpdate = $validated;
+
+                    // [FIX] Jangan menimpa seluruh notes. Pertahankan catatan audit
+                    // (misal: system note dari edit HR) dan hanya refresh bagian
+                    // warning otomatis agar tidak stale.
+                    $existingNotes = $lockedLeave->notes ?? '';
+                    $preservedLines = collect(explode("\n", $existingNotes))
+                        ->filter(fn ($line) => ! str_contains($line, 'melebihi batas maksimal') && ! str_contains($line, 'Dihitung Potong Uang Makan'))
+                        ->values()
+                        ->all();
+                    $preservedNotes = implode("\n", $preservedLines);
+
+                    $newWarnings = $this->buildLeaveNotesAsText($lockedLeave->user ?? $user, $validated['type'], [
+                        ...$validated,
+                        'start_date' => $validated['start_date'],
+                        'end_date' => $validated['end_date'],
+                        'special_leave_detail' => $validated['special_leave_category'] ?? null,
+                    ]);
+
+                    if ($newWarnings !== null && $newWarnings !== '') {
+                        $dataToUpdate['notes'] = $preservedNotes !== '' ? $preservedNotes."\n".$newWarnings : $newWarnings;
+                    } else {
+                        $dataToUpdate['notes'] = $preservedNotes !== '' ? $preservedNotes : null;
+                    }
+
+                    return $dataToUpdate;
                 }
+            );
+        } catch (\RuntimeException $exception) {
+            $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);
 
-                $dataToUpdate = $validated;
-
-                // [FIX] Jangan menimpa seluruh notes. Pertahankan catatan audit
-                // (misal: system note dari edit HR) dan hanya refresh bagian
-                // warning otomatis agar tidak stale.
-                $existingNotes = $lockedLeave->notes ?? '';
-                $preservedLines = collect(explode("\n", $existingNotes))
-                    ->filter(fn ($line) => ! str_contains($line, 'melebihi batas maksimal') && ! str_contains($line, 'Dihitung Potong Uang Makan'))
-                    ->values()
-                    ->all();
-                $preservedNotes = implode("\n", $preservedLines);
-
-                $newWarnings = $this->buildLeaveNotesAsText($lockedLeave->user ?? $user, $validated['type'], [
-                    ...$validated,
-                    'start_date' => $validated['start_date'],
-                    'end_date' => $validated['end_date'],
-                    'special_leave_detail' => $validated['special_leave_category'] ?? null,
-                ]);
-
-                if ($newWarnings !== null && $newWarnings !== '') {
-                    $dataToUpdate['notes'] = $preservedNotes !== '' ? $preservedNotes."\n".$newWarnings : $newWarnings;
-                } else {
-                    $dataToUpdate['notes'] = $preservedNotes !== '' ? $preservedNotes : null;
-                }
-
-                return $dataToUpdate;
-            }
-        );
+            return redirect()->back()->withInput()->with('error', $exception->getMessage());
+        }
 
         if (! $updated) {
-            if ($uploadedPhotoPath !== null) {
-                Storage::disk('public')->delete($uploadedPhotoPath);
-            }
+            $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);
 
             return redirect()->back()->with('error', 'Pengajuan sudah diproses, tidak dapat diubah.');
         }
@@ -780,6 +884,63 @@ class LeaveRequestController extends Controller
     }
 
     // --- Private Helpers ---
+
+    /**
+     * Simpan semua file bukti pendukung dari request (photos[]) ke disk public.
+     * Mengembalikan daftar ['path' => fullPath, 'original' => namaAsli].
+     *
+     * @return array<int, array{path: string, original: string}>
+     */
+    private function storeEvidenceFiles(Request $request): array
+    {
+        $stored = [];
+
+        foreach ((array) $request->file('photos', []) as $file) {
+            if (! $file) {
+                continue;
+            }
+
+            $fullPath = $this->imageCompressor->compressAndStore($file, 'photo', 'leave_photos', 'leave_');
+            $stored[] = [
+                'path' => $fullPath,
+                'original' => $file->getClientOriginalName(),
+            ];
+        }
+
+        return $stored;
+    }
+
+    /**
+     * Buat baris attachment untuk file yang sudah tersimpan di disk.
+     *
+     * @param  array<int, array{path: string, original: string}>  $uploadedFiles
+     */
+    private function createEvidenceAttachments(LeaveRequest $leave, array $uploadedFiles): void
+    {
+        $sortOrder = (int) $leave->attachments()->max('sort_order');
+
+        foreach ($uploadedFiles as $uploaded) {
+            $leave->attachments()->create([
+                'file_name' => basename($uploaded['path']),
+                'original_name' => $uploaded['original'],
+                'sort_order' => ++$sortOrder,
+            ]);
+        }
+    }
+
+    /**
+     * Hapus file yang sudah terlanjur di-upload (dipakai saat proses gagal
+     * agar tidak ada file orphan).
+     *
+     * @param  array<int, array{path: string, original: string}>  $uploadedFiles
+     */
+    private function deleteEvidenceFilesFromDisk(array $uploadedFiles): void
+    {
+        foreach ($uploadedFiles as $uploaded) {
+            Storage::disk('public')->delete($uploaded['path']);
+        }
+    }
+
     private function findOverlappingLeaveRequests(
         int $userId,
         string $type,

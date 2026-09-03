@@ -58,9 +58,9 @@
             ['id'=>'UMROH','label'=>'Ibadah Umroh (1x)','days'=>14],
         ];
         $isTimeBased = in_array($typeValue, [\App\Enums\LeaveType::IZIN_TELAT->value, \App\Enums\LeaveType::IZIN_TENGAH_KERJA->value, \App\Enums\LeaveType::IZIN_PULANG_AWAL->value, \App\Enums\LeaveType::IZIN->value], true);
-        $photoUrl = $item->photo ? route('leave-requests.supporting-file', $item) : null;
-        $docExt = $item->photo ? strtolower(pathinfo($item->photo, PATHINFO_EXTENSION)) : null;
-        $isImageDoc = in_array($docExt, ['jpg','jpeg','png','gif','webp','bmp','svg']);
+        $evidenceFiles = $item->evidenceFiles();
+        $evidenceCount = count($evidenceFiles);
+        $remainingSlots = max(0, \App\Models\LeaveRequest::MAX_EVIDENCE_FILES - $evidenceCount);
 
         $joinDate = $user->profile->tgl_bergabung ?? null;
         $underOneYear = false;
@@ -211,53 +211,71 @@
             </div>
 
             <div class="lr-form-section">
-                <div class="lr-form-section-title">Bukti Pendukung <span class="lr-optional">(opsional)</span></div>
-                @if($photoUrl && $item->photo)
-                    @php
-                        $filePath = 'leave_photos/' . $item->photo;
-                        $fileExists = \Illuminate\Support\Facades\Storage::disk('public')->exists($filePath);
-                        $fileSize = $fileExists ? \Illuminate\Support\Facades\Storage::disk('public')->size($filePath) : 0;
-                        $fileSizeFormatted = $fileSize > 0
-                            ? ($fileSize < 1024
-                                ? $fileSize . ' B'
-                                : ($fileSize < 1048576
-                                    ? round($fileSize / 1024, 1) . ' KB'
-                                    : round($fileSize / 1048576, 1) . ' MB'))
-                            : 'Tidak diketahui';
-                    @endphp
-                    <div class="lr-existing-file">
-                        <span class="lr-existing-file-label">File saat ini:</span>
-                        @if($isImageDoc)
-                            <button type="button" data-image-viewer-src="{{ $photoUrl }}" data-image-viewer-alt="Bukti pendukung" style="border:0; padding:0; background:transparent; cursor:pointer;">
-                                <img src="{{ $photoUrl }}" alt="Bukti pendukung" class="lr-existing-file-preview">
-                            </button>
-                        @endif
-                        <a href="{{ $photoUrl }}" target="_blank" class="lr-existing-file-link">
-                            <span class="lr-existing-file-badge">{{ strtoupper($docExt) }}</span>
-                            <span class="lr-existing-file-size">Ukuran: {{ $fileSizeFormatted }}</span>
-                        </a>
+                <div class="lr-form-section-title">Bukti Pendukung <span class="lr-optional">(opsional, maks {{ \App\Models\LeaveRequest::MAX_EVIDENCE_FILES }} file)</span></div>
+                @if($evidenceCount > 0)
+                    <div class="lr-existing-file" style="flex-direction:column; align-items:stretch; gap:8px;">
+                        <span class="lr-existing-file-label">File saat ini ({{ $evidenceCount }}/{{ \App\Models\LeaveRequest::MAX_EVIDENCE_FILES }}):</span>
+                        @foreach($evidenceFiles as $evidence)
+                            @php
+                                $evidenceUrl = $evidence['is_legacy']
+                                    ? route('leave-requests.supporting-file', $item)
+                                    : route('leave-requests.attachment-file', [$item, $evidence['attachment_id']]);
+                                $evidenceExt = strtoupper(pathinfo($evidence['name'], PATHINFO_EXTENSION));
+                                $evidencePath = 'leave_photos/' . $evidence['name'];
+                                $evidenceSize = \Illuminate\Support\Facades\Storage::disk('public')->exists($evidencePath)
+                                    ? \Illuminate\Support\Facades\Storage::disk('public')->size($evidencePath)
+                                    : 0;
+                                $evidenceSizeLabel = $evidenceSize > 0
+                                    ? ($evidenceSize < 1024
+                                        ? $evidenceSize . ' B'
+                                        : ($evidenceSize < 1048576
+                                            ? round($evidenceSize / 1024, 1) . ' KB'
+                                            : round($evidenceSize / 1048576, 1) . ' MB'))
+                                    : null;
+                            @endphp
+                            <div style="display:flex; align-items:center; gap:10px;">
+                                @if($evidence['is_image'])
+                                    <button type="button" data-image-viewer-src="{{ $evidenceUrl }}" data-image-viewer-alt="Bukti pendukung" style="border:0; padding:0; background:transparent; cursor:pointer;">
+                                        <img src="{{ $evidenceUrl }}" alt="Bukti pendukung" class="lr-existing-file-preview">
+                                    </button>
+                                @endif
+                                <a href="{{ $evidenceUrl }}" target="_blank" class="lr-existing-file-link" title="{{ $evidence['original_name'] }}">
+                                    <span class="lr-existing-file-badge">{{ $evidenceExt }}</span>
+                                    @if($evidenceSizeLabel)
+                                        <span class="lr-existing-file-size">Ukuran: {{ $evidenceSizeLabel }}</span>
+                                    @endif
+                                </a>
+                                @if(! $evidence['is_legacy'])
+                                    <form method="POST" action="{{ route('leave-requests.attachments.destroy', [$item, $evidence['attachment_id']]) }}" onsubmit="return confirm('Hapus lampiran ini?');" style="margin:0;">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" aria-label="Hapus lampiran" style="border:0; background:transparent; cursor:pointer; color:#dc2626; padding:4px;">
+                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        @endforeach
                     </div>
                 @endif
-                <div class="lr-upload" id="uploadBox">
-                    <input type="file" name="photo" id="edit_photo" class="lr-upload__input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB">
-                    <div class="lr-upload__content">
-                        <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                        </svg>
-                        <span class="lr-upload__title">Klik untuk ganti file</span>
-                        <span class="lr-upload__desc">JPG, PNG, PDF, DOCX (Maks 8MB)</span>
+                @if($remainingSlots > 0)
+                    <div class="lr-upload" id="uploadBox">
+                        <input type="file" name="photos[]" id="edit_photo" class="lr-upload__input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB" data-max-files="{{ $remainingSlots }}" multiple>
+                        <div class="lr-upload__content">
+                            <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <span class="lr-upload__title">Klik untuk tambah file</span>
+                            <span class="lr-upload__desc">JPG, PNG, PDF, DOCX (Sisa {{ $remainingSlots }} file · 8 MB per file)</span>
+                        </div>
                     </div>
-                </div>
-                <div id="photoPreviewContainer" class="lr-preview" style="display:none;">
-                    <img id="photoPreview" src="#" alt="Preview">
-                    <div id="photoFileInfo" class="lr-file-info"></div>
-                    <button type="button" class="lr-preview__remove" id="removePreview" aria-label="Hapus preview">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-                <small class="lr-form-hint">Kosongkan jika tidak ingin mengubah file. Maksimal 8 MB.</small>
+                    <div id="photoListContainer" style="display:none; flex-direction:column; gap:8px; margin-top:8px;"></div>
+                @else
+                    <small class="lr-form-hint">Maksimal {{ \App\Models\LeaveRequest::MAX_EVIDENCE_FILES }} file sudah terunggah. Hapus lampiran lama bila ingin mengganti.</small>
+                @endif
+                <small class="lr-form-hint">Kosongkan jika tidak ingin mengubah file. Maksimal {{ \App\Models\LeaveRequest::MAX_EVIDENCE_FILES }} file, 8 MB per file.</small>
             </div>
 
             <div id="location-fields" style="display:none;">
@@ -308,10 +326,7 @@
             const reasonCounter = document.getElementById('reason-counter');
             const photoInput = document.getElementById('edit_photo');
             const uploadBox = document.getElementById('uploadBox');
-            const photoPreviewContainer = document.getElementById('photoPreviewContainer');
-            const photoPreview = document.getElementById('photoPreview');
-            const photoFileInfo = document.getElementById('photoFileInfo');
-            const removePreview = document.getElementById('removePreview');
+            const photoListContainer = document.getElementById('photoListContainer');
 
             const timeBasedTypes = ['IZIN_TELAT', 'IZIN_TENGAH_KERJA', 'IZIN_PULANG_AWAL', 'IZIN'];
             const specialTypes = ['CUTI', 'CUTI_KHUSUS', 'SAKIT'];
@@ -538,48 +553,81 @@
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
             }
 
-            function renderFileInfo(file) {
-                if (!photoFileInfo || !file) return;
-                photoFileInfo.innerHTML = '<span class="lr-file-info__name">' + file.name + '</span>' +
-                    '<span class="lr-file-info__size">Ukuran: ' + formatFileSize(file.size) + '</span>';
+            // Multi file upload (maks sisa slot) dengan preview & validasi ukuran
+            if (photoInput && photoListContainer) {
+                const maxFiles = parseInt(photoInput.dataset.maxFiles, 10) || 1;
+                const dt = new DataTransfer();
+
+                function renderPhotoList() {
+                    photoListContainer.innerHTML = '';
+                    const files = Array.from(dt.files);
+                    if (!files.length) {
+                        photoListContainer.style.display = 'none';
+                        return;
+                    }
+                    photoListContainer.style.display = 'flex';
+
+                    files.forEach(function (file, idx) {
+                        const item = document.createElement('div');
+                        item.style.cssText = 'display:flex; align-items:center; gap:10px; position:relative;';
+
+                        if (file.type && file.type.startsWith('image/')) {
+                            const img = document.createElement('img');
+                            img.alt = 'Preview';
+                            img.style.cssText = 'width:56px; height:56px; object-fit:cover; border-radius:8px; flex-shrink:0;';
+                            img.src = URL.createObjectURL(file);
+                            img.onload = function () { URL.revokeObjectURL(img.src); };
+                            item.appendChild(img);
+                        }
+
+                        const info = document.createElement('div');
+                        info.className = 'lr-file-info';
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'lr-file-info__name';
+                        nameSpan.textContent = file.name;
+                        const sizeSpan = document.createElement('span');
+                        sizeSpan.className = 'lr-file-info__size';
+                        sizeSpan.textContent = 'Ukuran: ' + formatFileSize(file.size);
+                        info.appendChild(nameSpan);
+                        info.appendChild(sizeSpan);
+                        item.appendChild(info);
+
+                        const removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.setAttribute('aria-label', 'Hapus file');
+                        removeBtn.style.cssText = 'border:0; background:transparent; cursor:pointer; color:#dc2626; padding:4px;';
+                        removeBtn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+                        removeBtn.addEventListener('click', function () {
+                            const kept = Array.from(dt.files).filter(function (_, i) { return i !== idx; });
+                            dt.items.clear();
+                            kept.forEach(function (f) { dt.items.add(f); });
+                            photoInput.files = dt.files;
+                            renderPhotoList();
+                        });
+                        item.appendChild(removeBtn);
+
+                        photoListContainer.appendChild(item);
+                    });
+                }
+
+                photoInput.addEventListener('change', function () {
+                    const maxBytes = parseInt(this.dataset.maxFileSize, 10) || 8388608;
+                    const incoming = Array.from(this.files);
+                    for (const file of incoming) {
+                        if (dt.files.length >= maxFiles) {
+                            window.showToast('Maksimal ' + maxFiles + ' file bukti pendukung.', 'warning');
+                            break;
+                        }
+                        if (file.size > maxBytes) {
+                            window.showToast('File "' + file.name + '" melebihi ' + (this.dataset.maxFileLabel || '8 MB') + '.', 'warning');
+                            continue;
+                        }
+                        dt.items.add(file);
+                    }
+                    this.files = dt.files;
+                    renderPhotoList();
+                });
             }
-
-            // File upload preview & size validation
-            photoInput.addEventListener('change', function () {
-                const file = this.files[0];
-                if (!file) return;
-                const maxBytes = parseInt(this.dataset.maxFileSize, 10) || 8388608;
-                if (file.size > maxBytes) {
-                    window.showToast('Ukuran file melebihi ' + (this.dataset.maxFileLabel || '8 MB') + '. Pilih file yang lebih kecil.', 'warning');
-                    this.value = '';
-                    photoPreviewContainer.style.display = 'none';
-                    uploadBox.style.display = 'block';
-                    if (photoFileInfo) photoFileInfo.innerHTML = '';
-                    return;
-                }
-                renderFileInfo(file);
-                if (file.type.startsWith('image/')) {
-                    const reader = new FileReader();
-                    reader.onload = function (e) {
-                        photoPreview.src = e.target.result;
-                        photoPreviewContainer.style.display = 'block';
-                        uploadBox.style.display = 'none';
-                    };
-                    reader.readAsDataURL(file);
-                } else {
-                    photoPreview.src = '';
-                    photoPreviewContainer.style.display = 'block';
-                    uploadBox.style.display = 'none';
-                }
-            });
-
-            removePreview.addEventListener('click', function () {
-                photoInput.value = '';
-                photoPreview.src = '#';
-                photoPreviewContainer.style.display = 'none';
-                uploadBox.style.display = 'block';
-                if (photoFileInfo) photoFileInfo.innerHTML = '';
-            });
 
             document.getElementById('edit-leave-form').addEventListener('submit', function (e) {
                 const type = typeSelect.value;

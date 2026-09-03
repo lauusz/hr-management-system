@@ -300,6 +300,10 @@ class HrLeaveController extends Controller
         return Excel::download(new LeaveMasterExport($filters), $filename);
     }
 
+    /**
+     * 
+     */
+
     public function createManual()
     {
         if (($redirect = $this->authorizeAccess()) !== null) {

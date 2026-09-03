@@ -395,24 +395,17 @@
         {{-- ATTACHMENT & UPLOAD                          --}}
         {{-- ========================================== --}}
         @php
-            $url = $item->photo
-                ? route('leave-requests.supporting-file', $item)
-                : null;
-
-            $docUrl = null;
-            $isImageDoc = false;
-            if ($item->photo) {
-                $docUrl = $url;
-                $docExt = strtolower(pathinfo($item->photo, PATHINFO_EXTENSION));
-                $isImageDoc = in_array($docExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg']);
-            }
+            $evidenceFiles = $item->evidenceFiles();
+            $evidenceCount = count($evidenceFiles);
+            $maxEvidence = \App\Models\LeaveRequest::MAX_EVIDENCE_FILES;
+            $remainingSlots = max(0, $maxEvidence - $evidenceCount);
 
             $authUser = auth()->user();
             $authRole = $authUser->role instanceof \App\Enums\UserRole ? $authUser->role->value : $authUser->role;
             $isHrdUploader = in_array(strtoupper((string) $authRole), ['HRD', 'HR STAFF', 'MANAGER'], true);
             $isOwnerUploader = $authUser->id === $item->user_id;
             $isPendingStatus = in_array($item->status, [\App\Models\LeaveRequest::PENDING_SUPERVISOR, \App\Models\LeaveRequest::PENDING_HR], true);
-            $canUploadFollowupPhoto = $isHrdUploader || $isOwnerUploader;
+            $canUploadFollowupPhoto = ($isHrdUploader || $isOwnerUploader) && $remainingSlots > 0;
         @endphp
 
         <div class="lrs-section lrs-attachment">
@@ -423,35 +416,43 @@
                 <h3 class="lrs-card-title">Lampiran</h3>
             </div>
 
-            @if($url)
-                @if($isImageDoc)
-                <button type="button" class="lrs-photo-card" data-image-viewer-src="{{ $url }}" data-image-viewer-alt="Bukti Izin" style="cursor:pointer; width:100%; padding:0; text-align:left; background:transparent;">
-                    <img src="{{ $url }}" alt="Bukti Izin" loading="lazy">
-                    <div class="lrs-photo-overlay">
-                        <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
-                        <span>Lihat Full Screen</span>
-                    </div>
-                </button>
-                @else
-                <a href="{{ $docUrl }}" target="_blank" class="lrs-photo-card" style="text-decoration:none;">
-                    <div class="lrs-file-preview">
-                        <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8m-4-6l6 6m-6-6v6h6"/>
-                        </svg>
-                        <strong>{{ strtoupper($docExt) }}</strong>
-                        <span>{{ $item->photo }}</span>
-                    </div>
-                    <div class="lrs-photo-overlay">
-                        <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                        </svg>
-                        <span>Buka / Unduh File</span>
-                    </div>
-                </a>
-                @endif
+            @if($evidenceCount > 0)
+                @foreach($evidenceFiles as $evidence)
+                    @php
+                        $evidenceUrl = $evidence['is_legacy']
+                            ? route('leave-requests.supporting-file', $item)
+                            : route('leave-requests.attachment-file', [$item, $evidence['attachment_id']]);
+                        $evidenceExt = strtolower(pathinfo($evidence['name'], PATHINFO_EXTENSION));
+                    @endphp
+                    @if($evidence['is_image'])
+                    <button type="button" class="lrs-photo-card" data-image-viewer-src="{{ $evidenceUrl }}" data-image-viewer-alt="Bukti Izin" style="cursor:pointer; width:100%; padding:0; text-align:left; background:transparent; margin-bottom:8px;">
+                        <img src="{{ $evidenceUrl }}" alt="Bukti Izin" loading="lazy">
+                        <div class="lrs-photo-overlay">
+                            <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            <span>Lihat Full Screen</span>
+                        </div>
+                    </button>
+                    @else
+                    <a href="{{ $evidenceUrl }}" target="_blank" class="lrs-photo-card" style="text-decoration:none; margin-bottom:8px;">
+                        <div class="lrs-file-preview">
+                            <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8m-4-6l6 6m-6-6v6h6"/>
+                            </svg>
+                            <strong>{{ strtoupper($evidenceExt) }}</strong>
+                            <span>{{ $evidence['original_name'] }}</span>
+                        </div>
+                        <div class="lrs-photo-overlay">
+                            <svg width="24" height="24" fill="none" stroke="#fff" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                            </svg>
+                            <span>Buka / Unduh File</span>
+                        </div>
+                    </a>
+                    @endif
+                @endforeach
             @else
                 <div class="lrs-empty-photo">
                     <div class="lrs-empty-photo-icon">
@@ -459,17 +460,17 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
                     </div>
-                    <span class="lrs-empty-photo-text">Tidak ada lampiran foto</span>
+                    <span class="lrs-empty-photo-text">Tidak ada lampiran</span>
                 </div>
             @endif
 
             @if($canUploadFollowupPhoto)
                 <div class="lrs-upload-area">
-                    <p class="lrs-upload-hint">Foto bisa diunggah jika belum tersedia saat pengajuan dibuat.</p>
+                    <p class="lrs-upload-hint">Bukti bisa ditambahkan selama pengajuan belum diproses (sisa {{ $remainingSlots }} file).</p>
                     <form method="POST" action="{{ route('leave-requests.upload-photo', $item) }}" enctype="multipart/form-data" class="lrs-upload-form">
                         @csrf
                         <div class="lrs-file-input-wrap">
-                            <input type="file" name="photo" id="followupPhotoInput" class="lrs-file-input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB" required>
+                            <input type="file" name="photos[]" id="followupPhotoInput" class="lrs-file-input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB" data-max-files="{{ $remainingSlots }}" multiple required>
                             <label for="followupPhotoInput" class="lrs-file-label">
                                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
@@ -479,11 +480,8 @@
                         </div>
                         <button type="submit" id="followupUploadBtn" class="lrs-btn-upload is-hidden">Upload</button>
                     </form>
-                    <div id="followupPhotoPreviewContainer" class="lrs-preview-box" style="display:none;">
-                        <p class="lrs-preview-label">Preview:</p>
-                        <img id="followupPhotoPreview" src="#" alt="Preview">
-                    </div>
-                    <p class="lrs-format-hint">Format: JPG, PNG, HEIC, PDF, DOCX, XLSX. Maksimal 8 MB.</p>
+                    <div id="followupPhotoPreviewContainer" class="lrs-preview-box" style="display:none;"></div>
+                    <p class="lrs-format-hint">Format: JPG, PNG, HEIC, PDF, DOCX, XLSX. Maksimal {{ $maxEvidence }} file, 8 MB per file.</p>
                 </div>
             @endif
         </div>
@@ -580,30 +578,61 @@
     {{-- ============================================== --}}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- File Upload Preview (existing) ---
+            // --- Multi File Upload Preview ---
             const followupPhotoInput = document.getElementById('followupPhotoInput');
             const followupUploadBtn = document.getElementById('followupUploadBtn');
             const followupPreviewContainer = document.getElementById('followupPhotoPreviewContainer');
-            const followupPreviewImg = document.getElementById('followupPhotoPreview');
 
             if (followupPhotoInput && followupUploadBtn) {
-                const toggleUploadButton = () => {
-                    const hasFile = followupPhotoInput.files && followupPhotoInput.files.length > 0;
-                    followupUploadBtn.classList.toggle('is-hidden', !hasFile);
-                    const file = hasFile ? followupPhotoInput.files[0] : null;
-                    if (file && file.type && file.type.startsWith('image/')) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            if (followupPreviewImg) followupPreviewImg.src = e.target.result;
-                            if (followupPreviewContainer) followupPreviewContainer.style.display = 'block';
-                        };
-                        reader.readAsDataURL(file);
-                    } else {
-                        if (followupPreviewContainer) followupPreviewContainer.style.display = 'none';
-                        if (followupPreviewImg) followupPreviewImg.src = '';
-                    }
+                const maxFiles = parseInt(followupPhotoInput.dataset.maxFiles || '3', 10);
+                const maxBytes = parseInt(followupPhotoInput.dataset.maxFileSize || '8388608', 10);
+
+                const notify = (msg) => {
+                    if (window.showToast) { window.showToast(msg, 'warning'); }
+                    else { alert(msg); }
                 };
-                followupPhotoInput.addEventListener('change', toggleUploadButton);
+
+                const toggleUploadButton = () => {
+                    const files = followupPhotoInput.files ? Array.from(followupPhotoInput.files) : [];
+                    followupUploadBtn.classList.toggle('is-hidden', files.length === 0);
+                    if (!followupPreviewContainer) return;
+                    followupPreviewContainer.innerHTML = '';
+                    if (!files.length) {
+                        followupPreviewContainer.style.display = 'none';
+                        return;
+                    }
+                    followupPreviewContainer.style.display = 'block';
+                    const label = document.createElement('p');
+                    label.className = 'lrs-preview-label';
+                    label.textContent = 'Preview (' + files.length + ' file):';
+                    followupPreviewContainer.appendChild(label);
+                    files.forEach((file) => {
+                        if (file.type && file.type.startsWith('image/')) {
+                            const img = document.createElement('img');
+                            img.alt = 'Preview';
+                            img.src = URL.createObjectURL(file);
+                            img.onload = () => URL.revokeObjectURL(img.src);
+                            followupPreviewContainer.appendChild(img);
+                        } else {
+                            const info = document.createElement('p');
+                            info.className = 'lrs-preview-label';
+                            info.textContent = file.name;
+                            followupPreviewContainer.appendChild(info);
+                        }
+                    });
+                };
+
+                followupPhotoInput.addEventListener('change', () => {
+                    const files = Array.from(followupPhotoInput.files || []);
+                    if (files.length > maxFiles) {
+                        notify('Maksimal ' + maxFiles + ' file bukti pendukung.');
+                        followupPhotoInput.value = '';
+                    } else if (files.some((f) => f.size > maxBytes)) {
+                        notify('Ada file yang melebihi ' + (followupPhotoInput.dataset.maxFileLabel || '8 MB') + '.');
+                        followupPhotoInput.value = '';
+                    }
+                    toggleUploadButton();
+                });
                 toggleUploadButton();
             }
         });

@@ -1247,10 +1247,11 @@ describe('LeaveRequestController', function () {
             actingAs($user, 'web');
 
             $response = $this->post(route('leave-requests.upload-photo', $leave->id), [
-                'photo' => $file,
+                'photos' => [$file],
             ]);
 
             $response->assertSessionHas('success');
+            expect($leave->attachments()->count())->toBe(1);
         });
 
         it('prevents upload photo to processed leave', function () {
@@ -1262,7 +1263,7 @@ describe('LeaveRequestController', function () {
             actingAs($user, 'web');
 
             $response = $this->post(route('leave-requests.upload-photo', $leave->id), [
-                'photo' => UploadedFile::fake()->image('bukti.jpg'),
+                'photos' => [UploadedFile::fake()->image('bukti.jpg')],
             ]);
 
             $response->assertSessionHas('error');
@@ -1279,12 +1280,13 @@ describe('LeaveRequestController', function () {
             actingAs($user, 'web');
 
             $response = $this->post(route('leave-requests.upload-photo', $leave->id), [
-                'photo' => UploadedFile::fake()->image('bukti.jpg'),
+                'photos' => [UploadedFile::fake()->image('bukti.jpg')],
             ]);
 
             $response->assertSessionHas('error');
             $leave->refresh();
             expect($leave->photo)->toBeNull();
+            expect($leave->attachments()->count())->toBe(0);
         });
 
         it('does not overwrite terminal status on photo upload race', function () {
@@ -1304,7 +1306,7 @@ describe('LeaveRequestController', function () {
 
             $file = UploadedFile::fake()->image('bukti.jpg');
             $controller = app(\App\Http\Controllers\LeaveRequestController::class);
-            $request = \Illuminate\Http\Request::create('/dummy', 'POST', [], [], ['photo' => $file], []);
+            $request = \Illuminate\Http\Request::create('/dummy', 'POST', [], [], ['photos' => [$file]], []);
             $response = $controller->uploadPhoto($request, $leave);
 
             expect($response)->toBeInstanceOf(\Illuminate\Http\RedirectResponse::class)
@@ -1312,6 +1314,7 @@ describe('LeaveRequestController', function () {
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_REJECTED)
                 ->and($leave->photo)->toBeNull()
+                ->and($leave->attachments()->count())->toBe(0)
                 ->and(Storage::disk('public')->allFiles('leave_photos'))->toBeEmpty();
         });
 
@@ -1331,13 +1334,14 @@ describe('LeaveRequestController', function () {
             actingAs($manager, 'web');
 
             $response = $this->post(route('leave-requests.upload-photo', $leave->id), [
-                'photo' => $file,
+                'photos' => [$file],
             ]);
 
             $response->assertRedirect();
             $response->assertSessionHas('error');
             $leave->refresh();
             expect($leave->photo)->toBeNull();
+            expect($leave->attachments()->count())->toBe(0);
         });
 
         it('allows manager to upload photo to own pending leave', function () {
@@ -1352,12 +1356,249 @@ describe('LeaveRequestController', function () {
             actingAs($manager, 'web');
 
             $response = $this->post(route('leave-requests.upload-photo', $leave->id), [
-                'photo' => $file,
+                'photos' => [$file],
             ]);
 
             $response->assertSessionHas('success');
             $leave->refresh();
-            expect($leave->photo)->not->toBeNull();
+            expect($leave->attachments()->count())->toBe(1);
+        });
+
+        it('rejects upload beyond the 3 evidence file limit', function () {
+            Storage::fake('public');
+
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+            $leave->attachments()->createMany([
+                ['file_name' => 'leave_a.jpg', 'original_name' => 'a.jpg', 'sort_order' => 1],
+                ['file_name' => 'leave_b.jpg', 'original_name' => 'b.jpg', 'sort_order' => 2],
+                ['file_name' => 'leave_c.jpg', 'original_name' => 'c.jpg', 'sort_order' => 3],
+            ]);
+
+            actingAs($user, 'web');
+
+            $response = $this->post(route('leave-requests.upload-photo', $leave->id), [
+                'photos' => [UploadedFile::fake()->image('bukti.jpg')],
+            ]);
+
+            $response->assertSessionHas('error');
+            expect($leave->attachments()->count())->toBe(3)
+                ->and(Storage::disk('public')->allFiles('leave_photos'))->toBeEmpty();
+        });
+    });
+
+    // =====================================================================
+    // MULTI EVIDENCE FILES (ATTACHMENTS)
+    // =====================================================================
+    describe('evidence attachments', function () {
+        it('stores up to 3 evidence files on create', function () {
+            Storage::fake('public');
+
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'direct_supervisor_id' => null,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $response = $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Keperluan mendesak',
+                'photos' => [
+                    UploadedFile::fake()->image('satu.jpg'),
+                    UploadedFile::fake()->image('dua.jpg'),
+                    UploadedFile::fake()->image('tiga.jpg'),
+                ],
+            ]);
+
+            $response->assertRedirect(route('leave-requests.index'));
+
+            $leave = LeaveRequest::where('user_id', $employee->id)->first();
+            expect($leave)->toBeTruthy()
+                ->and($leave->attachments()->count())->toBe(3)
+                ->and($leave->evidenceFileCount())->toBe(3);
+            expect(Storage::disk('public')->allFiles('leave_photos'))->toHaveCount(3);
+        });
+
+        it('rejects more than 3 evidence files on create', function () {
+            Storage::fake('public');
+
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'direct_supervisor_id' => null,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $response = $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Keperluan mendesak',
+                'photos' => [
+                    UploadedFile::fake()->image('satu.jpg'),
+                    UploadedFile::fake()->image('dua.jpg'),
+                    UploadedFile::fake()->image('tiga.jpg'),
+                    UploadedFile::fake()->image('empat.jpg'),
+                ],
+            ]);
+
+            $response->assertSessionHasErrors('photos');
+            expect(LeaveRequest::where('user_id', $employee->id)->count())->toBe(0);
+        });
+
+        it('serves attachment file to owner', function () {
+            Storage::fake('public');
+            Storage::disk('public')->put('leave_photos/leave_abc.jpg', 'image-content');
+
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+            $attachment = $leave->attachments()->create([
+                'file_name' => 'leave_abc.jpg',
+                'original_name' => 'bukti.jpg',
+            ]);
+
+            actingAs($user, 'web');
+
+            $response = $this->get(route('leave-requests.attachment-file', [$leave->id, $attachment->id]));
+
+            $response->assertOk();
+        });
+
+        it('denies attachment file to unrelated user', function () {
+            Storage::fake('public');
+            Storage::disk('public')->put('leave_photos/leave_abc.jpg', 'image-content');
+
+            $owner = User::factory()->create();
+            $stranger = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($owner)->create([
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+            $attachment = $leave->attachments()->create([
+                'file_name' => 'leave_abc.jpg',
+                'original_name' => 'bukti.jpg',
+            ]);
+
+            actingAs($stranger, 'web');
+
+            $response = $this->get(route('leave-requests.attachment-file', [$leave->id, $attachment->id]));
+
+            $response->assertRedirect();
+            $response->assertSessionHas('error');
+        });
+
+        it('returns 404 when attachment file is missing on disk', function () {
+            Storage::fake('public');
+
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+            $attachment = $leave->attachments()->create([
+                'file_name' => 'leave_hilang.jpg',
+                'original_name' => 'hilang.jpg',
+            ]);
+
+            actingAs($user, 'web');
+
+            $this->get(route('leave-requests.attachment-file', [$leave->id, $attachment->id]))
+                ->assertNotFound();
+        });
+
+        it('owner can delete attachment while pending', function () {
+            Storage::fake('public');
+            Storage::disk('public')->put('leave_photos/leave_del.jpg', 'image-content');
+
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+            $attachment = $leave->attachments()->create([
+                'file_name' => 'leave_del.jpg',
+                'original_name' => 'bukti.jpg',
+            ]);
+
+            actingAs($user, 'web');
+
+            $response = $this->delete(route('leave-requests.attachments.destroy', [$leave->id, $attachment->id]));
+
+            $response->assertSessionHas('success');
+            expect($leave->attachments()->count())->toBe(0);
+            Storage::disk('public')->assertMissing('leave_photos/leave_del.jpg');
+        });
+
+        it('prevents deleting attachment on approved leave', function () {
+            Storage::fake('public');
+            Storage::disk('public')->put('leave_photos/leave_del.jpg', 'image-content');
+
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::STATUS_APPROVED,
+            ]);
+            $attachment = $leave->attachments()->create([
+                'file_name' => 'leave_del.jpg',
+                'original_name' => 'bukti.jpg',
+            ]);
+
+            actingAs($user, 'web');
+
+            $response = $this->delete(route('leave-requests.attachments.destroy', [$leave->id, $attachment->id]));
+
+            $response->assertSessionHas('error');
+            expect($leave->attachments()->count())->toBe(1);
+        });
+
+        it('prevents unrelated user from deleting attachment', function () {
+            Storage::fake('public');
+
+            $owner = User::factory()->create();
+            $stranger = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($owner)->create([
+                'status' => LeaveRequest::PENDING_HR,
+            ]);
+            $attachment = $leave->attachments()->create([
+                'file_name' => 'leave_del.jpg',
+                'original_name' => 'bukti.jpg',
+            ]);
+
+            actingAs($stranger, 'web');
+
+            $response = $this->delete(route('leave-requests.attachments.destroy', [$leave->id, $attachment->id]));
+
+            $response->assertSessionHas('error');
+            expect($leave->attachments()->count())->toBe(1);
+        });
+
+        it('merges legacy photo column into evidence files without duplicates', function () {
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'photo' => 'leave_legacy.jpg',
+            ]);
+
+            // Sebelum backfill: kolom photo tampil sebagai item legacy.
+            $files = $leave->evidenceFiles();
+            expect($files)->toHaveCount(1)
+                ->and($files[0]['is_legacy'])->toBeTrue()
+                ->and($leave->evidenceFileCount())->toBe(1);
+
+            // Setelah backfill (attachment dengan file_name sama): tidak dobel.
+            $leave->attachments()->create([
+                'file_name' => 'leave_legacy.jpg',
+                'original_name' => 'leave_legacy.jpg',
+            ]);
+            $leave->refresh();
+
+            $files = $leave->evidenceFiles();
+            expect($files)->toHaveCount(1)
+                ->and($files[0]['is_legacy'])->toBeFalse()
+                ->and($leave->evidenceFileCount())->toBe(1);
         });
     });
 

@@ -272,14 +272,11 @@
 
             {{-- Card: Foto & Lokasi --}}
             @php
-                $url = $item->photo
-                    ? route('leave-requests.supporting-file', $item)
-                    : null;
-                $docExt = $item->photo ? strtolower(pathinfo($item->photo, PATHINFO_EXTENSION)) : null;
-                $isImageDoc = in_array($docExt, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'], true);
+                $evidenceFiles = $item->evidenceFiles();
+                $hasEvidence = count($evidenceFiles) > 0;
             @endphp
 
-            @if($url || ($item->latitude && $item->longitude))
+            @if($hasEvidence || ($item->latitude && $item->longitude))
             <div class="apv-card">
                 <div class="apv-section-title">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,37 +285,45 @@
                     Bukti & Lokasi
                 </div>
 
-                @if($url)
+                @if($hasEvidence)
                 <div class="apv-detail-row apv-detail-row--full">
-                    <span class="apv-detail-label">Bukti Pendukung</span>
-                    @if($isImageDoc)
-                    <button type="button" class="apv-photo-preview" data-image-viewer-src="{{ $url }}" data-image-viewer-alt="Bukti Izin" style="padding:0; background:transparent; text-align:left;">
-                        <img src="{{ $url }}" alt="Bukti Izin">
-                        <div class="apv-photo-overlay">
-                            <svg width="20" height="20" fill="none" stroke="#fff" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                            </svg>
-                            <span>Lihat Foto</span>
-                        </div>
-                    </button>
-                    @else
-                    <a href="{{ $url }}" target="_blank" class="apv-photo-preview" style="text-decoration:none;">
-                        <div class="apv-file-preview">
-                            <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8m-4-6l6 6m-6-6v6h6"/>
-                            </svg>
-                            <strong>{{ strtoupper($docExt) }}</strong>
-                            <span>{{ $item->photo }}</span>
-                        </div>
-                        <div class="apv-photo-overlay">
-                            <svg width="20" height="20" fill="none" stroke="#fff" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                            </svg>
-                            <span>Buka / Unduh File</span>
-                        </div>
-                    </a>
-                    @endif
+                    <span class="apv-detail-label">Bukti Pendukung ({{ count($evidenceFiles) }} file)</span>
+                    @foreach($evidenceFiles as $evidence)
+                        @php
+                            $evidenceUrl = $evidence['is_legacy']
+                                ? route('leave-requests.supporting-file', $item)
+                                : route('leave-requests.attachment-file', [$item, $evidence['attachment_id']]);
+                            $evidenceExt = strtolower(pathinfo($evidence['name'], PATHINFO_EXTENSION));
+                        @endphp
+                        @if($evidence['is_image'])
+                        <button type="button" class="apv-photo-preview" data-image-viewer-src="{{ $evidenceUrl }}" data-image-viewer-alt="Bukti Izin" style="padding:0; background:transparent; text-align:left; margin-bottom:8px;">
+                            <img src="{{ $evidenceUrl }}" alt="Bukti Izin">
+                            <div class="apv-photo-overlay">
+                                <svg width="20" height="20" fill="none" stroke="#fff" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                <span>Lihat Foto</span>
+                            </div>
+                        </button>
+                        @else
+                        <a href="{{ $evidenceUrl }}" target="_blank" class="apv-photo-preview" style="text-decoration:none; margin-bottom:8px;">
+                            <div class="apv-file-preview">
+                                <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8m-4-6l6 6m-6-6v6h6"/>
+                                </svg>
+                                <strong>{{ strtoupper($evidenceExt) }}</strong>
+                                <span>{{ $evidence['original_name'] }}</span>
+                            </div>
+                            <div class="apv-photo-overlay">
+                                <svg width="20" height="20" fill="none" stroke="#fff" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                                </svg>
+                                <span>Buka / Unduh File</span>
+                            </div>
+                        </a>
+                        @endif
+                    @endforeach
                 </div>
                 @endif
 

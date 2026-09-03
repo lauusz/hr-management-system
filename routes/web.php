@@ -13,6 +13,15 @@ use App\Http\Controllers\Atk\CartController as AtkCartController;
 use App\Http\Controllers\Atk\CatalogController as AtkCatalogController;
 use App\Http\Controllers\Atk\NeedRequestController as AtkNeedRequestController;
 use App\Http\Controllers\Atk\RequestController as AtkRequestController;
+use App\Http\Controllers\AtkMks\Admin\AccessController as AtkMksAdminAccessController;
+use App\Http\Controllers\AtkMks\Admin\ItemController as AtkMksAdminItemController;
+use App\Http\Controllers\AtkMks\Admin\NeedRequestController as AtkMksAdminNeedRequestController;
+use App\Http\Controllers\AtkMks\Admin\RequestApprovalController as AtkMksAdminRequestApprovalController;
+use App\Http\Controllers\AtkMks\Admin\StockController as AtkMksAdminStockController;
+use App\Http\Controllers\AtkMks\Admin\StockMovementController as AtkMksAdminStockMovementController;
+use App\Http\Controllers\AtkMks\CartController as AtkMksCartController;
+use App\Http\Controllers\AtkMks\CatalogController as AtkMksCatalogController;
+use App\Http\Controllers\AtkMks\RequestController as AtkMksRequestController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EmployeeDocumentController;
@@ -47,15 +56,6 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SupervisorDataController;
 use App\Http\Controllers\SupervisorOvertimeController;
 use App\Http\Controllers\V2AccessController;
-use App\Http\Controllers\AtkMks\CatalogController as AtkMksCatalogController;
-use App\Http\Controllers\AtkMks\CartController as AtkMksCartController;
-use App\Http\Controllers\AtkMks\RequestController as AtkMksRequestController;
-use App\Http\Controllers\AtkMks\Admin\AccessController as AtkMksAdminAccessController;
-use App\Http\Controllers\AtkMks\Admin\ItemController as AtkMksAdminItemController;
-use App\Http\Controllers\AtkMks\Admin\NeedRequestController as AtkMksAdminNeedRequestController;
-use App\Http\Controllers\AtkMks\Admin\RequestApprovalController as AtkMksAdminRequestApprovalController;
-use App\Http\Controllers\AtkMks\Admin\StockController as AtkMksAdminStockController;
-use App\Http\Controllers\AtkMks\Admin\StockMovementController as AtkMksAdminStockMovementController;
 use App\Models\Asset;
 use Illuminate\Support\Facades\Route;
 
@@ -200,6 +200,10 @@ Route::middleware('auth')->group(function () {
         ->name('leave-requests.supporting-file');
     Route::post('/leave-requests/{leave_request}/upload-photo', [LeaveRequestController::class, 'uploadPhoto'])
         ->name('leave-requests.upload-photo');
+    Route::get('/leave-requests/{leave_request}/attachments/{attachment}', [LeaveRequestController::class, 'attachmentFile'])
+        ->name('leave-requests.attachment-file');
+    Route::delete('/leave-requests/{leave_request}/attachments/{attachment}', [LeaveRequestController::class, 'destroyAttachment'])
+        ->name('leave-requests.attachments.destroy');
 
     // [BARU] Endpoint untuk cek duplikat pengajuan
     Route::post('/leave-requests/check-duplicate', [LeaveRequestController::class, 'checkDuplicate'])->name('leave-requests.checkDuplicate');
