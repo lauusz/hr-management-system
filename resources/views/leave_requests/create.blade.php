@@ -1681,7 +1681,7 @@
                     const diffDays = Math.round((start - today) / (1000 * 60 * 60 * 24));
                     if (diffDays < 7 && diffDays >= 0) {
                         warnEl.style.display = 'block';
-                        warnEl.textContent = 'Pengajuan H-' + diffDays + ' (kurang dari H-7). Termasuk Potong uang makan.';
+                        warnEl.textContent = 'Pengajuan H-' + diffDays + ' (kurang dari H-7). Potong uang makan.';
                     } else {
                         warnEl.style.display = 'none';
                     }

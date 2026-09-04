@@ -286,7 +286,7 @@
                     </svg>
                     <div>
                         <span class="apv-warning-title">Pengajuan Mendadak</span>
-                        <span class="apv-warning-text">H-{{ $shortNoticeDaysDiff }} (kurang dari H-7) - Termasuk Potong Uang Makan</span>
+                        <span class="apv-warning-text">H-{{ $shortNoticeDaysDiff }} (kurang dari H-7) - Potong Uang Makan</span>
                     </div>
                 </div>
                 @endif

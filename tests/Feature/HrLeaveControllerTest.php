@@ -234,6 +234,32 @@ describe('HrLeaveController', function () {
             expect($response->viewData('items')->total())->toBe(1);
         });
 
+        it('master disables pagination only when the name filter is active', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $matchingEmployee = User::factory()->create(['name' => 'Karyawan Banyak Riwayat']);
+            $otherEmployee = User::factory()->create(['name' => 'Karyawan Lain']);
+
+            LeaveRequest::factory()->count(25)->forUser($matchingEmployee)->create();
+            LeaveRequest::factory()->forUser($otherEmployee)->create();
+
+            actingAs($hrd, 'web');
+
+            $filteredResponse = $this->get(route('hr.leave.master', ['q' => 'Banyak Riwayat']));
+            $filteredResponse->assertOk();
+            $filteredItems = $filteredResponse->viewData('items');
+
+            $unfilteredResponse = $this->get(route('hr.leave.master'));
+            $unfilteredResponse->assertOk();
+            $unfilteredItems = $unfilteredResponse->viewData('items');
+
+            expect($filteredItems->count())->toBe(25)
+                ->and($filteredItems->total())->toBe(25)
+                ->and($filteredItems->hasPages())->toBeFalse()
+                ->and($unfilteredItems->count())->toBe(20)
+                ->and($unfilteredItems->total())->toBe(26)
+                ->and($unfilteredItems->hasPages())->toBeTrue();
+        });
+
         it('master search ignores punctuation differences in employee names', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $matchingEmployee = User::factory()->create(['name' => 'MOH. AINUL YAQIN']);
@@ -292,6 +318,96 @@ describe('HrLeaveController', function () {
                 ->assertDontSee('14 Februari 2026')
                 ->assertDontSee('15 Februari 2026');
         });
+
+        it('master shows potong cuti below the type when a leave deduction is recorded', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['name' => 'Karyawan Dengan Potong Cuti']);
+            $leave = LeaveRequest::factory()->forUser($employee)->approved()->izin()->create();
+
+            LeaveBalanceTransaction::create([
+                'user_id' => $employee->id,
+                'leave_request_id' => $leave->id,
+                'transaction_type' => LeaveBalanceTransaction::DEDUCT,
+                'amount' => 1,
+                'balance_before' => 12,
+                'balance_after' => 11,
+                'description' => 'Potong saldo cuti',
+                'idempotency_key' => "TEST:MASTER:DEDUCT:{$leave->id}",
+                'created_by' => $hrd->id,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.master'));
+            $response->assertOk();
+
+            $dom = new DOMDocument;
+            $previousState = libxml_use_internal_errors(true);
+            $dom->loadHTML($response->getContent());
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousState);
+            $xpath = new DOMXPath($dom);
+            $row = $xpath->query('//tr[.//*[normalize-space()="Karyawan Dengan Potong Cuti"]]')->item(0);
+            $deductionNote = $xpath->query('.//*[@data-leave-deduction="leave"]', $row)->item(0);
+
+            expect($row)->not->toBeNull()
+                ->and($deductionNote)->not->toBeNull()
+                ->and($deductionNote->getAttribute('class'))->toContain('lm-deduction-note--leave')
+                ->and(trim($xpath->evaluate('string(.//*[@data-leave-deduction="leave"])', $row)))->toBe('*potong cuti');
+        });
+
+        it('master shows potong um below the type when meal allowance deduction is recorded', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['name' => 'Karyawan Dengan Potong UM']);
+
+            LeaveRequest::factory()->forUser($employee)->approved()->sakit()->create([
+                'deduct_um' => true,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.master'));
+            $response->assertOk();
+
+            $dom = new DOMDocument;
+            $previousState = libxml_use_internal_errors(true);
+            $dom->loadHTML($response->getContent());
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousState);
+            $xpath = new DOMXPath($dom);
+            $row = $xpath->query('//tr[.//*[normalize-space()="Karyawan Dengan Potong UM"]]')->item(0);
+            $deductionNote = $xpath->query('.//*[@data-leave-deduction="meal-allowance"]', $row)->item(0);
+
+            expect($row)->not->toBeNull()
+                ->and($deductionNote)->not->toBeNull()
+                ->and($deductionNote->getAttribute('class'))->toContain('lm-deduction-note--meal-allowance')
+                ->and(trim($xpath->evaluate('string(.//*[@data-leave-deduction="meal-allowance"])', $row)))->toBe('*potong um');
+        });
+
+        it('master does not show a deduction note when no deduction is recorded', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['name' => 'Karyawan Tanpa Potongan']);
+
+            LeaveRequest::factory()->forUser($employee)->approved()->izin()->create([
+                'deduct_um' => false,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.master'));
+            $response->assertOk();
+
+            $dom = new DOMDocument;
+            $previousState = libxml_use_internal_errors(true);
+            $dom->loadHTML($response->getContent());
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousState);
+            $xpath = new DOMXPath($dom);
+            $row = $xpath->query('//tr[.//*[normalize-space()="Karyawan Tanpa Potongan"]]')->item(0);
+
+            expect($row)->not->toBeNull()
+                ->and($xpath->query('.//*[@data-leave-deduction]', $row)->length)->toBe(0);
+        });
     });
 
     // =====================================================================
@@ -309,6 +425,24 @@ describe('HrLeaveController', function () {
 
             $response->assertStatus(200);
             expect($response->viewData('item')->id)->toBe($leave->id);
+        });
+
+        it('shows the short notice warning without the word termasuk', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create();
+
+            $leave = LeaveRequest::factory()->forUser($employee)->cuti()->create([
+                'created_at' => '2026-09-01 08:00:00',
+                'start_date' => '2026-09-03',
+                'end_date' => '2026-09-03',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('H-2 (kurang dari H-7) - Potong Uang Makan')
+                ->assertDontSee('Termasuk Potong Uang Makan');
         });
 
         it('shows final HR intervention controls for every terminal status', function (string $status) {

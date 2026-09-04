@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\LeaveType;
+use App\Exports\LeaveAnnualRecapExport;
 use App\Exports\LeaveMasterExport;
 use App\Models\LeaveRequest;
 use App\Models\Pt;
@@ -15,6 +16,7 @@ use App\Services\OffSpvQuotaService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -137,6 +139,7 @@ class HrLeaveController extends Controller
                 'user.position',
                 'user.profile.pt',
                 'approver',
+                'leaveBalanceTransactions',
             ])
             ->orderByDesc('created_at');
 
@@ -229,14 +232,30 @@ class HrLeaveController extends Controller
             });
         }
 
-        $items = $query->paginate(20)->appends([
+        $filters = [
             'status' => $status,
             'type' => $typeFilter,
             'submitted_range' => $submittedRange,
             'period_range' => $periodRange,
             'pt_id' => $ptId,
             'q' => $q,
-        ]);
+        ];
+
+        if ($q) {
+            $results = $query->get();
+            $items = new LengthAwarePaginator(
+                $results,
+                $results->count(),
+                max($results->count(), 1),
+                1,
+                [
+                    'path' => $request->url(),
+                    'query' => $request->query(),
+                ],
+            );
+        } else {
+            $items = $query->paginate(20)->appends($filters);
+        }
 
         $pts = Pt::orderBy('name', 'asc')->get();
 
@@ -301,8 +320,21 @@ class HrLeaveController extends Controller
     }
 
     /**
-     * 
+     * Export rekap tahunan pengajuan yang memengaruhi saldo cuti.
      */
+    public function exportAnnualLeave()
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        $year = (int) now()->year;
+
+        return Excel::download(
+            new LeaveAnnualRecapExport($year, $this->leaveBalanceService),
+            "rekap_cuti_{$year}.xlsx"
+        );
+    }
 
     public function createManual()
     {

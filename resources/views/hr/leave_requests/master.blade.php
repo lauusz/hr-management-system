@@ -43,12 +43,27 @@
             </svg>
             Tambah Data
         </a>
-        <a href="{{ route('hr.leave.master.export', request()->query()) }}" class="lm-btn-secondary">
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-            </svg>
-            Export Excel
-        </a>
+        <details class="lm-export-menu" data-leave-export-menu>
+            <summary class="lm-btn-secondary" data-leave-export-trigger>
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                </svg>
+                Export Excel
+                <svg class="lm-export-chevron" width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"/>
+                </svg>
+            </summary>
+            <div class="lm-export-dropdown">
+                <a href="{{ route('hr.leave.master.export', request()->query()) }}" data-leave-export-all>
+                    <span>Export semua data</span>
+                    <small>Unduh data sesuai filter aktif</small>
+                </a>
+                <a href="{{ route('hr.leave.master.export-cuti') }}" data-leave-export-cuti>
+                    <span>Export Cuti</span>
+                    <small>Unduh rekap cuti tahun {{ now()->year }}</small>
+                </a>
+            </div>
+        </details>
     </div>
 
     {{-- Stats Summary --}}
@@ -281,6 +296,16 @@
                                 } elseif ($row->type?->value === \App\Enums\LeaveType::DINAS_LUAR->value) {
                                     $typeClass = 'lm-type--dinas';
                                 }
+
+                                $netLeaveDeduction = $row->leaveBalanceTransactions->sum(
+                                    fn (\App\Models\LeaveBalanceTransaction $transaction): float => match ($transaction->transaction_type) {
+                                        \App\Models\LeaveBalanceTransaction::DEDUCT,
+                                        \App\Models\LeaveBalanceTransaction::ADJUSTMENT => (float) $transaction->amount,
+                                        \App\Models\LeaveBalanceTransaction::REFUND => -(float) $transaction->amount,
+                                        default => 0.0,
+                                    }
+                                );
+                                $hasLeaveDeduction = round((float) $netLeaveDeduction, 2) > 0;
                             @endphp
 
                             <tr class="lm-clickable-row" onclick="window.location.href='{{ route('hr.leave.show', $row) }}'">
@@ -313,20 +338,28 @@
                                 </td>
 
                                 <td>
-                                    <span class="lm-type {{ $typeClass }}">
-                                        @if($row->type?->value === \App\Enums\LeaveType::CUTI->value)
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                        @elseif($row->type?->value === \App\Enums\LeaveType::CUTI_KHUSUS->value)
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                                        @elseif($row->type?->value === \App\Enums\LeaveType::SAKIT->value)
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
-                                        @elseif($row->type?->value === \App\Enums\LeaveType::DINAS_LUAR->value)
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                                        @else
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                    <div class="lm-type-cell">
+                                        <span class="lm-type {{ $typeClass }}">
+                                            @if($row->type?->value === \App\Enums\LeaveType::CUTI->value)
+                                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                            @elseif($row->type?->value === \App\Enums\LeaveType::CUTI_KHUSUS->value)
+                                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                                            @elseif($row->type?->value === \App\Enums\LeaveType::SAKIT->value)
+                                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
+                                            @elseif($row->type?->value === \App\Enums\LeaveType::DINAS_LUAR->value)
+                                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                            @else
+                                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                            @endif
+                                            {{ $typeLabel }}
+                                        </span>
+                                        @if($hasLeaveDeduction)
+                                            <span class="lm-deduction-note lm-deduction-note--leave" data-leave-deduction="leave">*potong cuti</span>
                                         @endif
-                                        {{ $typeLabel }}
-                                    </span>
+                                        @if($row->deduct_um)
+                                            <span class="lm-deduction-note lm-deduction-note--meal-allowance" data-leave-deduction="meal-allowance">*potong um</span>
+                                        @endif
+                                    </div>
                                 </td>
 
                                 <td>
@@ -540,6 +573,55 @@
             border-color: var(--primary);
             color: var(--primary);
             background: rgba(20, 93, 160, 0.04);
+        }
+        .lm-export-menu {
+            position: relative;
+        }
+        .lm-export-menu > summary {
+            list-style: none;
+            cursor: pointer;
+        }
+        .lm-export-menu > summary::-webkit-details-marker {
+            display: none;
+        }
+        .lm-export-chevron {
+            transition: transform 0.2s ease;
+        }
+        .lm-export-menu[open] .lm-export-chevron {
+            transform: rotate(180deg);
+        }
+        .lm-export-dropdown {
+            position: absolute;
+            z-index: 30;
+            top: calc(100% + 8px);
+            right: 0;
+            min-width: 230px;
+            padding: 6px;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
+        }
+        .lm-export-dropdown a {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 10px 12px;
+            color: var(--text);
+            text-decoration: none;
+            border-radius: 9px;
+        }
+        .lm-export-dropdown a:hover {
+            color: var(--primary);
+            background: rgba(20, 93, 160, 0.06);
+        }
+        .lm-export-dropdown span {
+            font-size: 13px;
+            font-weight: 700;
+        }
+        .lm-export-dropdown small {
+            color: var(--text-muted);
+            font-size: 11px;
         }
 
         /* ========================================== */
@@ -896,6 +978,12 @@
         /* ========================================== */
         /* TYPE BADGE                                 */
         /* ========================================== */
+        .lm-type-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
         .lm-type {
             display: inline-flex;
             align-items: center;
@@ -910,6 +998,13 @@
         .lm-type--sakit   { background: rgba(245, 158, 11, 0.1); color: #b45309; }
         .lm-type--izin    { background: rgba(20, 93, 160, 0.08); color: var(--primary); }
         .lm-type--dinas   { background: rgba(147, 51, 234, 0.1); color: #7c3aed; }
+        .lm-deduction-note {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+        .lm-deduction-note--leave { color: var(--error); }
+        .lm-deduction-note--meal-allowance { color: #f97316; }
 
         /* ========================================== */
         /* STATUS BADGE (PILL)                        */
@@ -1024,7 +1119,8 @@
                 justify-content: flex-start;
             }
             .lm-btn-primary,
-            .lm-btn-secondary {
+            .lm-btn-secondary,
+            .lm-export-menu {
                 flex: none;
             }
             .lm-stats {
