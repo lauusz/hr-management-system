@@ -1,0 +1,1309 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\LeaveType;
+use App\Exports\LeaveAnnualRecapExport;
+use App\Exports\LeaveMasterExport;
+use App\Models\LeaveRequest;
+use App\Models\Pt;
+use App\Models\User;
+use App\Services\Image\ImageCompressor;
+use App\Services\LeaveBalanceService;
+use App\Services\LeaveRequestDayService;
+use App\Services\LeaveRequestDuplicateCleanupService;
+use App\Services\LeaveRequestStateMachine;
+use App\Services\OffSpvQuotaService;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
+
+class HrLeaveController extends Controller
+{
+    public function __construct(
+        protected LeaveBalanceService $leaveBalanceService,
+        protected LeaveRequestDayService $leaveRequestDayService,
+        protected ImageCompressor $imageCompressor,
+        protected LeaveRequestStateMachine $stateMachine,
+        protected LeaveRequestDuplicateCleanupService $duplicateCleanupService,
+        protected OffSpvQuotaService $offSpvQuotaService,
+    ) {}
+
+    /**
+     * Menampilkan daftar pengajuan dengan status PENDING_HR.
+     * HR inbox hanya menangani final approval.
+     *
+     * Filter options:
+     * - submitted_today: pengajuan yang dibuat hari ini (created_at = today)
+     * - period_today: pengajuan yang periodenya mencakup hari ini (start_date <= today AND end_date >= today)
+     */
+    public function index(Request $request)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        $today = Carbon::today();
+
+        $baseQuery = LeaveRequest::withoutGlobalScopes()
+            ->with([
+                'user.division',
+                'user.position',
+                'user.profile.pt',
+            ])
+            ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR]);
+
+        // Determine active filter with backward compatibility for old query params
+        $activeFilter = 'all';
+        if ($request->boolean('submitted_today')) {
+            $activeFilter = 'submitted_today';
+        } elseif ($request->boolean('period_today')) {
+            $activeFilter = 'period_today';
+        } elseif ($request->filled('filter')) {
+            $allowedFilters = ['all', 'submitted_today', 'period_today', 'pending_hr', 'pending_supervisor'];
+            $filter = $request->query('filter');
+            if (in_array($filter, $allowedFilters, true)) {
+                $activeFilter = $filter;
+            }
+        }
+
+        // Compute stable counts from cloned base queries (unfiltered)
+        $totalCount = (clone $baseQuery)->count();
+        $submittedTodayCount = (clone $baseQuery)->whereDate('created_at', $today)->count();
+        $periodTodayCount = (clone $baseQuery)->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)->count();
+        $pendingHrCount = (clone $baseQuery)->where('status', LeaveRequest::PENDING_HR)->count();
+        $pendingSupervisorCount = (clone $baseQuery)->where('status', LeaveRequest::PENDING_SUPERVISOR)->count();
+
+        // Stable supervisor breakdown for stat card
+        $pendingSupervisorBreakdown = (clone $baseQuery)
+            ->where('status', LeaveRequest::PENDING_SUPERVISOR)
+            ->with(['user.directSupervisor', 'user.manager'])
+            ->get()
+            ->groupBy(fn ($lv) => ($lv->user->directSupervisor?->name ?? $lv->user->manager?->name) ?? 'Tanpa Atasan')
+            ->sortByDesc(fn ($group) => $group->count());
+
+        // Apply selected filter only to the main list query
+        $leaves = clone $baseQuery;
+
+        switch ($activeFilter) {
+            case 'submitted_today':
+                $leaves->whereDate('created_at', $today);
+                break;
+            case 'period_today':
+                $leaves->whereDate('start_date', '<=', $today)
+                    ->whereDate('end_date', '>=', $today);
+                break;
+            case 'pending_hr':
+                $leaves->where('status', LeaveRequest::PENDING_HR);
+                break;
+            case 'pending_supervisor':
+                $leaves->where('status', LeaveRequest::PENDING_SUPERVISOR);
+                break;
+        }
+
+        $leaves = $leaves->orderByDesc('created_at')->paginate(20)->appends(['filter' => $activeFilter]);
+
+        return view('hr.leave_requests.index', [
+            'leaves' => $leaves,
+            'activeFilter' => $activeFilter,
+            'totalCount' => $totalCount,
+            'submittedTodayCount' => $submittedTodayCount,
+            'periodTodayCount' => $periodTodayCount,
+            'pendingHrCount' => $pendingHrCount,
+            'pendingSupervisorCount' => $pendingSupervisorCount,
+            'pendingSupervisorBreakdown' => $pendingSupervisorBreakdown,
+            // Backward compatibility for any view references
+            'submittedToday' => $activeFilter === 'submitted_today',
+            'periodToday' => $activeFilter === 'period_today',
+        ]);
+    }
+
+    /**
+     * Halaman Master / Riwayat Pengajuan (Semua Data)
+     */
+    public function master(Request $request)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        // Base Query
+        $query = LeaveRequest::withoutGlobalScopes()
+            ->with([
+                'user.division',
+                'user.position',
+                'user.profile.pt',
+                'approver',
+                'leaveBalanceTransactions',
+                'days',
+            ])
+            ->orderByDesc('created_at');
+
+        // --- 1. Filter Status ---
+        $statusOptions = [
+            LeaveRequest::PENDING_SUPERVISOR,
+            LeaveRequest::PENDING_HR,
+            LeaveRequest::STATUS_APPROVED,
+            LeaveRequest::STATUS_REJECTED,
+            LeaveRequest::STATUS_CANCELLED,
+            'CANCEL_REQ',
+        ];
+
+        $status = $request->query('status');
+        if ($status && in_array($status, $statusOptions, true)) {
+            $query->where('status', $status);
+        }
+
+        // --- 2. Filter Tipe Cuti ---
+        $typeFilter = $request->query('type');
+        if ($typeFilter && in_array($typeFilter, LeaveType::values(), true)) {
+            $query->where('type', $typeFilter);
+        }
+
+        // --- 3. Filter Range Tanggal ---
+        $submittedRange = trim((string) $request->query('submitted_range'));
+        if ($submittedRange !== '') {
+            try {
+                $parts = preg_split('/\s+(to|sampai)\s+/i', $submittedRange);
+                if (count($parts) === 1) {
+                    $from = Carbon::parse(trim($parts[0]))->startOfDay();
+                    $to = (clone $from)->endOfDay();
+                    $query->whereBetween('created_at', [$from, $to]);
+                } elseif (count($parts) >= 2) {
+                    $from = Carbon::parse(trim($parts[0]))->startOfDay();
+                    $to = Carbon::parse(trim($parts[1]))->endOfDay();
+                    if ($from->gt($to)) {
+                        $temp = $from;
+                        $from = $to;
+                        $to = $temp;
+                    }
+                    $query->whereBetween('created_at', [$from, $to]);
+                }
+            } catch (\Exception $e) {
+                // Ignore invalid date format
+            }
+        }
+
+        // --- 4. Filter Periode Izin (start_date - end_date) ---
+        $periodRange = trim((string) $request->query('period_range'));
+        if ($periodRange !== '') {
+            try {
+                $parts = preg_split('/\s+(to|sampai)\s+/i', $periodRange);
+                if (count($parts) === 1) {
+                    $from = Carbon::parse(trim($parts[0]))->toDateString();
+                    $to = $from;
+                } else {
+                    $fromDate = Carbon::parse(trim($parts[0]))->startOfDay();
+                    $toDate = Carbon::parse(trim($parts[1]))->endOfDay();
+                    if ($fromDate->gt($toDate)) {
+                        $temp = $fromDate;
+                        $fromDate = $toDate;
+                        $toDate = $temp;
+                    }
+                    $from = $fromDate->toDateString();
+                    $to = $toDate->toDateString();
+                }
+
+                // Ambil pengajuan yang periodenya overlap dengan rentang filter.
+                $query->whereDate('start_date', '<=', $to)
+                    ->whereRaw('DATE(COALESCE(end_date, start_date)) >= ?', [$from]);
+            } catch (\Exception $e) {
+                // Ignore invalid date format
+            }
+        }
+
+        // --- 5. Filter PT ---
+        $ptId = $request->query('pt_id');
+        if ($ptId) {
+            $query->whereHas('user.profile', function (Builder $q) use ($ptId) {
+                $q->where('pt_id', $ptId);
+            });
+        }
+
+        // --- 6. Search ---
+        $q = $request->query('q');
+        if ($q) {
+            $query->whereHas('user', function ($sub) use ($q) {
+                $sub->whereNormalizedNameContains((string) $q);
+            });
+        }
+
+        $filters = [
+            'status' => $status,
+            'type' => $typeFilter,
+            'submitted_range' => $submittedRange,
+            'period_range' => $periodRange,
+            'pt_id' => $ptId,
+            'q' => $q,
+        ];
+
+        if ($q) {
+            $results = $query->get();
+            $items = new LengthAwarePaginator(
+                $results,
+                $results->count(),
+                max($results->count(), 1),
+                1,
+                [
+                    'path' => $request->url(),
+                    'query' => $request->query(),
+                ],
+            );
+        } else {
+            $items = $query->paginate(20)->appends($filters);
+        }
+
+        $pts = Pt::orderBy('name', 'asc')->get();
+
+        return view('hr.leave_requests.master', [
+            'items' => $items,
+            'status' => $status,
+            'statusOptions' => $statusOptions,
+            'typeFilter' => $typeFilter,
+            'typeOptions' => LeaveType::cases(),
+            'submittedRange' => $submittedRange,
+            'periodRange' => $periodRange,
+            'pt_id' => $ptId,
+            'q' => $q,
+            'pts' => $pts,
+        ]);
+    }
+
+    /**
+     * Export master leave ke Excel
+     */
+    public function exportMaster(Request $request)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        $filters = [
+            'status' => $request->query('status'),
+            'type' => $request->query('type'),
+            'submitted_range' => $request->query('submitted_range'),
+            'period_range' => $request->query('period_range'),
+            'pt_id' => $request->query('pt_id'),
+            'q' => $request->query('q'),
+        ];
+
+        // Build filename with filter info
+        $parts = ['data_izin_cuti'];
+        if (! empty($filters['status'])) {
+            $parts[] = 'status_'.$filters['status'];
+        }
+        if (! empty($filters['type'])) {
+            $parts[] = 'type_'.$filters['type'];
+        }
+        if (! empty($filters['submitted_range'])) {
+            $parts[] = 'tgl_'.str_replace([' ', 'to', 'sampai'], '_', $filters['submitted_range']);
+        }
+        if (! empty($filters['period_range'])) {
+            $parts[] = 'period_'.str_replace([' ', 'to', 'sampai'], '_', $filters['period_range']);
+        }
+        if (! empty($filters['pt_id'])) {
+            $pt = Pt::find($filters['pt_id']);
+            $parts[] = 'pt_'.($pt ? preg_replace('/[^a-zA-Z0-9]/', '_', $pt->name) : $filters['pt_id']);
+        }
+        if (! empty($filters['q'])) {
+            $parts[] = 'q_'.preg_replace('/[^a-zA-Z0-9]/', '_', $filters['q']);
+        }
+        $parts[] = now()->format('Ymd_His');
+
+        $filename = implode('_', $parts).'.xlsx';
+
+        return Excel::download(new LeaveMasterExport($filters), $filename);
+    }
+
+    /**
+     * Export rekap tahunan pengajuan yang memengaruhi saldo cuti.
+     */
+    public function exportAnnualLeave()
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        $year = (int) now()->year;
+
+        return Excel::download(
+            new LeaveAnnualRecapExport($year, $this->leaveBalanceService),
+            "rekap_cuti_{$year}.xlsx"
+        );
+    }
+
+    public function createManual()
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        $employees = User::query()
+            ->with(['position', 'division'])
+            ->active()
+            ->orderBy('name')
+            ->get();
+
+        $specialLeaveList = [
+            ['id' => 'CUTI_MELAHIRKAN', 'label' => 'Cuti Melahirkan', 'days' => 90],
+            ['id' => 'ISTRI_MELAHIRKAN', 'label' => 'Istri Melahirkan', 'days' => 2],
+            ['id' => 'NIKAH_KARYAWAN', 'label' => 'Menikah', 'days' => 3],
+            ['id' => 'DEATH_CORE', 'label' => 'Kematian Inti (Ortu/Mertua/Menantu/Istri/Suami/Anak)', 'days' => 2],
+            ['id' => 'DEATH_EXTENDED', 'label' => 'Kematian (Adik/Kakak/Ipar)', 'days' => 2],
+            ['id' => 'DEATH_HOUSE', 'label' => 'Kematian Anggota Rumah', 'days' => 1],
+            ['id' => 'ISTRI_KEGUGURAN', 'label' => 'Istri Keguguran', 'days' => 2],
+            ['id' => 'KHITANAN_ANAK', 'label' => 'Khitanan Anak', 'days' => 2],
+            ['id' => 'PEMBAPTISAN_ANAK', 'label' => 'Pembaptisan Anak', 'days' => 2],
+            ['id' => 'NIKAH_ANAK', 'label' => 'Pernikahan Anak', 'days' => 2],
+            ['id' => 'HAJI', 'label' => 'Ibadah Haji (1x)', 'days' => 40],
+            ['id' => 'UMROH', 'label' => 'Ibadah Umroh (1x)', 'days' => 14],
+        ];
+
+        $statusOptions = [
+            LeaveRequest::PENDING_SUPERVISOR => 'Menunggu Supervisor',
+            LeaveRequest::PENDING_HR => 'Menunggu HRD',
+            LeaveRequest::STATUS_APPROVED => 'Disetujui',
+            LeaveRequest::STATUS_REJECTED => 'Ditolak',
+            LeaveRequest::STATUS_CANCELLED => 'Dibatalkan',
+        ];
+
+        return view('hr.leave_requests.create_manual', [
+            'employees' => $employees,
+            'typeOptions' => LeaveType::cases(),
+            'specialLeaveList' => $specialLeaveList,
+            'statusOptions' => $statusOptions,
+        ]);
+    }
+
+    public function storeManual(Request $request)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        $statusOptions = [
+            LeaveRequest::PENDING_SUPERVISOR,
+            LeaveRequest::PENDING_HR,
+            LeaveRequest::STATUS_APPROVED,
+            LeaveRequest::STATUS_REJECTED,
+            LeaveRequest::STATUS_CANCELLED,
+        ];
+
+        $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+            'type' => ['required', Rule::in(LeaveType::values())],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'submitted_at' => ['nullable', 'date'],
+            'status' => ['nullable', Rule::in($statusOptions)],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time' => ['nullable', 'date_format:H:i'],
+            'reason' => ['nullable', 'string'],
+            'notes_hrd' => ['nullable', 'string'],
+            'substitute_pic' => ['nullable', 'string', 'max:255'],
+            'substitute_phone' => ['nullable', 'string', 'max:50'],
+            'special_leave_detail' => ['nullable', 'string', 'max:50'],
+            'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+        ], [
+            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+        ]);
+
+        $employee = User::query()->findOrFail($validated['user_id']);
+        $status = $validated['status'] ?? $this->defaultManualStatusForUser($employee);
+        $submittedAt = ! empty($validated['submitted_at'])
+            ? Carbon::parse($validated['submitted_at'])->startOfDay()
+            : now();
+
+        $type = $validated['type'];
+        $offSpvPeriodId = null;
+        if ($type === LeaveType::OFF_SPV->value) {
+            try {
+                $offSpvPeriodId = $this->offSpvQuotaService
+                    ->periodForHrEntry($employee, $validated['start_date'])
+                    ->id;
+            } catch (\RuntimeException $exception) {
+                return redirect()->back()->withInput()->with('error', $exception->getMessage());
+            }
+
+            $validated['end_date'] = $validated['start_date'];
+            $validated['start_time'] = null;
+            $validated['end_time'] = null;
+        }
+
+        if (! in_array($status, [LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED], true)) {
+            $duplicates = $this->findOverlappingLeaveRequests(
+                $employee->id,
+                $type,
+                $validated['start_date'],
+                $validated['end_date']
+            );
+
+            if ($duplicates->isNotEmpty()) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->with('error', $this->formatOverlapMessage($duplicates));
+            }
+        }
+
+        $isTimeBased = in_array($type, [
+            LeaveType::IZIN_TELAT->value,
+            LeaveType::IZIN_TENGAH_KERJA->value,
+            LeaveType::IZIN_PULANG_AWAL->value,
+            LeaveType::IZIN->value,
+        ], true);
+
+        $photoBasename = null;
+        $uploadedPhotoPath = null;
+        if ($request->hasFile('photo')) {
+            $uploadedPhotoPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', 'leave_photos', 'leave_');
+            $photoBasename = basename($uploadedPhotoPath);
+        }
+
+        $approvedBy = null;
+        $approvedAt = null;
+        if (in_array($status, [LeaveRequest::STATUS_APPROVED, LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED], true)) {
+            $approvedBy = Auth::id();
+            $approvedAt = $submittedAt->copy();
+        }
+
+        try {
+            DB::transaction(function () use ($validated, $employee, $status, $submittedAt, $type, $isTimeBased, $photoBasename, $approvedBy, $approvedAt, $offSpvPeriodId) {
+                $leave = new LeaveRequest([
+                    'user_id' => $employee->id,
+                    'off_spv_period_id' => $offSpvPeriodId,
+                    'type' => $type,
+                    'special_leave_category' => $type === LeaveType::CUTI_KHUSUS->value
+                        ? ($validated['special_leave_detail'] ?? null)
+                        : null,
+                    'start_date' => $validated['start_date'],
+                    'end_date' => $validated['end_date'],
+                    'start_time' => $isTimeBased ? ($validated['start_time'] ?? null) : null,
+                    'end_time' => $type === LeaveType::IZIN_TENGAH_KERJA->value ? ($validated['end_time'] ?? null) : null,
+                    'reason' => $validated['reason'] ?? null,
+                    'photo' => $photoBasename,
+                    'status' => $status,
+                    'notes' => null,
+                    'notes_hrd' => $validated['notes_hrd'] ?? ('Input manual oleh '.Auth::user()->name),
+                    'substitute_pic' => $validated['substitute_pic'] ?? null,
+                    'substitute_phone' => $validated['substitute_phone'] ?? null,
+                    'approved_by' => $approvedBy,
+                    'approved_at' => $approvedAt,
+                    'supervisor_ack_at' => $status !== LeaveRequest::PENDING_SUPERVISOR ? $submittedAt->copy() : null,
+                ]);
+
+                $leave->created_at = $submittedAt->copy();
+                $leave->updated_at = $submittedAt->copy();
+                $leave->save();
+                $this->leaveRequestDayService->syncDateRange($leave);
+
+                // Jika status APPROVED dan tipe CUTI, potong saldo dalam transaction yang sama.
+                if ($status === LeaveRequest::STATUS_APPROVED && $type === LeaveType::CUTI->value) {
+                    $this->leaveBalanceService->deductLeaveBalanceForLeave($leave);
+                }
+            });
+        } catch (\RuntimeException $e) {
+            // Hapus foto yang baru diunggah agar tidak menjadi file orphan
+            // karena upload dilakukan sebelum transaction.
+            if ($uploadedPhotoPath !== null) {
+                Storage::disk('public')->delete($uploadedPhotoPath);
+            }
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('hr.leave.master')->with('success', 'Data izin/cuti manual berhasil disimpan.');
+    }
+
+    public function show(LeaveRequest $leave)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        // Load relasi yang diperlukan
+        $leave->load(['user.profile.pt', 'user.division', 'user.position', 'approver']);
+
+        $me = auth()->user();
+
+        // [LOGIC TOMBOL APPROVE] Gunakan rule yang sama dengan endpoint approve/reject
+        $canApprove = $this->canHrActOnLeave($me, $leave);
+
+        // Check if current user is HR staff (for edit permissions)
+        $isHrStaff = $me->isHR();
+
+        // [DINAMIS] Cek apakah user ini adalah atasan langsung (supervisor/manager) dari pemohon
+        $isDirectApprover = ((int) $leave->user->direct_supervisor_id === (int) $me->id)
+            || ((int) $leave->user->manager_id === (int) $me->id);
+        $canApproveAsSupervisor = $isDirectApprover && ($leave->status === LeaveRequest::PENDING_SUPERVISOR);
+
+        $leaveBalance = (float) ($leave->user->leave_balance ?? 0);
+        $hasApprovedAnnualLeave = $leaveBalance <= 0 && LeaveRequest::query()
+            ->where('user_id', $leave->user_id)
+            ->where('type', LeaveType::CUTI->value)
+            ->where('status', LeaveRequest::STATUS_APPROVED)
+            ->exists();
+        $leaveBalanceLabel = $leaveBalance <= 0 && ! $hasApprovedAnnualLeave
+            ? 'Belum dapat cuti'
+            : rtrim(rtrim(number_format($leaveBalance, 1, ',', '.'), '0'), ',').' hari';
+        $dailyTreatmentDays = $this->leaveRequestDayService->syncDateRange($leave);
+
+        return view('hr.leave_requests.show', [
+            'item' => $leave,
+            'canApprove' => $canApprove,
+            'isHrStaff' => $isHrStaff,
+            'isDirectApprover' => $isDirectApprover,
+            'canApproveAsSupervisor' => $canApproveAsSupervisor,
+            'leaveBalanceLabel' => $leaveBalanceLabel,
+            'dailyTreatmentDays' => $dailyTreatmentDays,
+        ]);
+    }
+
+    /**
+     * Update leave request by HRD / HR Staff.
+     *
+     * Endpoint ini hanya untuk edit metadata pengajuan yang belum diputuskan.
+     * Tidak menerima atau mengubah status, approved_by, approved_at, maupun saldo cuti.
+     * Keputusan APPROVED/REJECTED hanya melalui endpoint approve()/reject() tersendiri.
+     */
+    public function update(Request $request, LeaveRequest $leave)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        $validated = $request->validate([
+            'type' => ['required', Rule::in(LeaveType::values())],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'start_time' => ['nullable', 'date_format:H:i'],
+            'end_time' => ['nullable', 'date_format:H:i'],
+            'reason' => ['nullable', 'string', 'max:5000'],
+            'notes_hrd' => ['nullable', 'string', 'max:1000'],
+            'substitute_pic' => ['nullable', 'string', 'max:255'],
+            'substitute_phone' => ['nullable', 'string', 'max:50'],
+            'special_leave_detail' => ['nullable', 'string'],
+            'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+            'deduction_mode_edit' => ['nullable', Rule::in(['NONE', 'LEAVE_BALANCE', 'LEAVE_BALANCE_HALF_DAY', 'MEAL_ALLOWANCE'])],
+            'deduct_um_edit' => ['nullable', 'in:1'],
+            'daily_treatments' => ['nullable', 'array'],
+            'daily_treatments.*' => ['required', Rule::in([
+                'NONE',
+                'MEAL_ALLOWANCE',
+                'LEAVE_BALANCE_1',
+                'LEAVE_BALANCE_0_5',
+            ])],
+        ], [
+            'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+        ]);
+
+        $type = $validated['type'];
+        $offSpvPeriodId = null;
+        if ($type === LeaveType::OFF_SPV->value) {
+            try {
+                $offSpvPeriodId = $this->offSpvQuotaService
+                    ->periodForHrIntervention($leave->user, $validated['start_date'])
+                    ->id;
+            } catch (\RuntimeException $exception) {
+                return redirect()->back()->withInput()->with('error', $exception->getMessage());
+            }
+
+            $validated['end_date'] = $validated['start_date'];
+            $validated['start_time'] = null;
+            $validated['end_time'] = null;
+        }
+
+        // Handle Cuti Khusus category
+        $specialLeaveCategory = null;
+        if ($type === LeaveType::CUTI_KHUSUS->value) {
+            $specialLeaveCategory = $validated['special_leave_detail'] ?? null;
+        }
+
+        // Determine if time-based
+        $isTimeBased = in_array($type, [
+            LeaveType::IZIN_TELAT->value,
+            LeaveType::IZIN_TENGAH_KERJA->value,
+            LeaveType::IZIN_PULANG_AWAL->value,
+            LeaveType::IZIN->value,
+        ], true);
+
+        // Cek duplikat hanya untuk pengajuan yang belum ditolak/dibatalkan.
+        $duplicates = $this->findOverlappingLeaveRequests(
+            $leave->user_id,
+            $type,
+            $validated['start_date'],
+            $validated['end_date'],
+            $leave->id
+        );
+
+        if ($duplicates->isNotEmpty()) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $this->formatOverlapMessage($duplicates));
+        }
+
+        $uploadedPhotoPath = null;
+        if ($request->hasFile('photo')) {
+            $uploadedPhotoPath = $this->imageCompressor->compressAndStore(
+                $request->file('photo'),
+                'photo',
+                'leave_photos',
+                'leave_',
+            );
+        }
+
+        $actor = Auth::user();
+        $oldPhoto = $leave->photo;
+        $deductionMode = $validated['deduction_mode_edit'] ?? null;
+        $legacyDeductUm = $request->filled('deduct_um_edit');
+        $dailyTreatments = $validated['daily_treatments'] ?? null;
+
+        try {
+            $updated = $this->stateMachine->perform(
+                $leave,
+                LeaveRequestStateMachine::HR_EDIT,
+                function (LeaveRequest $lockedLeave) use (
+                    $validated,
+                    $type,
+                    $isTimeBased,
+                    $specialLeaveCategory,
+                    $offSpvPeriodId,
+                    $uploadedPhotoPath,
+                    $actor,
+                    $deductionMode,
+                    $legacyDeductUm,
+                    $dailyTreatments,
+                ) {
+                    $oldType = $lockedLeave->type instanceof LeaveType
+                        ? $lockedLeave->type->value
+                        : (string) $lockedLeave->type;
+                    $isApproved = $lockedLeave->status === LeaveRequest::STATUS_APPROVED;
+
+                    $usesDailyTreatments = is_array($dailyTreatments);
+                    $effectiveDeductionMode = $deductionMode;
+                    if ($effectiveDeductionMode === null && $legacyDeductUm) {
+                        $effectiveDeductionMode = 'MEAL_ALLOWANCE';
+                    }
+
+                    $targetDeduction = 0.0;
+                    $hasMealAllowance = false;
+                    if ($usesDailyTreatments) {
+                        // Sinkronisasi detail harus memakai rentang dan jenis baru,
+                        // walaupun parent baru ditulis oleh state machine setelah callback.
+                        $lockedLeave->setAttribute('type', $type);
+                        $lockedLeave->setAttribute('start_date', $validated['start_date']);
+                        $lockedLeave->setAttribute('end_date', $validated['end_date']);
+
+                        $targetDeduction = $this->leaveRequestDayService->saveDecisions(
+                            $lockedLeave,
+                            $dailyTreatments,
+                            $actor->id,
+                        );
+                        $hasMealAllowance = $lockedLeave->days()
+                            ->where('treatment', \App\Models\LeaveRequestDay::MEAL_ALLOWANCE)
+                            ->exists();
+                    } elseif ($effectiveDeductionMode === 'LEAVE_BALANCE_HALF_DAY') {
+                        $targetDeduction = 0.5;
+                    } elseif ($effectiveDeductionMode === 'LEAVE_BALANCE') {
+                        $targetDeduction = $this->leaveBalanceService->calculateEffectiveDaysForUser(
+                            $lockedLeave->user,
+                            $validated['start_date'],
+                            $validated['end_date'],
+                        );
+                    } elseif ($effectiveDeductionMode === null && $type === LeaveType::CUTI->value) {
+                        // Kompatibilitas untuk request lama sebelum pilihan manual tersedia.
+                        $targetDeduction = $this->leaveBalanceService->calculateEffectiveDaysForUser(
+                            $lockedLeave->user,
+                            $validated['start_date'],
+                            $validated['end_date'],
+                        );
+                    } elseif ($effectiveDeductionMode === null
+                        && $oldType === $type
+                        && in_array($type, [LeaveType::SAKIT->value, LeaveType::IZIN->value], true)) {
+                        $targetDeduction = $this->leaveBalanceService->currentNetDeductionForLeave($lockedLeave)
+                            ?: $this->leaveBalanceService->historicalExplicitDeductionForLeave($lockedLeave);
+                    }
+
+                    $deductUm = $usesDailyTreatments
+                        ? $hasMealAllowance
+                        : $effectiveDeductionMode === 'MEAL_ALLOWANCE';
+
+                    if ($isApproved) {
+                        $this->leaveBalanceService->reconcileLeaveBalanceForHrOverride(
+                            $lockedLeave,
+                            $targetDeduction,
+                            $actor->id,
+                            "Rekonsiliasi edit HR untuk pengajuan #{$lockedLeave->id}",
+                        );
+                    }
+
+                    $notes = collect(explode("\n", (string) $lockedLeave->notes))
+                        ->reject(fn (string $line) => str_contains($line, '[Warning] Perubahan oleh HR dilakukan kurang dari H-7.')
+                            || str_contains($line, 'Pengajuan H-')
+                            || str_starts_with($line, '[System] Intervensi final oleh ')
+                            || str_starts_with($line, '[System] Pengajuan diperbarui dan disetujui oleh ')
+                            || str_starts_with($line, '[System] Diperbarui oleh HR ('))
+                        ->filter(fn (string $line) => trim($line) !== '')
+                        ->values();
+
+                    if ($type === LeaveType::CUTI->value
+                        && Carbon::parse($validated['start_date'])->startOfDay()->lt(now()->startOfDay()->addDays(7))) {
+                        $notes->push('[Warning] Perubahan oleh HR dilakukan kurang dari H-7.');
+                    }
+
+                    $notes->push(sprintf(
+                        '[System] Diperbarui oleh HR (%s) pada %s',
+                        $actor->name,
+                        now()->format('d M Y H:i'),
+                    ));
+
+                    $updateData = [
+                        'type' => $type,
+                        'off_spv_period_id' => $offSpvPeriodId,
+                        'start_date' => $validated['start_date'],
+                        'end_date' => $validated['end_date'],
+                        'start_time' => $isTimeBased ? ($validated['start_time'] ?? null) : null,
+                        'end_time' => ($type === LeaveType::IZIN_TENGAH_KERJA->value) ? ($validated['end_time'] ?? null) : null,
+                        'reason' => $validated['reason'] ?? $lockedLeave->reason,
+                        'notes' => $notes->implode("\n"),
+                        'notes_hrd' => array_key_exists('notes_hrd', $validated) ? $validated['notes_hrd'] : $lockedLeave->notes_hrd,
+                        'substitute_pic' => $validated['substitute_pic'] ?? $lockedLeave->substitute_pic,
+                        'substitute_phone' => $validated['substitute_phone'] ?? $lockedLeave->substitute_phone,
+                        'special_leave_category' => $specialLeaveCategory,
+                        'deduct_um' => $deductUm,
+                    ];
+
+                    if ($uploadedPhotoPath !== null) {
+                        $updateData['photo'] = basename($uploadedPhotoPath);
+                    }
+
+                    return $updateData;
+                }
+            );
+
+            if (! $updated) {
+                if ($uploadedPhotoPath !== null) {
+                    Storage::disk('public')->delete($uploadedPhotoPath);
+                }
+
+                return redirect()
+                    ->back()
+                    ->with('error', 'Pengajuan tidak dapat diperbarui.');
+            }
+        } catch (\RuntimeException $e) {
+            if ($uploadedPhotoPath !== null) {
+                Storage::disk('public')->delete($uploadedPhotoPath);
+            }
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            if ($uploadedPhotoPath !== null) {
+                Storage::disk('public')->delete($uploadedPhotoPath);
+            }
+
+            throw $e;
+        }
+
+        if ($uploadedPhotoPath !== null && $oldPhoto) {
+            Storage::disk('public')->delete('leave_photos/'.basename($oldPhoto));
+        }
+
+        return redirect()
+            ->route('hr.leave.show', $leave->id)
+            ->with('success', 'Data pengajuan berhasil diperbarui.');
+    }
+
+    public function adjustApprovedDate(Request $request, LeaveRequest $leave)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        if (! $this->leaveBalanceService->isAnnualLeave($leave)
+            || $leave->status !== LeaveRequest::STATUS_APPROVED
+            || ! $leave->start_date->isSameDay($leave->end_date)) {
+            return redirect()->back()->with('error', 'Perubahan tanggal hanya tersedia untuk CUTI satu hari yang sudah disetujui.');
+        }
+
+        $validated = $request->validate([
+            'new_date' => ['required', 'date', Rule::notIn([$leave->start_date->toDateString()])],
+            'change_reason' => ['required', 'string', 'max:1000'],
+        ], [
+            'new_date.not_in' => 'Tanggal baru harus berbeda dari tanggal sebelumnya.',
+            'change_reason.required' => 'Alasan perubahan tanggal wajib diisi.',
+        ]);
+
+        try {
+            $updated = $this->stateMachine->perform(
+                $leave,
+                LeaveRequestStateMachine::EDIT_APPROVED_DATE,
+                function (LeaveRequest $lockedLeave) use ($validated) {
+                    if (! $this->leaveBalanceService->isAnnualLeave($lockedLeave)
+                        || ! $lockedLeave->start_date->isSameDay($lockedLeave->end_date)) {
+                        throw new \RuntimeException('Perubahan tanggal hanya tersedia untuk CUTI satu hari yang sudah disetujui.');
+                    }
+
+                    $duplicates = $this->findOverlappingLeaveRequests(
+                        $lockedLeave->user_id,
+                        LeaveType::CUTI->value,
+                        $validated['new_date'],
+                        $validated['new_date'],
+                        $lockedLeave->id,
+                    );
+
+                    if ($duplicates->isNotEmpty()) {
+                        throw new \RuntimeException($this->formatOverlapMessage($duplicates));
+                    }
+
+                    $oldDate = $lockedLeave->start_date->toDateString();
+                    $balanceChange = $this->leaveBalanceService->adjustApprovedLeaveDateBalance(
+                        $lockedLeave,
+                        $validated['new_date'],
+                        $validated['change_reason'],
+                        (int) Auth::id(),
+                    );
+                    $systemNote = sprintf(
+                        '[System] Tanggal diubah oleh HR (%s) dari %s menjadi %s; potongan %.1f menjadi %.1f hari. Alasan: %s',
+                        Auth::user()->name,
+                        $oldDate,
+                        $validated['new_date'],
+                        $balanceChange['old_amount'],
+                        $balanceChange['new_amount'],
+                        $validated['change_reason'],
+                    );
+
+                    return [
+                        'start_date' => $validated['new_date'],
+                        'end_date' => $validated['new_date'],
+                        'notes' => $lockedLeave->notes ? $lockedLeave->notes."\n".$systemNote : $systemNote,
+                    ];
+                },
+                [],
+                LeaveRequest::STATUS_APPROVED,
+                function (LeaveRequest $updatedLeave) {
+                    $this->leaveRequestDayService
+                        ->syncDateRange($updatedLeave)
+                        ->each(fn ($day) => $day->update([
+                            'decided_by' => (int) Auth::id(),
+                            'decided_at' => now(),
+                        ]));
+                },
+            );
+
+            if (! $updated) {
+                return redirect()->back()->with('error', 'Status pengajuan sudah berubah.');
+            }
+        } catch (\RuntimeException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('hr.leave.show', $leave->id)
+            ->with('success', 'Tanggal cuti berhasil diubah dan saldo telah disesuaikan.');
+    }
+
+    /**
+     * [UPDATE] APPROVE DENGAN LOGIKA HARI KERJA (5 HARI vs 6 HARI)
+     */
+    public function approve(Request $request, LeaveRequest $leave)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        // 1. Validasi
+        $request->validate([
+            'notes_hrd' => 'nullable|string|max:1000',
+            'deduct_amount' => 'nullable|in:1,0.5', // Radio: 1=full, 0.5=half day (CUTI/CUTI_KHUSUS/DINAS_LUAR)
+            'deduct_leave_sakit' => 'nullable|in:1', // Checkbox: potong cuti untuk SAKIT
+            'deduct_amount_sakit' => 'nullable|in:1,0.5', // Radio: full/0.5 untuk SAKIT
+            'deduct_leave_izin' => 'nullable|in:1', // Checkbox: potong cuti untuk IZIN
+            'deduct_amount_izin' => 'nullable|in:1,0.5', // Radio: full/0.5 untuk IZIN
+            'deduct_um' => 'nullable|in:1', // Checkbox: potong UM
+            'daily_treatments' => ['nullable', 'array'],
+            'daily_treatments.*' => ['required', Rule::in([
+                'NONE',
+                'MEAL_ALLOWANCE',
+                'LEAVE_BALANCE_1',
+                'LEAVE_BALANCE_0_5',
+            ])],
+        ]);
+
+        // Pastikan status valid
+        $allowedStatus = [LeaveRequest::PENDING_HR];
+        if (! in_array($leave->status, $allowedStatus)) {
+            return redirect()->back()->with('error', 'Status pengajuan tidak valid untuk disetujui.');
+        }
+
+        if ($leave->user_id === auth()->id()) {
+            return back()->with('error', 'Etika Profesi: Anda tidak dapat menyetujui pengajuan Anda sendiri.');
+        }
+
+        if (! $this->canHrActOnLeave(auth()->user(), $leave)) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk menyetujui pengajuan ini.');
+        }
+
+        $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : (string) $leave->type;
+        if (in_array($leaveTypeValue, [LeaveType::SAKIT->value, LeaveType::IZIN->value], true)) {
+            $deductLeaveField = $leaveTypeValue === LeaveType::SAKIT->value ? 'deduct_leave_sakit' : 'deduct_leave_izin';
+            if ($request->filled($deductLeaveField) && $request->filled('deduct_um')) {
+                return redirect()->back()->with('error', 'Pilih salah satu: Potong Cuti atau Potong UM.');
+            }
+        }
+
+        $actor = auth()->user();
+
+        // PENDING_HR → HRD/HR Staff final approve
+        try {
+            $approved = $this->stateMachine->perform(
+                $leave,
+                LeaveRequestStateMachine::APPROVE,
+                function (LeaveRequest $lockedLeave) use ($request, $actor) {
+                    if ($request->has('daily_treatments')) {
+                        $targetDeduction = $this->leaveRequestDayService->saveDecisions(
+                            $lockedLeave,
+                            $request->input('daily_treatments', []),
+                            $actor->id,
+                        );
+                        $currentDeduction = $this->leaveBalanceService->currentNetDeductionForLeave($lockedLeave);
+
+                        if ($currentDeduction <= 0 && $targetDeduction > 0) {
+                            $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $targetDeduction);
+                        } elseif (abs($currentDeduction - $targetDeduction) > 0.0001) {
+                            $this->leaveBalanceService->reconcileLeaveBalanceForHrOverride(
+                                $lockedLeave,
+                                $targetDeduction,
+                                $actor->id,
+                                "Rekonsiliasi perlakuan harian pengajuan #{$lockedLeave->id}",
+                            );
+                        }
+
+                        $hasMealAllowance = $lockedLeave->days()
+                            ->where('treatment', \App\Models\LeaveRequestDay::MEAL_ALLOWANCE)
+                            ->exists();
+                        $currentNotes = $lockedLeave->notes;
+                        $systemNote = '[System] Disetujui oleh HR ('.$actor->name.') pada '.now()->format('d M Y H:i');
+
+                        return [
+                            'approved_by' => $actor->id,
+                            'approved_at' => now(),
+                            'notes' => $currentNotes ? $currentNotes."\n".$systemNote : $systemNote,
+                            'notes_hrd' => $request->notes_hrd,
+                            'deduct_um' => $hasMealAllowance,
+                        ];
+                    }
+
+                    // LOGIKA APPROVE
+                    $leaveTypeValue = $lockedLeave->type instanceof LeaveType ? $lockedLeave->type->value : (string) $lockedLeave->type;
+
+                    // SAKIT: potong cuti jika checkbox dicentang
+                    $shouldDeductSakit = $request->filled('deduct_leave_sakit');
+                    $deductAmountSakit = $shouldDeductSakit ? (float) $request->input('deduct_amount_sakit') : null;
+
+                    // IZIN: potong cuti jika checkbox dicentang
+                    $shouldDeductIzin = $request->filled('deduct_leave_izin');
+                    $deductAmountIzin = $shouldDeductIzin ? (float) $request->input('deduct_amount_izin') : null;
+
+                    // SAKIT/IZIN: potong UM jika checkbox dicentang (tanpa cuti)
+                    $shouldDeductUM = $request->filled('deduct_um');
+                    $shouldConvertToCuti = ! $shouldDeductUM && (
+                        ($leaveTypeValue === LeaveType::SAKIT->value && $shouldDeductSakit)
+                        || ($leaveTypeValue === LeaveType::IZIN->value && $shouldDeductIzin)
+                    );
+                    $approvedType = $shouldConvertToCuti
+                        ? LeaveType::CUTI->value
+                        : ($shouldDeductUM && $leaveTypeValue === LeaveType::CUTI->value
+                            ? LeaveType::IZIN->value
+                            : $leaveTypeValue);
+
+                    // Potong cuti (CUTI: otomatis berdasarkan hari kerja efektif)
+                    if (! $shouldDeductUM && $leaveTypeValue === LeaveType::CUTI->value) {
+                        $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
+                    }
+
+                    // Potong cuti (SAKIT)
+                    if (! $shouldDeductUM && $shouldDeductSakit) {
+                        $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $deductAmountSakit);
+                    }
+
+                    // Potong cuti (IZIN)
+                    if (! $shouldDeductUM && $shouldDeductIzin) {
+                        $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $deductAmountIzin);
+                    }
+
+                    // Audit trail di notes
+                    $currentNotes = $lockedLeave->notes;
+                    $systemNote = '[System] Disetujui oleh HR ('.$actor->name.') pada '.now()->format('d M Y H:i');
+                    $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
+
+                    return [
+                        'type' => $approvedType,
+                        'approved_by' => $actor->id,
+                        'approved_at' => now(),
+                        'notes' => $newNotes,
+                        'notes_hrd' => $request->notes_hrd,
+                        'deduct_um' => $shouldDeductUM ? true : ($lockedLeave->deduct_um ?? false),
+                    ];
+                },
+                [],
+                LeaveRequest::PENDING_HR,
+                function (LeaveRequest $lockedLeave) {
+                    // [AUTO DELETE DUPLIKAT] Hapus pengajuan duplikat yang masih pending
+                    $this->duplicateCleanupService->deleteDuplicatePendingLeaveRequests($lockedLeave);
+                }
+            );
+
+            if (! $approved) {
+                return redirect()->route('hr.leave.index')->with('error', 'Status pengajuan sudah berubah.');
+            }
+
+            // Pesan sukses
+            // Jika ini Cancel Request, pesannya "Pembatalan Disetujui"
+            if ($leave->status === LeaveRequest::STATUS_CANCELLED) {
+                return redirect()->route('hr.leave.index')->with('success', 'Permintaan pembatalan telah disetujui.');
+            }
+
+            return redirect()->route('hr.leave.index')->with('success', 'Pengajuan berhasil disetujui.');
+
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            report($e);
+
+            return redirect()->route('hr.leave.index')->with('error', 'Pengajuan tidak dapat diproses. Silakan coba lagi.');
+        }
+    }
+
+    public function reject(Request $request, LeaveRequest $leave)
+    {
+        if (($redirect = $this->authorizeAccess()) !== null) {
+            return $redirect;
+        }
+
+        $request->validate([
+            'notes_hrd' => 'required|string|max:1000',
+        ]);
+
+        $allowedStatus = [LeaveRequest::PENDING_HR];
+        if (! in_array($leave->status, $allowedStatus)) {
+            return redirect()->back()->with('error', 'Status pengajuan tidak valid untuk ditolak.');
+        }
+
+        if ($leave->user_id === auth()->id()) {
+            return back()->with('error', 'Etika Profesi: Anda tidak dapat menolak pengajuan Anda sendiri.');
+        }
+
+        if (! $this->canHrActOnLeave(auth()->user(), $leave)) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki izin untuk menolak pengajuan ini.');
+        }
+
+        $rejected = $this->stateMachine->perform(
+            $leave,
+            LeaveRequestStateMachine::REJECT,
+            function (LeaveRequest $lockedLeave) use ($request) {
+                // Audit trail di notes
+                $currentNotes = $lockedLeave->notes;
+                $systemNote = '[System] Ditolak oleh HR ('.auth()->user()->name.') pada '.now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
+
+                return [
+                    'approved_by' => auth()->id(),
+                    'approved_at' => now(),
+                    'notes' => $newNotes,
+                    'notes_hrd' => $request->notes_hrd,
+                ];
+            },
+            [],
+            LeaveRequest::PENDING_HR
+        );
+
+        if (! $rejected) {
+            return redirect()->route('hr.leave.index')->with('error', 'Status pengajuan sudah berubah.');
+        }
+
+        return redirect()->route('hr.leave.index')->with('success', 'Pengajuan ditolak.');
+    }
+
+    private function authorizeAccess()
+    {
+        $user = auth()->user();
+
+        if (! $user || ! method_exists($user, 'isHR') || ! $user->isHR()) {
+            return redirect()->back()->with('error', 'Akses khusus HRD');
+        }
+    }
+
+    private function canHrActOnLeave(User $actor, LeaveRequest $leave): bool
+    {
+        // [DINAMIS] Jika actor adalah atasan langsung (supervisor atau manager) dari pemohon,
+        // izinkan act (untuk supervisor-level action dari halaman HR)
+        if ((int) $leave->user->direct_supervisor_id === (int) $actor->id) {
+            return true;
+        }
+        if ((int) $leave->user->manager_id === (int) $actor->id) {
+            return true;
+        }
+
+        $actorRole = $this->normalizeRole($actor->role);
+        $applicantRole = $this->normalizeRole($leave->user->role);
+
+        // HRD / HR STAFF hanya boleh final approve/reject request dengan status PENDING_HR
+        if ($leave->status !== LeaveRequest::PENDING_HR) {
+            return false;
+        }
+
+        // Pengajuan SUPERVISOR yang sudah diketahui Manager dapat diproses
+        // oleh HRD maupun HR STAFF untuk semua tipe pengajuan.
+        if ($applicantRole === 'SUPERVISOR') {
+            return in_array($actorRole, ['HRD', 'HR STAFF'], true);
+        }
+
+        // Pengajuan MANAGER: CUTI = HRD only;
+        // non-CUTI = HR STAFF boleh jika akun HR STAFF tersebut diberi izin khusus.
+        if ($applicantRole === 'MANAGER') {
+            $leaveTypeValue = $leave->type instanceof LeaveType
+                ? $leave->type->value
+                : (string) $leave->type;
+
+            $isCuti = $leaveTypeValue === LeaveType::CUTI->value;
+
+            if ($actorRole === 'HRD') {
+                return true;
+            }
+
+            if ($actorRole === 'HR STAFF') {
+                return ! $isCuti && $actor->allowsHrStaffNonCutiApproval();
+            }
+
+            return false;
+        }
+
+        // HRD applicant: HANYA HRD yang boleh approve (HR_STAFF tidak boleh)
+        if ($applicantRole === 'HRD') {
+            return $actorRole === 'HRD';
+        }
+
+        // HR_STAFF applicant: HANYA HRD yang boleh approve
+        if ($applicantRole === 'HR STAFF') {
+            return $actorRole === 'HRD';
+        }
+
+        // EMPLOYEE applicant: CUTI dan non-CUTI boleh di-approve oleh HRD maupun HR STAFF.
+        if ($applicantRole === 'EMPLOYEE') {
+            return in_array($actorRole, ['HRD', 'HR STAFF'], true);
+        }
+
+        return false;
+    }
+
+    private function isHrdMaster(User $user): bool
+    {
+        $role = $this->normalizeRole($user->role);
+
+        return $role === 'HRD';
+    }
+
+    private function isHrStaff(User $user): bool
+    {
+        return $this->normalizeRole($user->role) === 'HR STAFF';
+    }
+
+    private function normalizeRole(mixed $role): string
+    {
+        if ($role instanceof \App\Enums\UserRole) {
+            $role = $role->value;
+        }
+
+        return strtoupper(str_replace('_', ' ', trim((string) $role)));
+    }
+
+    private function defaultManualStatusForUser(User $user): string
+    {
+        $applicantRole = $this->normalizeRole($user->role);
+        $hasValidSupervisor = ! empty($user->direct_supervisor_id);
+        $hasValidManager = false;
+        if (! empty($user->manager_id)) {
+            $hasValidManager = User::where('id', $user->manager_id)->exists();
+        }
+
+        switch ($applicantRole) {
+            case 'EMPLOYEE':
+                return ($hasValidSupervisor || $hasValidManager)
+                    ? LeaveRequest::PENDING_SUPERVISOR
+                    : LeaveRequest::PENDING_HR;
+
+            case 'SUPERVISOR':
+                return $hasValidManager
+                    ? LeaveRequest::PENDING_SUPERVISOR
+                    : LeaveRequest::PENDING_HR;
+
+            case 'MANAGER':
+            case 'HR_STAFF':
+                return LeaveRequest::PENDING_HR;
+
+            case 'HRD':
+                return $hasValidManager
+                    ? LeaveRequest::PENDING_SUPERVISOR
+                    : LeaveRequest::PENDING_HR;
+
+            default:
+                return LeaveRequest::PENDING_HR;
+        }
+    }
+
+    private function findOverlappingLeaveRequests(
+        int $userId,
+        string $type,
+        string $startDate,
+        string $endDate,
+        ?int $excludeLeaveId = null
+    ): \Illuminate\Database\Eloquent\Collection {
+        return LeaveRequest::query()
+            ->where('user_id', $userId)
+            ->where('type', $type)
+            ->when($excludeLeaveId, fn ($query) => $query->whereKeyNot($excludeLeaveId))
+            ->whereNotIn('status', [LeaveRequest::STATUS_REJECTED, LeaveRequest::STATUS_CANCELLED])
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereDate('start_date', '<=', $endDate)
+                    ->whereDate('end_date', '>=', $startDate);
+            })
+            ->orderBy('start_date')
+            ->get(['id', 'type', 'start_date', 'end_date', 'status', 'created_at']);
+    }
+
+    private function formatOverlapMessage($duplicates): string
+    {
+        $first = $duplicates->first();
+
+        if (! $first) {
+            return 'Sudah ada pengajuan dengan jenis yang sama pada tanggal yang dipilih.';
+        }
+
+        $typeLabel = $first->type instanceof LeaveType
+            ? $first->type->label()
+            : (LeaveType::tryFrom((string) $first->type)?->label() ?? (string) $first->type);
+
+        $start = Carbon::parse($first->start_date)->locale('id')->translatedFormat('j F Y');
+        $end = Carbon::parse($first->end_date)->locale('id')->translatedFormat('j F Y');
+        $dateText = $start === $end ? $start : "{$start} - {$end}";
+
+        return "Sudah ada pengajuan {$typeLabel} pada tanggal {$dateText}. Pengajuan dengan jenis yang sama tidak bisa dibuat di tanggal yang sama.";
+    }
+}

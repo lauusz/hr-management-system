@@ -1,0 +1,631 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\LeaveType;
+use App\Models\LeaveBalanceTransaction;
+use App\Models\LeaveRequest;
+use App\Models\OfficeHoliday;
+use App\Models\User;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
+use RuntimeException;
+
+class LeaveBalanceService
+{
+    private const FIVE_DAY_WORK_WEEK_ROLES = ['HRD', 'MANAGER'];
+
+    public function isFiveDayWorkWeekForUser(User $user): bool
+    {
+        return in_array($this->getRoleString($user), self::FIVE_DAY_WORK_WEEK_ROLES, true);
+    }
+
+    public function calculateEffectiveDaysForUser(
+        User $user,
+        Carbon|string $startDate,
+        Carbon|string $endDate,
+        bool $includeOfficeHolidays = true,
+    ): float {
+        return $this->calculateEffectiveDayBreakdownForUser(
+            $user,
+            $startDate,
+            $endDate,
+            $includeOfficeHolidays,
+        )['total'];
+    }
+
+    /**
+     * @return array{
+     *     total: float,
+     *     weekday_days: float,
+     *     saturday_days: float,
+     *     holiday_days: float,
+     *     holidays: array<int, array{date: string, name: string, type: string, weight: float}>
+     * }
+     */
+    public function calculateEffectiveDayBreakdownForUser(
+        User $user,
+        Carbon|string $startDate,
+        Carbon|string $endDate,
+        bool $includeOfficeHolidays = true,
+    ): array {
+        $start = $startDate instanceof Carbon ? $startDate->copy() : Carbon::parse($startDate);
+        $end = $endDate instanceof Carbon ? $endDate->copy() : Carbon::parse($endDate);
+        $start->startOfDay();
+        $end->startOfDay();
+
+        $emptyBreakdown = [
+            'total' => 0.0,
+            'weekday_days' => 0.0,
+            'saturday_days' => 0.0,
+            'holiday_days' => 0.0,
+            'holidays' => [],
+        ];
+
+        if ($start->gt($end)) {
+            return $emptyBreakdown;
+        }
+
+        $period = CarbonPeriod::create($start, $end);
+        $isFiveDayWorkWeek = $this->isFiveDayWorkWeekForUser($user);
+
+        $officeHolidays = collect();
+        if ($includeOfficeHolidays && Schema::hasTable('office_holidays')) {
+            $officeHolidays = OfficeHoliday::query()
+                ->where('is_active', true)
+                ->whereDate('holiday_date', '>=', $start->toDateString())
+                ->whereDate('holiday_date', '<=', $end->toDateString())
+                ->get()
+                ->keyBy(fn (OfficeHoliday $holiday): string => $holiday->holiday_date->toDateString());
+        }
+
+        $weekdayDays = 0.0;
+        $saturdayDays = 0.0;
+        $holidayDays = 0.0;
+        $holidays = [];
+
+        foreach ($period as $date) {
+            $dayWeight = 1.0;
+
+            if ($isFiveDayWorkWeek) {
+                if ($date->isSaturday() || $date->isSunday()) {
+                    continue;
+                }
+            } else {
+                if ($date->isSunday()) {
+                    continue;
+                }
+
+                if ($date->isSaturday()) {
+                    $dayWeight = 0.5;
+                }
+            }
+
+            /** @var OfficeHoliday|null $officeHoliday */
+            $officeHoliday = $officeHolidays->get($date->toDateString());
+            if ($officeHoliday && ! $officeHoliday->deducts_leave) {
+                $holidayDays += $dayWeight;
+                $holidays[] = [
+                    'date' => $date->toDateString(),
+                    'name' => $officeHoliday->name,
+                    'type' => $officeHoliday->type,
+                    'weight' => $dayWeight,
+                ];
+
+                continue;
+            }
+
+            if ($date->isSaturday()) {
+                $saturdayDays += $dayWeight;
+            } else {
+                $weekdayDays += $dayWeight;
+            }
+        }
+
+        return [
+            'total' => $weekdayDays + $saturdayDays,
+            'weekday_days' => $weekdayDays,
+            'saturday_days' => $saturdayDays,
+            'holiday_days' => $holidayDays,
+            'holidays' => $holidays,
+        ];
+    }
+
+    public function calculateEffectiveDaysForLeave(LeaveRequest $leave): float
+    {
+        return $this->calculateEffectiveDaysForUser($leave->user, $leave->start_date, $leave->end_date);
+    }
+
+    public function isAnnualLeave(LeaveRequest $leave): bool
+    {
+        $leaveType = $leave->type instanceof LeaveType ? $leave->type->value : (string) $leave->type;
+
+        return strtoupper($leaveType) === LeaveType::CUTI->value;
+    }
+
+    public function currentNetDeductionForLeave(LeaveRequest $leave): float
+    {
+        $totals = LeaveBalanceTransaction::query()
+            ->where('leave_request_id', $leave->id)
+            ->selectRaw(
+                'COALESCE(SUM(CASE
+                    WHEN transaction_type = ? THEN amount
+                    WHEN transaction_type = ? THEN amount
+                    WHEN transaction_type = ? THEN -amount
+                    ELSE 0
+                END), 0) as net_amount',
+                [
+                    LeaveBalanceTransaction::DEDUCT,
+                    LeaveBalanceTransaction::ADJUSTMENT,
+                    LeaveBalanceTransaction::REFUND,
+                ],
+            )
+            ->value('net_amount');
+
+        return max(0.0, round((float) $totals, 2));
+    }
+
+    public function historicalExplicitDeductionForLeave(LeaveRequest $leave): float
+    {
+        return (float) (LeaveBalanceTransaction::query()
+            ->where('leave_request_id', $leave->id)
+            ->where('transaction_type', LeaveBalanceTransaction::DEDUCT)
+            ->oldest('id')
+            ->value('amount') ?? 0);
+    }
+
+    public function reconcileLeaveBalanceForHrOverride(
+        LeaveRequest $leave,
+        float $targetAmount,
+        int $actorId,
+        string $description,
+    ): float {
+        if (! $leave->exists || ! $leave->id) {
+            throw new RuntimeException('Pengajuan cuti belum tersimpan.');
+        }
+
+        $targetAmount = max(0.0, round($targetAmount, 2));
+
+        return DB::transaction(function () use ($leave, $targetAmount, $actorId, $description) {
+            $lockedUser = User::lockForUpdate()->findOrFail($leave->user_id);
+            $this->ensureOpeningBalanceLocked($lockedUser);
+
+            $hasLeaveLedger = LeaveBalanceTransaction::query()
+                ->where('leave_request_id', $leave->id)
+                ->whereIn('transaction_type', [
+                    LeaveBalanceTransaction::DEDUCT,
+                    LeaveBalanceTransaction::REFUND,
+                    LeaveBalanceTransaction::ADJUSTMENT,
+                ])
+                ->lockForUpdate()
+                ->exists();
+
+            // Approved CUTI lama sudah memengaruhi saldo sebelum ledger tersedia.
+            // Catat baseline tanpa mengubah saldo agar delta intervensi dan refund
+            // berikutnya menggunakan nominal historis yang benar.
+            if (! $hasLeaveLedger
+                && $leave->status === LeaveRequest::STATUS_APPROVED
+                && $this->isAnnualLeave($leave)) {
+                $legacyAmount = $this->calculateEffectiveDaysForUser(
+                    $lockedUser,
+                    $leave->start_date,
+                    $leave->end_date,
+                    false,
+                );
+
+                if ($legacyAmount > 0) {
+                    LeaveBalanceTransaction::create([
+                        'user_id' => $lockedUser->id,
+                        'leave_request_id' => $leave->id,
+                        'transaction_type' => LeaveBalanceTransaction::DEDUCT,
+                        'amount' => $legacyAmount,
+                        'balance_before' => (float) $lockedUser->leave_balance + $legacyAmount,
+                        'balance_after' => (float) $lockedUser->leave_balance,
+                        'description' => "Baseline pemotongan legacy untuk intervensi pengajuan #{$leave->id}",
+                        'idempotency_key' => "DEDUCT:LEAVE:{$leave->id}",
+                        'created_by' => $actorId,
+                    ]);
+                }
+            }
+
+            $currentAmount = $this->currentNetDeductionForLeave($leave);
+            $difference = round($targetAmount - $currentAmount, 2);
+
+            if (abs($difference) < 0.0001) {
+                return 0.0;
+            }
+
+            $currentBalance = (float) $lockedUser->leave_balance;
+            if ($difference > 0 && $currentBalance < $difference) {
+                throw new RuntimeException(
+                    "Persetujuan gagal: Saldo cuti tidak cukup. Saldo tersedia: {$currentBalance}, tambahan yang dibutuhkan: {$difference} hari."
+                );
+            }
+
+            $newBalance = $currentBalance - $difference;
+            $lockedUser->update(['leave_balance' => $newBalance]);
+
+            LeaveBalanceTransaction::create([
+                'user_id' => $lockedUser->id,
+                'leave_request_id' => $leave->id,
+                'transaction_type' => LeaveBalanceTransaction::ADJUSTMENT,
+                'amount' => $difference,
+                'balance_before' => $currentBalance,
+                'balance_after' => $newBalance,
+                'description' => $description,
+                'idempotency_key' => "HR_OVERRIDE:LEAVE:{$leave->id}:".Str::uuid(),
+                'created_by' => $actorId,
+            ]);
+
+            return $difference;
+        });
+    }
+
+    public function deductLeaveBalanceForLeave(LeaveRequest $leave, ?float $amount = null): float
+    {
+        // Production deduction harus menggunakan LeaveRequest yang sudah tersimpan.
+        if (! $leave->exists || ! $leave->id) {
+            throw new RuntimeException('Pengajuan cuti belum tersimpan.');
+        }
+
+        // Jika HRD memberikan amount eksplisit (via form), proses tanpa cek tipe
+        // karena HRD bisa memutuskan potong saldo cuti untuk CUTI_KHUSUS/SAKIT/IZIN/DINAS_LUAR.
+        if ($amount === null && ! $this->isAnnualLeave($leave)) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($leave, $amount) {
+            // Kunci row user untuk mencegah race condition saat membaca dan mengurangi saldo.
+            $lockedUser = User::lockForUpdate()->findOrFail($leave->user_id);
+
+            $this->ensureOpeningBalanceLocked($lockedUser);
+
+            $deductKey = "DEDUCT:LEAVE:{$leave->id}";
+            $existing = LeaveBalanceTransaction::where('idempotency_key', $deductKey)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                return (float) $existing->amount;
+            }
+
+            $daysToDeduct = $amount ?? $this->calculateEffectiveDaysForUser($lockedUser, $leave->start_date, $leave->end_date);
+
+            if ($daysToDeduct <= 0) {
+                return 0.0;
+            }
+
+            $currentBalance = (float) $lockedUser->leave_balance;
+
+            if ($currentBalance < $daysToDeduct) {
+                throw new RuntimeException("Persetujuan gagal: Saldo cuti tidak cukup. Saldo tersedia: {$currentBalance}, kebutuhan: {$daysToDeduct} hari.");
+            }
+
+            $newBalance = $currentBalance - $daysToDeduct;
+
+            if ($daysToDeduct > 0) {
+                $lockedUser->update(['leave_balance' => $newBalance]);
+            }
+
+            LeaveBalanceTransaction::create([
+                'user_id' => $lockedUser->id,
+                'leave_request_id' => $leave->id,
+                'transaction_type' => LeaveBalanceTransaction::DEDUCT,
+                'amount' => $daysToDeduct,
+                'balance_before' => $currentBalance,
+                'balance_after' => $newBalance,
+                'description' => "Potong saldo cuti untuk pengajuan #{$leave->id}",
+                'idempotency_key' => $deductKey,
+                'created_by' => auth()->id(),
+            ]);
+
+            return $daysToDeduct;
+        });
+    }
+
+    /**
+     * @return array{old_amount: float, new_amount: float, adjustment: float}
+     */
+    public function adjustApprovedLeaveDateBalance(
+        LeaveRequest $leave,
+        string $newDate,
+        string $reason,
+        int $createdBy,
+    ): array {
+        if (! $leave->exists || ! $leave->id) {
+            throw new RuntimeException('Pengajuan cuti belum tersimpan.');
+        }
+
+        if (! $this->isAnnualLeave($leave) || $leave->status !== LeaveRequest::STATUS_APPROVED) {
+            throw new RuntimeException('Hanya CUTI yang sudah disetujui yang dapat diubah tanggalnya.');
+        }
+
+        return DB::transaction(function () use ($leave, $newDate, $reason, $createdBy) {
+            $lockedUser = User::lockForUpdate()->findOrFail($leave->user_id);
+            $deductKey = "DEDUCT:LEAVE:{$leave->id}";
+            $deductTransaction = LeaveBalanceTransaction::query()
+                ->where('idempotency_key', $deductKey)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $deductTransaction) {
+                throw new RuntimeException('Data pemotongan cuti belum tersedia. Hubungi tim IT.');
+            }
+
+            $adjustmentPrefix = "ADJUST_DATE:LEAVE:{$leave->id}:";
+            $previousAdjustments = (float) LeaveBalanceTransaction::query()
+                ->where('leave_request_id', $leave->id)
+                ->where('transaction_type', LeaveBalanceTransaction::ADJUSTMENT)
+                ->where('idempotency_key', 'like', $adjustmentPrefix.'%')
+                ->lockForUpdate()
+                ->get()
+                ->sum('amount');
+
+            $oldAmount = (float) $deductTransaction->amount + $previousAdjustments;
+            $newAmount = $this->calculateEffectiveDaysForUser($lockedUser, $newDate, $newDate);
+            $adjustment = $newAmount - $oldAmount;
+            $currentBalance = (float) $lockedUser->leave_balance;
+
+            if ($adjustment > 0 && $currentBalance < $adjustment) {
+                throw new RuntimeException("Sisa cuti tidak mencukupi untuk perubahan tanggal. Tambahan yang dibutuhkan: {$adjustment} hari.");
+            }
+
+            if (abs($adjustment) > 0.00001) {
+                $newBalance = $currentBalance - $adjustment;
+                $lockedUser->update(['leave_balance' => $newBalance]);
+
+                LeaveBalanceTransaction::create([
+                    'user_id' => $lockedUser->id,
+                    'leave_request_id' => $leave->id,
+                    'transaction_type' => LeaveBalanceTransaction::ADJUSTMENT,
+                    'amount' => $adjustment,
+                    'balance_before' => $currentBalance,
+                    'balance_after' => $newBalance,
+                    'description' => sprintf(
+                        'Perubahan tanggal pengajuan #%d dari %s menjadi %s (%s). Potongan %.1f menjadi %.1f hari.',
+                        $leave->id,
+                        $leave->start_date->toDateString(),
+                        $newDate,
+                        $reason,
+                        $oldAmount,
+                        $newAmount,
+                    ),
+                    'idempotency_key' => $adjustmentPrefix.Str::uuid(),
+                    'created_by' => $createdBy,
+                ]);
+            }
+
+            return [
+                'old_amount' => $oldAmount,
+                'new_amount' => $newAmount,
+                'adjustment' => $adjustment,
+            ];
+        });
+    }
+
+    public function refundLeaveBalanceForLeave(LeaveRequest $leave, ?float $amount = null): float
+    {
+        // Production refund harus menggunakan LeaveRequest yang sudah tersimpan.
+        if (! $leave->exists || ! $leave->id) {
+            throw new RuntimeException('Pengajuan cuti belum tersimpan.');
+        }
+
+        return DB::transaction(function () use ($leave, $amount) {
+            $lockedUser = User::lockForUpdate()->findOrFail($leave->user_id);
+
+            $this->ensureOpeningBalanceLocked($lockedUser);
+
+            $ledgerRows = LeaveBalanceTransaction::query()
+                ->where('leave_request_id', $leave->id)
+                ->whereIn('transaction_type', [
+                    LeaveBalanceTransaction::DEDUCT,
+                    LeaveBalanceTransaction::REFUND,
+                    LeaveBalanceTransaction::ADJUSTMENT,
+                ])
+                ->lockForUpdate()
+                ->get();
+
+            if ($ledgerRows->isNotEmpty()) {
+                $daysToRefund = max(0.0, round(
+                    (float) $ledgerRows->where('transaction_type', LeaveBalanceTransaction::DEDUCT)->sum('amount')
+                    + (float) $ledgerRows->where('transaction_type', LeaveBalanceTransaction::ADJUSTMENT)->sum('amount')
+                    - (float) $ledgerRows->where('transaction_type', LeaveBalanceTransaction::REFUND)->sum('amount'),
+                    2,
+                ));
+
+                if ($daysToRefund <= 0) {
+                    return (float) ($ledgerRows
+                        ->where('transaction_type', LeaveBalanceTransaction::REFUND)
+                        ->last()?->amount ?? 0);
+                }
+            } else {
+                // Fallback hanya untuk CUTI legacy yang belum memiliki ledger DEDUCT.
+                if (! $this->isAnnualLeave($leave)) {
+                    return 0;
+                }
+
+                // Data legacy tidak memiliki snapshot/ledger. Jangan terapkan kalender
+                // kantor baru secara retroaktif pada nominal refund historis.
+                $daysToRefund = $amount ?? $this->calculateEffectiveDaysForUser(
+                    $lockedUser,
+                    $leave->start_date,
+                    $leave->end_date,
+                    false,
+                );
+            }
+
+            if ($daysToRefund <= 0) {
+                return 0;
+            }
+
+            $refundCount = $ledgerRows->where('transaction_type', LeaveBalanceTransaction::REFUND)->count();
+            $refundKey = $refundCount === 0
+                ? "REFUND:LEAVE:{$leave->id}"
+                : "REFUND:LEAVE:{$leave->id}:".($refundCount + 1);
+
+            $currentBalance = (float) $lockedUser->leave_balance;
+            $newBalance = $currentBalance + $daysToRefund;
+
+            $lockedUser->update(['leave_balance' => $newBalance]);
+
+            LeaveBalanceTransaction::create([
+                'user_id' => $lockedUser->id,
+                'leave_request_id' => $leave->id,
+                'transaction_type' => LeaveBalanceTransaction::REFUND,
+                'amount' => $daysToRefund,
+                'balance_before' => $currentBalance,
+                'balance_after' => $newBalance,
+                'description' => "Pengembalian saldo cuti untuk pengajuan #{$leave->id}",
+                'idempotency_key' => $refundKey,
+                'created_by' => auth()->id(),
+            ]);
+
+            return $daysToRefund;
+        });
+    }
+
+    /**
+     * Penyesuaian saldo cuti ke target tertentu.
+     * Semua perubahan dilakukan dalam transaction dan mencatat ledger ADJUSTMENT.
+     */
+    public function adjustBalanceToTarget(
+        User $user,
+        float $targetBalance,
+        ?string $description = null,
+        ?string $idempotencyKey = null,
+        ?int $createdBy = null,
+    ): float {
+        return DB::transaction(function () use ($user, $targetBalance, $description, $idempotencyKey, $createdBy) {
+            $lockedUser = User::lockForUpdate()->findOrFail($user->id);
+
+            $this->ensureOpeningBalanceLocked($lockedUser);
+
+            if ($idempotencyKey !== null) {
+                $existing = LeaveBalanceTransaction::where('idempotency_key', $idempotencyKey)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existing) {
+                    return (float) $existing->amount;
+                }
+            }
+
+            $currentBalance = (float) $lockedUser->leave_balance;
+
+            if (abs($targetBalance - $currentBalance) < 0.0001) {
+                // Untuk key eksplisit, buat marker ADJUSTMENT amount 0 agar run berikutnya
+                // dengan key yang sama tidak mengganggu saldo yang sudah berubah sejak marker.
+                if ($idempotencyKey !== null) {
+                    LeaveBalanceTransaction::create([
+                        'user_id' => $lockedUser->id,
+                        'leave_request_id' => null,
+                        'transaction_type' => LeaveBalanceTransaction::ADJUSTMENT,
+                        'amount' => 0,
+                        'balance_before' => $currentBalance,
+                        'balance_after' => $currentBalance,
+                        'description' => $description ?? 'Penyesuaian saldo cuti',
+                        'idempotency_key' => $idempotencyKey,
+                        'created_by' => $createdBy,
+                    ]);
+                }
+
+                return 0.0;
+            }
+
+            $newBalance = $targetBalance;
+            $delta = $targetBalance - $currentBalance;
+            $amount = abs($delta);
+
+            $lockedUser->update(['leave_balance' => $newBalance]);
+
+            LeaveBalanceTransaction::create([
+                'user_id' => $lockedUser->id,
+                'leave_request_id' => null,
+                'transaction_type' => LeaveBalanceTransaction::ADJUSTMENT,
+                'amount' => $amount,
+                'balance_before' => $currentBalance,
+                'balance_after' => $newBalance,
+                'description' => $description ?? 'Penyesuaian saldo cuti',
+                'idempotency_key' => $idempotencyKey ?? (string) Str::uuid(),
+                'created_by' => $createdBy,
+            ]);
+
+            return $amount;
+        });
+    }
+
+    /**
+     * Buat record opening balance untuk user jika belum ada.
+     * Aman dijalankan berulang kali.
+     */
+    public function ensureOpeningBalance(User $user): ?float
+    {
+        return DB::transaction(function () use ($user) {
+            $lockedUser = User::lockForUpdate()->findOrFail($user->id);
+
+            $openingKey = "OPENING_BALANCE:USER:{$lockedUser->id}";
+            $existing = LeaveBalanceTransaction::where('idempotency_key', $openingKey)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing) {
+                return null;
+            }
+
+            $balance = (float) $lockedUser->leave_balance;
+
+            LeaveBalanceTransaction::create([
+                'user_id' => $lockedUser->id,
+                'leave_request_id' => null,
+                'transaction_type' => LeaveBalanceTransaction::OPENING_BALANCE,
+                'amount' => $balance,
+                'balance_before' => $balance,
+                'balance_after' => $balance,
+                'description' => 'Saldo awal',
+                'idempotency_key' => $openingKey,
+                'created_by' => null,
+            ]);
+
+            return $balance;
+        });
+    }
+
+    /**
+     * Pastikan setiap user memiliki record opening balance sebelum mutasi pertama.
+     * Method ini harus dipanggil setelah row user di-lock.
+     */
+    private function ensureOpeningBalanceLocked(User $lockedUser): void
+    {
+        $openingKey = "OPENING_BALANCE:USER:{$lockedUser->id}";
+
+        $existing = LeaveBalanceTransaction::where('idempotency_key', $openingKey)
+            ->lockForUpdate()
+            ->first();
+
+        if ($existing) {
+            return;
+        }
+
+        $balance = (float) $lockedUser->leave_balance;
+
+        LeaveBalanceTransaction::create([
+            'user_id' => $lockedUser->id,
+            'leave_request_id' => null,
+            'transaction_type' => LeaveBalanceTransaction::OPENING_BALANCE,
+            'amount' => $balance,
+            'balance_before' => $balance,
+            'balance_after' => $balance,
+            'description' => 'Saldo awal',
+            'idempotency_key' => $openingKey,
+            'created_by' => null,
+        ]);
+    }
+
+    private function getRoleString(User $user): string
+    {
+        return strtoupper((string) ($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role));
+    }
+}
