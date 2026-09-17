@@ -1,88 +1,122 @@
 <x-app title="Master PT">
 
-    <div class="pt-container">
-
-        {{-- Flash Messages --}}
-        @if(session('success'))
-        <div class="flash flash-success">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            <span>{{ session('success') }}</span>
-        </div>
-        @endif
-
-        {{-- Page Header --}}
-        <div class="page-header">
-            <div class="page-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4a2 2 0 012-2h2a2 2 0 012 2v4"/>
+                </svg>
             </div>
             <div>
-                <h1 class="page-title">Master PT</h1>
-                <p class="page-subtitle">Master data perusahaan untuk karyawan.</p>
+                <h1 class="section-title">Master PT</h1>
+                <p class="section-subtitle">Master data perusahaan untuk karyawan</p>
             </div>
-            <a href="{{ route('hr.pts.create') }}" class="btn btn-primary ml-auto">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Tambah PT
-            </a>
+        </div>
+    </x-slot>
+
+    {{-- Flash Messages --}}
+    @if(session('success'))
+    <div class="ptm-alert ptm-alert--success">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>{{ session('success') }}</span>
+    </div>
+    @endif
+
+    @if(session('error'))
+    <div class="ptm-alert ptm-alert--error">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>{{ session('error') }}</span>
+    </div>
+    @endif
+
+    {{-- Card: Daftar PT --}}
+    <div class="ptm-card">
+        <div class="ptm-card-header">
+            <div class="ptm-card-title">
+                <span>Daftar PT</span>
+                <span class="ptm-card-count">{{ $items->total() }}</span>
+            </div>
+            <div class="ptm-card-actions">
+                @if($items->isNotEmpty())
+                <div class="ptm-search-wrap">
+                    <svg class="ptm-search-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input type="search" class="ptm-search-input" placeholder="Cari PT..." autocomplete="off" aria-label="Cari PT" data-ptm-search>
+                </div>
+                @endif
+                <a href="{{ route('hr.pts.create') }}" class="ptm-btn ptm-btn-primary">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Tambah PT
+                </a>
+            </div>
         </div>
 
-        {{-- Table Card --}}
-        <div class="table-card">
-            @if($items->isEmpty())
-            <div class="empty-state">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                <p>Belum ada data PT yang terdaftar.</p>
+        @if($items->isEmpty())
+        <div class="ptm-empty">
+            <div class="ptm-empty-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             </div>
-            @else
-            <div class="table-wrap">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Nama Perusahaan (PT)</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($items as $pt)
-                        <tr>
-                            <td>
-                                <div class="pt-name-cell">
-                                    <div class="pt-avatar">{{ substr($pt->name, 0, 1) }}</div>
-                                    <span class="pt-name">{{ $pt->name }}</span>
-                                </div>
-                            </td>
-                            <td class="actions-cell">
-                                <a href="{{ route('hr.pts.edit', $pt->id) }}" class="action-btn" title="Edit">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                </a>
-                                <button type="button" class="action-btn action-btn-danger" title="Hapus" data-modal-open="delete-pt-{{ $pt->id }}">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                </button>
-                            </td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-            @endif
+            <h3 class="ptm-empty-title">Belum Ada PT</h3>
+            <p class="ptm-empty-desc">Belum ada data PT yang terdaftar. Tambahkan PT pertama melalui tombol "Tambah PT".</p>
         </div>
-
-        {{-- Pagination --}}
-        @if($items->hasPages())
-        <div class="pagination-wrap">
-            <x-pagination :items="$items" />
+        @else
+        <div class="ptm-table-wrap">
+            <table class="ptm-table">
+                <thead>
+                    <tr>
+                        <th class="ptm-col-no">#</th>
+                        <th>Nama Perusahaan (PT)</th>
+                        <th class="ptm-col-action"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($items as $i => $pt)
+                    <tr>
+                        <td class="ptm-cell-muted ptm-cell-center">{{ ($items->firstItem() ?? 1) + $i }}</td>
+                        <td>
+                            <div class="ptm-name-cell">
+                                <div class="ptm-avatar-sm">{{ substr($pt->name, 0, 1) }}</div>
+                                <span class="ptm-name">{{ $pt->name }}</span>
+                            </div>
+                        </td>
+                        <td class="ptm-actions-cell">
+                            <a href="{{ route('hr.pts.edit', $pt->id) }}" class="ptm-icon-btn" title="Edit">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </a>
+                            <button type="button" class="ptm-icon-btn ptm-icon-btn-danger" title="Hapus" data-modal-open="delete-pt-{{ $pt->id }}">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            <div class="ptm-no-result" data-ptm-no-result style="display:none;">
+                <p>Data PT tidak ditemukan untuk kata kunci tersebut.</p>
+            </div>
         </div>
         @endif
-
     </div>
+
+    {{-- Pagination --}}
+    @if($items->hasPages())
+    <div class="ptm-pagination-wrap">
+        <x-pagination :items="$items" />
+    </div>
+    @endif
 
     {{-- Delete Modals --}}
     @foreach($items as $pt)
     <x-modal
         :id="'delete-pt-' . $pt->id"
-        title="Hapus PT?"
+        title="Hapus PT"
         variant="danger"
         type="confirm"
         confirmLabel="Hapus"
@@ -90,14 +124,30 @@
         :confirmFormAction="route('hr.pts.destroy', $pt->id)"
         confirmFormMethod="DELETE"
     >
-        <p>Apakah Anda yakin ingin menghapus PT berikut?</p>
-        <p style="font-weight: 700; color: #111827; margin-top: 8px;">{{ $pt->name }}</p>
-        <p style="color: #6b7280; font-size: 0.85rem; margin-top: 8px;">Pastikan PT ini tidak sedang digunakan oleh karyawan aktif.</p>
+        <p>Apakah Anda yakin ingin menghapus PT <strong>{{ $pt->name }}</strong>?</p>
+        <p style="color:#6b7280; font-size:0.85rem; margin-top:8px;">Pastikan PT ini tidak sedang digunakan oleh karyawan aktif.</p>
     </x-modal>
     @endforeach
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Live search (client-side, tidak mengubah data)
+            var searchInput = document.querySelector('[data-ptm-search]');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    var keyword = searchInput.value.trim().toLowerCase();
+                    var rows = document.querySelectorAll('.ptm-table tbody tr');
+                    var visible = 0;
+                    rows.forEach(function(row) {
+                        var match = row.textContent.toLowerCase().indexOf(keyword) !== -1;
+                        row.style.display = match ? '' : 'none';
+                        if (match) visible++;
+                    });
+                    var noResult = document.querySelector('[data-ptm-no-result]');
+                    if (noResult) noResult.style.display = (visible === 0 && keyword !== '') ? '' : 'none';
+                });
+            }
+
             // Modal open handlers
             const openButtons = document.querySelectorAll('[data-modal-open]');
             openButtons.forEach(function(btn) {
@@ -129,218 +179,331 @@
     </script>
 
     <style>
-        /* === BASE VARIABLES === */
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --secondary: #64748b;
-            --bg-body: #f1f5f9;
-            --bg-card: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --success-bg: #f0fdf4;
-            --success-text: #15803d;
-            --success-border: #bbf7d0;
-            --danger-bg: #fef2f2;
-            --danger-text: #b91c1c;
-            --danger-border: #fecaca;
-            --blue-light: #eff6ff;
-            --blue-text: #1d4ed8;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-        }
-
-        /* === RESET & BASE === */
-        .pt-container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px 16px 40px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            color: var(--text-main);
-        }
-
-        /* === FLASH MESSAGES === */
-        .flash {
+        /* ========================================== */
+        /* SECTION HEADER (x-slot)                    */
+        /* ========================================== */
+        .section-header-inline {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 14px 18px;
-            border-radius: var(--radius-md);
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-            font-weight: 500;
         }
-        .flash-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
-        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
-
-        /* === PAGE HEADER === */
-        .page-header {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        .page-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--primary);
-            color: #fff;
-            border-radius: var(--radius-md);
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
         }
-        .page-icon svg { width: 24px; height: 24px; }
-        .page-title {
+        .section-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+        .section-title {
             margin: 0;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
         }
-        .page-subtitle {
-            margin: 4px 0 0;
-            font-size: 0.875rem;
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
             color: var(--text-muted);
+            font-weight: 500;
+            line-height: 1.35;
         }
-        .ml-auto { margin-left: auto; }
+        .icon-navy { background: rgba(10, 61, 98, 0.08); color: var(--primary-dark); }
 
-        /* === BUTTONS === */
-        .btn {
+        /* ========================================== */
+        /* FLASH MESSAGES                             */
+        /* ========================================== */
+        .ptm-alert {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+        .ptm-alert svg { flex-shrink: 0; }
+        .ptm-alert--success {
+            background: rgba(34, 197, 94, 0.08);
+            color: #15803d;
+            border: 1px solid rgba(34, 197, 94, 0.25);
+        }
+        .ptm-alert--error {
+            background: rgba(239, 68, 68, 0.08);
+            color: #b91c1c;
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        /* ========================================== */
+        /* CARD                                       */
+        /* ========================================== */
+        .ptm-card {
+            background: var(--white);
+            border: 1px solid var(--border-light);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            max-width: 100%;
+        }
+        .ptm-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-light);
+            background: var(--gray-50);
+        }
+        .ptm-card-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .ptm-card-count {
+            background: rgba(20, 93, 160, 0.08);
+            color: var(--primary);
+            font-size: 0.6875rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 9999px;
+            line-height: 1.4;
+        }
+        .ptm-card-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* ========================================== */
+        /* SEARCH                                     */
+        /* ========================================== */
+        .ptm-search-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .ptm-search-icon {
+            position: absolute;
+            left: 12px;
+            color: var(--text-light);
+            pointer-events: none;
+        }
+        .ptm-search-input {
+            width: 220px;
+            max-width: 100%;
+            padding: 9px 12px 9px 36px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.8125rem;
+            font-family: inherit;
+            color: var(--text-primary);
+            background: var(--white);
+            transition: all 0.2s ease;
+        }
+        .ptm-search-input::placeholder { color: var(--text-light); }
+        .ptm-search-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(20, 93, 160, 0.12);
+        }
+
+        /* ========================================== */
+        /* BUTTONS                                    */
+        /* ========================================== */
+        .ptm-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            padding: 10px 18px;
-            border-radius: var(--radius-sm);
-            font-size: 0.85rem;
+            gap: 7px;
+            padding: 9px 16px;
+            border-radius: 10px;
+            font-size: 0.8125rem;
             font-weight: 600;
+            font-family: inherit;
+            text-decoration: none;
             cursor: pointer;
             border: none;
-            transition: 0.2s;
-            text-decoration: none;
+            transition: all 0.2s ease;
+            white-space: nowrap;
         }
-        .btn svg { width: 16px; height: 16px; }
-        .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:hover { background: var(--primary-dark); }
-
-        /* === TABLE CARD === */
-        .table-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
+        .ptm-btn svg { width: 15px; height: 15px; }
+        .ptm-btn-primary {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(10, 61, 98, 0.22);
+        }
+        .ptm-btn-primary:hover {
+            box-shadow: 0 6px 20px rgba(10, 61, 98, 0.32);
+            transform: translateY(-1px);
         }
 
-        /* === TABLE === */
-        .table-wrap { overflow-x: auto; }
-        .data-table {
+        /* ========================================== */
+        /* TABLE                                      */
+        /* ========================================== */
+        .ptm-table-wrap { overflow-x: auto; }
+        .ptm-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 400px;
+            min-width: 480px;
         }
-        .data-table th {
+        .ptm-table th {
             text-align: left;
-            padding: 12px 20px;
-            font-size: 0.7rem;
+            padding: 13px 16px;
+            font-size: 0.6875rem;
             font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            background: var(--bg-body);
-            border-bottom: 1px solid var(--border);
+            background: var(--white);
+            border-bottom: 1px solid var(--border-light);
         }
-        .data-table td {
-            padding: 14px 20px;
-            border-bottom: 1px solid var(--border);
+        .ptm-table td {
+            padding: 13px 16px;
+            border-bottom: 1px solid var(--border-light);
             vertical-align: middle;
+            font-size: 0.8125rem;
         }
-        .data-table tr:last-child td { border-bottom: none; }
-        .data-table tr:hover td { background: #fafafa; }
+        .ptm-table tr:last-child td { border-bottom: none; }
+        .ptm-table tbody tr:hover td { background: var(--gray-50); }
+        .ptm-col-no { width: 48px; text-align: center; }
+        .ptm-col-action { width: 96px; }
 
-        /* === PT NAME CELL === */
-        .pt-name-cell {
+        /* ========================================== */
+        /* NAME CELL                                  */
+        /* ========================================== */
+        .ptm-name-cell {
             display: flex;
             align-items: center;
             gap: 12px;
         }
-        .pt-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: var(--radius-sm);
-            background: var(--blue-light);
-            color: var(--blue-text);
-            font-size: 0.9rem;
+        .ptm-avatar-sm {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: rgba(20, 93, 160, 0.08);
+            color: var(--primary);
+            font-size: 0.8rem;
             font-weight: 700;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            text-transform: uppercase;
         }
-        .pt-name {
-            font-size: 0.95rem;
+        .ptm-name {
+            font-size: 0.8125rem;
             font-weight: 600;
-            color: var(--text-main);
+            color: var(--text-primary);
         }
 
-        /* === ACTIONS === */
-        .actions-cell { text-align: right; white-space: nowrap; }
-        .action-btn {
-            width: 34px;
-            height: 34px;
+        /* ========================================== */
+        /* CELL HELPERS                               */
+        /* ========================================== */
+        .ptm-cell-muted { color: var(--text-muted); }
+        .ptm-cell-center { text-align: center; }
+
+        /* ========================================== */
+        /* ACTIONS                                    */
+        /* ========================================== */
+        .ptm-actions-cell { text-align: right; white-space: nowrap; }
+        .ptm-icon-btn {
+            width: 32px;
+            height: 32px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border-radius: var(--radius-sm);
+            border-radius: 8px;
             border: none;
             background: transparent;
             color: var(--text-muted);
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s ease;
             vertical-align: middle;
         }
-        .action-btn:hover { background: var(--bg-body); color: var(--primary); }
-        .action-btn-danger:hover { background: var(--danger-bg); color: var(--danger-text); }
-        .action-btn svg { width: 16px; height: 16px; }
+        .ptm-icon-btn:hover { background: var(--gray-50); color: var(--primary); }
+        .ptm-icon-btn-danger:hover { background: rgba(239, 68, 68, 0.08); color: var(--error); }
+        .ptm-icon-btn svg { width: 16px; height: 16px; }
 
-        /* === EMPTY STATE === */
-        .empty-state {
-            padding: 60px 24px;
+        /* ========================================== */
+        /* EMPTY STATE & NO RESULT                    */
+        /* ========================================== */
+        .ptm-empty {
             text-align: center;
+            padding: 48px 24px;
+        }
+        .ptm-empty-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 16px;
+            background: var(--gray-50);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+        }
+        .ptm-empty-title {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 0 0 6px;
+        }
+        .ptm-empty-desc {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            margin: 0 auto;
+            max-width: 320px;
+            line-height: 1.5;
+        }
+        .ptm-no-result {
+            padding: 28px 24px;
+            text-align: center;
+            border-top: 1px solid var(--border-light);
+        }
+        .ptm-no-result p {
+            margin: 0;
+            font-size: 0.8125rem;
             color: var(--text-muted);
         }
-        .empty-state svg { width: 56px; height: 56px; margin-bottom: 16px; opacity: 0.3; }
-        .empty-state p { font-size: 0.95rem; margin: 0; }
 
-        /* === PAGINATION === */
-        .pagination-wrap {
+        /* ========================================== */
+        /* PAGINATION                                 */
+        /* ========================================== */
+        .ptm-pagination-wrap {
             margin-top: 16px;
             display: flex;
             justify-content: center;
         }
 
-        /* === MOBILE RESPONSIVE === */
+        /* ========================================== */
+        /* MOBILE RESPONSIVE                          */
+        /* ========================================== */
         @media (max-width: 640px) {
-            .page-header {
+            .ptm-card-header {
                 flex-direction: column;
-                gap: 12px;
-                text-align: center;
+                align-items: stretch;
             }
-            .page-icon {
-                margin: 0 auto;
+            .ptm-card-actions {
+                flex-direction: column;
+                align-items: stretch;
             }
-            .ml-auto {
-                margin: 0 auto;
-            }
-            .btn-primary {
-                width: 100%;
-            }
-            .data-table th, .data-table td {
-                padding: 12px 14px;
-            }
+            .ptm-search-wrap { width: 100%; }
+            .ptm-search-input { width: 100%; }
+            .ptm-btn-primary { width: 100%; }
+            .ptm-table th, .ptm-table td { padding: 12px 12px; }
         }
     </style>
 </x-app>

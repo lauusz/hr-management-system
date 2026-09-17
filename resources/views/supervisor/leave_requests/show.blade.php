@@ -12,17 +12,21 @@
             $backUrl = route('approval.index');
         }
 
-        $showActionButtons = isset($canApprove) && $canApprove;
-        $isDirectSuper = isset($isApprover) && $isApprover;
+        $approvalCapacityLabel = $approvalCapacityLabel ?? 'Atasan';
+        $canApproveAction = isset($canApprove) && $canApprove;
+        $canRejectAction = isset($canReject) && $canReject;
+        $canReviseAction = isset($canRevise) && $canRevise;
+        $canCancelAction = isset($canCancel) && $canCancel;
+        $showActionButtons = $canApproveAction || $canRejectAction || $canReviseAction || $canCancelAction;
 
         $applicantRole = strtoupper((string) ($item->user->role instanceof \App\Enums\UserRole ? $item->user->role->value : $item->user->role));
         $isHrdApplicant = in_array($applicantRole, ['HRD', 'HR MANAGER'], true);
-        $ackButtonLabel = $isHrdApplicant ? 'Setujui' : 'Mengetahui & Teruskan ke HRD';
-        $ackModalTitle = $isHrdApplicant ? 'Setujui Pengajuan Ini?' : 'Mengetahui & Teruskan ke HRD?';
+        $ackButtonLabel = $isHrdApplicant ? 'Setujui' : 'Setujui & Teruskan ke HRD';
+        $ackModalTitle = $isHrdApplicant ? 'Setujui Pengajuan Ini?' : 'Setujui & Teruskan ke HRD?';
         $ackConfirmLabel = $isHrdApplicant ? 'Ya, Setujui' : 'Ya, Teruskan';
         $ackModalBody = $isHrdApplicant
             ? 'Pengajuan ini akan langsung disetujui sebagai final approval.'
-            : 'Mengetahui pengajuan ini dan meneruskannya ke HRD untuk final approval?';
+            : 'Setujui pengajuan ini sebagai ' . $approvalCapacityLabel . ' dan teruskan ke HRD untuk final approval?';
 
         // Status badge styling
         $statusClass = 'apv-badge--gray';
@@ -39,11 +43,11 @@
             $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>';
         } elseif ($item->status === \App\Models\LeaveRequest::PENDING_SUPERVISOR) {
             $statusClass = 'apv-badge--warning';
-            $statusLabel = $showActionButtons ? 'Perlu Diketahui' : 'Menunggu Atasan';
+            $statusLabel = $canApproveAction ? 'Perlu Diproses' : 'Menunggu ' . $approvalCapacityLabel;
             $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
         } elseif ($item->status === \App\Models\LeaveRequest::PENDING_HR) {
             $statusClass = 'apv-badge--teal';
-            $statusLabel = 'Atasan Mengetahui';
+            $statusLabel = 'Menunggu HRD';
             $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
         }
 
@@ -388,8 +392,8 @@
         <div class="apv-action-dock">
             <div class="apv-action-main">
 
-            @if($showActionButtons)
-                {{-- Primary action: Acknowledge --}}
+            @if($canApproveAction)
+                {{-- Primary action: approve/forward --}}
                 <button type="button" data-modal-target="modal-ack" class="apv-action-btn apv-action-btn--primary">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -399,42 +403,35 @@
 
                 {{-- Secondary actions row --}}
                 <div class="apv-action-secondary">
-                    @if($isDirectSuper)
+                    @if($canReviseAction)
                         <a href="{{ route('approval.edit', $item->id) }}" class="apv-action-btn apv-action-btn--secondary">
                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                             </svg>
                             Edit
                         </a>
-
-                        @if(!in_array($item->status, [\App\Models\LeaveRequest::STATUS_CANCELLED, \App\Models\LeaveRequest::STATUS_REJECTED]))
-                            <button type="button" data-modal-target="modal-delete" class="apv-action-btn apv-action-btn--danger">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                </svg>
-                                Batal
-                            </button>
-                        @endif
                     @endif
 
-                    <button type="button" data-modal-target="modal-reject" class="apv-action-btn apv-action-btn--outline-danger">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                        Tolak
-                    </button>
+                    @if($canCancelAction)
+                        <button type="button" data-modal-target="modal-delete" class="apv-action-btn apv-action-btn--danger">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            Batal
+                        </button>
+                    @endif
+
+                    @if($canRejectAction)
+                        <button type="button" data-modal-target="modal-reject" class="apv-action-btn apv-action-btn--outline-danger">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Tolak
+                        </button>
+                    @endif
                 </div>
 
-            @elseif(auth()->id() === ($item->user->manager_id ?? null) && !empty($item->user->direct_supervisor_id))
-                <div class="apv-status-notice">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    Pengajuan ini menunggu Supervisor langsung untuk mengetahui.
-                </div>
-
-            @elseif($isDirectSuper && !in_array($item->status, [\App\Models\LeaveRequest::STATUS_CANCELLED, \App\Models\LeaveRequest::STATUS_REJECTED]))
-                {{-- Direct supervisor without ack rights (status already moved) --}}
+            @elseif($canReviseAction)
                 <div class="apv-action-secondary">
                     <a href="{{ route('approval.edit', $item->id) }}" class="apv-action-btn apv-action-btn--secondary">
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -442,12 +439,14 @@
                         </svg>
                         Edit
                     </a>
-                    <button type="button" data-modal-target="modal-delete" class="apv-action-btn apv-action-btn--danger">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                        </svg>
-                        Batal
-                    </button>
+                </div>
+
+            @elseif($isMonitoringOnly ?? false)
+                <div class="apv-status-notice">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Anda dapat memantau pengajuan ini. Proses approval berada pada {{ $approvalCapacityLabel }}.
                 </div>
             @endif
         </div>
@@ -455,15 +454,19 @@
     </div>
 
     {{-- Modals --}}
-    <x-modal id="modal-delete" title="Ajukan Pembatalan?" type="confirm" variant="danger" confirmLabel="Ya, Ajukan" cancelLabel="Batal" :confirmFormAction="route('approval.destroy', $item->id)" confirmFormMethod="DELETE">
-        <p style="margin:0; color:#374151;">Anda akan mengajukan permintaan pembatalan untuk pengajuan ini ke HRD.</p>
-    </x-modal>
+    @if($canCancelAction)
+        <x-modal id="modal-delete" title="Batalkan Pengajuan?" type="confirm" variant="danger" confirmLabel="Ya, Batalkan" cancelLabel="Batal" :confirmFormAction="route('approval.destroy', $item->id)" confirmFormMethod="DELETE">
+            <p style="margin:0; color:#374151;">Pengajuan ini akan dibatalkan oleh {{ $approvalCapacityLabel }}.</p>
+        </x-modal>
+    @endif
 
-    @if($showActionButtons)
+    @if($canRejectAction)
     <x-modal id="modal-reject" title="Tolak Pengajuan Ini?" type="confirm" variant="danger" confirmLabel="Ya, Tolak" cancelLabel="Batal" :confirmFormAction="route('approval.reject', $item->id)" confirmFormMethod="POST">
         <p style="margin:0; color:#374151;">Yakin menolak pengajuan <strong>{{ $item->user->name }}</strong>?</p>
     </x-modal>
+    @endif
 
+    @if($canApproveAction)
     <x-modal id="modal-ack" :title="$ackModalTitle" type="confirm" variant="success" :confirmLabel="$ackConfirmLabel" cancelLabel="Batal" :confirmFormAction="route('approval.ack', $item->id)" confirmFormMethod="POST">
         <p style="margin:0; color:#374151;">{{ $ackModalBody }}</p>
     </x-modal>

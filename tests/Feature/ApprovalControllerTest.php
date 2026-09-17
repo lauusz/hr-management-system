@@ -258,6 +258,54 @@ describe('ApprovalController', function () {
             $response->assertStatus(403);
         });
 
+        test('employee assigned as leave approver can access approval index without subordinates', function () {
+            $approver = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $approver->id,
+                'direct_supervisor_id' => null,
+                'manager_id' => null,
+            ]);
+
+            LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+            ]);
+
+            actingAs($approver, 'web');
+
+            $response = $this->get(route('approval.index'));
+
+            $response->assertStatus(200);
+        });
+
+        test('employee assigned as leave approver sees only leave approval menu in approver panel', function () {
+            $approver = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $approver->id,
+                'direct_supervisor_id' => null,
+                'manager_id' => null,
+            ]);
+
+            $response = $this->actingAs($approver, 'web')->get(route('dashboard'));
+
+            $response->assertOk()
+                ->assertSee('Approver Panel')
+                ->assertSee('Approval Izin/Cuti')
+                ->assertDontSee('Approval Lembur')
+                ->assertDontSee('Daftar Pengajuan');
+        });
+
+        test('employee without leave approval assignments does not see approver panel', function () {
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+            $response = $this->actingAs($employee, 'web')->get(route('dashboard'));
+
+            $response->assertOk()
+                ->assertDontSee('Approver Panel')
+                ->assertDontSee('Approval Izin/Cuti');
+        });
+
         test('supervisor cannot access another division employee leave', function () {
             $division = Division::factory()->create();
             $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
@@ -451,6 +499,192 @@ describe('ApprovalController', function () {
     // =====================================================================
     describe('BOUNDARY: Status transition edge cases', function () {
 
+        test('designated approver can approve reject revise and cancel initial stage requests', function () {
+            $division = Division::factory()->create();
+            $approver = User::factory()->create(['role' => UserRole::EMPLOYEE, 'division_id' => $division->id]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'division_id' => $division->id,
+                'approver_id' => $approver->id,
+            ]);
+
+            $approveLeave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+            ]);
+            $rejectLeave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(2)->toDateString(),
+                'end_date' => now()->addDays(2)->toDateString(),
+            ]);
+            $reviseLeave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(3)->toDateString(),
+                'end_date' => now()->addDays(3)->toDateString(),
+            ]);
+            $cancelLeave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(4)->toDateString(),
+                'end_date' => now()->addDays(4)->toDateString(),
+            ]);
+
+            actingAs($approver, 'web');
+
+            $this->post(route('approval.approve', $approveLeave))
+                ->assertRedirect(route('approval.index'));
+            $this->post(route('approval.reject', $rejectLeave))
+                ->assertRedirect(route('approval.index'));
+            $this->put(route('approval.update', $reviseLeave), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(5)->toDateString(),
+                'end_date' => now()->addDays(5)->toDateString(),
+                'reason' => 'Updated by designated approver',
+            ])->assertRedirect(route('approval.show', $reviseLeave->id));
+            $this->delete(route('approval.destroy', $cancelLeave))
+                ->assertRedirect(route('approval.index'));
+
+            expect($approveLeave->refresh()->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($rejectLeave->refresh()->status)->toBe(LeaveRequest::STATUS_REJECTED)
+                ->and($reviseLeave->refresh()->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($reviseLeave->reason)->toBe('Updated by designated approver')
+                ->and($cancelLeave->refresh()->status)->toBe(LeaveRequest::STATUS_CANCELLED);
+        });
+
+        test('supervisor and manager monitor designated approver request without process buttons', function () {
+            $division = Division::factory()->create();
+            $approver = User::factory()->create(['role' => UserRole::EMPLOYEE, 'division_id' => $division->id]);
+            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
+            $manager = User::factory()->create(['role' => UserRole::MANAGER, 'division_id' => $division->id]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'division_id' => $division->id,
+                'approver_id' => $approver->id,
+                'direct_supervisor_id' => $supervisor->id,
+                'manager_id' => $manager->id,
+            ]);
+
+            $leave = LeaveRequest::factory()->forUser($employee)->create(['status' => LeaveRequest::PENDING_SUPERVISOR]);
+
+            actingAs($supervisor, 'web');
+            $supervisorResponse = $this->get(route('approval.show', $leave));
+
+            actingAs($manager, 'web');
+            $managerResponse = $this->get(route('approval.show', $leave));
+
+            $supervisorResponse->assertOk();
+            $managerResponse->assertOk();
+            expect($supervisorResponse->viewData('canApprove'))->toBeFalse()
+                ->and($supervisorResponse->viewData('canReject'))->toBeFalse()
+                ->and($supervisorResponse->viewData('canRevise'))->toBeFalse()
+                ->and($supervisorResponse->viewData('canCancel'))->toBeFalse()
+                ->and($supervisorResponse->viewData('isMonitoringOnly'))->toBeTrue()
+                ->and($managerResponse->viewData('canApprove'))->toBeFalse()
+                ->and($managerResponse->viewData('canReject'))->toBeFalse()
+                ->and($managerResponse->viewData('canRevise'))->toBeFalse()
+                ->and($managerResponse->viewData('canCancel'))->toBeFalse()
+                ->and($managerResponse->viewData('isMonitoringOnly'))->toBeTrue();
+        });
+
+        test('latest approver assignment controls processing rights for pending request', function () {
+            $oldApprover = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $newApprover = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $oldApprover->id,
+            ]);
+
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+            ]);
+            $employee->update(['approver_id' => $newApprover->id]);
+
+            actingAs($oldApprover, 'web');
+            $this->post(route('approval.approve', $leave))->assertStatus(403);
+
+            actingAs($newApprover, 'web');
+            $this->post(route('approval.approve', $leave))
+                ->assertRedirect(route('approval.index'));
+
+            expect($leave->refresh()->status)->toBe(LeaveRequest::PENDING_HR);
+        });
+
+        test('approval action history snapshots successful initial action after reassignment and HR final approval', function () {
+            $approver = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'name' => 'Approver Aktif',
+            ]);
+            $newApprover = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $approver->id,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+                'type' => LeaveType::IZIN->value,
+            ]);
+
+            actingAs($approver, 'web');
+
+            $this->post(route('approval.approve', $leave))
+                ->assertRedirect(route('approval.index'));
+            $this->post(route('approval.approve', $leave))
+                ->assertRedirect(route('approval.index'));
+            $employee->update(['approver_id' => $newApprover->id]);
+
+            actingAs($hrd, 'web');
+            $this->post(route('hr.leave.approve', $leave))
+                ->assertRedirect();
+
+            $actions = $leave->refresh()->approvalActions()->get();
+
+            expect($actions)->toHaveCount(1)
+                ->and($actions->first()->actor_id)->toBe($approver->id)
+                ->and($actions->first()->actor_name)->toBe('Approver Aktif')
+                ->and($actions->first()->capacity)->toBe('APPROVER')
+                ->and($actions->first()->action)->toBe('APPROVE')
+                ->and($actions->first()->from_status)->toBe(LeaveRequest::PENDING_SUPERVISOR)
+                ->and($actions->first()->to_status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
+        });
+
+        test('new approver can view and revise pending HR request but cannot reject or cancel HR stage', function () {
+            $oldApprover = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $newApprover = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $oldApprover->id,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+            ]);
+            $employee->update(['approver_id' => $newApprover->id]);
+
+            actingAs($newApprover, 'web');
+
+            $this->get(route('approval.edit', $leave))->assertOk();
+            $this->put(route('approval.update', $leave), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Revised while pending HR',
+            ])->assertRedirect(route('approval.show', $leave->id));
+            $this->post(route('approval.reject', $leave))
+                ->assertRedirect(route('approval.index'));
+            $this->delete(route('approval.destroy', $leave))
+                ->assertRedirect(route('approval.index'));
+
+            expect($leave->refresh()->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($leave->reason)->toBe('Revised while pending HR');
+        });
+
         test('ACK sets supervisor_ack_at timestamp', function () {
             $division = Division::factory()->create();
             $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR, 'division_id' => $division->id]);
@@ -552,12 +786,13 @@ describe('ApprovalController', function () {
             $this->put(route('approval.update', $leave), [
                 'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(1)->toDateString(),
-                'end_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(3)->toDateString(),
                 'reason' => 'Updated reason',
             ]);
 
             $leave->refresh();
-            expect((string) $leave->notes)->toContain('direvisi oleh Supervisor');
+            expect((string) $leave->notes)->toContain('direvisi oleh Supervisor')
+                ->and($leave->days()->count())->toBe(3);
         });
 
         test('cancel (BATAL) adds system note', function () {

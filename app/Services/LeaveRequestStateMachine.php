@@ -31,6 +31,8 @@ class LeaveRequestStateMachine
 
     public const HR_OVERRIDE_APPROVE = 'HR_OVERRIDE_APPROVE';
 
+    public const HR_EDIT = 'HR_EDIT';
+
     private const TRANSITIONS = [
         self::FORWARD_TO_HR => [
             LeaveRequest::PENDING_SUPERVISOR => LeaveRequest::PENDING_HR,
@@ -66,6 +68,14 @@ class LeaveRequestStateMachine
             LeaveRequest::STATUS_REJECTED => LeaveRequest::STATUS_APPROVED,
             LeaveRequest::STATUS_CANCELLED => LeaveRequest::STATUS_APPROVED,
             'CANCEL_REQ' => LeaveRequest::STATUS_APPROVED,
+        ],
+        self::HR_EDIT => [
+            LeaveRequest::PENDING_SUPERVISOR => LeaveRequest::PENDING_SUPERVISOR,
+            LeaveRequest::PENDING_HR => LeaveRequest::PENDING_HR,
+            LeaveRequest::STATUS_APPROVED => LeaveRequest::STATUS_APPROVED,
+            LeaveRequest::STATUS_REJECTED => LeaveRequest::STATUS_REJECTED,
+            LeaveRequest::STATUS_CANCELLED => LeaveRequest::STATUS_CANCELLED,
+            'CANCEL_REQ' => 'CANCEL_REQ',
         ],
     ];
 

@@ -35,6 +35,7 @@ use App\Http\Controllers\HR\OrganizationController;
 use App\Http\Controllers\Hr\PayslipController;
 use App\Http\Controllers\HR\PositionController;
 use App\Http\Controllers\HR\ScheduleController;
+use App\Http\Controllers\HRApproverMappingController;
 use App\Http\Controllers\HRAttendanceController;
 use App\Http\Controllers\HREmployeeController;
 use App\Http\Controllers\HrLeaveController;
@@ -273,6 +274,16 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/employees', [HREmployeeController::class, 'index'])->name('hr.employees.index');
         Route::get('/hr/employees/create', [HREmployeeController::class, 'create'])->name('hr.employees.create');
         Route::post('/hr/employees', [HREmployeeController::class, 'store'])->name('hr.employees.store');
+        Route::get('/hr/approvers', [HRApproverMappingController::class, 'index'])->name('hr.approvers.index');
+        Route::get('/hr/approvers/search', [HRApproverMappingController::class, 'searchApprovers'])->name('hr.approvers.search');
+        Route::get('/hr/approvers/create', [HRApproverMappingController::class, 'create'])->name('hr.approvers.create');
+        Route::post('/hr/approvers', [HRApproverMappingController::class, 'store'])->name('hr.approvers.store');
+        Route::get('/hr/approvers/{approver}/users/search', [HRApproverMappingController::class, 'searchUsers'])->name('hr.approvers.users.search');
+        Route::get('/hr/approvers/{approver}/users/create', [HRApproverMappingController::class, 'createUser'])->name('hr.approvers.users.create');
+        Route::post('/hr/approvers/{approver}/users', [HRApproverMappingController::class, 'storeUser'])->name('hr.approvers.users.store');
+        Route::delete('/hr/approvers/{approver}/users/{user}', [HRApproverMappingController::class, 'destroyUser'])->name('hr.approvers.users.destroy');
+        Route::patch('/hr/approvers/{approver}/revoke', [HRApproverMappingController::class, 'revoke'])->name('hr.approvers.revoke');
+        Route::get('/hr/approvers/{approver}', [HRApproverMappingController::class, 'show'])->name('hr.approvers.show');
         Route::get('/hr/employees/{employee}', [HREmployeeController::class, 'show'])->name('hr.employees.show');
         Route::get('/hr/employees/{employee}/edit', [HREmployeeController::class, 'edit'])->name('hr.employees.edit');
         Route::put('/hr/employees/{employee}', [HREmployeeController::class, 'update'])->name('hr.employees.update');
@@ -397,7 +408,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/overtime-requests/{overtimeRequest}/reject', [SupervisorOvertimeController::class, 'reject'])->name('overtime-requests.reject');
     });
 
-    Route::middleware('has.subordinates')->group(function () {
+    Route::middleware('leave.approval')->group(function () {
         Route::get('/approval/requests', [ApprovalController::class, 'index'])->name('approval.index');
         Route::get('/supervisor/leave/master', [ApprovalController::class, 'master'])->name('supervisor.leave.master');
         Route::get('/approval/requests/{leave}', [ApprovalController::class, 'show'])->name('approval.show');

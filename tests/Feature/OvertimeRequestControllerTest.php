@@ -103,3 +103,20 @@ it('rejects identical start and end time', function () {
 
     expect(OvertimeRequest::where('user_id', $user->id)->exists())->toBeFalse();
 });
+
+it('keeps supervisor overtime routes closed for employee leave approver without subordinates', function () {
+    $approver = User::factory()->create([
+        'role' => \App\Enums\UserRole::EMPLOYEE,
+    ]);
+
+    User::factory()->create([
+        'role' => \App\Enums\UserRole::EMPLOYEE,
+        'approver_id' => $approver->id,
+        'direct_supervisor_id' => null,
+        'manager_id' => null,
+    ]);
+
+    actingAs($approver)
+        ->get(route('supervisor.overtime-requests.index'))
+        ->assertStatus(403);
+});

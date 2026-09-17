@@ -6,6 +6,8 @@ namespace App\Models;
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -29,6 +31,8 @@ class User extends Authenticatable
         'position_id',
         'direct_supervisor_id',
         'manager_id',
+        'approver_id',
+        'can_approve_leave',
         'shift_id',
         'status',
         'last_login_at',
@@ -45,6 +49,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'password' => 'hashed',
             'role' => UserRole::class,
+            'can_approve_leave' => 'boolean',
             'can_manage_payroll' => 'boolean',
             'hr_staff_can_approve_non_cuti' => 'boolean',
             'leave_balance' => 'decimal:1',
@@ -193,6 +198,26 @@ class User extends Authenticatable
     public function manager()
     {
         return $this->belongsTo(User::class, 'manager_id');
+    }
+
+    public function assignedApprover(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approver_id');
+    }
+
+    public function approvalAssignees(): HasMany
+    {
+        return $this->hasMany(User::class, 'approver_id');
+    }
+
+    public function managedEmployees(): HasMany
+    {
+        return $this->hasMany(User::class, 'manager_id');
+    }
+
+    public function hasLeaveApprovalAssignments(): bool
+    {
+        return (bool) $this->can_approve_leave || $this->approvalAssignees()->exists();
     }
 
     // Relasi ke Bawahan (Berdasarkan direct supervisor)

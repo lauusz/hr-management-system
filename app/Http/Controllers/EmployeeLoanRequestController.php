@@ -15,13 +15,32 @@ class EmployeeLoanRequestController extends Controller
 
     public function index()
     {
-        $loans = LoanRequest::where('user_id', Auth::id())
+        $loans = LoanRequest::with('repayments')
+            ->where('user_id', Auth::id())
             ->orderByDesc('created_at')
             ->get();
 
         $hasActiveLoan = $loans->whereIn('status', ['PENDING_HRD', 'APPROVED'])->isNotEmpty();
+        $runningLoans = $loans->where('status', 'APPROVED')->values();
+        $totalDebt = (float) $runningLoans->sum('amount');
+        $totalPaid = (float) $runningLoans->sum(fn (LoanRequest $loan) => $loan->repayments->sum('amount'));
+        $remaining = max(0, $totalDebt - $totalPaid);
 
-        return view('loan_requests.index', compact('loans', 'hasActiveLoan'));
+        $loanSummary = [
+            'runningLoans' => $runningLoans,
+            'pendingLoans' => $loans->where('status', 'PENDING_HRD')->count(),
+            'totalDebt' => $totalDebt,
+            'totalPaid' => $totalPaid,
+            'remaining' => $remaining,
+            'percentage' => $totalDebt > 0 ? min(100, (int) round(($totalPaid / $totalDebt) * 100)) : 0,
+            'monthlyInstallment' => (float) $runningLoans->sum('monthly_installment'),
+            'repayments' => $runningLoans
+                ->flatMap(fn (LoanRequest $loan) => $loan->repayments)
+                ->sortByDesc('paid_at')
+                ->values(),
+        ];
+
+        return view('loan_requests.index', compact('loans', 'hasActiveLoan', 'loanSummary'));
     }
 
     public function create()

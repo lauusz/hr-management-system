@@ -12,6 +12,8 @@ use App\Models\ShiftDay;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
 use App\Services\LeaveBalanceService;
+use App\Services\LeaveApprovalAssignmentService;
+use App\Services\LeaveRequestDayService;
 use App\Services\LeaveRequestStateMachine;
 use App\Services\LeaveRequestWorkflowService;
 use App\Services\OffSpvQuotaService;
@@ -31,6 +33,8 @@ class LeaveRequestController extends Controller
     public function __construct(
         protected ImageCompressor $imageCompressor,
         protected LeaveBalanceService $leaveBalanceService,
+        protected LeaveApprovalAssignmentService $approvalAssignmentService,
+        protected LeaveRequestDayService $leaveRequestDayService,
         protected LeaveRequestStateMachine $stateMachine,
         protected LeaveRequestWorkflowService $workflowService,
         protected OffSpvQuotaService $offSpvQuotaService,
@@ -317,61 +321,9 @@ class LeaveRequestController extends Controller
 
         $uploadedEvidenceFiles = $this->storeEvidenceFiles($request);
 
-        // =====================================================================
-        // ROLE-BASED INITIAL STATUS
-        // =====================================================================
-        // Flow approval berbeda tergantung role pemohon:
-        // - EMPLOYEE  : SPV ack (jika ada ds/mg) → HR final
-        // - SUPERVISOR: Manager ack (jika ada mg) → HR final
-        // - MANAGER   : Langsung ke HR (HANYA HRD boleh approve)
-        // - HR_STAFF  : Langsung ke HR (HANYA HRD boleh approve)
-        // - HRD       : Manager ack (jika ada mg) → APPROVED, atau ke HR inbox
-        // =====================================================================
-
-        $applicantRole = $this->getRoleString($user);
-        $hasValidSupervisor = ! empty($user->direct_supervisor_id);
-        $hasValidManager = false;
-        if (! empty($user->manager_id)) {
-            $hasValidManager = User::where('id', $user->manager_id)->exists();
-        }
-
-        $initialStatus = LeaveRequest::PENDING_HR;
-
-        switch ($applicantRole) {
-            case 'EMPLOYEE':
-                // SPV atau Manager mengetahui (jika ada), lalu HR final
-                if ($hasValidSupervisor || $hasValidManager) {
-                    $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
-                }
-                break;
-
-            case 'SUPERVISOR':
-                // Manager mengetahui (jika ada), lalu HR final
-                if ($hasValidManager) {
-                    $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
-                }
-                break;
-
-            case 'MANAGER':
-                // Langsung ke HR inbox
-                $initialStatus = LeaveRequest::PENDING_HR;
-                break;
-
-            case 'HR_STAFF':
-                // Langsung ke HR inbox (HANYA HRD boleh approve)
-                $initialStatus = LeaveRequest::PENDING_HR;
-                break;
-
-            case 'HRD':
-                // Manager_id approve langsung (jika ada), atau ke HR inbox
-                if ($hasValidManager) {
-                    $initialStatus = LeaveRequest::PENDING_SUPERVISOR;
-                }
-                break;
-
-            default:
-                $initialStatus = LeaveRequest::PENDING_HR;
-        }
+        $initialStatus = $this->approvalAssignmentService->initialApproverFor($user) !== null
+            ? LeaveRequest::PENDING_SUPERVISOR
+            : LeaveRequest::PENDING_HR;
 
         $leaveData = [
             'user_id' => $userId,
@@ -402,6 +354,7 @@ class LeaveRequestController extends Controller
                 }
 
                 $leave = LeaveRequest::create($leaveData);
+                $this->leaveRequestDayService->syncDateRange($leave);
                 $this->createEvidenceAttachments($leave, $uploadedEvidenceFiles);
             });
         } catch (\RuntimeException $exception) {
@@ -437,12 +390,7 @@ class LeaveRequestController extends Controller
         $user = Auth::user();
         $leave_request->loadMissing('user');
 
-        $canView = $leave_request->user_id === $user->id
-            || $user->isHR()
-            || (int) $leave_request->user->direct_supervisor_id === (int) $user->id
-            || (int) $leave_request->user->manager_id === (int) $user->id;
-
-        if (! $canView) {
+        if (! Gate::allows('view', $leave_request)) {
             return redirect()->back()->with('error', 'Anda tidak berhak melihat bukti pendukung ini.');
         }
         abort_unless($leave_request->photo, 404, 'Bukti pendukung tidak tersedia.');
@@ -530,12 +478,7 @@ class LeaveRequestController extends Controller
         $user = Auth::user();
         $leave_request->loadMissing('user');
 
-        $canView = $leave_request->user_id === $user->id
-            || $user->isHR()
-            || (int) $leave_request->user->direct_supervisor_id === (int) $user->id
-            || (int) $leave_request->user->manager_id === (int) $user->id;
-
-        if (! $canView) {
+        if (! Gate::allows('view', $leave_request)) {
             return redirect()->back()->with('error', 'Anda tidak berhak melihat bukti pendukung ini.');
         }
 
@@ -826,7 +769,12 @@ class LeaveRequestController extends Controller
                     }
 
                     return $dataToUpdate;
-                }
+                },
+                [],
+                null,
+                function (LeaveRequest $updatedLeave): void {
+                    $this->leaveRequestDayService->syncDateRange($updatedLeave);
+                },
             );
         } catch (\RuntimeException $exception) {
             $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);

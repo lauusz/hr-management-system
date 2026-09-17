@@ -131,10 +131,22 @@ class LeaveRequest extends Model
         return $this->hasMany(LeaveBalanceTransaction::class);
     }
 
+    public function days()
+    {
+        return $this->hasMany(LeaveRequestDay::class)->orderBy('leave_date');
+    }
+
     public function attachments()
     {
         return $this->hasMany(LeaveRequestAttachment::class)
             ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
+    public function approvalActions()
+    {
+        return $this->hasMany(LeaveRequestApprovalAction::class)
+            ->orderBy('acted_at')
             ->orderBy('id');
     }
 

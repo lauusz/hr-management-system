@@ -43,6 +43,12 @@ describe('LeaveRequestStateMachine', function () {
             [LeaveRequest::STATUS_REJECTED, LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
             [LeaveRequest::STATUS_CANCELLED, LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
             ['CANCEL_REQ', LeaveRequestStateMachine::HR_OVERRIDE_APPROVE, LeaveRequest::STATUS_APPROVED],
+            [LeaveRequest::PENDING_SUPERVISOR, LeaveRequestStateMachine::HR_EDIT, LeaveRequest::PENDING_SUPERVISOR],
+            [LeaveRequest::PENDING_HR, LeaveRequestStateMachine::HR_EDIT, LeaveRequest::PENDING_HR],
+            [LeaveRequest::STATUS_APPROVED, LeaveRequestStateMachine::HR_EDIT, LeaveRequest::STATUS_APPROVED],
+            [LeaveRequest::STATUS_REJECTED, LeaveRequestStateMachine::HR_EDIT, LeaveRequest::STATUS_REJECTED],
+            [LeaveRequest::STATUS_CANCELLED, LeaveRequestStateMachine::HR_EDIT, LeaveRequest::STATUS_CANCELLED],
+            ['CANCEL_REQ', LeaveRequestStateMachine::HR_EDIT, 'CANCEL_REQ'],
         ];
 
         $present = [];
@@ -71,22 +77,27 @@ describe('LeaveRequestStateMachine', function () {
             LeaveRequestStateMachine::CANCEL,
             LeaveRequestStateMachine::REVISE_FOR_HR,
             LeaveRequestStateMachine::EDIT_PENDING,
+            LeaveRequestStateMachine::HR_EDIT,
         );
 
         expect($machine->getAllowedActions(LeaveRequest::STATUS_APPROVED))->toContain(
             LeaveRequestStateMachine::CANCEL,
             'EDIT_APPROVED_DATE',
             LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
+            LeaveRequestStateMachine::HR_EDIT,
         );
 
         expect($machine->getAllowedActions(LeaveRequest::STATUS_REJECTED))->toBe([
             LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
+            LeaveRequestStateMachine::HR_EDIT,
         ]);
         expect($machine->getAllowedActions('BATAL'))->toBe([
             LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
+            LeaveRequestStateMachine::HR_EDIT,
         ]);
         expect($machine->getAllowedActions('CANCEL_REQ'))->toBe([
             LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
+            LeaveRequestStateMachine::HR_EDIT,
         ]);
     });
 
@@ -97,6 +108,22 @@ describe('LeaveRequestStateMachine', function () {
             $status,
             LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
         ))->toBe(LeaveRequest::STATUS_APPROVED);
+    })->with([
+        LeaveRequest::PENDING_SUPERVISOR,
+        LeaveRequest::PENDING_HR,
+        LeaveRequest::STATUS_APPROVED,
+        LeaveRequest::STATUS_REJECTED,
+        LeaveRequest::STATUS_CANCELLED,
+        'CANCEL_REQ',
+    ]);
+
+    it('preserves the current status for every HR edit', function (string $status) {
+        $machine = new LeaveRequestStateMachine;
+
+        expect($machine->getTargetStatus(
+            $status,
+            LeaveRequestStateMachine::HR_EDIT,
+        ))->toBe($status);
     })->with([
         LeaveRequest::PENDING_SUPERVISOR,
         LeaveRequest::PENDING_HR,
@@ -294,7 +321,7 @@ describe('LeaveRequestStateMachine', function () {
         }
 
         expect($thrown)->not->toBeNull()
-            ->and($thrown->getMessage())->toContain('Callback state machine')
+            ->and($thrown->getMessage())->toBe('Proses pengajuan gagal karena hasil pemrosesan tidak valid.')
             ->and($leave->fresh()->status)->toBe(LeaveRequest::PENDING_HR)
             ->and($leave->fresh()->reason)->toBe('original');
     });

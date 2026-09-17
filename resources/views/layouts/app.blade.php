@@ -971,6 +971,30 @@
         </div>
 
         {{-- ============================================== --}}
+        {{-- APPROVER PANEL --}}
+        {{-- ============================================== --}}
+        @if(auth()->user()->isEmployee() && auth()->user()->hasLeaveApprovalAssignments())
+        <div class="menu-section">
+          <div class="menu-section-title">Approver Panel</div>
+
+          <a href="{{ route('approval.index') }}" class="menu-item {{ request()->routeIs('approval.index', 'approval.show', 'approval.edit') ? 'active' : '' }}">
+            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="menu-text">Approval Izin/Cuti</span>
+            @php
+            $pendingLeaveApprovalCount = app(\App\Services\LeaveApprovalAssignmentService::class)
+                ->queryPendingFor(auth()->user())
+                ->count();
+            @endphp
+            @if($pendingLeaveApprovalCount > 0)
+            <span class="menu-badge">{{ $pendingLeaveApprovalCount }}</span>
+            @endif
+          </a>
+        </div>
+        @endif
+
+        {{-- ============================================== --}}
         {{-- MANAGER AREA --}}
         {{-- ============================================== --}}
         @if(auth()->user()->isManager())
@@ -1061,7 +1085,7 @@
         {{-- ============================================== --}}
         @if(auth()->user()->isHR())
         @php
-        $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
+        $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.approvers.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
         $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*','hr.office-holidays.*', 'hr.overtime-requests.master');
         $hrLoanOpen = request()->routeIs('hr.loan_requests.*', 'hr.payroll.*');
         $hrAssetOpen = request()->routeIs('hr.assets.*');
@@ -1123,6 +1147,7 @@
           </button>
           <div class="submenu-panel {{ $hrEmployeesOpen ? 'open' : '' }}" data-menu-panel="employees">
             <a href="{{ route('hr.employees.index') }}" class="submenu-item {{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">Daftar Karyawan</a>
+            <a href="{{ route('hr.approvers.index') }}" class="submenu-item {{ request()->routeIs('hr.approvers.*') ? 'active' : '' }}">Daftar Approver</a>
             <a href="{{ route('hr.organization') }}" class="submenu-item {{ request()->routeIs('hr.organization','hr.divisions.*','hr.positions.*') ? 'active' : '' }}">Divisi & Jabatan</a>
             <a href="{{ route('hr.pts.index') }}" class="submenu-item {{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">Master PT</a>
           </div>

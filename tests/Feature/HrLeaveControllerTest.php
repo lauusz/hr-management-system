@@ -5,6 +5,7 @@ use App\Enums\UserRole;
 use App\Models\EmployeeProfile;
 use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
+use App\Models\LeaveRequestDay;
 use App\Models\Pt;
 use App\Models\User;
 use App\Services\LeaveBalanceService;
@@ -384,6 +385,81 @@ describe('HrLeaveController', function () {
                 ->and(trim($xpath->evaluate('string(.//*[@data-leave-deduction="meal-allowance"])', $row)))->toBe('*potong um');
         });
 
+        it('master removes deducted dates from the normal range and lists cuti and UM dates with commas', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['name' => 'Karyawan Potongan Campuran']);
+            $leave = LeaveRequest::factory()->forUser($employee)->approved()->izin()->create([
+                'start_date' => '2026-09-01',
+                'end_date' => '2026-09-08',
+                'deduct_um' => false,
+            ]);
+            app(\App\Services\LeaveRequestDayService::class)->syncDateRange($leave);
+            app(\App\Services\LeaveRequestDayService::class)->saveDecisions($leave, [
+                '2026-09-01' => 'NONE',
+                '2026-09-02' => 'NONE',
+                '2026-09-03' => 'LEAVE_BALANCE_1',
+                '2026-09-04' => 'LEAVE_BALANCE_0_5',
+                '2026-09-05' => 'NONE',
+                '2026-09-06' => 'NONE',
+                '2026-09-07' => 'MEAL_ALLOWANCE',
+                '2026-09-08' => 'MEAL_ALLOWANCE',
+            ], $hrd->id);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.master', ['q' => 'Karyawan Potongan Campuran']));
+            $response->assertOk();
+
+            $dom = new DOMDocument;
+            $previousState = libxml_use_internal_errors(true);
+            $dom->loadHTML($response->getContent());
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousState);
+            $xpath = new DOMXPath($dom);
+            $row = $xpath->query('//tr[.//*[normalize-space()="Karyawan Potongan Campuran"]]')->item(0);
+            $normalPeriod = trim($xpath->evaluate('string(.//*[contains(concat(" ", normalize-space(@class), " "), " lm-date-cell ")])', $row));
+            $leaveDeduction = trim($xpath->evaluate('string(.//*[@data-leave-deduction="leave"])', $row));
+            $mealAllowanceDeduction = trim($xpath->evaluate('string(.//*[@data-leave-deduction="meal-allowance"])', $row));
+
+            expect($row)->not->toBeNull()
+                ->and($normalPeriod)->toBe('01/09/26 s/d 02/09/26, 05/09/26 s/d 06/09/26')
+                ->and($leaveDeduction)->toBe('*potong cuti: 03/09/26, 04/09/26')
+                ->and($leaveDeduction)->not->toContain('s/d')
+                ->and($mealAllowanceDeduction)->toBe('*potong um: 07/09/26, 08/09/26')
+                ->and($mealAllowanceDeduction)->not->toContain('s/d');
+        });
+
+        it('master keeps comma-separated deduction dates chronological across months', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['name' => 'Karyawan Potongan Lintas Bulan']);
+            $leave = LeaveRequest::factory()->forUser($employee)->approved()->izin()->create([
+                'start_date' => '2026-09-30',
+                'end_date' => '2026-10-02',
+            ]);
+            app(\App\Services\LeaveRequestDayService::class)->syncDateRange($leave);
+            app(\App\Services\LeaveRequestDayService::class)->saveDecisions($leave, [
+                '2026-09-30' => 'LEAVE_BALANCE_1',
+                '2026-10-01' => 'LEAVE_BALANCE_1',
+                '2026-10-02' => 'MEAL_ALLOWANCE',
+            ], $hrd->id);
+
+            actingAs($hrd, 'web');
+
+            $response = $this->get(route('hr.leave.master', ['q' => 'Karyawan Potongan Lintas Bulan']));
+            $response->assertOk();
+
+            $dom = new DOMDocument;
+            $previousState = libxml_use_internal_errors(true);
+            $dom->loadHTML($response->getContent());
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousState);
+            $xpath = new DOMXPath($dom);
+            $row = $xpath->query('//tr[.//*[normalize-space()="Karyawan Potongan Lintas Bulan"]]')->item(0);
+
+            expect(trim($xpath->evaluate('string(.//*[@data-leave-deduction="leave"])', $row)))
+                ->toBe('*potong cuti: 30/09/26, 01/10/26');
+        });
+
         it('master does not show a deduction note when no deduction is recorded', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create(['name' => 'Karyawan Tanpa Potongan']);
@@ -427,6 +503,30 @@ describe('HrLeaveController', function () {
             expect($response->viewData('item')->id)->toBe($leave->id);
         });
 
+        it('shows one compact daily treatment radio group for every date', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-09-01',
+                'end_date' => '2026-09-03',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('Perlakuan per Tanggal')
+                ->assertSee('name="daily_treatments[2026-09-01]"', false)
+                ->assertSee('name="daily_treatments[2026-09-02]"', false)
+                ->assertSee('name="daily_treatments[2026-09-03]"', false)
+                ->assertSee('value="NONE"', false)
+                ->assertSee('value="MEAL_ALLOWANCE"', false)
+                ->assertSee('value="LEAVE_BALANCE_1"', false)
+                ->assertSee('value="LEAVE_BALANCE_0_5"', false);
+        });
+
         it('shows the short notice warning without the word termasuk', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
@@ -445,7 +545,7 @@ describe('HrLeaveController', function () {
                 ->assertDontSee('Termasuk Potong Uang Makan');
         });
 
-        it('shows final HR intervention controls for every terminal status', function (string $status) {
+        it('shows edit-only HR controls for every terminal status', function (string $status) {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
@@ -464,8 +564,9 @@ describe('HrLeaveController', function () {
             expect(str_contains($html, 'data-modal-target="modal-edit-hr"'))->toBeTrue()
                 ->and(str_contains($html, 'Intervensi HR'))->toBeFalse()
                 ->and((bool) preg_match('/data-modal-target="modal-edit-hr"[^>]*>.*?\bEdit\b.*?<\/button>/s', $html))->toBeTrue()
-                ->and(str_contains($html, 'Simpan & Setujui'))->toBeTrue()
-                ->and(str_contains($html, 'status pengajuan langsung menjadi APPROVED'))->toBeTrue();
+                ->and(str_contains($html, 'Simpan Perubahan'))->toBeTrue()
+                ->and(str_contains($html, 'Simpan & Setujui'))->toBeFalse()
+                ->and(str_contains($html, 'tidak mengubah status pengajuan'))->toBeTrue();
         })->with([
             LeaveRequest::STATUS_APPROVED,
             LeaveRequest::STATUS_REJECTED,
@@ -521,7 +622,8 @@ describe('HrLeaveController', function () {
             $response = $this->get(route('hr.leave.show', $leave->id));
 
             $response->assertStatus(200)
-                ->assertSee('name="deduct_um"', false);
+                ->assertSee('name="daily_treatments[', false)
+                ->assertSee('value="MEAL_ALLOWANCE"', false);
         });
 
         it('shows UM deduction option for IZIN even when leave balance is available', function () {
@@ -537,7 +639,8 @@ describe('HrLeaveController', function () {
             $response = $this->get(route('hr.leave.show', $leave->id));
 
             $response->assertStatus(200)
-                ->assertSee('name="deduct_um"', false);
+                ->assertSee('name="daily_treatments[', false)
+                ->assertSee('value="MEAL_ALLOWANCE"', false);
         });
 
         it('shows all manual deduction choices in CUTI intervention', function () {
@@ -552,10 +655,10 @@ describe('HrLeaveController', function () {
 
             $this->get(route('hr.leave.show', $leave))
                 ->assertOk()
-                ->assertSee('name="deduction_mode_edit"', false)
+                ->assertSee('name="daily_treatments[', false)
                 ->assertSee('value="NONE"', false)
-                ->assertSee('value="LEAVE_BALANCE"', false)
-                ->assertSee('value="LEAVE_BALANCE_HALF_DAY"', false)
+                ->assertSee('value="LEAVE_BALANCE_1"', false)
+                ->assertSee('value="LEAVE_BALANCE_0_5"', false)
                 ->assertSee('value="MEAL_ALLOWANCE"', false);
         });
 
@@ -572,7 +675,11 @@ describe('HrLeaveController', function () {
 
             $this->get(route('hr.leave.show', $leave))
                 ->assertOk()
-                ->assertSee('value="LEAVE_BALANCE_HALF_DAY" checked', false);
+                ->assertSee('value="LEAVE_BALANCE_0_5"', false);
+
+            $day = $leave->days()->sole();
+            expect($day->treatment)->toBe(LeaveRequestDay::LEAVE_BALANCE)
+                ->and((float) $day->deduction_amount)->toBe(0.5);
         });
 
         it('shows a clear wallet icon for meal allowance deduction', function () {
@@ -685,6 +792,76 @@ describe('HrLeaveController', function () {
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
                 ->and($leave->approved_by)->toBe($hrd->id)
                 ->and($leave->approved_at)->toBeTruthy();
+        });
+
+        it('approves mixed daily treatments and deducts the exact daily total', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 5,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-09-01',
+                'end_date' => '2026-09-04',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('hr.leave.approve', $leave), [
+                'daily_treatments' => [
+                    '2026-09-01' => 'MEAL_ALLOWANCE',
+                    '2026-09-02' => 'LEAVE_BALANCE_1',
+                    '2026-09-03' => 'LEAVE_BALANCE_0_5',
+                    '2026-09-04' => 'NONE',
+                ],
+            ])->assertRedirect()->assertSessionHas('success');
+
+            $leave->refresh();
+            $employee->refresh();
+            $days = $leave->days()->orderBy('leave_date')->get();
+
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->type)->toBe(LeaveType::IZIN)
+                ->and($leave->deduct_um)->toBeTrue()
+                ->and((float) $employee->leave_balance)->toBe(3.5)
+                ->and($days->pluck('treatment')->all())->toBe([
+                    LeaveRequestDay::MEAL_ALLOWANCE,
+                    LeaveRequestDay::LEAVE_BALANCE,
+                    LeaveRequestDay::LEAVE_BALANCE,
+                    LeaveRequestDay::NONE,
+                ])
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(1.5);
+        });
+
+        it('rejects an incomplete daily treatment selection atomically', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 5,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-09-01',
+                'end_date' => '2026-09-02',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->from(route('hr.leave.show', $leave))
+                ->post(route('hr.leave.approve', $leave), [
+                    'daily_treatments' => [
+                        '2026-09-01' => 'LEAVE_BALANCE_1',
+                    ],
+                ])
+                ->assertRedirect(route('hr.leave.show', $leave))
+                ->assertSessionHasErrors('daily_treatments');
+
+            expect($leave->fresh()->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and((float) $employee->fresh()->leave_balance)->toBe(5.0)
+                ->and($leave->days()->count())->toBe(0);
         });
 
         it('approves IZIN without cuti or UM deduction', function () {
@@ -1409,6 +1586,10 @@ describe('HrLeaveController', function () {
             $response = $this->get(route('hr.leave.manual.create'));
 
             $response->assertStatus(200);
+            $response->assertSee('Form Entri Manual');
+            $response->assertSee('Langkah 1 dari 4');
+            $response->assertSee('manual-form-shell', false);
+            $response->assertSee('manual-form-actions', false);
             expect($response->viewData('employees'))->toBeTruthy();
         });
 
@@ -1434,7 +1615,7 @@ describe('HrLeaveController', function () {
                 'user_id' => $employee->id,
                 'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(1)->toDateString(),
-                'end_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(2)->toDateString(),
                 'reason' => 'Manual entry by HR',
                 'status' => LeaveRequest::STATUS_APPROVED,
             ]);
@@ -1443,7 +1624,8 @@ describe('HrLeaveController', function () {
 
             $leave = LeaveRequest::where('user_id', $employee->id)->first();
             expect($leave)->toBeTruthy()
-                ->and($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
+                ->and($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->days()->count())->toBe(2);
         });
 
         it('manual create sets supervisor_ack_at when not PENDING_SUPERVISOR', function () {
@@ -1660,7 +1842,7 @@ describe('HrLeaveController', function () {
                 ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(0.0);
         });
 
-        it('manual intervention deducts leave for IZIN when Potong Cuti is selected', function () {
+        it('pending edit records Potong Cuti choice without deducting balance', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create([
                 'role' => UserRole::EMPLOYEE,
@@ -1683,12 +1865,49 @@ describe('HrLeaveController', function () {
             ])->assertSessionHas('success');
 
             expect($leave->fresh()->type)->toBe(LeaveType::IZIN)
+                ->and($leave->fresh()->status)->toBe(LeaveRequest::PENDING_HR)
                 ->and($leave->fresh()->deduct_um)->toBeFalse()
-                ->and((float) $employee->fresh()->leave_balance)->toBe(9.0)
+                ->and((float) $employee->fresh()->leave_balance)->toBe(10.0)
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(0.0);
+        });
+
+        it('edits an approved request with mixed daily treatments and reconciles its ledger', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 5,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->approved()->izin()->create([
+                'start_date' => '2026-09-01',
+                'end_date' => '2026-09-02',
+            ]);
+            app(\App\Services\LeaveRequestDayService::class)->syncDateRange($leave);
+
+            actingAs($hrd, 'web');
+
+            $this->put(route('hr.leave.update', $leave), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-09-01',
+                'end_date' => '2026-09-02',
+                'reason' => 'Koreksi perlakuan harian',
+                'daily_treatments' => [
+                    '2026-09-01' => 'LEAVE_BALANCE_1',
+                    '2026-09-02' => 'MEAL_ALLOWANCE',
+                ],
+            ])->assertRedirect(route('hr.leave.show', $leave))
+                ->assertSessionHas('success');
+
+            $leave->refresh();
+            $employee->refresh();
+
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->type)->toBe(LeaveType::IZIN)
+                ->and($leave->deduct_um)->toBeTrue()
+                ->and((float) $employee->leave_balance)->toBe(4.0)
                 ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(1.0);
         });
 
-        it('manual intervention deducts only half a leave day when saved repeatedly', function () {
+        it('pending half-day edit never deducts balance even when saved repeatedly', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create([
                 'role' => UserRole::EMPLOYEE,
@@ -1716,9 +1935,10 @@ describe('HrLeaveController', function () {
                 ->assertSessionHas('success');
 
             expect($leave->fresh()->type)->toBe(LeaveType::IZIN)
+                ->and($leave->fresh()->status)->toBe(LeaveRequest::PENDING_HR)
                 ->and($leave->fresh()->deduct_um)->toBeFalse()
-                ->and((float) $employee->fresh()->leave_balance)->toBe(9.5)
-                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(0.5);
+                ->and((float) $employee->fresh()->leave_balance)->toBe(10.0)
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(0.0);
         });
 
         it('manual intervention refunds the existing cuti deduction when Tanpa Potongan is selected', function () {
@@ -1749,11 +1969,17 @@ describe('HrLeaveController', function () {
                 ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(0.0);
         });
 
-        it('HRD update on pending leave is a final approval', function () {
+        it('HRD edit on pending leave only saves changes without approving or deducting balance', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
-            $employee = User::factory()->create();
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 5,
+            ]);
             $leave = LeaveRequest::factory()->forUser($employee)->create([
                 'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-09-04',
+                'end_date' => '2026-09-05',
                 'reason' => 'Original reason',
             ]);
 
@@ -1761,20 +1987,72 @@ describe('HrLeaveController', function () {
 
             $response = $this->put(route('hr.leave.update', $leave->id), [
                 'type' => LeaveType::IZIN->value,
-                'start_date' => now()->addDays(2)->toDateString(),
-                'end_date' => now()->addDays(2)->toDateString(),
+                'start_date' => '2026-09-04',
+                'end_date' => '2026-09-05',
                 'reason' => 'Updated reason',
+                'daily_treatments' => [
+                    '2026-09-04' => 'LEAVE_BALANCE_1',
+                    '2026-09-05' => 'MEAL_ALLOWANCE',
+                ],
             ]);
 
-            $response->assertRedirect();
+            $response->assertRedirect(route('hr.leave.show', $leave));
             $leave->refresh();
+            $employee->refresh();
+
             expect($leave->reason)->toBe('Updated reason')
-                ->and($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
-                ->and($leave->approved_by)->toBe($hrd->id)
-                ->and($leave->approved_at)->not->toBeNull();
+                ->and($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($leave->approved_by)->toBeNull()
+                ->and($leave->approved_at)->toBeNull()
+                ->and($leave->deduct_um)->toBeTrue()
+                ->and((float) $employee->leave_balance)->toBe(5.0)
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(0.0)
+                ->and($leave->days()->orderBy('leave_date')->pluck('treatment')->all())->toBe([
+                    LeaveRequestDay::LEAVE_BALANCE,
+                    LeaveRequestDay::MEAL_ALLOWANCE,
+                ]);
         });
 
-        it('HR Staff can finalize their own request through manual intervention', function () {
+        it('applies edited daily deductions only when HR performs the separate approval', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 5,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-09-04',
+                'end_date' => '2026-09-05',
+            ]);
+            $dailyTreatments = [
+                '2026-09-04' => 'LEAVE_BALANCE_1',
+                '2026-09-05' => 'MEAL_ALLOWANCE',
+            ];
+
+            actingAs($hrd, 'web');
+
+            $this->put(route('hr.leave.update', $leave), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-09-04',
+                'end_date' => '2026-09-05',
+                'daily_treatments' => $dailyTreatments,
+            ])->assertSessionHas('success');
+
+            expect($leave->fresh()->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and((float) $employee->fresh()->leave_balance)->toBe(5.0);
+
+            $this->post(route('hr.leave.approve', $leave), [
+                'daily_treatments' => $dailyTreatments,
+            ])->assertSessionHas('success');
+
+            expect($leave->fresh()->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->fresh()->approved_by)->toBe($hrd->id)
+                ->and((float) $employee->fresh()->leave_balance)->toBe(4.0)
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(1.0);
+        });
+
+        it('HR Staff can edit their own request without self-approving it', function () {
             $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
             $leave = LeaveRequest::factory()->forUser($hrStaff)->create([
                 'status' => LeaveRequest::PENDING_HR,
@@ -1793,12 +2071,13 @@ describe('HrLeaveController', function () {
 
             $response->assertRedirect();
             $leave->refresh();
-            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
-                ->and($leave->approved_by)->toBe($hrStaff->id)
-                ->and($leave->approved_at)->not->toBeNull();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($leave->reason)->toBe('Trying to self-approve')
+                ->and($leave->approved_by)->toBeNull()
+                ->and($leave->approved_at)->toBeNull();
         });
 
-        it('ignores approval actor payload and uses the authenticated HR actor', function () {
+        it('ignores approval status and audit payload during edit', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
@@ -1818,12 +2097,12 @@ describe('HrLeaveController', function () {
             ]);
 
             $leave->refresh();
-            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
-                ->and($leave->approved_by)->toBe($hrd->id)
-                ->and($leave->approved_at)->not->toBeNull();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and($leave->approved_by)->toBeNull()
+                ->and($leave->approved_at)->toBeNull();
         });
 
-        it('final HR intervention deducts the approved CUTI balance', function () {
+        it('pending CUTI edit does not deduct balance before separate approval', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create([
                 'role' => UserRole::EMPLOYEE,
@@ -1848,9 +2127,9 @@ describe('HrLeaveController', function () {
 
             $leave->refresh();
             $employee->refresh();
-            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
-                ->and((float) $employee->leave_balance)->toBeLessThan(12.0)
-                ->and(LeaveBalanceTransaction::where('leave_request_id', $leave->id)->exists())->toBeTrue();
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and((float) $employee->leave_balance)->toBe(12.0)
+                ->and(LeaveBalanceTransaction::where('leave_request_id', $leave->id)->exists())->toBeFalse();
         });
 
         it('can update an APPROVED leave request', function () {
@@ -1860,6 +2139,8 @@ describe('HrLeaveController', function () {
                 'status' => LeaveRequest::STATUS_APPROVED,
                 'reason' => 'Original reason',
                 'notes' => '[System] Intervensi final oleh admin (HR STAFF); status APPROVED → APPROVED.',
+                'approved_by' => $employee->id,
+                'approved_at' => '2026-08-01 09:00:00',
             ]);
 
             actingAs($hrd, 'web');
@@ -1875,13 +2156,14 @@ describe('HrLeaveController', function () {
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
                 ->and($leave->reason)->toBe('Updated reason')
-                ->and($leave->approved_by)->toBe($hrd->id);
+                ->and($leave->approved_by)->toBe($employee->id)
+                ->and($leave->approved_at?->format('Y-m-d H:i:s'))->toBe('2026-08-01 09:00:00');
             expect((string) $leave->notes)
                 ->toContain("[System] Diperbarui oleh HR ({$hrd->name}) pada ".now()->format('d M Y H:i'))
                 ->not->toContain('→');
         });
 
-        it('reopens any terminal status as final APPROVED', function (string $status) {
+        it('preserves every terminal status while editing its data', function (string $status) {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($employee)->create([
@@ -1899,7 +2181,7 @@ describe('HrLeaveController', function () {
                 'reason' => 'Setelah intervensi',
             ])->assertSessionHas('success');
 
-            expect($leave->fresh()->status)->toBe(LeaveRequest::STATUS_APPROVED)
+            expect($leave->fresh()->status)->toBe($status)
                 ->and($leave->fresh()->reason)->toBe('Setelah intervensi');
         })->with([
             LeaveRequest::STATUS_REJECTED,
@@ -1907,7 +2189,7 @@ describe('HrLeaveController', function () {
             'CANCEL_REQ',
         ]);
 
-        it('can finalize HR intervention for every leave type', function (LeaveType $type) {
+        it('can edit every leave type without changing terminal status', function (LeaveType $type) {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create([
                 'role' => $type === LeaveType::OFF_SPV ? UserRole::SUPERVISOR : UserRole::EMPLOYEE,
@@ -1929,7 +2211,7 @@ describe('HrLeaveController', function () {
                 'special_leave_detail' => $type === LeaveType::CUTI_KHUSUS ? 'MENIKAH' : null,
             ])->assertSessionHas('success');
 
-            expect($leave->fresh()->status)->toBe(LeaveRequest::STATUS_APPROVED)
+            expect($leave->fresh()->status)->toBe(LeaveRequest::STATUS_REJECTED)
                 ->and($leave->fresh()->type)->toBe($type);
         })->with(LeaveType::cases());
 
@@ -1956,13 +2238,12 @@ describe('HrLeaveController', function () {
                 ])->assertSessionHas('success');
 
                 $leave->refresh();
-                expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                expect($leave->status)->toBe(LeaveRequest::STATUS_REJECTED)
                     ->and(substr_count((string) $leave->notes, '[Warning] Perubahan oleh HR dilakukan kurang dari H-7.'))->toBe(1);
             });
         });
 
-        // [P0-03] HR update CUTI pending harus validasi saldo secara atomik.
-        it('rejects HR update when CUTI balance insufficient', function () {
+        it('allows pending CUTI edit with insufficient balance because deduction waits for approval', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create([
                 'role' => UserRole::EMPLOYEE,
@@ -1986,10 +2267,13 @@ describe('HrLeaveController', function () {
                 'reason' => 'Extended reason',
             ]);
 
-            $response->assertSessionHas('error');
+            $response->assertSessionHas('success');
             $leave->refresh();
-            expect($leave->reason)->toBe('Original reason')
-                ->and($leave->start_date->format('Y-m-d'))->toBe(now()->addDays(5)->toDateString());
+            expect($leave->reason)->toBe('Extended reason')
+                ->and($leave->end_date->format('Y-m-d'))->toBe(now()->addDays(10)->toDateString())
+                ->and($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and((float) $employee->fresh()->leave_balance)->toBe(1.0)
+                ->and(LeaveBalanceTransaction::where('leave_request_id', $leave->id)->exists())->toBeFalse();
         });
 
         it('allows HR update when CUTI balance sufficient', function () {
@@ -2020,7 +2304,8 @@ describe('HrLeaveController', function () {
             $leave->refresh();
             expect($leave->reason)->toBe('Extended reason')
                 ->and($leave->end_date->format('Y-m-d'))->toBe(now()->addDays(6)->toDateString())
-                ->and($leave->status)->toBe(LeaveRequest::STATUS_APPROVED);
+                ->and($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and((float) $employee->fresh()->leave_balance)->toBe(12.0);
         });
     });
 
@@ -2075,6 +2360,11 @@ describe('HrLeaveController', function () {
                 ->and($leave->approved_at->equalTo($approvedAt))->toBeTrue()
                 ->and((float) $employee->fresh()->leave_balance)->toBe(9.0)
                 ->and($leave->notes)->toContain('Permintaan karyawan melalui WhatsApp');
+
+            expect($leave->days()->count())->toBe(1)
+                ->and($leave->days()->first()->leave_date->toDateString())->toBe('2026-07-20')
+                ->and($leave->days()->first()->treatment)->toBe(LeaveRequestDay::LEAVE_BALANCE)
+                ->and((float) $leave->days()->first()->deduction_amount)->toBe(1.0);
         });
 
         it('rejects approved date change without deduct ledger', function () {

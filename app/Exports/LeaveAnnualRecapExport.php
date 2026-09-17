@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Enums\LeaveType;
 use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
+use App\Models\LeaveRequestDay;
 use App\Models\OfficeHoliday;
 use App\Models\User;
 use App\Services\LeaveBalanceService;
@@ -274,7 +275,7 @@ class LeaveAnnualRecapExport extends DefaultValueBinder implements FromArray, Wi
         $yearEnd = Carbon::create($this->year, 12, 31)->endOfDay();
 
         return LeaveRequest::withoutGlobalScopes()
-            ->with(['user', 'leaveBalanceTransactions'])
+            ->with(['user', 'leaveBalanceTransactions', 'days'])
             ->whereHas('user', fn ($users) => $users->active())
             ->where('start_date', '<=', $yearEnd->toDateString())
             ->where(function ($period) use ($yearStart): void {
@@ -290,12 +291,17 @@ class LeaveAnnualRecapExport extends DefaultValueBinder implements FromArray, Wi
                         ->where('type', LeaveType::CUTI->value);
                 })->orWhere(function ($approved): void {
                     $approved->where('status', LeaveRequest::STATUS_APPROVED)
-                        ->whereHas('leaveBalanceTransactions', function ($transactions): void {
-                            $transactions->whereIn('transaction_type', [
-                                LeaveBalanceTransaction::DEDUCT,
-                                LeaveBalanceTransaction::ADJUSTMENT,
-                                LeaveBalanceTransaction::REFUND,
-                            ]);
+                        ->where(function ($deduction): void {
+                            $deduction->whereHas('leaveBalanceTransactions', function ($transactions): void {
+                                $transactions->whereIn('transaction_type', [
+                                    LeaveBalanceTransaction::DEDUCT,
+                                    LeaveBalanceTransaction::ADJUSTMENT,
+                                    LeaveBalanceTransaction::REFUND,
+                                ]);
+                            })->orWhereHas('days', function ($days): void {
+                                $days->where('treatment', LeaveRequestDay::LEAVE_BALANCE)
+                                    ->where('deduction_amount', '>', 0);
+                            });
                         });
                 });
             })
@@ -331,6 +337,37 @@ class LeaveAnnualRecapExport extends DefaultValueBinder implements FromArray, Wi
         $entriesByUser = collect();
 
         foreach ($leaves as $leave) {
+            $dailyDeductionDates = $leave->days
+                ->filter(fn (LeaveRequestDay $day): bool => $day->treatment === LeaveRequestDay::LEAVE_BALANCE
+                    && (float) $day->deduction_amount > 0)
+                ->map(fn (LeaveRequestDay $day): array => [
+                    'date' => $day->leave_date->copy(),
+                    'amount' => (float) $day->deduction_amount,
+                ])
+                ->values();
+
+            if ($dailyDeductionDates->isNotEmpty()) {
+                $includedDates = $dailyDeductionDates
+                    ->filter(fn (array $entry): bool => $entry['date']->year === $this->year)
+                    ->values();
+
+                if ($includedDates->isEmpty()) {
+                    continue;
+                }
+
+                $comment = $this->commentFor($leave, (float) $includedDates->sum('amount'));
+                foreach ($includedDates as $includedDate) {
+                    $entries = $entriesByUser->get($leave->user_id, collect());
+                    $entries->push([
+                        'date' => $includedDate['date'],
+                        'comment' => $comment,
+                    ]);
+                    $entriesByUser->put($leave->user_id, $entries);
+                }
+
+                continue;
+            }
+
             $effectiveDates = $this->effectiveDates($leave, $holidays);
             $amount = $leave->status === LeaveRequest::PENDING_HR
                 ? (float) $effectiveDates->sum('weight')

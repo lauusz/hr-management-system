@@ -365,7 +365,7 @@
                         @endif
 
                         <div class="form-group">
-                            <label for="manager_id">Manager (Approver)</label>
+                            <label for="manager_id">Manager</label>
                             <select id="manager_id" name="manager_id" class="form-control">
                                 <option value="">-- Tidak Ada / Langsung HRD --</option>
                                 @if(isset($managers))
@@ -375,6 +375,18 @@
                                 </option>
                                 @endforeach
                                 @endif
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="approver_id">Approver Izin/Cuti</label>
+                            <select id="approver_id" name="approver_id" class="form-control">
+                                <option value="">-- Tidak Ada --</option>
+                                @foreach($approvers as $approver)
+                                <option value="{{ $approver->id }}" @selected(old('approver_id') == $approver->id)>
+                                    {{ $approver->name }} (Approver)
+                                </option>
+                                @endforeach
                             </select>
                         </div>
 
@@ -519,7 +531,7 @@
         }
 
         .edit-page {
-            max-width: 860px;
+            max-width: 100%;
             margin: 0 auto;
             padding: 0 16px 32px;
         }

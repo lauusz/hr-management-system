@@ -1,6 +1,19 @@
 <x-app title="Tambah Data Izin / Cuti">
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="section-title">Form Entri Manual</h1>
+                <p class="section-subtitle">Tambahkan arsip pengajuan karyawan ke dalam sistem</p>
+            </div>
+        </div>
+    </x-slot>
 
-    <div class="leave-create-container">
+    <div class="mlc-container">
 
         @php
             $oldStart = old('start_date');
@@ -13,77 +26,88 @@
             }
         @endphp
 
-        {{-- Flash / Error Messages --}}
-        @if ($errors->any())
-        <div class="flash flash-error">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
+        <a href="{{ route('hr.leave.master') }}" class="back-btn" aria-label="Kembali ke Master Izin dan Cuti">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
-            <span>{{ $errors->first() }}</span>
-        </div>
+            <span class="back-btn-text">Kembali</span>
+        </a>
+
+        {{-- Flash / Error Messages --}}
+        @if (session('error'))
+            <div class="mlc-alert mlc-alert--error">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>{{ session('error') }}</span>
+            </div>
         @endif
 
-        @if(session('success'))
-        <div class="flash flash-success">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            <span>{{ session('success') }}</span>
-        </div>
+        @if ($errors->any())
+            <div class="mlc-alert mlc-alert--error">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>{{ $errors->first() }}</span>
+            </div>
+        @endif
+
+        @if (session('success'))
+            <div class="mlc-alert mlc-alert--success">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>{{ session('success') }}</span>
+            </div>
         @endif
 
         {{-- Info Banner --}}
-        <div class="info-banner">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span>Form ini digunakan untuk input manual dan sinkronisasi data lama dari form kertas ke sistem.</span>
+        <div class="mlc-banner" role="note">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span>Kolom bertanda <strong>*</strong> wajib diisi. Pastikan data sesuai dengan dokumen sumber sebelum disimpan.</span>
         </div>
 
-        {{-- Back Link --}}
-        <a href="{{ route('hr.leave.master') }}" class="back-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-            Kembali ke Master Izin/Cuti
-        </a>
-
-        {{-- Page Header --}}
-        <div class="page-header">
-            <div class="page-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </div>
-            <div>
-                <h1 class="page-title">Input Manual Izin / Cuti</h1>
-                <p class="page-subtitle">HR dapat mempersiapkan data pengajuan lama dari form manual.</p>
-            </div>
-        </div>
-
-        {{-- Form Card --}}
-        <div class="form-card">
+        {{-- Form --}}
+        <div class="manual-form-shell">
             <form id="hr-manual-leave-form" method="POST" action="{{ route('hr.leave.manual.store') }}" enctype="multipart/form-data">
 
                 @csrf
 
-                {{-- Section: Karyawan --}}
-                <div class="form-section">
-                    <div class="form-section-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                        <span>Data Karyawan</span>
+                {{-- Langkah 1: Data Karyawan --}}
+                <div class="mlc-step">
+                    <div class="mlc-step__header">
+                        <span class="mlc-step__num">1</span>
+                        <div class="mlc-step__headtext">
+                            <span class="mlc-step__title">Data Karyawan</span>
+                            <span class="mlc-step__sub">Langkah 1 dari 4 · Tentukan pemilik pengajuan</span>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="manual_user_search">Pilih Karyawan <span class="req">*</span></label>
+                    <div class="mlc-field">
+                        <label for="manual_user_search" class="mlc-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            Pilih Karyawan <span class="mlc-required">*</span>
+                        </label>
                         <div class="employee-picker">
-                            <input
-                                type="text"
-                                id="manual_user_search"
-                                class="form-input"
-                                placeholder="Ketik nama karyawan..."
-                                autocomplete="off"
-                                value="{{ old('user_id') ? optional($employees->firstWhere('id', (int) old('user_id')))->name : '' }}">
+                            <div class="mlc-input-wrap">
+                                <svg class="mlc-input__icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                                <input
+                                    type="text"
+                                    id="manual_user_search"
+                                    class="mlc-input mlc-input--icon"
+                                    placeholder="Ketik nama karyawan..."
+                                    autocomplete="off"
+                                    value="{{ old('user_id') ? optional($employees->firstWhere('id', (int) old('user_id')))->name : '' }}">
+                            </div>
                             <div id="manual_user_suggestions" class="employee-suggestions" style="display:none;"></div>
                         </div>
-                        <select id="manual_user_id" name="user_id" class="form-input employee-select-hidden" tabindex="-1" aria-hidden="true">
+                        <select id="manual_user_id" name="user_id" class="employee-select-hidden" tabindex="-1" aria-hidden="true">
                             <option value="">Pilih karyawan</option>
                             @foreach($employees as $employee)
                                 @php
@@ -101,143 +125,248 @@
                                 >{{ $employeeLabel }}</option>
                             @endforeach
                         </select>
+                        <p class="mlc-helper">Ketik nama untuk mencari, lalu pilih karyawan dari daftar saran.</p>
                     </div>
                 </div>
 
-                {{-- Section: Detail Pengajuan --}}
-                <div class="form-section">
-                    <div class="form-section-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                        <span>Detail Pengajuan</span>
-                    </div>
-
-                    <div class="two-col-grid">
-                        <div class="form-group">
-                            <label for="manual_submitted_at">Tanggal Pengajuan</label>
-                            <input type="date" id="manual_submitted_at" name="submitted_at" class="form-input" value="{{ old('submitted_at') }}">
-                        </div>
-                        <div class="form-group">
-                            <label for="manual_status">Status</label>
-                            <select id="manual_status" name="status" class="form-input">
-                                <option value="">Pilih status</option>
-                                @foreach($statusOptions as $value => $label)
-                                    <option value="{{ $value }}" @selected(old('status') === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
+                {{-- Langkah 2: Detail Pengajuan --}}
+                <div class="mlc-step">
+                    <div class="mlc-step__header">
+                        <span class="mlc-step__num">2</span>
+                        <div class="mlc-step__headtext">
+                            <span class="mlc-step__title">Detail Pengajuan</span>
+                            <span class="mlc-step__sub">Langkah 2 dari 4 · Lengkapi jenis, periode, dan status arsip</span>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label class="section-label">Jenis Pengajuan <span class="req">*</span></label>
-                        <div class="radio-group-grid">
+                    <div class="mlc-grid-2">
+                        <div class="mlc-field">
+                            <label for="manual_submitted_at" class="mlc-label">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                                Tanggal Pengajuan
+                            </label>
+                            <input type="date" id="manual_submitted_at" name="submitted_at" class="mlc-input" value="{{ old('submitted_at') }}">
+                            <p class="mlc-helper">Kosongkan untuk memakai tanggal hari ini.</p>
+                        </div>
+                        <div class="mlc-field">
+                            <label for="manual_status" class="mlc-label">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                Status
+                            </label>
+                            <div class="mlc-select-wrap">
+                                <select id="manual_status" name="status" class="mlc-select">
+                                    <option value="">Pilih status</option>
+                                    @foreach($statusOptions as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('status') === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <svg class="mlc-select__arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </div>
+                            <p class="mlc-helper">Kosongkan untuk mengikuti status bawaan alur persetujuan.</p>
+                        </div>
+                    </div>
+
+                    <div class="mlc-field">
+                        <span class="mlc-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                            </svg>
+                            Jenis Pengajuan <span class="mlc-required">*</span>
+                        </span>
+                        <div class="mlc-radio-grid">
                             @foreach($typeOptions as $case)
-                                <label class="radio-card">
+                                <label class="mlc-radio-card">
                                     <input type="radio" name="type" value="{{ $case->value }}" @checked(old('type') === $case->value)>
-                                    <span class="radio-label">{{ $case->label() }}</span>
+                                    <span class="mlc-radio-card__label">{{ $case->label() }}</span>
                                 </label>
                             @endforeach
                         </div>
 
-                        <div id="manual-balance-info" class="info-alert info-alert-blue" style="display:none; margin-top:12px;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <div id="manual-balance-info" class="mlc-info" style="display:none;">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
                             <div>
                                 <strong id="manual-balance-text">Saldo cuti karyawan: 0 hari.</strong>
-                                <div class="info-alert-hint">Informasi ini hanya sebagai referensi saat input manual.</div>
+                                <p>Informasi ini hanya sebagai referensi saat input manual.</p>
                             </div>
                         </div>
 
-                        <div id="manual-special-leave-container" class="special-leave-box" style="display:none;">
-                            <label for="manual_special_leave_detail" class="special-leave-label">Pilih Kategori Cuti Khusus</label>
-                            <select name="special_leave_detail" id="manual_special_leave_detail" class="form-input">
-                                <option value="">-- Pilih Alasan --</option>
-                                @foreach($specialLeaveList as $sl)
-                                    <option value="{{ $sl['id'] }}" data-days="{{ $sl['days'] }}" @selected(old('special_leave_detail') == $sl['id'])>{{ $sl['label'] }}</option>
-                                @endforeach
-                            </select>
-                            <div id="manual-special-leave-badge" class="info-badge" style="display:none;">
+                        <div id="manual-special-leave-container" class="mlc-special-box" style="display:none;">
+                            <label for="manual_special_leave_detail" class="mlc-label mlc-label--accent">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                </svg>
+                                Pilih Kategori Cuti Khusus
+                            </label>
+                            <div class="mlc-select-wrap">
+                                <select name="special_leave_detail" id="manual_special_leave_detail" class="mlc-select">
+                                    <option value="">-- Pilih Alasan --</option>
+                                    @foreach($specialLeaveList as $sl)
+                                        <option value="{{ $sl['id'] }}" data-days="{{ $sl['days'] }}" @selected(old('special_leave_detail') == $sl['id'])>{{ $sl['label'] }}</option>
+                                    @endforeach
+                                </select>
+                                <svg class="mlc-select__arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </div>
+                            <div id="manual-special-leave-badge" class="mlc-badge" style="display:none;">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
                                 <span id="manual-special-leave-text">Maksimal 2 Hari</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="manual_date_range">Periode Izin <span class="req">*</span></label>
-                        <input type="text" id="manual_date_range" name="date_range" class="form-input" value="{{ $oldRange }}" placeholder="Pilih tanggal mulai sampai selesai" autocomplete="off">
+                    <div class="mlc-field">
+                        <label for="manual_date_range" class="mlc-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            Periode Izin <span class="mlc-required">*</span>
+                        </label>
+                        <div class="mlc-input-wrap">
+                            <svg class="mlc-input__icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <input type="text" id="manual_date_range" name="date_range" class="mlc-input mlc-input--icon" value="{{ $oldRange }}" placeholder="Pilih tanggal mulai - selesai" autocomplete="off">
+                        </div>
                         <input type="hidden" name="start_date" id="manual_start_date" value="{{ $oldStart }}">
                         <input type="hidden" name="end_date" id="manual_end_date" value="{{ $oldEnd }}">
-                        <div id="manual-duration-display" class="info-alert info-alert-blue" style="display:none; margin-top:8px;"></div>
-                        <div id="manual-special-limit-warning" class="info-alert info-alert-warning" style="display:none;"></div>
+                        <div id="manual-duration-display" class="mlc-duration" style="display:none;"></div>
+                        <div id="manual-special-limit-warning" class="mlc-warning" style="display:none;"></div>
                     </div>
 
-                    <div class="form-group" id="manual-worktime-field" style="display:none;">
-                        <label id="manual-worktime-label">Jam Izin</label>
-                        <div class="time-range-wrapper">
-                            <div class="time-input-box">
-                                <input type="time" name="start_time" id="manual_start_time_input" class="form-input" value="{{ old('start_time') }}">
+                    <div class="mlc-field" id="manual-worktime-field" style="display:none; margin-bottom:0;">
+                        <span id="manual-worktime-label" class="mlc-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Jam Izin
+                        </span>
+                        <div class="mlc-time-range">
+                            <div class="mlc-time-box">
+                                <div class="mlc-input-wrap">
+                                    <svg class="mlc-input__icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <input type="time" name="start_time" id="manual_start_time_input" class="mlc-input mlc-input--icon" value="{{ old('start_time') }}">
+                                </div>
                             </div>
-                            <span id="manual-worktime-separator" class="separator">s/d</span>
-                            <div id="manual_end_time_wrapper" class="time-input-box">
-                                <input type="time" name="end_time" id="manual_end_time_input" class="form-input" value="{{ old('end_time') }}">
+                            <span id="manual-worktime-separator" class="mlc-time-sep">s/d</span>
+                            <div id="manual_end_time_wrapper" class="mlc-time-box">
+                                <div class="mlc-input-wrap">
+                                    <svg class="mlc-input__icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <input type="time" name="end_time" id="manual_end_time_input" class="mlc-input mlc-input--icon" value="{{ old('end_time') }}">
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {{-- Section: Pendelegasian --}}
-                <div id="manual-substitute-pic-section" class="form-section delegate-section" style="display:none;">
-                    <div class="form-section-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                        <span>Informasi Pendelegasian Tugas</span>
-                    </div>
-                    <p class="delegate-desc">Opsional untuk kebutuhan dokumentasi sinkronisasi data lama.</p>
-                    <div class="two-col-grid">
-                        <div class="form-group">
-                            <label for="manual_substitute_pic">Nama PIC Pengganti</label>
-                            <input type="text" name="substitute_pic" id="manual_substitute_pic" class="form-input" placeholder="Nama rekan pengganti" value="{{ old('substitute_pic') }}">
+                {{-- Langkah 3: Pendelegasian (kondisional) --}}
+                <div id="manual-substitute-pic-section" class="mlc-step" style="display:none;">
+                    <div class="mlc-step__header">
+                        <span class="mlc-step__num">3</span>
+                        <div class="mlc-step__headtext">
+                            <span class="mlc-step__title">Informasi Pendelegasian</span>
+                            <span class="mlc-step__sub">Langkah 3 dari 4 · Catat PIC pengganti bila diperlukan</span>
                         </div>
-                        <div class="form-group">
-                            <label for="manual_substitute_phone">Nomor HP PIC</label>
-                            <input type="text" name="substitute_phone" id="manual_substitute_phone" class="form-input" placeholder="Contoh: 0812..." value="{{ old('substitute_phone') }}">
+                    </div>
+                    <p class="mlc-helper" style="margin:-6px 0 14px;">Opsional, untuk kebutuhan dokumentasi sinkronisasi data lama.</p>
+                    <div class="mlc-grid-2">
+                        <div class="mlc-field">
+                            <label for="manual_substitute_pic" class="mlc-label">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                </svg>
+                                Nama PIC Pengganti
+                            </label>
+                            <input type="text" name="substitute_pic" id="manual_substitute_pic" class="mlc-input" placeholder="Nama rekan pengganti" value="{{ old('substitute_pic') }}">
+                        </div>
+                        <div class="mlc-field">
+                            <label for="manual_substitute_phone" class="mlc-label">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                                </svg>
+                                Nomor HP PIC
+                            </label>
+                            <input type="tel" name="substitute_phone" id="manual_substitute_phone" class="mlc-input" placeholder="Contoh: 0812..." value="{{ old('substitute_phone') }}">
                         </div>
                     </div>
                 </div>
 
-                {{-- Section: Dokumen & Catatan --}}
-                <div class="form-section">
-                    <div class="form-section-header">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        <span>Dokumen & Catatan</span>
+                {{-- Langkah 4: Dokumen & Catatan --}}
+                <div class="mlc-step">
+                    <div class="mlc-step__header">
+                        <span class="mlc-step__num">4</span>
+                        <div class="mlc-step__headtext">
+                            <span class="mlc-step__title">Dokumen &amp; Catatan</span>
+                            <span class="mlc-step__sub">Langkah 4 dari 4 · Lampirkan bukti dan keterangan pendukung</span>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="manual_photo_input">Bukti Pendukung</label>
-                        <div class="file-input-wrapper">
-                            <input type="file" name="photo" id="manual_photo_input" class="form-input-file" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB">
+                    <div class="mlc-field">
+                        <label for="manual_photo_input" class="mlc-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            Bukti Pendukung
+                        </label>
+                        <div class="mlc-upload">
+                            <input type="file" name="photo" id="manual_photo_input" class="mlc-upload__input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB">
+                            <div class="mlc-upload__content">
+                                <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                <span class="mlc-upload__title">Klik untuk upload file</span>
+                                <span class="mlc-upload__desc">Gambar atau dokumen pendukung jika tersedia (Maks 8 MB)</span>
+                            </div>
                         </div>
-                        <small class="form-hint">Format: Gambar atau dokumen pendukung jika tersedia.</small>
-                        <div id="manual-photo-preview-container" class="preview-container">
-                            <p class="preview-label">Preview Foto:</p>
+                        <div id="manual-photo-preview-container" class="mlc-preview">
+                            <p class="mlc-preview__label">Preview Foto:</p>
                             <img id="manual-photo-preview" src="#" alt="Preview foto">
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="manual_reason">Alasan / Keterangan</label>
-                        <textarea name="reason" id="manual_reason" rows="3" class="form-input" placeholder="Isi keterangan pengajuan manual atau catatan sinkronisasi...">{{ old('reason') }}</textarea>
+                    <div class="mlc-field">
+                        <label for="manual_reason" class="mlc-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Alasan / Keterangan
+                        </label>
+                        <textarea name="reason" id="manual_reason" rows="3" class="mlc-textarea" placeholder="Isi keterangan pengajuan manual atau catatan sinkronisasi...">{{ old('reason') }}</textarea>
                     </div>
 
-                    <div class="form-group">
-                        <label for="manual_notes_hrd">Catatan HRD</label>
-                        <textarea name="notes_hrd" id="manual_notes_hrd" rows="2" class="form-input" placeholder="Catatan internal HRD untuk data manual ini...">{{ old('notes_hrd') }}</textarea>
+                    <div class="mlc-field">
+                        <label for="manual_notes_hrd" class="mlc-label">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            Catatan HRD
+                        </label>
+                        <textarea name="notes_hrd" id="manual_notes_hrd" rows="2" class="mlc-textarea" placeholder="Catatan internal HRD untuk data manual ini...">{{ old('notes_hrd') }}</textarea>
                     </div>
                 </div>
 
-                <div class="form-actions">
-                    <a href="{{ route('hr.leave.master') }}" class="btn btn-secondary">
+                <div class="mlc-actions manual-form-actions">
+                    <a href="{{ route('hr.leave.master') }}" class="mlc-btn mlc-btn--secondary">
                         Batal
                     </a>
-                    <button type="submit" class="btn btn-primary" id="manual-submit-btn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                    <button type="submit" class="mlc-btn mlc-btn--primary" id="manual-submit-btn">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+                        </svg>
                         Simpan Data Manual
                     </button>
                 </div>
@@ -591,7 +720,7 @@
             if (form && submitBtn) {
                 form.addEventListener('submit', function () {
                     submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Menyimpan...';
+                    submitBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin" width="18" height="18"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Menyimpan...';
                 });
             }
 
@@ -628,320 +757,377 @@
     @endpush
 
     <style>
-        /* === BASE VARIABLES === */
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --secondary: #64748b;
-            --bg-body: #f1f5f9;
-            --bg-card: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --success-bg: #f0fdf4;
-            --success-text: #15803d;
-            --success-border: #bbf7d0;
-            --danger-bg: #fef2f2;
-            --danger-text: #b91c1c;
-            --danger-border: #fecaca;
-            --warning-bg: #fffbeb;
-            --warning-text: #c2410c;
-            --warning-border: #fed7aa;
-            --blue-light: #eff6ff;
-            --blue-text: #1d4ed8;
-            --green-light: #f0fdf4;
-            --green-text: #15803d;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-        }
-
-        /* === RESET & BASE === */
-        .leave-create-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px 16px 60px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            color: var(--text-main);
-        }
-
-        /* === FLASH MESSAGES === */
-        .flash {
+        /* === HEADER (selaras dengan leave_requests/create) === */
+        .section-header-inline {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 14px 18px;
-            border-radius: var(--radius-md);
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-            font-weight: 500;
+            margin-bottom: 0;
         }
-        .flash-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
-        .flash-error { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
-        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
-
-        /* === INFO BANNER === */
-        .info-banner {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 16px;
-            background: var(--blue-light);
-            border: 1px solid #dbeafe;
-            border-radius: var(--radius-md);
-            margin-bottom: 16px;
-            font-size: 0.875rem;
-            color: var(--blue-text);
-        }
-        .info-banner svg { width: 16px; height: 16px; flex-shrink: 0; }
-
-        /* === BACK LINK === */
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-decoration: none;
-            margin-bottom: 16px;
-            transition: color 0.2s;
-        }
-        .back-link:hover { color: var(--primary); }
-        .back-link svg { width: 16px; height: 16px; }
-
-        /* === PAGE HEADER === */
-        .page-header {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            margin-bottom: 20px;
-        }
-        .page-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--primary);
-            color: #fff;
-            border-radius: var(--radius-md);
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
         }
-        .page-icon svg { width: 24px; height: 24px; }
-        .page-title {
-            margin: 0;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-main);
-        }
-        .page-subtitle {
-            margin: 4px 0 0;
-            font-size: 0.875rem;
-            color: var(--text-muted);
-        }
-
-        /* === FORM CARD === */
-        .form-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-        }
-
-        /* === FORM SECTION === */
-        .form-section {
-            padding: 24px;
-            border-bottom: 1px solid var(--border);
-        }
-        .form-section:last-of-type {
-            border-bottom: none;
-        }
-        .form-section-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.875rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin-bottom: 16px;
-        }
-        .form-section-header svg { width: 18px; height: 18px; color: var(--primary); }
-
-        /* === FORM GROUP === */
-        .form-group {
-            margin-bottom: 16px;
-        }
-        .form-group:last-child {
-            margin-bottom: 0;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 6px;
-        }
-        .section-label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 8px;
-        }
-
-        .req { color: var(--danger-text); }
-        .form-hint {
-            display: block;
-            margin-top: 4px;
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
-
-        /* === FORM INPUT === */
-        .form-input {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
-            color: var(--text-main);
-            background: #fff;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            font-family: inherit;
-            box-sizing: border-box;
-        }
-        .form-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-        textarea.form-input {
-            resize: vertical;
-            min-height: 80px;
-            line-height: 1.5;
-        }
-
-        /* === TWO COL GRID === */
-        .two-col-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-        }
-
-        /* === RADIO GROUP === */
-        .radio-group-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 8px;
-        }
-        .radio-card {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: all 0.2s;
-            background: #fff;
-        }
-        .radio-card:hover {
-            border-color: var(--primary);
-            background: var(--blue-light);
-        }
-        .radio-card:has(input:checked) {
-            border-color: var(--primary);
-            background: var(--blue-light);
-        }
-        .radio-card input[type="radio"] {
-            accent-color: var(--primary);
+        .section-icon svg {
             width: 16px;
             height: 16px;
-            margin: 0;
         }
-        .radio-label {
-            font-size: 0.85rem;
-            color: var(--text-main);
+        .section-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary, #111827);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
             font-weight: 500;
-            line-height: 1.3;
+            line-height: 1.35;
+        }
+        .icon-navy {
+            background: rgba(10, 61, 98, 0.08);
+            color: var(--primary-dark, #0A3D62);
         }
 
-        /* === INFO ALERT === */
-        .info-alert {
+        /* === BACK BUTTON (selaras dengan leave_requests/create) === */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 36px;
+            padding: 0 12px 0 10px;
+            background: var(--white, #fff);
+            border: 1px solid var(--border, #E5E7EB);
+            border-radius: 10px;
+            color: var(--text-muted, #6B7280);
+            text-decoration: none;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            margin-bottom: 16px;
+        }
+        .back-btn:hover {
+            border-color: var(--primary, #145DA0);
+            color: var(--primary, #145DA0);
+            background: var(--gray-50, #F5F7FA);
+        }
+        .back-btn:hover svg {
+            transform: translateX(-2px);
+        }
+        .back-btn svg {
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .back-btn-text {
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+        }
+
+        /* === CONTAINER (mengikuti lebar penuh layout seperti leave-requests/create) === */
+        .mlc-container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding-bottom: 40px;
+        }
+
+        /* === ALERT (selaras dengan lrc-alert) === */
+        .mlc-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+        .mlc-alert svg { flex-shrink: 0; margin-top: 1px; }
+        .mlc-alert--error {
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            color: #991B1B;
+        }
+        .mlc-alert--success {
+            background: #F0FDF4;
+            border: 1px solid #BBF7D0;
+            color: #15803D;
+        }
+
+        /* === INFO BANNER === */
+        .mlc-banner {
             display: flex;
             align-items: flex-start;
             gap: 10px;
             padding: 12px 14px;
-            border-radius: var(--radius-sm);
-            font-size: 0.875rem;
+            background: #EFF6FF;
+            border: 1px solid #DBEAFE;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            font-size: 0.8125rem;
+            color: #1E40AF;
+            line-height: 1.5;
         }
-        .info-alert svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
-        .info-alert-blue {
-            background: var(--blue-light);
-            border: 1px solid #dbeafe;
-            color: var(--blue-text);
+        .mlc-banner svg { flex-shrink: 0; margin-top: 1px; }
+
+        /* === STEP CARD (selaras dengan lrc-step) === */
+        .mlc-step {
+            background: var(--white, #fff);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-light, #F3F4F6);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
-        .info-alert-warning {
-            background: var(--warning-bg);
-            border: 1px solid var(--warning-border);
-            color: var(--warning-text);
+        .mlc-step__header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
         }
-        .info-alert-hint {
+        .mlc-step__num {
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-dark, #0A3D62);
+            color: #fff;
+            border-radius: 50%;
             font-size: 0.75rem;
-            margin-top: 2px;
-            opacity: 0.8;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .mlc-step__headtext {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            min-width: 0;
+        }
+        .mlc-step__title {
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: var(--text-primary, #111827);
+            line-height: 1.3;
+        }
+        .mlc-step__sub {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted, #6B7280);
+            line-height: 1.35;
         }
 
-        /* === SPECIAL LEAVE BOX === */
-        .special-leave-box {
-            margin-top: 12px;
-            padding: 14px;
-            background: var(--blue-light);
-            border: 1px solid #dbeafe;
-            border-radius: var(--radius-sm);
-        }
-        .special-leave-label {
-            display: block;
-            font-size: 0.8rem;
+        /* === FIELD & LABEL (selaras dengan lrc-field/lrc-label) === */
+        .mlc-field { margin-bottom: 14px; }
+        .mlc-field:last-child { margin-bottom: 0; }
+        .mlc-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8125rem;
             font-weight: 600;
-            color: var(--blue-text);
+            color: var(--text-secondary, #374151);
             margin-bottom: 8px;
         }
-        .info-badge {
+        .mlc-label--accent { color: var(--primary-dark, #0A3D62); }
+        .mlc-required { color: var(--error, #EF4444); font-weight: 700; }
+        .mlc-helper {
+            color: var(--text-muted, #6B7280);
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin: 6px 0 0;
+            line-height: 1.5;
+        }
+
+        /* === INPUT / SELECT / TEXTAREA (selaras dengan lrc-input) === */
+        .mlc-input-wrap { position: relative; }
+        .mlc-input__icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light, #9CA3AF);
+            pointer-events: none;
+        }
+        .mlc-input,
+        .mlc-select,
+        .mlc-textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border, #E5E7EB);
+            border-radius: 10px;
+            font-size: 0.9375rem;
+            color: var(--text-primary, #111827);
+            background: var(--white, #fff);
+            transition: all 0.2s ease;
+            outline: none;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .mlc-input--icon { padding-left: 42px; }
+        .mlc-input::placeholder,
+        .mlc-textarea::placeholder { color: var(--text-light, #9CA3AF); }
+        .mlc-input:focus,
+        .mlc-select:focus,
+        .mlc-textarea:focus {
+            border-color: var(--primary, #145DA0);
+            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
+        }
+        .mlc-select-wrap { position: relative; }
+        .mlc-select {
+            padding-right: 40px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        .mlc-select__arrow {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light, #9CA3AF);
+            pointer-events: none;
+        }
+        .mlc-textarea {
+            resize: vertical;
+            min-height: 90px;
+            line-height: 1.5;
+        }
+
+        /* === GRID 2 KOLOM === */
+        .mlc-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .mlc-grid-2 .mlc-field { margin-bottom: 0; }
+
+        /* === RADIO CARD JENIS PENGAJUAN === */
+        .mlc-radio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 8px;
+        }
+        .mlc-radio-card {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 12px;
+            border: 1.5px solid var(--border, #E5E7EB);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: var(--white, #fff);
+        }
+        .mlc-radio-card:hover {
+            border-color: var(--primary, #145DA0);
+            background: var(--gray-50, #F5F7FA);
+        }
+        .mlc-radio-card:has(input:checked) {
+            border-color: var(--primary, #145DA0);
+            background: rgba(20, 93, 160, 0.06);
+        }
+        .mlc-radio-card input[type="radio"] {
+            accent-color: var(--primary, #145DA0);
+            width: 16px;
+            height: 16px;
+            margin: 0;
+            flex-shrink: 0;
+        }
+        .mlc-radio-card__label {
+            font-size: 0.8125rem;
+            color: var(--text-primary, #111827);
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        /* === INFO / WARNING / DURATION (selaras dengan lrc-info/lrc-warning/lrc-duration) === */
+        .mlc-info {
+            display: flex;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 0.8125rem;
+            margin-top: 12px;
+            background: #EFF6FF;
+            border: 1px solid #DBEAFE;
+            color: #1E40AF;
+        }
+        .mlc-info svg { flex-shrink: 0; margin-top: 1px; }
+        .mlc-info strong { font-weight: 600; display: block; margin-bottom: 2px; }
+        .mlc-info p { margin: 0; font-size: 0.75rem; opacity: 0.9; }
+        .mlc-duration {
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 10px 14px;
+            background: #F0FDF4;
+            border: 1px solid #BBF7D0;
+            border-radius: 10px;
+            color: #15803D;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+        .mlc-duration svg { width: 16px; height: 16px; flex-shrink: 0; }
+        .mlc-warning {
+            align-items: flex-start;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 10px 12px;
+            background: #FEFCE8;
+            border: 1px solid #FDE68A;
+            border-radius: 10px;
+            color: #854D0E;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+        .mlc-warning svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+
+        /* === CUTI KHUSUS BOX === */
+        .mlc-special-box {
+            margin-top: 12px;
+            padding: 14px;
+            background: rgba(20, 93, 160, 0.04);
+            border: 1px solid rgba(20, 93, 160, 0.15);
+            border-radius: 12px;
+        }
+        .mlc-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
             margin-top: 8px;
-            background: #dbeafe;
-            color: var(--blue-text);
-            padding: 4px 10px;
+            padding: 5px 10px;
+            background: #EFF6FF;
+            color: var(--primary, #145DA0);
             border-radius: 20px;
             font-size: 0.75rem;
             font-weight: 600;
         }
-        .info-badge svg { width: 12px; height: 12px; }
-
-        /* === DELEGATE SECTION === */
-        .delegate-section {
-            background: #fafbff;
-        }
-        .delegate-desc {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin: -8px 0 16px;
-        }
 
         /* === TIME RANGE === */
-        .time-range-wrapper {
+        .mlc-time-range {
             display: flex;
             align-items: center;
             gap: 10px;
-            flex-wrap: wrap;
         }
-        .time-input-box { flex: 1; min-width: 100px; }
-        .separator { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
+        .mlc-time-box { flex: 1; min-width: 0; }
+        .mlc-time-sep {
+            color: var(--text-muted, #6B7280);
+            font-size: 0.8125rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
 
         /* === EMPLOYEE PICKER === */
         .employee-picker { position: relative; }
@@ -957,96 +1143,147 @@
             top: calc(100% + 6px);
             left: 0;
             right: 0;
-            z-index: 30;
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
-            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12);
+            z-index: 100;
+            background: var(--white, #fff);
+            border: 1.5px solid var(--border, #E5E7EB);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
             max-height: 280px;
             overflow-y: auto;
+            padding: 6px;
         }
         .employee-suggestion-item {
-            padding: 10px 12px;
-            font-size: 0.875rem;
-            color: var(--text-main);
+            padding: 11px 12px;
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            color: var(--text-primary, #111827);
             cursor: pointer;
-            border-bottom: 1px solid var(--border);
-            transition: background 0.15s;
+            transition: all 0.15s ease;
         }
-        .employee-suggestion-item:last-child { border-bottom: none; }
         .employee-suggestion-item:hover,
         .employee-suggestion-item.active {
-            background: var(--blue-light);
-            color: var(--blue-text);
+            background: var(--gray-50, #F5F7FA);
+            color: var(--primary, #145DA0);
         }
         .employee-suggestion-empty {
-            padding: 10px 12px;
-            font-size: 0.8rem;
-            color: var(--text-muted);
+            padding: 12px;
+            font-size: 0.875rem;
+            color: var(--text-muted, #6B7280);
+            text-align: center;
         }
 
-        /* === FILE INPUT === */
-        .file-input-wrapper {
-            border: 1px dashed #cbd5e1;
-            padding: 12px;
-            border-radius: var(--radius-sm);
-            background: var(--bg-body);
+        /* === UPLOAD (selaras dengan lrc-upload) === */
+        .mlc-upload {
+            position: relative;
+            border: 2px dashed var(--border, #E5E7EB);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            background: var(--gray-50, #F5F7FA);
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
-        .form-input-file { width: 100%; font-size: 0.8rem; background: transparent; border: none; padding: 0; }
-        .form-input-file:focus { outline: none; }
+        .mlc-upload:hover {
+            border-color: var(--primary, #145DA0);
+            background: rgba(20, 93, 160, 0.03);
+        }
+        .mlc-upload__input {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .mlc-upload__content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted, #6B7280);
+        }
+        .mlc-upload__content svg { color: var(--text-light, #9CA3AF); }
+        .mlc-upload__title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary, #374151);
+        }
+        .mlc-upload__desc {
+            font-size: 0.75rem;
+            color: var(--text-light, #9CA3AF);
+            font-weight: 500;
+        }
 
         /* === PREVIEW === */
-        .preview-container {
+        .mlc-preview {
             display: none;
-            margin-top: 12px;
+            margin-top: 10px;
             padding: 10px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            background: var(--bg-body);
+            background: var(--gray-50, #F5F7FA);
+            border: 1px solid var(--border-light, #F3F4F6);
+            border-radius: 10px;
         }
-        .preview-label {
+        .mlc-preview__label {
             font-size: 0.75rem;
             font-weight: 600;
-            color: var(--text-muted);
+            color: var(--text-muted, #6B7280);
             margin: 0 0 6px 0;
         }
-        .preview-container img {
+        .mlc-preview img {
             max-width: 100%;
-            max-height: 200px;
-            border-radius: var(--radius-sm);
+            max-height: 180px;
+            border-radius: 8px;
             display: block;
+            margin: 0 auto;
         }
 
-        /* === BUTTONS === */
-        .btn {
+        /* === ACTIONS === */
+        .manual-form-shell { display: block; }
+        .mlc-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin: 20px 0 32px;
+        }
+        .mlc-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            padding: 10px 20px;
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 0.9375rem;
             font-weight: 600;
             cursor: pointer;
-            border: none;
-            transition: 0.2s;
+            transition: all 0.2s ease;
             text-decoration: none;
+            font-family: inherit;
         }
-        .btn svg { width: 16px; height: 16px; }
-        .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:hover { background: var(--primary-dark); }
-        .btn-secondary { background: var(--bg-body); color: var(--text-muted); border: 1px solid var(--border); }
-        .btn-secondary:hover { background: var(--border); }
-
-        /* === FORM ACTIONS === */
-        .form-actions {
-            margin-top: 24px;
-            padding: 20px 24px;
-            border-top: 1px solid var(--border);
-            background: var(--bg-body);
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
+        .mlc-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .mlc-btn--primary {
+            background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
+            color: #fff;
+            border: none;
+            box-shadow: 0 4px 12px rgba(10, 61, 98, 0.22);
+        }
+        .mlc-btn--primary:hover {
+            box-shadow: 0 6px 20px rgba(10, 61, 98, 0.32);
+            transform: translateY(-1px);
+        }
+        .mlc-btn--primary:disabled {
+            background: #94A3B8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .mlc-btn--secondary {
+            background: var(--white, #fff);
+            color: var(--text-muted, #6B7280);
+            border: 1.5px solid var(--border, #E5E7EB);
+        }
+        .mlc-btn--secondary:hover {
+            color: var(--text-primary, #111827);
+            background: var(--gray-50, #F5F7FA);
         }
 
         /* === SPIN ANIMATION === */
@@ -1056,28 +1293,40 @@
         }
         .spin { animation: spin 1s linear infinite; }
 
-        /* === MOBILE RESPONSIVE === */
-        @media (max-width: 640px) {
-            .page-header {
-                flex-direction: column;
-                gap: 12px;
-                text-align: center;
-            }
-            .page-icon { margin: 0 auto; }
-
-            .form-section { padding: 20px 16px; }
-
-            .two-col-grid { grid-template-columns: 1fr; }
-            .radio-group-grid { grid-template-columns: 1fr; }
-
-            .form-actions {
-                flex-direction: column-reverse;
+        /* === RESPONSIVE === */
+        @media (max-width: 639px) {
+            .mlc-step {
                 padding: 16px;
+                margin-bottom: 10px;
+                border-radius: 14px;
             }
-            .btn { width: 100%; }
+            .mlc-grid-2 { grid-template-columns: 1fr; }
+            .mlc-radio-grid { grid-template-columns: 1fr; }
+            .mlc-time-range {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .mlc-time-sep { display: none; }
+            .mlc-actions {
+                flex-direction: column-reverse;
+            }
+            .mlc-actions .mlc-btn { width: 100%; }
+            .back-btn {
+                height: 40px;
+                padding: 0 14px 0 12px;
+            }
+            .back-btn-text { font-size: 0.8125rem; }
+        }
 
-            .time-range-wrapper { flex-direction: column; align-items: stretch; }
-            .separator { display: none; }
+        @media (prefers-reduced-motion: reduce) {
+            .back-btn,
+            .mlc-input,
+            .mlc-select,
+            .mlc-textarea,
+            .mlc-radio-card,
+            .mlc-btn { transition-duration: 0.01ms; }
+            .mlc-btn--primary:hover { transform: none; }
+            .spin { animation-duration: 1.5s; }
         }
     </style>
 

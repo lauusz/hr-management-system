@@ -10,6 +10,7 @@ use App\Models\Pt;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
 use App\Services\LeaveBalanceService;
+use App\Services\LeaveRequestDayService;
 use App\Services\LeaveRequestDuplicateCleanupService;
 use App\Services\LeaveRequestStateMachine;
 use App\Services\OffSpvQuotaService;
@@ -21,12 +22,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class HrLeaveController extends Controller
 {
     public function __construct(
         protected LeaveBalanceService $leaveBalanceService,
+        protected LeaveRequestDayService $leaveRequestDayService,
         protected ImageCompressor $imageCompressor,
         protected LeaveRequestStateMachine $stateMachine,
         protected LeaveRequestDuplicateCleanupService $duplicateCleanupService,
@@ -140,6 +143,7 @@ class HrLeaveController extends Controller
                 'user.profile.pt',
                 'approver',
                 'leaveBalanceTransactions',
+                'days',
             ])
             ->orderByDesc('created_at');
 
@@ -500,6 +504,7 @@ class HrLeaveController extends Controller
                 $leave->created_at = $submittedAt->copy();
                 $leave->updated_at = $submittedAt->copy();
                 $leave->save();
+                $this->leaveRequestDayService->syncDateRange($leave);
 
                 // Jika status APPROVED dan tipe CUTI, potong saldo dalam transaction yang sama.
                 if ($status === LeaveRequest::STATUS_APPROVED && $type === LeaveType::CUTI->value) {
@@ -553,6 +558,7 @@ class HrLeaveController extends Controller
         $leaveBalanceLabel = $leaveBalance <= 0 && ! $hasApprovedAnnualLeave
             ? 'Belum dapat cuti'
             : rtrim(rtrim(number_format($leaveBalance, 1, ',', '.'), '0'), ',').' hari';
+        $dailyTreatmentDays = $this->leaveRequestDayService->syncDateRange($leave);
 
         return view('hr.leave_requests.show', [
             'item' => $leave,
@@ -561,6 +567,7 @@ class HrLeaveController extends Controller
             'isDirectApprover' => $isDirectApprover,
             'canApproveAsSupervisor' => $canApproveAsSupervisor,
             'leaveBalanceLabel' => $leaveBalanceLabel,
+            'dailyTreatmentDays' => $dailyTreatmentDays,
         ]);
     }
 
@@ -591,6 +598,13 @@ class HrLeaveController extends Controller
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
             'deduction_mode_edit' => ['nullable', Rule::in(['NONE', 'LEAVE_BALANCE', 'LEAVE_BALANCE_HALF_DAY', 'MEAL_ALLOWANCE'])],
             'deduct_um_edit' => ['nullable', 'in:1'],
+            'daily_treatments' => ['nullable', 'array'],
+            'daily_treatments.*' => ['required', Rule::in([
+                'NONE',
+                'MEAL_ALLOWANCE',
+                'LEAVE_BALANCE_1',
+                'LEAVE_BALANCE_0_5',
+            ])],
         ], [
             'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
             'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
@@ -656,11 +670,12 @@ class HrLeaveController extends Controller
         $oldPhoto = $leave->photo;
         $deductionMode = $validated['deduction_mode_edit'] ?? null;
         $legacyDeductUm = $request->filled('deduct_um_edit');
+        $dailyTreatments = $validated['daily_treatments'] ?? null;
 
         try {
             $updated = $this->stateMachine->perform(
                 $leave,
-                LeaveRequestStateMachine::HR_OVERRIDE_APPROVE,
+                LeaveRequestStateMachine::HR_EDIT,
                 function (LeaveRequest $lockedLeave) use (
                     $validated,
                     $type,
@@ -671,18 +686,37 @@ class HrLeaveController extends Controller
                     $actor,
                     $deductionMode,
                     $legacyDeductUm,
+                    $dailyTreatments,
                 ) {
                     $oldType = $lockedLeave->type instanceof LeaveType
                         ? $lockedLeave->type->value
                         : (string) $lockedLeave->type;
+                    $isApproved = $lockedLeave->status === LeaveRequest::STATUS_APPROVED;
 
+                    $usesDailyTreatments = is_array($dailyTreatments);
                     $effectiveDeductionMode = $deductionMode;
                     if ($effectiveDeductionMode === null && $legacyDeductUm) {
                         $effectiveDeductionMode = 'MEAL_ALLOWANCE';
                     }
 
                     $targetDeduction = 0.0;
-                    if ($effectiveDeductionMode === 'LEAVE_BALANCE_HALF_DAY') {
+                    $hasMealAllowance = false;
+                    if ($usesDailyTreatments) {
+                        // Sinkronisasi detail harus memakai rentang dan jenis baru,
+                        // walaupun parent baru ditulis oleh state machine setelah callback.
+                        $lockedLeave->setAttribute('type', $type);
+                        $lockedLeave->setAttribute('start_date', $validated['start_date']);
+                        $lockedLeave->setAttribute('end_date', $validated['end_date']);
+
+                        $targetDeduction = $this->leaveRequestDayService->saveDecisions(
+                            $lockedLeave,
+                            $dailyTreatments,
+                            $actor->id,
+                        );
+                        $hasMealAllowance = $lockedLeave->days()
+                            ->where('treatment', \App\Models\LeaveRequestDay::MEAL_ALLOWANCE)
+                            ->exists();
+                    } elseif ($effectiveDeductionMode === 'LEAVE_BALANCE_HALF_DAY') {
                         $targetDeduction = 0.5;
                     } elseif ($effectiveDeductionMode === 'LEAVE_BALANCE') {
                         $targetDeduction = $this->leaveBalanceService->calculateEffectiveDaysForUser(
@@ -704,14 +738,18 @@ class HrLeaveController extends Controller
                             ?: $this->leaveBalanceService->historicalExplicitDeductionForLeave($lockedLeave);
                     }
 
-                    $deductUm = $effectiveDeductionMode === 'MEAL_ALLOWANCE';
+                    $deductUm = $usesDailyTreatments
+                        ? $hasMealAllowance
+                        : $effectiveDeductionMode === 'MEAL_ALLOWANCE';
 
-                    $this->leaveBalanceService->reconcileLeaveBalanceForHrOverride(
-                        $lockedLeave,
-                        $targetDeduction,
-                        $actor->id,
-                        "Rekonsiliasi intervensi HR untuk pengajuan #{$lockedLeave->id}",
-                    );
+                    if ($isApproved) {
+                        $this->leaveBalanceService->reconcileLeaveBalanceForHrOverride(
+                            $lockedLeave,
+                            $targetDeduction,
+                            $actor->id,
+                            "Rekonsiliasi edit HR untuk pengajuan #{$lockedLeave->id}",
+                        );
+                    }
 
                     $notes = collect(explode("\n", (string) $lockedLeave->notes))
                         ->reject(fn (string $line) => str_contains($line, '[Warning] Perubahan oleh HR dilakukan kurang dari H-7.')
@@ -747,9 +785,6 @@ class HrLeaveController extends Controller
                         'substitute_phone' => $validated['substitute_phone'] ?? $lockedLeave->substitute_phone,
                         'special_leave_category' => $specialLeaveCategory,
                         'deduct_um' => $deductUm,
-                        'approved_by' => $actor->id,
-                        'approved_at' => now(),
-                        'supervisor_ack_at' => $lockedLeave->supervisor_ack_at ?? now(),
                     ];
 
                     if ($uploadedPhotoPath !== null) {
@@ -792,7 +827,7 @@ class HrLeaveController extends Controller
 
         return redirect()
             ->route('hr.leave.show', $leave->id)
-            ->with('success', 'Data pengajuan berhasil diperbarui dan disetujui.');
+            ->with('success', 'Data pengajuan berhasil diperbarui.');
     }
 
     public function adjustApprovedDate(Request $request, LeaveRequest $leave)
@@ -862,6 +897,14 @@ class HrLeaveController extends Controller
                 },
                 [],
                 LeaveRequest::STATUS_APPROVED,
+                function (LeaveRequest $updatedLeave) {
+                    $this->leaveRequestDayService
+                        ->syncDateRange($updatedLeave)
+                        ->each(fn ($day) => $day->update([
+                            'decided_by' => (int) Auth::id(),
+                            'decided_at' => now(),
+                        ]));
+                },
             );
 
             if (! $updated) {
@@ -894,6 +937,13 @@ class HrLeaveController extends Controller
             'deduct_leave_izin' => 'nullable|in:1', // Checkbox: potong cuti untuk IZIN
             'deduct_amount_izin' => 'nullable|in:1,0.5', // Radio: full/0.5 untuk IZIN
             'deduct_um' => 'nullable|in:1', // Checkbox: potong UM
+            'daily_treatments' => ['nullable', 'array'],
+            'daily_treatments.*' => ['required', Rule::in([
+                'NONE',
+                'MEAL_ALLOWANCE',
+                'LEAVE_BALANCE_1',
+                'LEAVE_BALANCE_0_5',
+            ])],
         ]);
 
         // Pastikan status valid
@@ -926,6 +976,40 @@ class HrLeaveController extends Controller
                 $leave,
                 LeaveRequestStateMachine::APPROVE,
                 function (LeaveRequest $lockedLeave) use ($request, $actor) {
+                    if ($request->has('daily_treatments')) {
+                        $targetDeduction = $this->leaveRequestDayService->saveDecisions(
+                            $lockedLeave,
+                            $request->input('daily_treatments', []),
+                            $actor->id,
+                        );
+                        $currentDeduction = $this->leaveBalanceService->currentNetDeductionForLeave($lockedLeave);
+
+                        if ($currentDeduction <= 0 && $targetDeduction > 0) {
+                            $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave, $targetDeduction);
+                        } elseif (abs($currentDeduction - $targetDeduction) > 0.0001) {
+                            $this->leaveBalanceService->reconcileLeaveBalanceForHrOverride(
+                                $lockedLeave,
+                                $targetDeduction,
+                                $actor->id,
+                                "Rekonsiliasi perlakuan harian pengajuan #{$lockedLeave->id}",
+                            );
+                        }
+
+                        $hasMealAllowance = $lockedLeave->days()
+                            ->where('treatment', \App\Models\LeaveRequestDay::MEAL_ALLOWANCE)
+                            ->exists();
+                        $currentNotes = $lockedLeave->notes;
+                        $systemNote = '[System] Disetujui oleh HR ('.$actor->name.') pada '.now()->format('d M Y H:i');
+
+                        return [
+                            'approved_by' => $actor->id,
+                            'approved_at' => now(),
+                            'notes' => $currentNotes ? $currentNotes."\n".$systemNote : $systemNote,
+                            'notes_hrd' => $request->notes_hrd,
+                            'deduct_um' => $hasMealAllowance,
+                        ];
+                    }
+
                     // LOGIKA APPROVE
                     $leaveTypeValue = $lockedLeave->type instanceof LeaveType ? $lockedLeave->type->value : (string) $lockedLeave->type;
 
@@ -998,6 +1082,8 @@ class HrLeaveController extends Controller
 
             return redirect()->route('hr.leave.index')->with('success', 'Pengajuan berhasil disetujui.');
 
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             report($e);
 

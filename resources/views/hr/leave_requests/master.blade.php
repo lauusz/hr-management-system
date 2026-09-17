@@ -110,6 +110,45 @@
         $formatIndonesianShortDate = static function ($date) use ($indonesianDayAbbreviations): string {
             return $indonesianDayAbbreviations[$date->dayOfWeek].', '.$date->format('d/m/Y');
         };
+        $formatCompactDateList = static function ($dates): string {
+            return collect($dates)
+                ->sortBy(fn ($date) => $date->toDateString())
+                ->map(fn ($date) => $date->format('d/m/y'))
+                ->values()
+                ->implode(', ');
+        };
+        $formatCompactDateRanges = static function ($dates): string {
+            $sortedDates = collect($dates)
+                ->sortBy(fn ($date) => $date->toDateString())
+                ->values();
+
+            if ($sortedDates->isEmpty()) {
+                return '-';
+            }
+
+            $ranges = [];
+            $rangeStart = $sortedDates->first();
+            $previousDate = $rangeStart;
+
+            foreach ($sortedDates->slice(1) as $date) {
+                if ($previousDate->copy()->addDay()->isSameDay($date)) {
+                    $previousDate = $date;
+                    continue;
+                }
+
+                $ranges[] = $rangeStart->isSameDay($previousDate)
+                    ? $rangeStart->format('d/m/y')
+                    : $rangeStart->format('d/m/y').' s/d '.$previousDate->format('d/m/y');
+                $rangeStart = $date;
+                $previousDate = $date;
+            }
+
+            $ranges[] = $rangeStart->isSameDay($previousDate)
+                ? $rangeStart->format('d/m/y')
+                : $rangeStart->format('d/m/y').' s/d '.$previousDate->format('d/m/y');
+
+            return implode(', ', $ranges);
+        };
         $hasAdvancedFilter = ($typeFilter ?? null) || ($status ?? null) || ($submittedRange ?? null) || ($periodRange ?? null) || ($pt_id ?? null);
         $activeFilterCount = collect([$typeFilter, $status, $submittedRange, $periodRange, $pt_id])->filter()->count();
     @endphp
@@ -305,7 +344,33 @@
                                         default => 0.0,
                                     }
                                 );
-                                $hasLeaveDeduction = round((float) $netLeaveDeduction, 2) > 0;
+                                $hasDailyTreatments = $row->days->isNotEmpty();
+                                $dailyLeaveDeductionDays = $hasDailyTreatments
+                                    ? $row->days->filter(
+                                        fn (\App\Models\LeaveRequestDay $day): bool => $day->treatment === \App\Models\LeaveRequestDay::LEAVE_BALANCE
+                                            && (float) $day->deduction_amount > 0,
+                                    )
+                                    : collect();
+                                $dailyMealAllowanceDays = $hasDailyTreatments
+                                    ? $row->days->where('treatment', \App\Models\LeaveRequestDay::MEAL_ALLOWANCE)
+                                    : collect();
+                                $hasLeaveDeduction = $hasDailyTreatments
+                                    ? $dailyLeaveDeductionDays->isNotEmpty()
+                                    : round((float) $netLeaveDeduction, 2) > 0;
+                                $hasMealAllowanceDeduction = $hasDailyTreatments
+                                    ? $dailyMealAllowanceDays->isNotEmpty()
+                                    : (bool) $row->deduct_um;
+                                $hasDailyDeductionDates = $hasDailyTreatments
+                                    && ($dailyLeaveDeductionDays->isNotEmpty() || $dailyMealAllowanceDays->isNotEmpty());
+                                $normalPeriodLabel = $hasDailyDeductionDates
+                                    ? $formatCompactDateRanges(
+                                        $row->days
+                                            ->where('treatment', \App\Models\LeaveRequestDay::NONE)
+                                            ->pluck('leave_date'),
+                                    )
+                                    : null;
+                                $leaveDeductionDatesLabel = $formatCompactDateList($dailyLeaveDeductionDays->pluck('leave_date'));
+                                $mealAllowanceDatesLabel = $formatCompactDateList($dailyMealAllowanceDays->pluck('leave_date'));
                             @endphp
 
                             <tr class="lm-clickable-row" onclick="window.location.href='{{ route('hr.leave.show', $row) }}'">
@@ -330,9 +395,13 @@
 
                                 <td>
                                     <div class="lm-date-cell">
-                                        <span class="lm-date-main">{{ $formatIndonesianShortDate($row->start_date) }}</span>
-                                        @if($row->end_date && $row->end_date->ne($row->start_date))
-                                            <span class="lm-date-range">s/d {{ $formatIndonesianShortDate($row->end_date) }}</span>
+                                        @if($hasDailyDeductionDates)
+                                            <span class="lm-date-main">{{ $normalPeriodLabel }}</span>
+                                        @else
+                                            <span class="lm-date-main">{{ $formatIndonesianShortDate($row->start_date) }}</span>
+                                            @if($row->end_date && $row->end_date->ne($row->start_date))
+                                                <span class="lm-date-range">s/d {{ $formatIndonesianShortDate($row->end_date) }}</span>
+                                            @endif
                                         @endif
                                     </div>
                                 </td>
@@ -354,10 +423,10 @@
                                             {{ $typeLabel }}
                                         </span>
                                         @if($hasLeaveDeduction)
-                                            <span class="lm-deduction-note lm-deduction-note--leave" data-leave-deduction="leave">*potong cuti</span>
+                                            <span class="lm-deduction-note lm-deduction-note--leave" data-leave-deduction="leave">*potong cuti{{ $leaveDeductionDatesLabel !== '' ? ': '.$leaveDeductionDatesLabel : '' }}</span>
                                         @endif
-                                        @if($row->deduct_um)
-                                            <span class="lm-deduction-note lm-deduction-note--meal-allowance" data-leave-deduction="meal-allowance">*potong um</span>
+                                        @if($hasMealAllowanceDeduction)
+                                            <span class="lm-deduction-note lm-deduction-note--meal-allowance" data-leave-deduction="meal-allowance">*potong um{{ $mealAllowanceDatesLabel !== '' ? ': '.$mealAllowanceDatesLabel : '' }}</span>
                                         @endif
                                     </div>
                                 </td>

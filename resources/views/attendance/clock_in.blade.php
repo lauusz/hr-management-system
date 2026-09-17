@@ -102,6 +102,16 @@
         </div>
     </x-modal>
 
+    @if ($officeHoliday)
+        <x-modal id="attendance-office-holiday-confirmation" title="Hari Libur Kantor" variant="warning" type="form">
+            <p style="margin:0 0 16px;">Hari ini adalah <strong>{{ $officeHoliday->name }}</strong>. Apakah Anda yakin ingin tetap melakukan presensi?</p>
+            <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">
+                <button type="button" class="modal-btn modal-btn-secondary" data-modal-close="true">Batal</button>
+                <button type="button" id="confirmOfficeHolidayClockIn" class="modal-btn modal-btn-primary">Ya, Tetap Absen</button>
+            </div>
+        </x-modal>
+    @endif
+
     <style>
         /* ============================================= */
         /* HEADER SLOT                                   */
@@ -873,8 +883,11 @@
             statusMsg.style.color = 'var(--text-muted, #6B7280)';
         });
 
+        const officeHolidayModal = document.getElementById('attendance-office-holiday-confirmation');
+        const confirmOfficeHolidayClockIn = document.getElementById('confirmOfficeHolidayClockIn');
+
         // 6. Fungsi Submit (Kirim ke Server)
-        btnSubmit.addEventListener('click', async () => {
+        async function submitClockIn() {
             if (!imageBlob || !userLat) return;
 
             const originalText = btnSubmit.innerHTML;
@@ -943,6 +956,28 @@
                 btnSubmit.innerHTML = originalText;
                 btnRetake.disabled = false;
             }
+        }
+
+        btnSubmit.addEventListener('click', () => {
+            if (!imageBlob || !userLat) return;
+
+            if (officeHolidayModal) {
+                officeHolidayModal.style.display = 'flex';
+                return;
+            }
+
+            submitClockIn();
+        });
+
+        confirmOfficeHolidayClockIn?.addEventListener('click', () => {
+            officeHolidayModal.style.display = 'none';
+            submitClockIn();
+        });
+
+        officeHolidayModal?.querySelectorAll('[data-modal-close="true"]').forEach((button) => {
+            button.addEventListener('click', () => {
+                officeHolidayModal.style.display = 'none';
+            });
         });
 
         // Jalankan saat load

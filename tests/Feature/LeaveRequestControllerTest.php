@@ -6,6 +6,7 @@ use App\Models\EmployeeProfile;
 use App\Models\LeaveBalanceTransaction;
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Services\LeaveApprovalAssignmentService;
 use App\Services\LeaveBalanceService;
 use Carbon\Carbon;
 // âš ï¸ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
@@ -83,6 +84,81 @@ describe('LeaveRequestController', function () {
             $response->assertOk()
                 ->assertHeader('content-type', 'image/heic')
                 ->assertStreamedContent('heic-content');
+        });
+
+        it('allows assigned approver to open applicant supporting file', function () {
+            Storage::fake('public');
+
+            $approver = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $approver->id,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'photo' => 'approver-evidence.heic',
+            ]);
+
+            Storage::disk('public')->put('leave_photos/approver-evidence.heic', 'approver-content');
+
+            actingAs($approver, 'web');
+
+            $response = $this->get(route('leave-requests.supporting-file', $leave));
+
+            $response->assertOk()
+                ->assertHeader('content-type', 'image/heic')
+                ->assertStreamedContent('approver-content');
+        });
+
+        it('allows supervisor and manager monitoring to open supporting file when approver is assigned', function () {
+            Storage::fake('public');
+
+            $approver = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR]);
+            $manager = User::factory()->create(['role' => UserRole::MANAGER]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $approver->id,
+                'direct_supervisor_id' => $supervisor->id,
+                'manager_id' => $manager->id,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'photo' => 'monitoring-evidence.heic',
+            ]);
+
+            Storage::disk('public')->put('leave_photos/monitoring-evidence.heic', 'monitoring-content');
+
+            actingAs($supervisor, 'web');
+            $this->get(route('leave-requests.supporting-file', $leave))
+                ->assertOk()
+                ->assertStreamedContent('monitoring-content');
+
+            actingAs($manager, 'web');
+            $this->get(route('leave-requests.supporting-file', $leave))
+                ->assertOk()
+                ->assertStreamedContent('monitoring-content');
+        });
+
+        it('keeps HRD and HR staff access to applicant supporting file', function () {
+            Storage::fake('public');
+
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $hrStaff = User::factory()->create(['role' => UserRole::HR_STAFF]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'photo' => 'hr-evidence.heic',
+            ]);
+
+            Storage::disk('public')->put('leave_photos/hr-evidence.heic', 'hr-content');
+
+            actingAs($hrd, 'web');
+            $this->get(route('leave-requests.supporting-file', $leave))
+                ->assertOk()
+                ->assertStreamedContent('hr-content');
+
+            actingAs($hrStaff, 'web');
+            $this->get(route('leave-requests.supporting-file', $leave))
+                ->assertOk()
+                ->assertStreamedContent('hr-content');
         });
     });
 
@@ -264,6 +340,159 @@ describe('LeaveRequestController', function () {
     // STORE
     // =====================================================================
     describe('store', function () {
+        it('routes employee request with designated approver to approver pending inbox', function () {
+            $approver = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $approver->id,
+                'direct_supervisor_id' => null,
+                'manager_id' => null,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Keperluan keluarga',
+            ])->assertRedirect(route('leave-requests.index'));
+
+            $leave = LeaveRequest::where('user_id', $employee->id)->firstOrFail();
+            $pendingForApprover = app(LeaveApprovalAssignmentService::class)
+                ->queryPendingFor($approver)
+                ->pluck('id')
+                ->all();
+
+            expect($leave->status)->toBe(LeaveRequest::PENDING_SUPERVISOR)
+                ->and($pendingForApprover)->toBe([$leave->id]);
+        });
+
+        it('routes employee request to supervisor when no designated approver exists', function () {
+            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR]);
+            $manager = User::factory()->create(['role' => UserRole::MANAGER]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => null,
+                'direct_supervisor_id' => $supervisor->id,
+                'manager_id' => $manager->id,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Keperluan keluarga',
+            ])->assertRedirect(route('leave-requests.index'));
+
+            $leave = LeaveRequest::where('user_id', $employee->id)->firstOrFail();
+
+            expect($leave->status)->toBe(LeaveRequest::PENDING_SUPERVISOR)
+                ->and(app(LeaveApprovalAssignmentService::class)->queryPendingFor($supervisor)->pluck('id')->all())->toBe([$leave->id])
+                ->and(app(LeaveApprovalAssignmentService::class)->queryPendingFor($manager)->pluck('id')->all())->toBe([]);
+        });
+
+        it('routes employee request to manager when approver and supervisor are empty', function () {
+            $manager = User::factory()->create(['role' => UserRole::MANAGER]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => null,
+                'direct_supervisor_id' => null,
+                'manager_id' => $manager->id,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Keperluan keluarga',
+            ])->assertRedirect(route('leave-requests.index'));
+
+            $leave = LeaveRequest::where('user_id', $employee->id)->firstOrFail();
+
+            expect($leave->status)->toBe(LeaveRequest::PENDING_SUPERVISOR)
+                ->and(app(LeaveApprovalAssignmentService::class)->queryPendingFor($manager)->pluck('id')->all())->toBe([$leave->id]);
+        });
+
+        it('routes employee request directly to HR when no initial approver exists', function () {
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => null,
+                'direct_supervisor_id' => null,
+                'manager_id' => null,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Keperluan keluarga',
+            ])->assertRedirect(route('leave-requests.index'));
+
+            $leave = LeaveRequest::where('user_id', $employee->id)->firstOrFail();
+
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR);
+        });
+
+        it('routes employee request directly to HR when assigned approver is inactive even with supervisor and manager', function () {
+            $inactiveApprover = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'status' => 'INACTIVE',
+            ]);
+            $supervisor = User::factory()->create(['role' => UserRole::SUPERVISOR]);
+            $manager = User::factory()->create(['role' => UserRole::MANAGER]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $inactiveApprover->id,
+                'direct_supervisor_id' => $supervisor->id,
+                'manager_id' => $manager->id,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Keperluan keluarga',
+            ])->assertRedirect(route('leave-requests.index'));
+
+            $leave = LeaveRequest::where('user_id', $employee->id)->firstOrFail();
+
+            expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
+                ->and(app(LeaveApprovalAssignmentService::class)->queryPendingFor($supervisor)->pluck('id')->all())->toBe([])
+                ->and(app(LeaveApprovalAssignmentService::class)->queryPendingFor($manager)->pluck('id')->all())->toBe([]);
+        });
+
+        it('keeps HRD applicant manager acknowledgment behavior', function () {
+            $manager = User::factory()->create(['role' => UserRole::MANAGER]);
+            $hrd = User::factory()->create([
+                'role' => UserRole::HRD,
+                'manager_id' => $manager->id,
+                'direct_supervisor_id' => null,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::IZIN->value,
+                'start_date' => now()->addDays(1)->toDateString(),
+                'end_date' => now()->addDays(1)->toDateString(),
+                'reason' => 'Keperluan keluarga',
+            ])->assertRedirect(route('leave-requests.index'));
+
+            $leave = LeaveRequest::where('user_id', $hrd->id)->firstOrFail();
+
+            expect($leave->status)->toBe(LeaveRequest::PENDING_SUPERVISOR)
+                ->and(app(LeaveApprovalAssignmentService::class)->queryPendingFor($manager)->pluck('id')->all())->toBe([$leave->id]);
+        });
+
         it('recognizes the 90 day limit for maternity leave', function () {
             $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
 
@@ -354,6 +583,37 @@ describe('LeaveRequestController', function () {
             $leave = LeaveRequest::where('user_id', $employee->id)->first();
             expect($leave)->toBeTruthy()
                 ->and($leave->type)->toBe(LeaveType::CUTI);
+        });
+
+        it('creates one daily treatment row for every calendar date in a new request', function () {
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+                'direct_supervisor_id' => null,
+            ]);
+            EmployeeProfile::create([
+                'user_id' => $employee->id,
+                'tgl_bergabung' => now()->subYears(2)->toDateString(),
+                'kategori' => 'KONTRAK',
+            ]);
+
+            actingAs($employee, 'web');
+
+            $this->post(route('leave-requests.store'), [
+                'type' => LeaveType::CUTI->value,
+                'start_date' => '2026-09-14',
+                'end_date' => '2026-09-16',
+                'reason' => 'Keperluan keluarga',
+                'substitute_pic' => 'Rekan Kerja',
+                'substitute_phone' => '081234567890',
+            ])->assertRedirect(route('leave-requests.index'));
+
+            $leave = LeaveRequest::where('user_id', $employee->id)->firstOrFail();
+
+            expect($leave->days()->count())->toBe(3)
+                ->and($leave->days()->orderBy('leave_date')->pluck('leave_date')->map(
+                    fn ($date) => substr((string) $date, 0, 10),
+                )->all())->toBe(['2026-09-14', '2026-09-15', '2026-09-16']);
         });
 
         it('rejects CUTI request when masa kerja less than 1 year', function () {
@@ -790,14 +1050,15 @@ describe('LeaveRequestController', function () {
             $response = $this->put(route('leave-requests.update', $leave->id), [
                 'type' => LeaveType::IZIN->value,
                 'start_date' => now()->addDays(2)->toDateString(),
-                'end_date' => now()->addDays(2)->toDateString(),
+                'end_date' => now()->addDays(4)->toDateString(),
                 'reason' => 'Updated reason',
             ]);
 
             $response->assertRedirect();
             $response->assertSessionHas('success');
             $leave->refresh();
-            expect($leave->reason)->toBe('Updated reason');
+            expect($leave->reason)->toBe('Updated reason')
+                ->and($leave->days()->count())->toBe(3);
         });
 
         it('cannot update already processed leave request', function () {

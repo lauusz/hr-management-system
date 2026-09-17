@@ -95,6 +95,19 @@ Tidak ada CI/CD di repositori ini (`.github/workflows` tidak ada). Deployment ad
 - Upload gambar selalu lewat `App\Services\Image\ImageCompressor`; ada Feature test khusus upload (`HrEmployeeImageUploadTest`).
 - Repositori ini privat; jangan mengekspos kode, konfigurasi, atau data ke layanan publik.
 
+## Aturan dokumentasi fitur (lintas model/agent)
+
+Sebelum membuat atau mengubah PRD, rencana implementasi, atau catatan keputusan, wajib baca dan patuhi [`docs/RULES.md`](docs/RULES.md). Aturan ini berlaku untuk semua model/agent yang bekerja di repositori ini, termasuk saat melanjutkan sesi sebelumnya.
+
+Aturan global ada di [`docs/README.md`](docs/README.md). PRD adalah kontrak WHAT + WHY; detail HOW masuk PLAN. Gunakan ID requirement stabil, jangan mengasumsikan pertanyaan TBD, dan pertahankan perilaku existing kecuali PRD secara eksplisit mengubahnya. Sebelum implementasi, baca dokumentasi sistem dan versi PRD yang disetujui, periksa source/test, lalu buat atau perbarui PLAN. Perubahan requirement harus tercatat dan disetujui, bukan dilakukan diam-diam.
+
+- PRD: `docs/prd/PRD-NNN-nama-fitur.md`.
+- Rencana: `docs/plans/PLAN-NNN-nama-fitur.md`.
+- Keputusan: `docs/decisions/ADR-NNN-topik-keputusan.md`.
+- `NNN` menggunakan nomor mulai `001`; cek dokumen dan register sebelum menetapkan nomor. Ketentuan hubungan nomor PLAN dan PRD ada di `docs/RULES.md`.
+- Dokumen `docs/system/` tidak memakai kode bernomor. File template dan indeks bukan dokumen fitur bernomor.
+- Simpan dokumen di struktur `docs/`, perbarui register `docs/README.md`, dan pertahankan pengecualian Git yang diminta pengguna.
+
 ## Code review graph
 
 Ketika pengguna meminta "cek program secara keseluruhan" atau review proyek luas yang setara:

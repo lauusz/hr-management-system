@@ -702,7 +702,7 @@
 
             <div class="edit-modal-content">
                 <div class="apv-status-notice apv-status-notice--info" style="margin-bottom: 16px;">
-                    Setelah disimpan, status pengajuan langsung menjadi APPROVED.
+                    Perubahan hanya disimpan dan tidak mengubah status pengajuan. Persetujuan dilakukan melalui tombol Setujui.
                 </div>
                 <div class="edit-section">
                     <div class="edit-section-header">
@@ -804,6 +804,9 @@
                     <strong>{{ $leaveBalanceLabel }}</strong>
                 </div>
 
+                @if($dailyTreatmentDays->isNotEmpty())
+                    @include('hr.leave_requests._daily_treatments', ['radioPrefix' => 'edit-daily'])
+                @else
                 <div class="edit-section edit-section--warning">
                     <div class="edit-section-header">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -846,6 +849,7 @@
                         </small>
                     </div>
                 </div>
+                @endif
 
                 <div class="edit-section edit-section--upload">
                     <div class="edit-section-header">
@@ -873,7 +877,7 @@
                 <button type="button" data-modal-close="true" class="edit-btn-cancel">Batal</button>
                 <button type="submit" class="edit-btn-save">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    Simpan & Setujui
+                    Simpan Perubahan
                 </button>
             </div>
         </form>
@@ -923,6 +927,9 @@
                 Pengajuan akan disetujui dan diproses sesuai kebijakan yang berlaku.
             </p>
 
+            @if($dailyTreatmentDays->isNotEmpty())
+                @include('hr.leave_requests._daily_treatments', ['radioPrefix' => 'approve-daily'])
+            @else
             @if($isTypeSakit)
             <div class="edit-form-group" style="margin-bottom: 15px; background: var(--gray-50, #F5F7FA); padding: 12px; border-radius: 10px; border: 1px solid var(--border-light, #E5E7EB);">
                 <label class="edit-checkbox-wrapper">
@@ -999,6 +1006,7 @@
                     Centang jika potongan uang makan berlaku untuk pengajuan izin ini.
                 </small>
             </div>
+            @endif
             @endif
 
             <div class="edit-form-group">
@@ -1824,6 +1832,10 @@
             max-height: 70vh;
             overflow-y: auto;
             padding-right: 4px;
+        }
+        #modal-approve .modal-card {
+            width: min(560px, calc(100vw - 32px));
+            max-width: 560px;
         }
         .edit-section {
             background: var(--white, #FFFFFF);

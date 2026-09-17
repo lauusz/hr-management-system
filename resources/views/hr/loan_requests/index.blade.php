@@ -35,57 +35,48 @@
     @endif
 
     {{-- ============================================== --}}
-    {{-- SUMMARY STATS                                  --}}
+    {{-- PT REPORT                                      --}}
     {{-- ============================================== --}}
-    <div class="ln-stats">
-        <div class="ln-stat-card">
-            <div class="ln-stat-icon ln-stat-icon--total">
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                </svg>
+    <section class="ln-report">
+        <div class="ln-report-header">
+            <div>
+                <p class="ln-report-eyebrow">Report Hutang</p>
+                <h2 class="ln-report-title">{{ $selectedPt ?: 'Semua PT' }}</h2>
             </div>
-            <div class="ln-stat-content">
-                <div class="ln-stat-value">{{ $totalCount }}</div>
-                <div class="ln-stat-label">Total Pengajuan</div>
-            </div>
+            <span class="ln-report-chip">{{ $reportStats['total_count'] }} pengajuan</span>
         </div>
 
-        <div class="ln-stat-card">
-            <div class="ln-stat-icon ln-stat-icon--pending">
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+        <div class="ln-report-grid">
+            <div class="ln-report-item">
+                <span class="ln-report-label">Total Pengajuan</span>
+                <strong class="ln-report-value">{{ $reportStats['total_count'] }}</strong>
             </div>
-            <div class="ln-stat-content">
-                <div class="ln-stat-value ln-stat-value--warning">{{ $pendingCount }}</div>
-                <div class="ln-stat-label">Menunggu HRD</div>
+            <div class="ln-report-item">
+                <span class="ln-report-label">Total Nilai Pinjaman</span>
+                <strong class="ln-report-value">Rp {{ number_format($reportStats['total_amount'], 0, ',', '.') }}</strong>
             </div>
-        </div>
-
-        <div class="ln-stat-card">
-            <div class="ln-stat-icon ln-stat-icon--approved">
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+            <div class="ln-report-item">
+                <span class="ln-report-label">Total Sudah Dibayar</span>
+                <strong class="ln-report-value">Rp {{ number_format($reportStats['total_paid'], 0, ',', '.') }}</strong>
             </div>
-            <div class="ln-stat-content">
-                <div class="ln-stat-value ln-stat-value--success">{{ $approvedCount }}</div>
-                <div class="ln-stat-label">Disetujui</div>
+            <div class="ln-report-item ln-report-item--strong">
+                <span class="ln-report-label">Total Sisa Hutang</span>
+                <strong class="ln-report-value">Rp {{ number_format($reportStats['remaining_debt'], 0, ',', '.') }}</strong>
             </div>
-        </div>
-
-        <div class="ln-stat-card">
-            <div class="ln-stat-icon ln-stat-icon--rejected">
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
+            <div class="ln-report-item">
+                <span class="ln-report-label">Menunggu HRD</span>
+                <strong class="ln-report-value">{{ $reportStats['pending_count'] }}</strong>
             </div>
-            <div class="ln-stat-content">
-                <div class="ln-stat-value ln-stat-value--error">{{ $rejectedCount }}</div>
-                <div class="ln-stat-label">Ditolak</div>
+            <div class="ln-report-item">
+                <span class="ln-report-label">Hutang Aktif</span>
+                <strong class="ln-report-value">{{ $reportStats['active_count'] }}</strong>
+            </div>
+            <div class="ln-report-item">
+                <span class="ln-report-label">Lunas</span>
+                <strong class="ln-report-value">{{ $reportStats['paid_count'] }}</strong>
             </div>
         </div>
-    </div>
+    </section>
 
     {{-- ============================================== --}}
     {{-- FILTER CARD                                    --}}
@@ -93,6 +84,16 @@
     <div class="ln-filter">
         <form method="GET" action="{{ route('hr.loan_requests.index') }}">
             <div class="ln-filter-body">
+                <div class="ln-filter-group">
+                    <label class="ln-filter-label">PT</label>
+                    <select name="pt" class="ln-filter-input">
+                        <option value="">Semua PT</option>
+                        @foreach($ptOptions as $ptName)
+                            <option value="{{ $ptName }}" @selected($selectedPt === $ptName)>{{ $ptName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="ln-filter-group">
                     <label class="ln-filter-label">Status Pengajuan</label>
                     <select name="status" class="ln-filter-input">
@@ -130,7 +131,7 @@
                         Filter
                     </button>
 
-                    @if(request('status') || request('q') || request('submitted_at'))
+                    @if(request('pt') || request('status') || request('q') || request('submitted_at'))
                         <a href="{{ route('hr.loan_requests.index') }}" class="ln-btn-reset">
                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -205,7 +206,6 @@
                     <div class="ln-employee-info">
                         <span class="ln-employee-name">{{ $loan->snapshot_name }}</span>
                         <span class="ln-employee-detail">{{ $loan->snapshot_position ?? '-' }} - {{ $loan->snapshot_company ?? '-' }}</span>
-                        <span class="ln-employee-detail">Lama Bekerja: {{ $loan->employee_tenure }}</span>
                     </div>
                 </div>
 
@@ -225,13 +225,7 @@
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        <span>{{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->translatedFormat('j F Y') }}</span>
-                    </div>
-                    <div class="ln-card-action" title="Lihat Detail">
-                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
+                        <span>{{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->format('d/m/y') }}</span>
                     </div>
                 </div>
             </a>
@@ -258,12 +252,10 @@
                     <thead>
                         <tr>
                             <th style="min-width: 220px;">Karyawan</th>
-                            <th>Lama Bekerja</th>
                             <th>Besar Pinjaman</th>
                             <th>Metode Bayar</th>
                             <th>Tgl Pengajuan</th>
                             <th>Status</th>
-                            <th style="width: 60px;"></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -306,10 +298,6 @@
                                 </td>
 
                                 <td>
-                                    <span class="ln-table-date">{{ $loan->employee_tenure }}</span>
-                                </td>
-
-                                <td>
                                     <div class="ln-table-money">
                                         <span class="ln-table-money-amount">Rp {{ number_format($loan->amount, 0, ',', '.') }}</span>
                                         <span class="ln-table-money-words" title="{{ $loan->amount_in_words }}">
@@ -323,7 +311,7 @@
                                 </td>
 
                                 <td>
-                                    <span class="ln-table-date">{{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->translatedFormat('j F Y') }}</span>
+                                    <span class="ln-table-date">{{ \Illuminate\Support\Carbon::parse($loan->submitted_at)->format('d/m/y') }}</span>
                                 </td>
 
                                 <td>
@@ -332,18 +320,10 @@
                                     </span>
                                 </td>
 
-                                <td class="ln-actions-cell" onclick="event.stopPropagation()">
-                                    <a href="{{ route('hr.loan_requests.show', $loan->id) }}" class="ln-action-btn" title="Lihat Detail">
-                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                                        </svg>
-                                    </a>
-                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="ln-table-empty">
+                                <td colspan="5" class="ln-table-empty">
                                     <div class="ln-empty">
                                         <div class="ln-empty-icon">
                                             <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -428,60 +408,78 @@
         }
 
         /* ========================================== */
-        /* STATS GRID                                 */
+        /* PT REPORT                                  */
         /* ========================================== */
-        .ln-stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-        .ln-stat-card {
+        .ln-report {
             background: var(--white, #FFFFFF);
-            border-radius: 16px;
             border: 1px solid var(--border-light, #E5E7EB);
-            padding: 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-            transition: all 0.2s ease;
         }
-        .ln-stat-card:hover {
-            box-shadow: 0 4px 12px rgba(20, 93, 160, 0.08);
-            transform: translateY(-1px);
-        }
-        .ln-stat-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+        .ln-report-header {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
         }
-        .ln-stat-icon svg { width: 16px; height: 16px; }
-        .ln-stat-icon--total    { background: rgba(20, 93, 160, 0.08); color: var(--primary, #145DA0); }
-        .ln-stat-icon--pending  { background: rgba(245, 158, 11, 0.1);  color: #a16207; }
-        .ln-stat-icon--approved { background: rgba(34, 197, 94, 0.1);   color: #15803d; }
-        .ln-stat-icon--rejected { background: rgba(239, 68, 68, 0.1);   color: #b91c1c; }
-        .ln-stat-content { flex: 1; min-width: 0; }
-        .ln-stat-value {
-            font-size: 18px;
+        .ln-report-eyebrow {
+            margin: 0 0 2px;
+            font-size: 0.6875rem;
             font-weight: 700;
-            color: var(--text-primary, #111827);
-            line-height: 1.2;
+            color: var(--text-muted, #6B7280);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
         }
-        .ln-stat-value--success { color: var(--success, #22C55E); }
-        .ln-stat-value--warning { color: var(--warning, #F59E0B); }
-        .ln-stat-value--error   { color: var(--error, #EF4444); }
-        .ln-stat-label {
-            font-size: 10px;
+        .ln-report-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary, #111827);
+            line-height: 1.3;
+        }
+        .ln-report-chip {
+            padding: 5px 10px;
+            border-radius: 9999px;
+            background: rgba(20, 93, 160, 0.08);
+            color: var(--primary, #145DA0);
+            font-size: 0.75rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .ln-report-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+        .ln-report-item {
+            min-width: 0;
+            padding: 12px;
+            border-radius: 12px;
+            background: var(--gray-50, #F5F7FA);
+            border: 1px solid var(--border-light, #F3F4F6);
+        }
+        .ln-report-item--strong {
+            background: rgba(20, 93, 160, 0.08);
+            border-color: rgba(20, 93, 160, 0.16);
+        }
+        .ln-report-label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.6875rem;
+            font-weight: 700;
             color: var(--text-muted, #6B7280);
             text-transform: uppercase;
             letter-spacing: 0.03em;
-            font-weight: 600;
-            margin-top: 2px;
+        }
+        .ln-report-value {
+            display: block;
+            font-size: 0.95rem;
+            color: var(--text-primary, #111827);
+            line-height: 1.3;
+            word-break: break-word;
         }
 
         /* ========================================== */
@@ -734,24 +732,6 @@
         .ln-card-meta svg {
             flex-shrink: 0;
         }
-        .ln-card-action {
-            width: 32px;
-            height: 32px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            border: none;
-            background: transparent;
-            color: var(--text-muted, #6B7280);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            flex-shrink: 0;
-        }
-        .ln-card:hover .ln-card-action {
-            background: var(--gray-50, #F5F7FA);
-            color: var(--primary, #145DA0);
-        }
 
         /* ========================================== */
         /* EMPTY STATE                                */
@@ -799,23 +779,11 @@
         /* RESPONSIVE                                 */
         /* ========================================== */
         @media (min-width: 480px) {
-            .ln-stats {
-                grid-template-columns: repeat(4, 1fr);
-                gap: 12px;
-            }
-            .ln-stat-card {
-                padding: 16px;
-                gap: 12px;
-            }
-            .ln-stat-icon {
-                width: 40px;
-                height: 40px;
-            }
-            .ln-stat-icon svg { width: 18px; height: 18px; }
-            .ln-stat-value { font-size: 22px; }
-            .ln-stat-label { font-size: 11px; }
-
             .ln-filter { padding: 18px 20px; }
+            .ln-report { padding: 18px 20px; }
+            .ln-report-grid {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
             .ln-filter-body {
                 flex-direction: row;
                 align-items: flex-end;
@@ -837,6 +805,9 @@
         @media (min-width: 768px) {
             .ln-card { padding: 18px 20px; }
             .ln-filter { padding: 20px; }
+            .ln-report { padding: 20px; }
+            .ln-report-title { font-size: 1.125rem; }
+            .ln-report-value { font-size: 1rem; }
         }
 
         @media (min-width: 1024px) {
@@ -950,29 +921,6 @@
             .ln-table-date {
                 font-weight: 500;
                 color: var(--text-secondary, #374151);
-            }
-
-            .ln-actions-cell {
-                text-align: right;
-                white-space: nowrap;
-            }
-            .ln-action-btn {
-                width: 32px;
-                height: 32px;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 8px;
-                border: none;
-                background: transparent;
-                color: var(--text-muted, #6B7280);
-                cursor: pointer;
-                transition: all 0.2s ease;
-                text-decoration: none;
-            }
-            .ln-action-btn:hover {
-                background: var(--gray-50, #F5F7FA);
-                color: var(--primary, #145DA0);
             }
 
             .ln-table-empty .ln-empty {

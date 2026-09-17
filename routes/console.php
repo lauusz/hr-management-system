@@ -1,7 +1,9 @@
 <?php
 
+use App\Jobs\ProcessPayrollDeductionLoanRepaymentsJob;
 use App\Models\User;
 use App\Services\LeaveBalanceService;
+use App\Services\LoanPayrollDeductionService;
 use App\Services\OffSpvQuotaService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Inspiring;
@@ -164,6 +166,23 @@ Artisan::command('db:backup', function () {
 
 })->purpose('Backup database (Overwrite Mode)');
 
+Artisan::command('loan:auto-repay-payroll-deduction {date?} {--sync}', function (LoanPayrollDeductionService $service) {
+    $date = $this->argument('date');
+    $paidAt = $date ? Carbon::parse($date)->startOfDay() : now()->startOfDay();
+
+    if ($this->option('sync')) {
+        $result = $service->process($paidAt);
+        $this->info("Auto cicilan hutang selesai. Diproses: {$result['processed']}, duplikat dilewati: {$result['skipped_duplicate']}, tanpa sisa: {$result['skipped_no_remaining']}.");
+
+        return 0;
+    }
+
+    ProcessPayrollDeductionLoanRepaymentsJob::dispatch($paidAt->toDateString());
+    $this->info('Job auto cicilan hutang dijadwalkan ke queue.');
+
+    return 0;
+})->purpose('Catat cicilan otomatis untuk hutang dengan metode potong gaji');
+
 
 // =================================================================
 // JADWAL GLOBAL (SCHEDULER)
@@ -182,3 +201,8 @@ Schedule::command('off-spv:initialize-periods')
 Schedule::command('db:backup')
         ->dailyAt('23:59')
         ->timezone('Asia/Jakarta');
+
+// 3. Auto cicilan hutang potong gaji: tanggal 28 setiap bulan.
+Schedule::command('loan:auto-repay-payroll-deduction')
+    ->monthlyOn(28, '08:00')
+    ->timezone('Asia/Jakarta');

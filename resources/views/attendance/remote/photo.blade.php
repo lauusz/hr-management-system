@@ -86,6 +86,16 @@
         </div>
     </x-modal>
 
+    @if ($isClockIn && $officeHoliday)
+        <x-modal id="remote-office-holiday-confirmation" title="Hari Libur Kantor" variant="warning" type="form">
+            <p style="margin:0 0 16px;">Hari ini adalah <strong>{{ $officeHoliday->name }}</strong>. Apakah Anda yakin ingin tetap melakukan presensi?</p>
+            <div style="display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;">
+                <button type="button" class="modal-btn modal-btn-secondary" data-modal-close="true">Batal</button>
+                <button type="button" id="confirmRemoteOfficeHolidayClockIn" class="modal-btn modal-btn-primary">Ya, Tetap Absen</button>
+            </div>
+        </x-modal>
+    @endif
+
     <style>
         .remote-capture-header { display:flex; align-items:center; gap:14px; }
         .remote-capture-back { width:48px; height:48px; display:grid; place-items:center; flex:0 0 auto; border:1px solid var(--border); border-radius:14px; background:var(--white); color:var(--primary-dark); box-shadow:0 4px 12px rgba(15,23,42,.07); }
@@ -167,6 +177,8 @@
         const submitButton = document.getElementById('submitButton');
         const captureGroup = document.getElementById('captureGroup');
         const submitGroup = document.getElementById('submitGroup');
+        const officeHolidayModal = document.getElementById('remote-office-holiday-confirmation');
+        const confirmRemoteOfficeHolidayClockIn = document.getElementById('confirmRemoteOfficeHolidayClockIn');
 
         let stream = null;
         let watchId = null;
@@ -267,7 +279,7 @@
             checkReady();
         });
 
-        submitButton.addEventListener('click', async () => {
+        async function submitRemoteAttendance() {
             if (!photoBlob || latitude === null || longitude === null) return;
 
             const originalText = submitButton.textContent;
@@ -304,6 +316,28 @@
                 retakeButton.disabled = false;
                 submitButton.textContent = originalText;
             }
+        }
+
+        submitButton.addEventListener('click', () => {
+            if (!photoBlob || latitude === null || longitude === null) return;
+
+            if (mode === 'in' && officeHolidayModal) {
+                officeHolidayModal.style.display = 'flex';
+                return;
+            }
+
+            submitRemoteAttendance();
+        });
+
+        confirmRemoteOfficeHolidayClockIn?.addEventListener('click', () => {
+            officeHolidayModal.style.display = 'none';
+            submitRemoteAttendance();
+        });
+
+        officeHolidayModal?.querySelectorAll('[data-modal-close="true"]').forEach((button) => {
+            button.addEventListener('click', () => {
+                officeHolidayModal.style.display = 'none';
+            });
         });
 
         window.addEventListener('pagehide', () => {

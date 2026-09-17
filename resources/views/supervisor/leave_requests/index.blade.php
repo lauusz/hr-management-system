@@ -10,7 +10,10 @@ $roleStr = strtoupper((string)$roleVal);
 $pageTitle = 'Inbox Approval';
 $subTitle  = 'Daftar pengajuan yang membutuhkan persetujuan Anda.';
 
-if ($roleStr === 'MANAGER') {
+if (($approvalCapacityLabel ?? null) === 'Approver') {
+    $pageTitle = 'Inbox Approval Approver';
+    $subTitle  = 'Daftar pengajuan dari karyawan yang menunjuk Anda sebagai Approver.';
+} elseif ($roleStr === 'MANAGER') {
     $pageTitle = 'Inbox Approval Manager';
     $subTitle  = 'Daftar pengajuan dari Supervisor yang membutuhkan persetujuan Anda.';
 } elseif ($roleStr === 'SUPERVISOR' || $roleStr === 'SPV') {

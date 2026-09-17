@@ -183,6 +183,57 @@ it('mengisi tanggal dan comment dari pending HR cuti serta potongan bersih ledge
     }
 });
 
+it('menggunakan tanggal potong cuti harian dan tidak memasukkan tanggal potong UM', function () {
+    Carbon::setTestNow('2026-09-04 10:00:00');
+    $hrd = User::factory()->create(['name' => 'Admin HR', 'role' => UserRole::HRD]);
+    $employee = User::factory()->create([
+        'name' => 'Dewi Potongan Harian',
+        'leave_balance' => 5,
+    ]);
+    $leave = LeaveRequest::factory()->forUser($employee)->create([
+        'type' => LeaveType::IZIN,
+        'status' => LeaveRequest::STATUS_APPROVED,
+        'start_date' => '2026-09-01',
+        'end_date' => '2026-09-03',
+        'reason' => 'Koreksi harian',
+    ]);
+
+    $dayService = app(\App\Services\LeaveRequestDayService::class);
+    $dayService->syncDateRange($leave);
+    $dayService->saveDecisions($leave, [
+        '2026-09-01' => 'MEAL_ALLOWANCE',
+        '2026-09-02' => 'LEAVE_BALANCE_1',
+        '2026-09-03' => 'LEAVE_BALANCE_0_5',
+    ], $hrd->id);
+    app(\App\Services\LeaveBalanceService::class)->deductLeaveBalanceForLeave($leave, 1.5);
+
+    actingAs($hrd, 'web');
+
+    $response = $this->get('/hr/leave/master/export-cuti');
+    $response->assertOk();
+
+    try {
+        SpreadsheetCell::setValueBinder(new PhpSpreadsheetDefaultValueBinder);
+        $workbook = IOFactory::load($response->baseResponse->getFile()->getPathname());
+        $sheet = $workbook->getActiveSheet();
+        $employeeRow = null;
+
+        for ($row = 3; $row <= $sheet->getHighestRow(); $row++) {
+            if ((string) $sheet->getCell("A{$row}")->getValue() === 'Dewi Potongan Harian') {
+                $employeeRow = $row;
+                break;
+            }
+        }
+
+        expect($employeeRow)->not->toBeNull()
+            ->and($sheet->getCell("B{$employeeRow}")->getFormattedValue())->toBe('02/09/26')
+            ->and($sheet->getCell("C{$employeeRow}")->getFormattedValue())->toBe('03/09/26')
+            ->and($sheet->getCell("D{$employeeRow}")->getValue())->toBeNull();
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
 it('memformat rekap sebagai tabel yang mudah dibaca', function () {
     Carbon::setTestNow('2026-09-03 10:00:00');
     $hrd = User::factory()->create(['role' => UserRole::HRD]);

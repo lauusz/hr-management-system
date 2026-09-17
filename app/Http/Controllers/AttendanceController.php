@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Attendance;
 use App\Models\EmployeeShift;
+use App\Models\OfficeHoliday;
 use App\Services\Image\ImageCompressor;
 use Carbon\Carbon;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -50,7 +51,9 @@ class AttendanceController extends Controller
 
     public function showClockInForm()
     {
-        return view('attendance.clock_in');
+        return view('attendance.clock_in', [
+            'officeHoliday' => $this->activeOfficeHoliday(),
+        ]);
     }
 
     public function showClockOutForm()
@@ -110,7 +113,10 @@ class AttendanceController extends Controller
 
     public function remotePhoto()
     {
-        return view('attendance.remote.photo', ['mode' => 'in']);
+        return view('attendance.remote.photo', [
+            'mode' => 'in',
+            'officeHoliday' => $this->activeOfficeHoliday(),
+        ]);
     }
 
     public function showRemoteClockOutForm()
@@ -121,6 +127,14 @@ class AttendanceController extends Controller
     public function remoteClockOut(Request $request)
     {
         return $this->clockOut($request);
+    }
+
+    private function activeOfficeHoliday(): ?OfficeHoliday
+    {
+        return OfficeHoliday::query()
+            ->whereDate('holiday_date', now()->toDateString())
+            ->where('is_active', true)
+            ->first();
     }
 
     // =========================================================================

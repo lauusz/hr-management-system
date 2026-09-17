@@ -18,9 +18,14 @@ class HrLoanRequestController extends Controller
     public function index(Request $request)
     {
         $query = LoanRequest::with('user.profile')->orderByDesc('created_at');
+        $selectedPt = $request->query('pt');
 
         if ($request->status) {
             $query->where('status', $request->status);
+        }
+
+        if ($request->filled('pt')) {
+            $query->where('snapshot_company', $selectedPt);
         }
 
         if ($request->filled('q')) {
@@ -36,47 +41,49 @@ class HrLoanRequestController extends Controller
         $approvedCount = (clone $query)->whereIn('status', ['APPROVED', 'LUNAS'])->count();
         $rejectedCount = (clone $query)->where('status', 'REJECTED')->count();
 
+        $ptOptions = LoanRequest::query()
+            ->whereNotNull('snapshot_company')
+            ->where('snapshot_company', '!=', '')
+            ->distinct()
+            ->orderBy('snapshot_company')
+            ->pluck('snapshot_company');
+
+        $reportLoans = (clone $query)->with('repayments')->get();
+        $reportStats = [
+            'total_count' => $reportLoans->count(),
+            'total_amount' => $reportLoans->sum(fn (LoanRequest $loan) => (float) $loan->amount),
+            'total_paid' => 0,
+            'remaining_debt' => 0,
+            'pending_count' => $reportLoans->where('status', 'PENDING_HRD')->count(),
+            'active_count' => 0,
+            'paid_count' => $reportLoans->where('status', 'LUNAS')->count(),
+        ];
+
+        foreach ($reportLoans as $loan) {
+            $paid = (float) $loan->repayments->sum('amount');
+            $reportStats['total_paid'] += $paid;
+
+            if (in_array($loan->status, ['APPROVED', 'LUNAS'], true)) {
+                $remaining = max((float) $loan->amount - $paid, 0);
+                $reportStats['remaining_debt'] += $remaining;
+
+                if ($loan->status === 'APPROVED' && $remaining > 0) {
+                    $reportStats['active_count']++;
+                }
+            }
+        }
+
         $loans = $query->paginate(20)->withQueryString();
-
-        $loans->getCollection()->each(function (LoanRequest $loan): void {
-            $joinDate = $loan->user?->profile?->tgl_bergabung;
-            $loan->employee_tenure = '-';
-
-            if (! $joinDate) {
-                return;
-            }
-
-            $start = $joinDate->copy()->startOfDay();
-            $end = now()->startOfDay();
-
-            if ($end->lessThan($start)) {
-                return;
-            }
-
-            $diff = $start->diff($end);
-            $parts = [];
-
-            if ($diff->y > 0) {
-                $parts[] = $diff->y.' thn';
-            }
-
-            if ($diff->m > 0) {
-                $parts[] = $diff->m.' bln';
-            }
-
-            if ($parts === []) {
-                $parts[] = $diff->d.' hari';
-            }
-
-            $loan->employee_tenure = implode(' ', array_slice($parts, 0, 2));
-        });
 
         return view('hr.loan_requests.index', compact(
             'loans',
             'totalCount',
             'pendingCount',
             'approvedCount',
-            'rejectedCount'
+            'rejectedCount',
+            'ptOptions',
+            'selectedPt',
+            'reportStats'
         ));
     }
 

@@ -8,6 +8,7 @@ use App\Models\LeaveRequest;
 use App\Models\OffSpvChange;
 use App\Models\OffSpvPeriod;
 use App\Models\User;
+use App\Services\LeaveRequestDayService;
 use App\Services\OffSpvQuotaService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -16,7 +17,10 @@ use Illuminate\Validation\ValidationException;
 
 class SupervisorDataController extends Controller
 {
-    public function __construct(protected OffSpvQuotaService $offSpvQuotaService) {}
+    public function __construct(
+        protected OffSpvQuotaService $offSpvQuotaService,
+        protected LeaveRequestDayService $leaveRequestDayService,
+    ) {}
 
     public function index(Request $request)
     {
@@ -255,6 +259,8 @@ class SupervisorDataController extends Controller
                         'approved_at' => now(),
                     ]);
                 }
+
+                $this->leaveRequestDayService->syncDateRange($leave->fresh());
             }
 
             foreach ($selectedDates as $date) {
@@ -270,11 +276,12 @@ class SupervisorDataController extends Controller
                         'approved_at' => now(),
                         'supervisor_ack_at' => now(),
                     ]);
+                    $this->leaveRequestDayService->syncDateRange($existing->fresh());
 
                     continue;
                 }
 
-                LeaveRequest::create([
+                $leave = LeaveRequest::create([
                     'user_id' => $user->id,
                     'off_spv_period_id' => $period->id,
                     'type' => LeaveType::OFF_SPV->value,
@@ -287,6 +294,7 @@ class SupervisorDataController extends Controller
                     'approved_at' => now(),
                     'supervisor_ack_at' => now(),
                 ]);
+                $this->leaveRequestDayService->syncDateRange($leave);
             }
         });
 

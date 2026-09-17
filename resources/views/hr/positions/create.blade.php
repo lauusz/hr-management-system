@@ -1,79 +1,127 @@
 <x-app title="Tambah Jabatan">
 
-    <div class="div-create-container">
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="section-title">Tambah Jabatan Baru</h1>
+                <p class="section-subtitle">Daftarkan nama jabatan dan hubungkan dengan divisi terkait</p>
+            </div>
+        </div>
+    </x-slot>
+
+    <div class="pos-container">
+
+        <a href="{{ route('hr.organization') }}" class="back-btn" aria-label="Kembali ke Divisi dan Jabatan">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span class="back-btn-text">Kembali</span>
+        </a>
 
         {{-- Flash / Error Messages --}}
         @if ($errors->any())
-        <div class="flash flash-error">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
+        <div class="pos-alert pos-alert--error">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <span>{{ $errors->first() }}</span>
         </div>
         @endif
 
-        {{-- Back Link --}}
-        <a href="{{ route('hr.organization') }}" class="back-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-            Kembali
-        </a>
-
-        {{-- Page Header --}}
-        <div class="page-header">
-            <div class="page-icon page-icon-purple">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-            </div>
-            <div>
-                <h1 class="page-title">Tambah Jabatan Baru</h1>
-                <p class="page-subtitle">Daftarkan nama jabatan dan hubungkan dengan divisi terkait.</p>
-            </div>
-        </div>
-
         {{-- Form Card --}}
-        <div class="form-card">
-            <form method="POST" action="{{ route('hr.positions.store') }}" class="form-layout">
+        <div class="pos-step">
+            <div class="pos-step__header">
+                <span class="pos-step__num">1</span>
+                <h2 class="pos-step__title">Informasi Jabatan</h2>
+            </div>
+
+            <form method="POST" action="{{ route('hr.positions.store') }}">
                 @csrf
 
-                <div class="form-group">
-                    <label for="name">Nama Jabatan <span class="req">*</span></label>
+                <div class="pos-field">
+                    <label for="name" class="pos-label">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        Nama Jabatan <span class="pos-required">*</span>
+                    </label>
                     <input
                         id="name"
                         type="text"
                         name="name"
-                        class="form-input"
+                        class="pos-input @error('name') pos-input--invalid @enderror"
                         value="{{ old('name') }}"
                         placeholder="Contoh: Senior Staff, Manager, Helper"
                         required>
+                    @error('name')
+                        <p class="pos-error-text">{{ $message }}</p>
+                    @else
+                        <p class="pos-helper">Nama jabatan harus unik dalam divisi yang sama.</p>
+                    @enderror
                 </div>
 
-                <div class="form-group">
-                    <label for="division_id">Divisi</label>
-                    <select id="division_id" name="division_id" class="form-input">
-                        <option value="">Tidak ada / Umum</option>
-                        @foreach ($divisions as $division)
-                        <option value="{{ $division->id }}" @selected(old('division_id') == $division->id)>
-                            {{ $division->name }}
-                        </option>
-                        @endforeach
-                    </select>
+                <div class="pos-field">
+                    <label for="division_id" class="pos-label">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                        </svg>
+                        Divisi
+                    </label>
+                    <div class="pos-select-wrap">
+                        <select id="division_id" name="division_id" class="pos-select @error('division_id') pos-input--invalid @enderror">
+                            <option value="">Tidak ada / Umum</option>
+                            @foreach ($divisions as $division)
+                            <option value="{{ $division->id }}" @selected(old('division_id') == $division->id)>
+                                {{ $division->name }}
+                            </option>
+                            @endforeach
+                        </select>
+                        <svg class="pos-select__arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                    @error('division_id')
+                        <p class="pos-error-text">{{ $message }}</p>
+                    @else
+                        <p class="pos-helper">Opsional. Pilih divisi yang menaungi jabatan ini.</p>
+                    @enderror
                 </div>
 
-                <div class="form-group">
-                    <label class="checkbox-wrapper">
+                <div class="pos-field">
+                    <label class="pos-checkbox">
                         <input
                             type="checkbox"
                             name="is_active"
                             value="1"
                             @checked(old('is_active', 1))>
-                        <span class="checkbox-label">Jabatan aktif dan dapat digunakan</span>
+                        <span class="pos-checkbox__box">
+                            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </span>
+                        <span class="pos-checkbox__text">
+                            <span class="pos-checkbox__title">Jabatan aktif dan dapat digunakan</span>
+                            <span class="pos-checkbox__desc">Jabatan nonaktif tidak akan muncul pada pilihan di formulir lain.</span>
+                        </span>
                     </label>
+                    @error('is_active')
+                        <p class="pos-error-text">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                <div class="pos-actions">
+                    <a href="{{ route('hr.organization') }}" class="pos-btn pos-btn--secondary">
+                        Batal
+                    </a>
+                    <button type="submit" class="pos-btn pos-btn--primary">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
                         Simpan Jabatan
                     </button>
                 </div>
@@ -83,213 +131,363 @@
     </div>
 
     <style>
-        /* === BASE VARIABLES === */
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --secondary: #64748b;
-            --bg-body: #f1f5f9;
-            --bg-card: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --danger-bg: #fef2f2;
-            --danger-text: #b91c1c;
-            --danger-border: #fecaca;
-            --purple-light: #faf5ff;
-            --purple-text: #7e22ce;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-        }
-
-        /* === RESET & BASE === */
-        .div-create-container {
-            max-width: 560px;
-            margin: 0 auto;
-            padding: 20px 16px 60px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            color: var(--text-main);
-        }
-
-        /* === FLASH MESSAGES === */
-        .flash {
+        /* ========================================== */
+        /* SECTION HEADER (x-slot)                    */
+        /* ========================================== */
+        .section-header-inline {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 14px 18px;
-            border-radius: var(--radius-md);
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-            font-weight: 500;
         }
-        .flash-error { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
-        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
-
-        /* === BACK LINK === */
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-decoration: none;
-            margin-bottom: 16px;
-            transition: color 0.2s;
-        }
-        .back-link:hover { color: var(--primary); }
-        .back-link svg { width: 16px; height: 16px; }
-
-        /* === PAGE HEADER === */
-        .page-header {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            margin-bottom: 20px;
-        }
-        .page-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--primary);
-            color: #fff;
-            border-radius: var(--radius-md);
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
         }
-        .page-icon-purple { background: var(--purple-text); }
-        .page-icon svg { width: 24px; height: 24px; }
-        .page-title {
+        .section-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+        .section-title {
             margin: 0;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary, #111827);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
         }
-        .page-subtitle {
-            margin: 4px 0 0;
-            font-size: 0.875rem;
-            color: var(--text-muted);
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+            line-height: 1.35;
         }
-
-        /* === FORM CARD === */
-        .form-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-        }
-
-        /* === FORM LAYOUT === */
-        .form-layout {
-            padding: 24px;
+        .icon-navy {
+            background: rgba(10, 61, 98, 0.08);
+            color: var(--primary-dark, #0A3D62);
         }
 
-        .form-group {
-            margin-bottom: 20px;
+        /* ========================================== */
+        /* CONTAINER — lebar penuh mengikuti layout   */
+        /* ========================================== */
+        .pos-container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding-bottom: 40px;
         }
 
-        .form-group label {
-            display: block;
-            font-size: 0.875rem;
+        /* ========================================== */
+        /* BACK BUTTON                                */
+        /* ========================================== */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 36px;
+            padding: 0 12px 0 10px;
+            background: var(--white, #fff);
+            border: 1px solid var(--border, #E5E7EB);
+            border-radius: 10px;
+            color: var(--text-muted, #6B7280);
+            text-decoration: none;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            margin-bottom: 16px;
+        }
+        .back-btn:hover {
+            border-color: var(--primary, #145DA0);
+            color: var(--primary, #145DA0);
+            background: var(--gray-50, #F5F7FA);
+        }
+        .back-btn:hover svg {
+            transform: translateX(-2px);
+        }
+        .back-btn svg {
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .back-btn-text {
+            font-size: 0.75rem;
             font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 6px;
+            line-height: 1;
         }
 
-        .req { color: var(--danger-text); }
-
-        .form-input {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
-            color: var(--text-main);
-            background: #fff;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            font-family: inherit;
-            box-sizing: border-box;
+        /* ========================================== */
+        /* ALERT                                      */
+        /* ========================================== */
+        .pos-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            line-height: 1.5;
+        }
+        .pos-alert svg { flex-shrink: 0; margin-top: 1px; }
+        .pos-alert--error {
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            color: #991B1B;
         }
 
-        .form-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        /* ========================================== */
+        /* STEP CARD                                  */
+        /* ========================================== */
+        .pos-step {
+            background: var(--white, #fff);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            border: 1px solid var(--border-light, #F3F4F6);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
-
-        /* Checkbox Styling */
-        .checkbox-wrapper {
+        .pos-step__header {
             display: flex;
             align-items: center;
             gap: 10px;
-            cursor: pointer;
-            padding: 8px 0;
+            margin-bottom: 16px;
+        }
+        .pos-step__num {
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-dark, #0A3D62);
+            color: #fff;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .pos-step__title {
+            margin: 0;
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: var(--text-primary, #111827);
         }
 
-        .checkbox-wrapper input[type="checkbox"] {
+        /* ========================================== */
+        /* FIELDS                                     */
+        /* ========================================== */
+        .pos-field { margin-bottom: 14px; }
+        .pos-field:last-of-type { margin-bottom: 0; }
+        .pos-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-secondary, #374151);
+            margin-bottom: 8px;
+        }
+        .pos-label svg { color: var(--text-light, #9CA3AF); flex-shrink: 0; }
+        .pos-required { color: var(--error, #EF4444); font-weight: 700; }
+        .pos-helper {
+            color: var(--text-muted, #6B7280);
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin: 6px 0 0;
+            line-height: 1.5;
+        }
+        .pos-error-text {
+            color: #B91C1C;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin: 6px 0 0;
+            line-height: 1.5;
+        }
+
+        /* ========================================== */
+        /* INPUT / SELECT                             */
+        /* ========================================== */
+        .pos-input,
+        .pos-select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border, #E5E7EB);
+            border-radius: 10px;
+            font-size: 0.9375rem;
+            color: var(--text-primary, #111827);
+            background: var(--white, #fff);
+            transition: all 0.2s ease;
+            outline: none;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .pos-input::placeholder { color: var(--text-light, #9CA3AF); }
+        .pos-input:focus,
+        .pos-select:focus {
+            border-color: var(--primary, #145DA0);
+            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
+        }
+        .pos-input--invalid,
+        .pos-input--invalid:focus {
+            border-color: #EF4444;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.08);
+        }
+        .pos-select-wrap { position: relative; }
+        .pos-select {
+            padding-right: 40px;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        .pos-select__arrow {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-light, #9CA3AF);
+            pointer-events: none;
+        }
+
+        /* ========================================== */
+        /* CHECKBOX                                   */
+        /* ========================================== */
+        .pos-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            cursor: pointer;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border, #E5E7EB);
+            border-radius: 10px;
+            background: var(--gray-50, #F5F7FA);
+            transition: all 0.15s ease;
+        }
+        .pos-checkbox:hover {
+            border-color: var(--primary, #145DA0);
+        }
+        .pos-checkbox input[type="checkbox"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .pos-checkbox__box {
             width: 18px;
             height: 18px;
-            accent-color: var(--primary);
-            cursor: pointer;
+            border: 1.5px solid var(--border, #E5E7EB);
+            border-radius: 5px;
+            background: var(--white, #fff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+            color: transparent;
+            transition: all 0.15s ease;
+        }
+        .pos-checkbox input[type="checkbox"]:checked + .pos-checkbox__box {
+            background: var(--primary, #145DA0);
+            border-color: var(--primary, #145DA0);
+            color: #fff;
+        }
+        .pos-checkbox input[type="checkbox"]:focus-visible + .pos-checkbox__box {
+            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.15);
+        }
+        .pos-checkbox__text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .pos-checkbox__title {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--text-secondary, #374151);
+            line-height: 1.4;
+        }
+        .pos-checkbox__desc {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted, #6B7280);
+            line-height: 1.5;
         }
 
-        .checkbox-label {
-            font-size: 0.9rem;
-            color: var(--text-main);
+        /* ========================================== */
+        /* ACTIONS                                    */
+        /* ========================================== */
+        .pos-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-light, #F3F4F6);
         }
-
-        /* === BUTTONS === */
-        .btn {
+        .pos-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            padding: 10px 20px;
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 0.9375rem;
             font-weight: 600;
             cursor: pointer;
-            border: none;
-            transition: 0.2s;
+            transition: all 0.2s ease;
             text-decoration: none;
+            font-family: inherit;
         }
-        .btn svg { width: 16px; height: 16px; }
-
-        .btn-primary {
-            background: var(--primary);
+        .pos-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+        .pos-btn--primary {
+            background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
             color: #fff;
+            border: none;
+            box-shadow: 0 4px 12px rgba(10, 61, 98, 0.22);
         }
-        .btn-primary:hover { background: var(--primary-dark); }
-
-        .form-actions {
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: flex-end;
+        .pos-btn--primary:hover {
+            box-shadow: 0 6px 20px rgba(10, 61, 98, 0.32);
+            transform: translateY(-1px);
+        }
+        .pos-btn--secondary {
+            background: var(--white, #fff);
+            color: var(--text-muted, #6B7280);
+            border: 1.5px solid var(--border, #E5E7EB);
+        }
+        .pos-btn--secondary:hover {
+            color: var(--text-primary, #111827);
+            background: var(--gray-50, #F5F7FA);
         }
 
-        /* === MOBILE RESPONSIVE === */
-        @media (max-width: 640px) {
-            .page-header {
-                flex-direction: column;
-                gap: 12px;
-                text-align: center;
+        /* ========================================== */
+        /* RESPONSIVE                                 */
+        /* ========================================== */
+        @media (max-width: 639px) {
+            .pos-step {
+                padding: 16px;
+                margin-bottom: 10px;
+                border-radius: 14px;
             }
-            .page-icon {
-                margin: 0 auto;
-            }
-            .form-layout {
-                padding: 20px;
-            }
-            .form-actions {
+            .pos-actions {
                 flex-direction: column-reverse;
             }
-            .btn-primary {
-                width: 100%;
+            .pos-actions .pos-btn { width: 100%; }
+            .back-btn {
+                height: 40px;
+                padding: 0 14px 0 12px;
             }
+            .back-btn-text { font-size: 0.8125rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .back-btn,
+            .pos-input,
+            .pos-select,
+            .pos-checkbox,
+            .pos-checkbox__box,
+            .pos-btn { transition-duration: 0.01ms; }
+            .pos-btn--primary:hover { transform: none; }
         }
     </style>
 </x-app>

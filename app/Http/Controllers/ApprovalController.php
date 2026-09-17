@@ -7,10 +7,11 @@ use App\Enums\UserRole;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
+use App\Services\LeaveApprovalAssignmentService;
 use App\Services\LeaveBalanceService;
+use App\Services\LeaveRequestDayService;
 use App\Services\LeaveRequestDuplicateCleanupService;
 use App\Services\LeaveRequestStateMachine;
-use App\Services\LeaveRequestWorkflowService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,9 +22,10 @@ class ApprovalController extends Controller
     public function __construct(
         protected ImageCompressor $imageCompressor,
         protected LeaveBalanceService $leaveBalanceService,
+        protected LeaveRequestDayService $leaveRequestDayService,
         protected LeaveRequestStateMachine $stateMachine,
-        protected LeaveRequestWorkflowService $workflowService,
         protected LeaveRequestDuplicateCleanupService $duplicateCleanupService,
+        protected LeaveApprovalAssignmentService $approvalAssignmentService,
     ) {}
 
     // =====================================================================
@@ -40,53 +42,17 @@ class ApprovalController extends Controller
     public function index(Request $request)
     {
         $me = auth()->user();
-        $myRole = strtoupper((string) ($me->role instanceof UserRole ? $me->role->value : $me->role));
 
-        $query = LeaveRequest::with(['user.profile.pt', 'user.division', 'user.position'])
-            ->orderByDesc('created_at')
-            ->where('status', LeaveRequest::PENDING_SUPERVISOR)
-            ->whereHas('user', function (Builder $q) use ($me, $myRole) {
-                $q->where(function ($subQ) use ($me, $myRole) {
-                    // Supervisor: ack untuk bawahan langsung
-                    if ($myRole === 'SUPERVISOR') {
-                        $subQ->where('direct_supervisor_id', $me->id);
-
-                        return;
-                    }
-
-                    // Manager: ack hanya jika tidak ada SPV (ds null)
-                    if ($myRole === 'MANAGER') {
-                        $subQ->whereNull('direct_supervisor_id')
-                            ->where('manager_id', $me->id);
-
-                        return;
-                    }
-
-                    // HRD yang juga punya bawahan sebagai manager
-                    if ($myRole === 'HRD') {
-                        $isManagerForSomeone = User::where('manager_id', $me->id)->exists();
-                        if ($isManagerForSomeone) {
-                            $subQ->whereNull('direct_supervisor_id')
-                                ->where('manager_id', $me->id);
-
-                            return;
-                        }
-                    }
-
-                    // Fallback: tampilkan semua yang relevan
-                    $subQ->where('direct_supervisor_id', $me->id)
-                        ->orWhere(function ($q2) use ($me) {
-                            $q2->whereNull('direct_supervisor_id')
-                                ->where('manager_id', $me->id);
-                        });
-                });
-            });
+        $query = $this->approvalAssignmentService->queryPendingFor($me)
+            ->with(['user.profile.pt', 'user.division', 'user.position'])
+            ->orderByDesc('created_at');
 
         $leaves = $query->paginate(20);
 
         return view('supervisor.leave_requests.index', [
             'leaves' => $leaves,
             'isApprover' => true,
+            'approvalCapacityLabel' => 'Approver',
         ]);
     }
 
@@ -123,14 +89,11 @@ class ApprovalController extends Controller
     {
         $me = auth()->user();
 
-        $query = LeaveRequest::with(['user.profile.pt', 'user.division', 'user.position'])
+        $query = $this->approvalAssignmentService->queryVisibleTo($me)
+            ->with(['user.profile.pt', 'user.division', 'user.position'])
+            ->where('user_id', '!=', $me->id)
             ->orderByDesc('created_at')
-            ->whereHas('user', function (Builder $q) use ($me) {
-                $q->where(function ($subQ) use ($me) {
-                    $subQ->where('direct_supervisor_id', $me->id)
-                        ->orWhere('manager_id', $me->id);
-                });
-            });
+            ->whereHas('user');
 
         $submittedRange = $request->input('submitted_range');
         if ($submittedRange) {
@@ -184,19 +147,32 @@ class ApprovalController extends Controller
     public function show(LeaveRequest $leave)
     {
         $me = auth()->user();
-        $leave->load(['user.profile.pt', 'user.division', 'approver']);
+        $leave->load(['user.profile.pt', 'user.division', 'approver', 'user.assignedApprover']);
 
-        if (! $this->checkCanView($leave->user, $me) && ! $me->isHR() && $leave->user_id !== $me->id) {
+        if (! $this->canUseApprovalScreen($me, $leave)) {
             return redirect()->back()->with('error', 'Anda tidak memiliki akses melihat data ini.');
         }
 
-        $isDirectApprover = $this->checkIsAuthorizedApprover($leave->user, $me);
-        $canApprove = $isDirectApprover && ($leave->status === LeaveRequest::PENDING_SUPERVISOR);
+        $canProcessInitial = $this->approvalAssignmentService->canProcessInitialStage($me, $leave);
+        $canRevise = $this->canReviseApprovalRequest($me, $leave);
+        $canCancel = $canProcessInitial;
+        $canReject = $canProcessInitial;
+        $approvalCapacityLabel = $this->approvalCapacityLabel($this->approvalAssignmentService->initialApprovalCapacity($leave->user));
+        $isMonitoringOnly = $this->approvalAssignmentService->canView($me, $leave)
+            && ! $canProcessInitial
+            && ! $canRevise
+            && ! $canCancel
+            && ! $canReject;
 
         return view('supervisor.leave_requests.show', [
             'item' => $leave,
-            'canApprove' => $canApprove,
-            'isApprover' => $isDirectApprover,
+            'canApprove' => $canProcessInitial,
+            'canReject' => $canReject,
+            'canRevise' => $canRevise,
+            'canCancel' => $canCancel,
+            'isApprover' => $canProcessInitial || $canRevise,
+            'approvalCapacityLabel' => $approvalCapacityLabel,
+            'isMonitoringOnly' => $isMonitoringOnly,
         ]);
     }
 
@@ -212,24 +188,28 @@ class ApprovalController extends Controller
     {
         $me = auth()->user();
 
-        if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            return redirect()->back()->with('error', 'Anda bukan atasan langsung yang berhak menyetujui.');
+        if (! $this->isCurrentInitialApprover($me, $leave)) {
+            abort(403);
         }
 
         if ($leave->status !== LeaveRequest::PENDING_SUPERVISOR) {
             return redirect()->route('approval.index')->with('error', 'Status pengajuan tidak valid atau sudah berubah.');
         }
 
-        $applicantRole = $leave->user->role instanceof UserRole ? $leave->user->role->value : $leave->user->role;
-        $isHRD = in_array(strtoupper((string) $applicantRole), ['HRD', 'HR MANAGER']);
+        $leave->loadMissing('user.assignedApprover');
+        $capacity = $this->approvalAssignmentService->initialApprovalCapacity($leave->user);
+        $isHRD = $this->isHrdApplicant($leave->user);
 
         // [ADJUSTMENT] HRD Applicant: ACK = Final Approval (langsung APPROVED, tidak ke HR inbox)
         if ($isHRD) {
             $approved = $this->stateMachine->perform(
                 $leave,
                 LeaveRequestStateMachine::APPROVE,
-                function (LeaveRequest $lockedLeave) use ($me, $request) {
+                function (LeaveRequest $lockedLeave) use ($me, $request, $capacity) {
+                    $fromStatus = $lockedLeave->status;
+                    $toStatus = $this->stateMachine->getTargetStatus($fromStatus, LeaveRequestStateMachine::APPROVE);
                     $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
+                    $this->approvalAssignmentService->recordAction($lockedLeave, $me, $capacity, 'ACK', $fromStatus, $toStatus);
 
                     $systemNote = '[System] Disetujui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
 
@@ -257,10 +237,13 @@ class ApprovalController extends Controller
         $acknowledged = $this->stateMachine->perform(
             $leave,
             LeaveRequestStateMachine::FORWARD_TO_HR,
-            function (LeaveRequest $lockedLeave) use ($me) {
+            function (LeaveRequest $lockedLeave) use ($me, $capacity) {
+                $fromStatus = $lockedLeave->status;
+                $toStatus = $this->stateMachine->getTargetStatus($fromStatus, LeaveRequestStateMachine::FORWARD_TO_HR);
                 $currentNotes = $lockedLeave->notes;
                 $systemNote = '[System] Diketahui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
                 $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
+                $this->approvalAssignmentService->recordAction($lockedLeave, $me, $capacity, 'ACK', $fromStatus, $toStatus);
 
                 return [
                     'supervisor_ack_at' => now(),
@@ -289,21 +272,27 @@ class ApprovalController extends Controller
     {
         $me = auth()->user();
 
-        if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            return redirect()->back()->with('error', 'Anda bukan atasan langsung yang berhak menolak.');
+        if (! $this->isCurrentInitialApprover($me, $leave)) {
+            abort(403);
         }
 
         if ($leave->status !== LeaveRequest::PENDING_SUPERVISOR) {
             return redirect()->route('approval.index')->with('error', 'Status pengajuan sudah berubah.');
         }
 
+        $leave->loadMissing('user.assignedApprover');
+        $capacity = $this->approvalAssignmentService->initialApprovalCapacity($leave->user);
+
         $rejected = $this->stateMachine->perform(
             $leave,
             LeaveRequestStateMachine::REJECT,
-            function (LeaveRequest $lockedLeave) use ($me) {
+            function (LeaveRequest $lockedLeave) use ($me, $capacity) {
+                $fromStatus = $lockedLeave->status;
+                $toStatus = $this->stateMachine->getTargetStatus($fromStatus, LeaveRequestStateMachine::REJECT);
                 $currentNotes = $lockedLeave->notes;
                 $systemNote = '[System] Ditolak oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
                 $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
+                $this->approvalAssignmentService->recordAction($lockedLeave, $me, $capacity, 'REJECT', $fromStatus, $toStatus);
 
                 return [
                     'approved_by' => $me->id,
@@ -334,23 +323,27 @@ class ApprovalController extends Controller
     {
         $me = auth()->user();
 
-        if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            return redirect()->back()->with('error', 'Anda bukan atasan langsung yang berhak menyetujui level ini.');
+        if (! $this->isCurrentInitialApprover($me, $leave)) {
+            abort(403);
         }
 
         if ($leave->status !== LeaveRequest::PENDING_SUPERVISOR) {
             return redirect()->route('approval.index')->with('error', 'Status pengajuan sudah berubah.');
         }
 
-        $applicantRole = $leave->user->role instanceof UserRole ? $leave->user->role->value : $leave->user->role;
-        $isHRD = in_array(strtoupper($applicantRole), ['HRD', 'HR MANAGER']);
+        $leave->loadMissing('user.assignedApprover');
+        $capacity = $this->approvalAssignmentService->initialApprovalCapacity($leave->user);
+        $isHRD = $this->isHrdApplicant($leave->user);
 
         if ($isHRD) {
             $approved = $this->stateMachine->perform(
                 $leave,
                 LeaveRequestStateMachine::APPROVE,
-                function (LeaveRequest $lockedLeave) use ($me, $request) {
+                function (LeaveRequest $lockedLeave) use ($me, $request, $capacity) {
+                    $fromStatus = $lockedLeave->status;
+                    $toStatus = $this->stateMachine->getTargetStatus($fromStatus, LeaveRequestStateMachine::APPROVE);
                     $this->leaveBalanceService->deductLeaveBalanceForLeave($lockedLeave);
+                    $this->approvalAssignmentService->recordAction($lockedLeave, $me, $capacity, 'APPROVE', $fromStatus, $toStatus);
 
                     return [
                         'approved_by' => $me->id,
@@ -375,15 +368,19 @@ class ApprovalController extends Controller
         $approved = $this->stateMachine->perform(
             $leave,
             LeaveRequestStateMachine::FORWARD_TO_HR,
-            function (LeaveRequest $lockedLeave) use ($me, $request) {
+            function (LeaveRequest $lockedLeave) use ($me, $request, $capacity) {
+                $fromStatus = $lockedLeave->status;
+                $toStatus = $this->stateMachine->getTargetStatus($fromStatus, LeaveRequestStateMachine::FORWARD_TO_HR);
                 $currentNotes = $lockedLeave->notes;
                 $systemNote = '[System] Disetujui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
                 $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
+                $newNotes = $request->notes ? $request->notes."\n".$newNotes : $newNotes;
+                $this->approvalAssignmentService->recordAction($lockedLeave, $me, $capacity, 'APPROVE', $fromStatus, $toStatus);
 
                 return [
                     'approved_by' => $me->id,
                     'approved_at' => now(),
-                    'notes' => ($request->notes ? $request->notes."\n" : '').$systemNote,
+                    'notes' => $newNotes,
                 ];
             }
         );
@@ -407,15 +404,18 @@ class ApprovalController extends Controller
     {
         $me = auth()->user();
 
-        if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            return redirect()->back()->with('error', 'Hanya atasan langsung yang dapat mengubah data pengajuan ini.');
+        if (! $this->isCurrentInitialApprover($me, $leave)) {
+            abort(403);
         }
 
         if (! in_array($leave->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
             return redirect()->back()->with('error', 'Pengajuan sudah diproses, tidak dapat direvisi.');
         }
 
-        return view('supervisor.leave_requests.edit', compact('leave'));
+        $leave->loadMissing('user.assignedApprover');
+        $approvalCapacityLabel = $this->approvalCapacityLabel($this->approvalAssignmentService->initialApprovalCapacity($leave->user));
+
+        return view('supervisor.leave_requests.edit', compact('leave', 'approvalCapacityLabel'));
     }
 
     /**
@@ -426,8 +426,8 @@ class ApprovalController extends Controller
     {
         $me = auth()->user();
 
-        if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            return redirect()->back()->with('error', 'Akses ditolak.');
+        if (! $this->isCurrentInitialApprover($me, $leave)) {
+            abort(403);
         }
 
         if (! in_array($leave->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
@@ -453,13 +453,19 @@ class ApprovalController extends Controller
             'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
         ]);
 
+        $leave->loadMissing('user.assignedApprover');
+        $capacity = $this->approvalAssignmentService->initialApprovalCapacity($leave->user);
+
         $updated = $this->stateMachine->perform(
             $leave,
             LeaveRequestStateMachine::REVISE_FOR_HR,
-            function (LeaveRequest $lockedLeave) use ($me, $request, $validated) {
+            function (LeaveRequest $lockedLeave) use ($me, $request, $validated, $capacity) {
+                $fromStatus = $lockedLeave->status;
+                $toStatus = $this->stateMachine->getTargetStatus($fromStatus, LeaveRequestStateMachine::REVISE_FOR_HR);
                 $currentNotes = $lockedLeave->notes;
                 $systemNote = '[System] Data direvisi oleh Supervisor ('.$me->name.') pada '.now()->format('d M Y H:i');
                 $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
+                $this->approvalAssignmentService->recordAction($lockedLeave, $me, $capacity, 'REVISE', $fromStatus, $toStatus);
 
                 $dataToUpdate = [
                     'type' => $validated['type'],
@@ -494,7 +500,12 @@ class ApprovalController extends Controller
                 }
 
                 return $dataToUpdate;
-            }
+            },
+            [],
+            null,
+            function (LeaveRequest $updatedLeave): void {
+                $this->leaveRequestDayService->syncDateRange($updatedLeave);
+            },
         );
 
         if (! $updated) {
@@ -514,8 +525,8 @@ class ApprovalController extends Controller
     {
         $me = auth()->user();
 
-        if (! $this->checkIsAuthorizedApprover($leave->user, $me)) {
-            return redirect()->back()->with('error', 'Akses ditolak.');
+        if (! $this->isCurrentInitialApprover($me, $leave)) {
+            abort(403);
         }
 
         // Supervisor/Atasan hanya dapat membatalkan pengajuan yang masih
@@ -526,7 +537,25 @@ class ApprovalController extends Controller
                 ->with('error', 'Pengajuan ini tidak dapat dibatalkan oleh atasan. Hubungi HR untuk pembatalan.');
         }
 
-        $cancelled = $this->workflowService->cancelLeaveRequest($leave, $me);
+        $leave->loadMissing('user.assignedApprover');
+        $capacity = $this->approvalAssignmentService->initialApprovalCapacity($leave->user);
+
+        $cancelled = $this->stateMachine->perform(
+            $leave,
+            LeaveRequestStateMachine::CANCEL,
+            function (LeaveRequest $lockedLeave) use ($me, $capacity) {
+                $fromStatus = $lockedLeave->status;
+                $toStatus = $this->stateMachine->getTargetStatus($fromStatus, LeaveRequestStateMachine::CANCEL);
+                $currentNotes = $lockedLeave->notes;
+                $systemNote = '[System] Dibatalkan oleh Supervisor/Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
+                $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
+                $this->approvalAssignmentService->recordAction($lockedLeave, $me, $capacity, 'CANCEL', $fromStatus, $toStatus);
+
+                return ['notes' => $newNotes];
+            },
+            [],
+            LeaveRequest::PENDING_SUPERVISOR,
+        );
 
         if (! $cancelled) {
             return redirect()->route('approval.index')->with('error', 'Pengajuan ini tidak dapat dibatalkan.');
@@ -539,61 +568,55 @@ class ApprovalController extends Controller
     // PRIVATE HELPERS
     // =====================================================================
 
-    /**
-     * [SUPERVISOR ONLY] Otorisasi: hanya bisa akses karyawan satu Divisi & PT.
-     */
-    private function authorizeSupervisor(LeaveRequest $leave)
+    private function canUseApprovalScreen(User $viewer, LeaveRequest $leave): bool
     {
-        $me = auth()->user();
-
-        $isSameDivision = $me->division_id === optional($leave->user)->division_id;
-
-        $myPtId = optional($me->profile)->pt_id;
-        $userPtId = optional($leave->user->profile)->pt_id;
-
-        $isSamePt = ($myPtId && $userPtId) ? ($myPtId === $userPtId) : false;
-
-        if (! $isSameDivision || ! $isSamePt) {
-            return redirect()->back()->with('error', 'Akses Ditolak: Karyawan berbeda Divisi atau PT.');
-        }
+        return (int) $leave->user_id !== (int) $viewer->id
+            && $this->approvalAssignmentService->canView($viewer, $leave);
     }
 
-    /**
-     * Hak Acknowledge (STRICT):
-     * - direct_supervisor_id = me → SELALU bisa ack
-     * - direct_supervisor_id is null AND manager_id = me AND current user role is MANAGER → bisa ack
-     * - Jika keduanya ada, hanya direct_supervisor_id yang boleh ack
-     */
-    private function checkIsAuthorizedApprover($applicant, $me): bool
+    private function canReviseApprovalRequest(User $actor, LeaveRequest $leave): bool
     {
-        if ((int) $applicant->direct_supervisor_id === (int) $me->id) {
-            return true;
+        if (! in_array($leave->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true)) {
+            return false;
         }
 
-        if (empty($applicant->direct_supervisor_id) && (int) $applicant->manager_id === (int) $me->id) {
-            return true;
-        }
-
-        return false;
+        return $this->isCurrentInitialApprover($actor, $leave);
     }
 
-    /**
-     * Hak Lihat (LOOSE):
-     * - atasan langsung (direct_supervisor_id = me)
-     * - manager dari staff tersebut (manager_id = me)
-     * Manager boleh melihat meskipun direct_supervisor_id exists,
-     * tetapi tidak boleh melakukan ack.
-     */
-    private function checkCanView($applicant, $me): bool
+    private function isCurrentInitialApprover(User $actor, LeaveRequest $leave): bool
     {
-        if ($this->checkIsAuthorizedApprover($applicant, $me)) {
-            return true;
+        $leave->loadMissing('user.assignedApprover');
+        $applicant = $leave->user;
+
+        if ($applicant === null || (int) $applicant->id === (int) $actor->id) {
+            return false;
         }
 
-        if ((int) $applicant->manager_id === (int) $me->id) {
-            return true;
-        }
+        $initialApprover = $this->approvalAssignmentService->initialApproverFor($applicant);
 
-        return false;
+        return $initialApprover !== null
+            && (int) $initialApprover->id === (int) $actor->id;
     }
+
+    private function approvalCapacityLabel(string $capacity): string
+    {
+        return match ($capacity) {
+            LeaveApprovalAssignmentService::CAPACITY_APPROVER => 'Approver',
+            LeaveApprovalAssignmentService::CAPACITY_SUPERVISOR => 'Supervisor',
+            LeaveApprovalAssignmentService::CAPACITY_MANAGER => 'Manager',
+            LeaveApprovalAssignmentService::CAPACITY_HR => 'HRD',
+            LeaveApprovalAssignmentService::CAPACITY_FINAL_FOR_HRD => 'Final Approval',
+            default => 'Approver',
+        };
+    }
+
+    private function isHrdApplicant(User $applicant): bool
+    {
+        $role = $applicant->role instanceof UserRole
+            ? $applicant->role->value
+            : (string) $applicant->role;
+
+        return in_array(strtoupper($role), ['HRD', 'HR MANAGER'], true);
+    }
+
 }

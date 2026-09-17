@@ -186,6 +186,30 @@
             {{-- Info Grid --}}
             <div class="info-grid">
 
+                {{-- Akses & Approval --}}
+                <div class="info-section">
+                    <div class="info-section-header">
+                        <div class="info-section-icon">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z"/></svg>
+                        </div>
+                        <span>Akses & Approval</span>
+                    </div>
+                    <div class="data-list">
+                        <div class="data-item">
+                            <span class="data-label">Manager</span>
+                            <span class="data-value">{{ $employee->manager?->name ?? '-' }}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="data-label">Supervisor</span>
+                            <span class="data-value">{{ $employee->directSupervisor?->name ?? '-' }}</span>
+                        </div>
+                        <div class="data-item">
+                            <span class="data-label">Approver Izin/Cuti</span>
+                            <span class="data-value">{{ $employee->assignedApprover?->name ?? '-' }}</span>
+                        </div>
+                    </div>
+                </div>
+
                 {{-- Identitas Diri --}}
                 <div class="info-section">
                     <div class="info-section-header">

@@ -392,6 +392,18 @@
                             </select>
                         </div>
 
+                        <div class="form-group">
+                            <label for="approver_id">Approver Izin/Cuti</label>
+                            <select id="approver_id" name="approver_id" class="form-control">
+                                <option value="">-- Tidak Ada --</option>
+                                @foreach($approvers as $approver)
+                                <option value="{{ $approver->id }}" @selected(old('approver_id', $item->approver_id) == $approver->id)>
+                                    {{ $approver->name }} (Approver)
+                                </option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         @isset($shifts)
                         <div class="form-group">
                             <label for="shift_id">Shift Kerja</label>

@@ -11,6 +11,7 @@
 *.yml
 *.md
 *.png
+*.xls
 *.codex-temp
 *.xlsx
 docs/superpowers/
@@ -43,5 +44,13 @@ settings.local.json
 # Added by code-review-graph
 .code-review-graph/
 
+# Artefak skema manual untuk perlakuan izin/cuti per tanggal.
+!database/sql/2026-09-04-leave-request-days.sql
+!database/sql/2026-09-12-approver-cuti-izin.sql
+!database/deployment/2026_09_14_prd_001_schema_from_backup_20260914_1121.sql
+
 # Project instructions for AI agents (local only, not versioned).
 AGENTS.md
+
+# Dokumentasi sistem, PRD, rencana, dan keputusan untuk diskusi lokal.
+/docs/

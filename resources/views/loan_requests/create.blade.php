@@ -1,19 +1,26 @@
 <x-app title="Pengajuan Hutang Karyawan">
     <x-slot name="header">
-        <div class="loan-page-header">
-            <a href="{{ route('employee.loan_requests.index') }}" class="loan-page-back" aria-label="Kembali ke daftar pengajuan">
-                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                 </svg>
-            </a>
+            </div>
             <div>
-                <h1>Pengajuan Hutang</h1>
-                <p>Isi data pinjaman dengan mudah</p>
+                <h1 class="section-title">Pengajuan Hutang</h1>
+                <p class="section-subtitle">Isi data pinjaman dengan mudah.</p>
             </div>
         </div>
     </x-slot>
 
     <main class="loan-create-page">
+        <a href="{{ route('employee.loan_requests.index') }}" class="loan-back-btn">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Kembali
+        </a>
+
         @if(session('success'))
             <div class="loan-alert loan-alert--success" role="status">{{ session('success') }}</div>
         @endif
@@ -170,7 +177,7 @@
 
             <div class="loan-submit-dock">
                 <button class="loan-submit" type="button" id="btn-submit" onclick="showConfirmModal()">
-                    Tinjau Pengajuan
+                    Ajukan
                 </button>
             </div>
         </form>
@@ -198,13 +205,18 @@
     </main>
 
     <style>
-        .loan-page-header { display:flex; align-items:center; gap:14px; }
-        .loan-page-back { width:48px; height:48px; display:grid; place-items:center; flex:0 0 auto; border:1px solid var(--border); border-radius:14px; background:var(--white); color:var(--primary-dark); box-shadow:0 4px 12px rgba(15,23,42,.07); }
-        .loan-page-back:focus-visible { outline:3px solid rgba(20,93,160,.25); outline-offset:2px; }
-        .loan-page-header h1 { margin:0; color:var(--text-primary); font-size:1.25rem; font-weight:700; line-height:1.2; letter-spacing:-.02em; }
-        .loan-page-header p { margin:3px 0 0; color:var(--text-muted); font-size:.8125rem; line-height:1.35; }
+        .section-header-inline { display:flex; align-items:center; gap:10px; }
+        .section-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .section-icon svg { width:16px; height:16px; }
+        .section-title { margin:0; font-size:1rem; font-weight:800; color:var(--text-primary); line-height:1.25; }
+        .section-subtitle { margin:0; font-size:.8125rem; color:var(--text-muted); font-weight:500; line-height:1.35; }
+        .icon-navy { background:rgba(10,61,98,.08); color:var(--primary-dark); }
 
-        .loan-create-page { width:100%; max-width:820px; margin:0 auto; padding-bottom:8px; }
+        .loan-create-page { width:100%; max-width:960px; margin:0 auto; padding-bottom:8px; }
+        .loan-back-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:40px; margin-bottom:16px; padding:0 14px 0 12px; border:1px solid var(--border); border-radius:10px; background:var(--white); color:var(--text-muted); text-decoration:none; font-size:.8125rem; font-weight:700; box-shadow:0 1px 2px rgba(0,0,0,.04); transition:all .15s ease; }
+        .loan-back-btn:hover { border-color:var(--primary); background:var(--gray-50); color:var(--primary); }
+        .loan-back-btn svg { flex-shrink:0; }
+        .loan-back-btn:focus-visible { outline:3px solid rgba(20,93,160,.25); outline-offset:2px; }
         .loan-create-page form { display:flex; flex-direction:column; gap:18px; }
         .loan-alert { margin-bottom:14px; padding:12px 14px; border:1px solid; border-radius:12px; font-size:.8125rem; line-height:1.45; }
         .loan-alert--success { border-color:#bbf7d0; background:#f0fdf4; color:#166534; }
@@ -267,7 +279,7 @@
         .loan-file__selected button { min-height:40px; padding:0 10px; border:0; border-radius:8px; background:#fef2f2; color:#b91c1c; font:inherit; font-size:.75rem; font-weight:700; cursor:pointer; }
 
         .loan-reminder { margin:24px 0 0; padding:12px 14px; border-radius:12px; background:#fff8e8; color:#9a6700; font-size:.75rem; line-height:1.45; }
-        .loan-submit-dock { position:sticky; z-index:20; bottom:0; padding:14px 0 0; background:linear-gradient(to bottom,rgba(245,247,250,0),var(--gray-50) 28%); }
+        .loan-submit-dock { padding:14px 0 0; }
         .loan-submit { width:100%; min-height:56px; border:0; border-radius:14px; background:var(--primary-dark); color:var(--white); font:inherit; font-size:.9375rem; font-weight:700; cursor:pointer; box-shadow:0 6px 16px rgba(10,61,98,.18); }
         .loan-submit:hover { background:#08334f; }
         .loan-submit:focus-visible { outline:3px solid rgba(20,93,160,.28); outline-offset:3px; }
@@ -299,16 +311,14 @@
             .loan-section-heading { margin-bottom:22px; }
             .loan-field-grid { grid-template-columns:1fr; gap:0; }
             .loan-section-divider { margin:26px 0; }
-            .loan-submit-dock { margin:0 -4px; padding:16px 4px 0; bottom:max(0px,env(safe-area-inset-bottom)); }
+            .loan-submit-dock { margin:0 -4px; padding:16px 4px 0; }
         }
 
         @media (max-width:359px) {
             .content-wrapper { padding:12px 12px max(12px,env(safe-area-inset-bottom)); }
             .topbar { margin-bottom:14px; }
-            .loan-page-header { gap:10px; }
-            .loan-page-back { width:44px; height:44px; }
-            .loan-page-header h1 { font-size:1.0625rem; }
-            .loan-page-header p { font-size:.75rem; }
+            .section-title { font-size:.9375rem; }
+            .section-subtitle { font-size:.75rem; }
             .applicant-summary__identity strong { font-size:.8125rem; }
             .loan-form-card { padding:18px 14px; }
         }

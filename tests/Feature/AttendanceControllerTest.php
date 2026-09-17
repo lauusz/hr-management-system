@@ -3,6 +3,7 @@
 use App\Models\Attendance;
 use App\Models\AttendanceLocation;
 use App\Models\EmployeeShift;
+use App\Models\OfficeHoliday;
 use App\Models\Shift;
 use App\Models\ShiftDay;
 use App\Models\User;
@@ -125,6 +126,58 @@ describe('AttendanceController', function () {
     // CLOCK IN
     // =====================================================================
     describe('clockIn', function () {
+        it('shows an office holiday confirmation before normal clock in', function () {
+            Carbon::setTestNow(Carbon::parse('2031-04-17 10:00:00'));
+
+            try {
+                $user = User::factory()->create();
+                OfficeHoliday::create([
+                    'holiday_date' => now()->toDateString(),
+                    'name' => 'Libur Operasional',
+                    'type' => OfficeHoliday::TYPE_COMPANY,
+                    'is_active' => true,
+                ]);
+                expect(OfficeHoliday::query()->whereDate('holiday_date', now()->toDateString())->value('name'))
+                    ->toBe('Libur Operasional');
+
+                actingAs($user, 'web');
+
+                $this->get(route('attendance.clockIn.form'))
+                    ->assertOk()
+                    ->assertViewHas('officeHoliday', fn ($officeHoliday) => $officeHoliday?->name === 'Libur Operasional')
+                    ->assertSee('id="attendance-office-holiday-confirmation"', false)
+                    ->assertSee('Libur Operasional')
+                    ->assertSee('Ya, Tetap Absen');
+            } finally {
+                Carbon::setTestNow();
+            }
+        });
+
+        it('does not show an office holiday confirmation for an inactive holiday', function () {
+            Carbon::setTestNow(Carbon::parse('2031-04-17 10:00:00'));
+
+            try {
+                $user = User::factory()->create();
+                OfficeHoliday::create([
+                    'holiday_date' => now()->toDateString(),
+                    'name' => 'Libur Operasional',
+                    'type' => OfficeHoliday::TYPE_COMPANY,
+                    'is_active' => false,
+                ]);
+                expect(OfficeHoliday::query()->whereDate('holiday_date', now()->toDateString())->value('name'))
+                    ->toBe('Libur Operasional');
+
+                actingAs($user, 'web');
+
+                $this->get(route('attendance.clockIn.form'))
+                    ->assertOk()
+                    ->assertViewHas('officeHoliday', null)
+                    ->assertDontSee('id="attendance-office-holiday-confirmation"', false);
+            } finally {
+                Carbon::setTestNow();
+            }
+        });
+
         it('renders the single viewport clock in experience', function () {
             $user = User::factory()->create();
 
@@ -531,6 +584,33 @@ describe('AttendanceController', function () {
     // DINAS LUAR (REMOTE ATTENDANCE)
     // =====================================================================
     describe('remoteClockIn', function () {
+        it('shows an office holiday confirmation before remote clock in', function () {
+            Carbon::setTestNow(Carbon::parse('2031-04-17 10:00:00'));
+
+            try {
+                $user = User::factory()->create();
+                OfficeHoliday::create([
+                    'holiday_date' => now()->toDateString(),
+                    'name' => 'Libur Operasional',
+                    'type' => OfficeHoliday::TYPE_COMPANY,
+                    'is_active' => true,
+                ]);
+                expect(OfficeHoliday::query()->whereDate('holiday_date', now()->toDateString())->value('name'))
+                    ->toBe('Libur Operasional');
+
+                actingAs($user, 'web');
+
+                $this->get(route('remote-attendance.photo'))
+                    ->assertOk()
+                    ->assertViewHas('officeHoliday', fn ($officeHoliday) => $officeHoliday?->name === 'Libur Operasional')
+                    ->assertSee('id="remote-office-holiday-confirmation"', false)
+                    ->assertSee('Libur Operasional')
+                    ->assertSee('Ya, Tetap Absen');
+            } finally {
+                Carbon::setTestNow();
+            }
+        });
+
         it('allows clock in without location check for DINAS_LUAR', function () {
             Storage::fake('public');
             $user = User::factory()->create();

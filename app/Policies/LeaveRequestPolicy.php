@@ -4,9 +4,14 @@ namespace App\Policies;
 
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Services\LeaveApprovalAssignmentService;
 
 class LeaveRequestPolicy
 {
+    public function __construct(
+        protected LeaveApprovalAssignmentService $approvalAssignmentService,
+    ) {}
+
     public function viewAny(User $user): bool
     {
         return true;
@@ -14,15 +19,7 @@ class LeaveRequestPolicy
 
     public function view(User $user, LeaveRequest $lr): bool
     {
-        if ($user->id === $lr->user_id) {
-            return true;
-        }
-
-        if ($user->isHR()) {
-            return true;
-        }
-
-        return $this->isDirectApproverOf($user, $lr->user);
+        return $this->approvalAssignmentService->canView($user, $lr);
     }
 
     public function create(User $user): bool
@@ -65,19 +62,6 @@ class LeaveRequestPolicy
             return in_array($lr->status, [LeaveRequest::PENDING_SUPERVISOR, LeaveRequest::PENDING_HR], true);
         }
 
-        return $this->isDirectApproverOf($user, $lr->user)
-            && $lr->status === LeaveRequest::PENDING_SUPERVISOR;
-    }
-
-    /**
-     * Cek apakah user adalah atasan langsung (supervisor atau manager) dari applicant.
-     */
-    private function isDirectApproverOf(User $approver, User $applicant): bool
-    {
-        if ((int) $applicant->direct_supervisor_id === (int) $approver->id) {
-            return true;
-        }
-
-        return (int) $applicant->manager_id === (int) $approver->id;
+        return $this->approvalAssignmentService->canProcessInitialStage($user, $lr);
     }
 }

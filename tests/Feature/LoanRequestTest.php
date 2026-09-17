@@ -5,6 +5,7 @@ use App\Models\EmployeeProfile;
 use App\Models\LoanRepayment;
 use App\Models\LoanRequest;
 use App\Models\User;
+use App\Services\LoanPayrollDeductionService;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -198,6 +199,46 @@ describe('EmployeeLoanRequestController', function () {
         expect($response->viewData('loans')->count())->toBe(3);
     });
 
+    it('index provides one total debt summary for approved running loans', function () {
+        $user = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+
+        $runningLoan = LoanRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'APPROVED',
+            'amount' => 2000000,
+            'monthly_installment' => 500000,
+            'repayment_term' => 4,
+            'payment_method' => 'POTONG_GAJI',
+        ]);
+
+        LoanRequest::factory()->create([
+            'user_id' => $user->id,
+            'status' => 'PENDING_HRD',
+            'amount' => 1000000,
+        ]);
+
+        LoanRepayment::factory()->create([
+            'loan_request_id' => $runningLoan->id,
+            'amount' => 750000,
+        ]);
+
+        actingAs($user, 'web');
+
+        $response = $this->get(route('employee.loan_requests.index'));
+
+        $response->assertStatus(200);
+
+        $summary = $response->viewData('loanSummary');
+
+        expect($summary['totalDebt'])->toBe(2000000.0)
+            ->and($summary['totalPaid'])->toBe(750000.0)
+            ->and($summary['remaining'])->toBe(1250000.0)
+            ->and($summary['percentage'])->toBe(38)
+            ->and($summary['runningLoans']->count())->toBe(1)
+            ->and($summary['pendingLoans'])->toBe(1)
+            ->and($summary['repayments']->count())->toBe(1);
+    });
+
     it('sidebar shows loan request menu on the first work anniversary', function () {
         Carbon::setTestNow('2026-08-15 12:00:00');
 
@@ -316,7 +357,11 @@ describe('EmployeeLoanRequestController', function () {
 
         $response = $this->get(route('employee.loan_requests.create'));
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertSee('href="'.route('employee.loan_requests.index').'"', false)
+            ->assertSee('Ajukan')
+            ->assertDontSee('Ajuan')
+            ->assertDontSee('Tinjau Pengajuan');
     });
 
     it('create is accessible by HR STAFF', function () {
@@ -721,7 +766,7 @@ describe('HrLoanRequestController', function () {
         $response->assertStatus(200);
     });
 
-    it('index shows employee tenure calculated from join date until today', function () {
+    it('index hides employee tenure from the report list', function () {
         Carbon::setTestNow('2026-08-15 12:00:00');
 
         try {
@@ -745,8 +790,8 @@ describe('HrLoanRequestController', function () {
             ]));
 
             $response->assertOk()
-                ->assertSee('Lama Bekerja')
-                ->assertSee('2 thn 3 bln');
+                ->assertDontSee('Lama Bekerja')
+                ->assertDontSee('2 thn 3 bln');
         } finally {
             Carbon::setTestNow();
         }
@@ -812,8 +857,53 @@ describe('HrLoanRequestController', function () {
 
         $response = $this->get(route('hr.loan_requests.index', ['submitted_at' => '2026-04-15']));
 
-        $response->assertStatus(200);
+        $response->assertStatus(200)
+            ->assertSee('15/04/26')
+            ->assertDontSee('15 April 2026');
         expect($response->viewData('loans')->count())->toBe(1);
+    });
+
+    it('index shows selected PT debt report and filters the detail list', function () {
+        $hrd = User::factory()->create(['role' => UserRole::HRD]);
+
+        $ptALoan = LoanRequest::factory()->create([
+            'snapshot_name' => 'Karyawan PT A',
+            'snapshot_company' => 'PT Alpha',
+            'amount' => 2000000,
+            'status' => 'APPROVED',
+        ]);
+        LoanRepayment::factory()->create([
+            'loan_request_id' => $ptALoan->id,
+            'amount' => 400000,
+        ]);
+        LoanRequest::factory()->create([
+            'snapshot_name' => 'Pending PT A',
+            'snapshot_company' => 'PT Alpha',
+            'amount' => 1000000,
+            'status' => 'PENDING_HRD',
+        ]);
+        LoanRequest::factory()->create([
+            'snapshot_name' => 'Karyawan PT B',
+            'snapshot_company' => 'PT Beta',
+            'amount' => 9000000,
+            'status' => 'APPROVED',
+        ]);
+
+        actingAs($hrd, 'web');
+
+        $response = $this->get(route('hr.loan_requests.index', ['pt' => 'PT Alpha']));
+
+        $response->assertOk()
+            ->assertSee('PT Alpha')
+            ->assertSee('Total Pengajuan')
+            ->assertSee('2')
+            ->assertSee('Rp 3.000.000')
+            ->assertSee('Rp 400.000')
+            ->assertSee('Rp 1.600.000')
+            ->assertSee('Karyawan PT A')
+            ->assertSee('Pending PT A')
+            ->assertDontSee('Karyawan PT B');
+        expect($response->viewData('loans')->count())->toBe(2);
     });
 
     // === SHOW ===
@@ -1697,5 +1787,74 @@ describe('Edge Cases & Boundary Conditions', function () {
             'method' => 'TUNAI',
         ]);
         $response2->assertSessionHasErrors();
+    });
+});
+
+describe('Loan Payroll Deduction Automation', function () {
+    it('records the final payroll deduction using the remaining balance', function () {
+        $loan = LoanRequest::factory()->create([
+            'status' => 'APPROVED',
+            'payment_method' => 'POTONG_GAJI',
+            'amount' => 1000000,
+            'monthly_installment' => 400000,
+        ]);
+
+        LoanRepayment::factory()->create([
+            'loan_request_id' => $loan->id,
+            'amount' => 800000,
+            'method' => 'POTONG_GAJI',
+            'paid_at' => '2026-08-28',
+            'note' => 'Auto potong gaji periode Agustus 2026',
+        ]);
+
+        $result = app(LoanPayrollDeductionService::class)->process(Carbon::parse('2026-09-28'));
+
+        $repayment = $loan->repayments()->latest('id')->first();
+
+        expect($result['processed'])->toBe(1)
+            ->and($repayment->amount)->toBe('200000.00')
+            ->and($repayment->method)->toBe('POTONG_GAJI')
+            ->and($repayment->paid_at->toDateString())->toBe('2026-09-28')
+            ->and($loan->fresh()->status)->toBe('LUNAS');
+    });
+
+    it('does not create a duplicate automatic deduction for the same month', function () {
+        $loan = LoanRequest::factory()->create([
+            'status' => 'APPROVED',
+            'payment_method' => 'POTONG_GAJI',
+            'amount' => 1000000,
+            'monthly_installment' => 250000,
+        ]);
+
+        LoanRepayment::factory()->create([
+            'loan_request_id' => $loan->id,
+            'amount' => 250000,
+            'method' => 'POTONG_GAJI',
+            'paid_at' => '2026-09-28',
+            'note' => 'Auto potong gaji periode September 2026',
+        ]);
+
+        $result = app(LoanPayrollDeductionService::class)->process(Carbon::parse('2026-09-28'));
+
+        expect($result['processed'])->toBe(0)
+            ->and($result['skipped_duplicate'])->toBe(1)
+            ->and($loan->repayments()->count())->toBe(1);
+    });
+
+    it('runs the payroll deduction command synchronously when requested', function () {
+        $loan = LoanRequest::factory()->create([
+            'status' => 'APPROVED',
+            'payment_method' => 'POTONG_GAJI',
+            'amount' => 1000000,
+            'monthly_installment' => 300000,
+        ]);
+
+        $this->artisan('loan:auto-repay-payroll-deduction', [
+            'date' => '2026-09-28',
+            '--sync' => true,
+        ])->assertExitCode(0);
+
+        expect($loan->repayments()->count())->toBe(1)
+            ->and($loan->repayments()->first()->amount)->toBe('300000.00');
     });
 });

@@ -370,7 +370,11 @@ describe('HR OFF SPV management', function () {
                 ->where('type', LeaveType::OFF_SPV->value)
                 ->where('off_spv_period_id', $period->id)
                 ->count())->toBe(2)
-            ->and(LeaveRequest::whereDate('start_date', '2026-01-10')->sole()->approved_by)->toBe($this->hr->id);
+            ->and(LeaveRequest::whereDate('start_date', '2026-01-10')->sole()->approved_by)->toBe($this->hr->id)
+            ->and(LeaveRequest::where('user_id', $this->supervisor->id)
+                ->where('type', LeaveType::OFF_SPV->value)
+                ->whereDoesntHave('days')
+                ->count())->toBe(0);
     });
 
     it('synchronizes historical OFF SPV dates without deleting records', function () {
@@ -536,7 +540,7 @@ describe('HR manual OFF SPV entry', function () {
             ->assertSessionHas('success');
 
         expect($leave->fresh()->off_spv_period_id)->not->toBeNull()
-            ->and($leave->fresh()->status)->toBe(LeaveRequest::STATUS_APPROVED);
+            ->and($leave->fresh()->status)->toBe(LeaveRequest::PENDING_HR);
     });
 
     it('allows HR to convert a legacy non OFF request into OFF', function () {
@@ -562,6 +566,6 @@ describe('HR manual OFF SPV entry', function () {
 
         expect($leave->fresh()->type)->toBe(LeaveType::OFF_SPV)
             ->and($leave->fresh()->off_spv_period_id)->not->toBeNull()
-            ->and($leave->fresh()->status)->toBe(LeaveRequest::STATUS_APPROVED);
+            ->and($leave->fresh()->status)->toBe(LeaveRequest::PENDING_HR);
     });
 });

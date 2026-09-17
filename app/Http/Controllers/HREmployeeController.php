@@ -11,6 +11,7 @@ use App\Models\Pt;
 use App\Models\Shift;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
+use App\Services\LeaveApprovalAssignmentService;
 use App\Services\LeaveBalanceService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ class HREmployeeController extends Controller
     public function __construct(
         protected LeaveBalanceService $leaveBalanceService,
         protected ImageCompressor $imageCompressor,
+        protected LeaveApprovalAssignmentService $approvalAssignmentService,
     ) {}
 
     public function index(Request $request)
@@ -65,6 +67,8 @@ class HREmployeeController extends Controller
                 $q->where('kategori', $categoryFilter);
             });
         }
+
+        $query->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [User::STATUS_ACTIVE]);
 
         if ($nearExpiry) {
             $query->where('status', 'ACTIVE')
@@ -169,8 +173,9 @@ class HREmployeeController extends Controller
             'position',
             'profile.pt',
             'documents.creator',
-            'directSupervisor', // Observer
-            'manager',           // Approver
+            'directSupervisor',
+            'manager',
+            'assignedApprover',
         ]);
 
         $profile = $employee->profile;
@@ -249,6 +254,11 @@ class HREmployeeController extends Controller
             ->orderBy('name')
             ->get();
 
+        $approvers = User::where('role', UserRole::EMPLOYEE)
+            ->where('status', User::STATUS_ACTIVE)
+            ->orderBy('name')
+            ->get();
+
         return view('hr.employees.create', [
             'divisions' => $divisions,
             'positions' => $positions,
@@ -256,6 +266,7 @@ class HREmployeeController extends Controller
             'ptOptions' => $ptOptions,
             'managers' => $managers,
             'supervisors' => $supervisors,
+            'approvers' => $approvers,
         ]);
     }
 
@@ -271,6 +282,12 @@ class HREmployeeController extends Controller
 
             'manager_id' => ['nullable', 'exists:users,id'],
             'direct_supervisor_id' => ['nullable', 'exists:users,id'],
+            'approver_id' => [
+                'nullable',
+                Rule::exists('users', 'id')->where(fn ($query) => $query
+                    ->where('role', UserRole::EMPLOYEE->value)
+                    ->where('status', User::STATUS_ACTIVE)),
+            ],
 
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
@@ -317,6 +334,7 @@ class HREmployeeController extends Controller
                 'role',
                 'manager_id',
                 'direct_supervisor_id',
+                'approver_id',
                 'division_id',
                 'position_id',
                 'email',
@@ -338,6 +356,7 @@ class HREmployeeController extends Controller
                 'role',
                 'manager_id',
                 'direct_supervisor_id',
+                'approver_id',
                 'division_id',
                 'position_id',
                 'path_kartu_keluarga',
@@ -405,6 +424,12 @@ class HREmployeeController extends Controller
             ->orderBy('name')
             ->get();
 
+        $approvers = User::where('role', UserRole::EMPLOYEE)
+            ->where('status', User::STATUS_ACTIVE)
+            ->where('id', '!=', $employee->id)
+            ->orderBy('name')
+            ->get();
+
         return view('hr.employees.edit', [
             'item' => $employee,
             'divisions' => $divisions,
@@ -413,6 +438,7 @@ class HREmployeeController extends Controller
             'ptOptions' => $ptOptions,
             'managers' => $managers,
             'supervisors' => $supervisors,
+            'approvers' => $approvers,
         ]);
     }
 
@@ -435,6 +461,13 @@ class HREmployeeController extends Controller
 
             'manager_id' => ['nullable', 'exists:users,id'],
             'direct_supervisor_id' => ['nullable', 'exists:users,id'],
+            'approver_id' => [
+                'nullable',
+                Rule::notIn([$employee->id]),
+                Rule::exists('users', 'id')->where(fn ($query) => $query
+                    ->where('role', UserRole::EMPLOYEE->value)
+                    ->where('status', User::STATUS_ACTIVE)),
+            ],
             'division_id' => ['nullable', 'exists:divisions,id'],
             'position_id' => ['nullable', 'exists:positions,id'],
             'pt_id' => ['nullable', 'exists:pts,id'],
@@ -503,6 +536,7 @@ class HREmployeeController extends Controller
                 'status',
                 'manager_id',
                 'direct_supervisor_id',
+                'approver_id',
                 'division_id',
                 'position_id',
                 'email',
@@ -510,6 +544,7 @@ class HREmployeeController extends Controller
             ]);
 
             $employee->update($userData);
+            $this->approvalAssignmentService->reconcilePendingInitialRequests($employee->fresh());
 
             // -------------------------------------------------------------
             // 2. UPDATE PROFILE DATA
@@ -521,6 +556,7 @@ class HREmployeeController extends Controller
                 'role',
                 'manager_id',
                 'direct_supervisor_id',
+                'approver_id',
                 'division_id',
                 'position_id',
                 'path_kartu_keluarga',
