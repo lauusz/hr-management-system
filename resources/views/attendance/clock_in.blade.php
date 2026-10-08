@@ -1,11 +1,6 @@
 <x-app title="Presensi Masuk">
     <x-slot name="header">
         <div class="section-header-inline clock-in-header">
-            <a href="{{ url('/attendance') }}" class="clock-in-back" aria-label="Kembali ke presensi">
-                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                </svg>
-            </a>
             <div>
                 <h1 class="section-title">Presensi Masuk</h1>
                 <p class="section-subtitle">{{ now()->translatedFormat('l, j F Y') }}</p>
@@ -14,6 +9,13 @@
     </x-slot>
 
     <div class="capture-shell clock-in-screen">
+        <a href="{{ url('/attendance') }}" class="attendance-back" aria-label="Kembali ke presensi">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Kembali</span>
+        </a>
+
         {{-- Status strip: camera + GPS --}}
         <div class="capture-strip clock-in-status">
             <div class="capture-pill capture-pill--warn" id="cameraPill">
@@ -57,7 +59,7 @@
 
         {{-- Bottom controls --}}
         <div class="capture-controls clock-in-controls">
-            <p class="capture-hint" id="statusMessage">Menyiapkan kamera dan lokasi...</p>
+            <p class="capture-hint" id="statusMessage" aria-live="polite">Menyiapkan kamera dan lokasi...</p>
 
             <input type="hidden" id="lat">
             <input type="hidden" id="lng">
@@ -164,34 +166,34 @@
         /* ============================================= */
         /* BACK BUTTON                                   */
         /* ============================================= */
-        .capture-back {
+        .attendance-back {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            height: 32px;
-            padding: 0 10px 0 8px;
+            gap: 6px;
+            height: 36px;
+            padding: 0 12px 0 10px;
             background: var(--white, #fff);
             border: 1px solid var(--border, #E5E7EB);
-            border-radius: 8px;
+            border-radius: 10px;
             color: var(--text-muted, #6B7280);
             text-decoration: none;
             transition: all 0.15s ease;
             flex-shrink: 0;
             align-self: flex-start;
             box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-            font-size: 0.6875rem;
+            font-size: 0.75rem;
             font-weight: 600;
         }
-        .capture-back:hover {
+        .attendance-back:hover {
             border-color: var(--primary, #145DA0);
             color: var(--primary, #145DA0);
             background: var(--gray-50, #F5F7FA);
         }
-        .capture-back svg {
+        .attendance-back svg {
             transition: transform 0.2s ease;
             flex-shrink: 0;
         }
-        .capture-back:hover svg {
+        .attendance-back:hover svg {
             transform: translateX(-2px);
         }
 
@@ -472,10 +474,10 @@
                 max-height: 90vh;
             }
 
-            .capture-back {
-                height: 36px;
-                padding: 0 12px 0 10px;
-                font-size: 0.75rem;
+            .attendance-back {
+                height: 40px;
+                padding: 0 14px 0 12px;
+                font-size: 0.8125rem;
             }
 
             .capture-viewport {
@@ -489,30 +491,6 @@
         }
 
         /* Selected mockup: camera-first, single-viewport mobile layout */
-        .clock-in-back {
-            width: 48px;
-            height: 48px;
-            display: grid;
-            place-items: center;
-            flex: 0 0 auto;
-            border: 1px solid var(--border, #E5E7EB);
-            border-radius: 14px;
-            background: var(--white, #fff);
-            color: var(--primary-dark, #0A3D62);
-            box-shadow: 0 4px 12px rgba(15, 23, 42, .07);
-        }
-
-        .clock-in-back:hover,
-        .clock-in-back:focus-visible {
-            color: var(--primary, #145DA0);
-            border-color: rgba(20, 93, 160, .35);
-        }
-
-        .clock-in-back:focus-visible {
-            outline: 3px solid rgba(20, 93, 160, .24);
-            outline-offset: 2px;
-        }
-
         .clock-in-face-guide {
             position: absolute;
             top: 50%;
@@ -681,15 +659,6 @@
                 margin-bottom: 10px;
             }
 
-            .clock-in-header {
-                gap: 10px;
-            }
-
-            .clock-in-back {
-                width: 44px;
-                height: 44px;
-            }
-
             .section-title {
                 font-size: 1.0625rem;
             }
@@ -718,7 +687,9 @@
         }
     </style>
 
-    <script>
+    <script type="module">
+        import { captureAttendancePhoto } from '{{ asset('js/attendance-photo.js') }}';
+
         // DOM Elements - IDs preserved from original
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
@@ -727,6 +698,7 @@
         const statusMsg = document.getElementById('statusMessage');
         const gpsText = document.getElementById('gpsText');
         const gpsDot = document.getElementById('gpsIndicator');
+        const gpsPill = document.getElementById('gpsPill');
         const gpsCard = document.getElementById('gpsCard');
         const gpsOverlayText = document.getElementById('gpsOverlayText');
         const gpsOverlayDot = document.getElementById('gpsOverlayDot');
@@ -747,6 +719,56 @@
         let userLat = null;
         let userLng = null;
         let isLocationValid = false;
+
+        function showRecoveryMessage(message) {
+            statusMsg.textContent = message;
+            statusMsg.style.color = 'var(--error, #EF4444)';
+            btnCapture.disabled = true;
+        }
+
+        function getCameraRecoveryMessage(error) {
+            if (!window.isSecureContext) {
+                return 'Kamera hanya dapat diakses melalui HTTPS.';
+            }
+
+            if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') {
+                return 'Akses kamera ditolak. Izinkan kamera di browser, lalu muat ulang halaman.';
+            }
+
+            if (error?.name === 'NotFoundError') {
+                return 'Kamera tidak ditemukan. Sambungkan atau aktifkan kamera, lalu muat ulang halaman.';
+            }
+
+            return 'Kamera tidak tersedia. Periksa kamera dan izin browser, lalu muat ulang halaman.';
+        }
+
+        function showGpsError(label, message) {
+            isLocationValid = false;
+            gpsText.textContent = label;
+            gpsDot.style.backgroundColor = 'var(--error, #EF4444)';
+            gpsOverlayText.textContent = label;
+            gpsOverlayDot.style.backgroundColor = 'var(--error, #EF4444)';
+            gpsCard.className = 'capture-gps-badge gps-error';
+            gpsPill.className = 'capture-pill capture-pill--error';
+            showRecoveryMessage(message);
+        }
+
+        function getGpsRecoveryMessage(error) {
+            if (!window.isSecureContext) {
+                return ['GPS perlu HTTPS', 'Lokasi hanya dapat diakses melalui HTTPS.'];
+            }
+
+            switch (error?.code) {
+                case 1:
+                    return ['Lokasi diblokir', 'Akses lokasi ditolak. Izinkan lokasi di browser, lalu muat ulang halaman.'];
+                case 2:
+                    return ['Lokasi tidak tersedia', 'Lokasi perangkat tidak tersedia. Aktifkan Layanan Lokasi, lalu muat ulang halaman.'];
+                case 3:
+                    return ['GPS timeout', 'Lokasi belum diperoleh. Pastikan Layanan Lokasi aktif, lalu muat ulang halaman.'];
+                default:
+                    return ['GPS Error', 'Lokasi belum dapat diakses. Periksa izin browser, lalu muat ulang halaman.'];
+            }
+        }
 
         // 1. Inisialisasi Kamera
         async function startCamera() {
@@ -771,13 +793,18 @@
                 cameraText.textContent = 'Kamera error';
                 cameraDot.style.backgroundColor = 'var(--error, #EF4444)';
                 cameraDot.classList.remove('capture-dot--pulse');
-                statusMsg.textContent = 'Gagal akses kamera. Pastikan izin diberikan.';
-                statusMsg.style.color = 'var(--error, #EF4444)';
+                showRecoveryMessage(getCameraRecoveryMessage(err));
             }
         }
 
         // 2. Logic GPS (High Accuracy)
         function initGPS() {
+            if (!window.isSecureContext) {
+                const [label, message] = getGpsRecoveryMessage();
+                showGpsError(label, message);
+                return;
+            }
+
             if (navigator.geolocation) {
                 navigator.geolocation.watchPosition(
                     (position) => {
@@ -809,14 +836,8 @@
                     },
                     (error) => {
                         console.error('GPS Error:', error);
-                        gpsText.textContent = 'GPS Error';
-                        gpsDot.style.backgroundColor = 'var(--error, #EF4444)';
-                        gpsOverlayText.textContent = 'GPS Error';
-                        gpsOverlayDot.style.backgroundColor = 'var(--error, #EF4444)';
-                        gpsCard.className = 'capture-gps-badge gps-error';
-                        gpsPill.className = 'capture-pill capture-pill--error';
-                        statusMsg.textContent = 'Aktifkan GPS & Izin Lokasi di Browser.';
-                        statusMsg.style.color = 'var(--error, #EF4444)';
+                        const [label, message] = getGpsRecoveryMessage(error);
+                        showGpsError(label, message);
                     },
                     {
                         enableHighAccuracy: true,
@@ -825,9 +846,7 @@
                     }
                 );
             } else {
-                statusMsg.textContent = 'Browser tidak support GPS.';
-                gpsPill.className = 'capture-pill capture-pill--error';
-                gpsText.textContent = 'GPS Error';
+                showGpsError('GPS tidak didukung', 'Browser ini tidak mendukung akses lokasi.');
             }
         }
 
@@ -841,23 +860,24 @@
         }
 
         // 4. Fungsi Capture
-        btnCapture.addEventListener('click', () => {
+        btnCapture.addEventListener('click', async () => {
             if (!video.srcObject) return;
 
             flashOverlay.classList.add('flash-anim');
             setTimeout(() => flashOverlay.classList.remove('flash-anim'), 500);
 
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            const ctx = canvas.getContext('2d');
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            canvas.toBlob((blob) => {
-                imageBlob = blob;
-                const url = URL.createObjectURL(blob);
+            try {
+                imageBlob = await captureAttendancePhoto({
+                    video,
+                    canvas,
+                    mirror: true,
+                    onPreparing: () => {
+                        btnCapture.disabled = true;
+                        statusMsg.textContent = 'Menyiapkan foto...';
+                        statusMsg.style.color = 'var(--text-muted, #6B7280)';
+                    },
+                });
+                const url = URL.createObjectURL(imageBlob);
 
                 imgPreview.src = url;
                 imgPreview.classList.add('is-visible');
@@ -867,7 +887,10 @@
                 groupAction.style.display = 'flex';
                 statusMsg.textContent = 'Foto terambil. Kirim atau Ulangi?';
                 statusMsg.style.color = 'var(--text-muted, #6B7280)';
-            }, 'image/jpeg', 0.85);
+            } catch (error) {
+                window.showToast(error.message || 'Foto gagal disiapkan.', 'error');
+                checkReadiness();
+            }
         });
 
         // 5. Fungsi Ulangi (Retake)
@@ -876,6 +899,7 @@
             imgPreview.removeAttribute('src');
             video.style.display = 'block';
             imageBlob = null;
+            checkReadiness();
 
             groupCapture.style.display = 'block';
             groupAction.style.display = 'none';

@@ -57,6 +57,9 @@ class HrLeaveController extends Controller
                 'user.division',
                 'user.position',
                 'user.profile.pt',
+                'user.directSupervisor',
+                'user.manager',
+                'user.assignedApprover',
             ])
             ->whereIn('status', [LeaveRequest::PENDING_HR, LeaveRequest::PENDING_SUPERVISOR]);
 
@@ -559,6 +562,7 @@ class HrLeaveController extends Controller
             ? 'Belum dapat cuti'
             : rtrim(rtrim(number_format($leaveBalance, 1, ',', '.'), '0'), ',').' hari';
         $dailyTreatmentDays = $this->leaveRequestDayService->syncDateRange($leave);
+        $automaticLeavePlan = $this->leaveRequestDayService->automaticLeavePlan($leave, $leave->user);
 
         return view('hr.leave_requests.show', [
             'item' => $leave,
@@ -568,6 +572,7 @@ class HrLeaveController extends Controller
             'canApproveAsSupervisor' => $canApproveAsSupervisor,
             'leaveBalanceLabel' => $leaveBalanceLabel,
             'dailyTreatmentDays' => $dailyTreatmentDays,
+            'automaticLeavePlan' => $automaticLeavePlan,
         ]);
     }
 
@@ -936,6 +941,7 @@ class HrLeaveController extends Controller
             'deduct_amount_sakit' => 'nullable|in:1,0.5', // Radio: full/0.5 untuk SAKIT
             'deduct_leave_izin' => 'nullable|in:1', // Checkbox: potong cuti untuk IZIN
             'deduct_amount_izin' => 'nullable|in:1,0.5', // Radio: full/0.5 untuk IZIN
+            'auto_deduct_leave' => 'nullable|in:1',
             'deduct_um' => 'nullable|in:1', // Checkbox: potong UM
             'daily_treatments' => ['nullable', 'array'],
             'daily_treatments.*' => ['required', Rule::in([
@@ -961,9 +967,14 @@ class HrLeaveController extends Controller
         }
 
         $leaveTypeValue = $leave->type instanceof LeaveType ? $leave->type->value : (string) $leave->type;
+        $isAutomaticLeaveDeduction = $request->filled('auto_deduct_leave');
+        if ($isAutomaticLeaveDeduction && $leaveTypeValue !== LeaveType::IZIN->value) {
+            return redirect()->back()->with('error', 'Potong cuti otomatis hanya tersedia untuk pengajuan izin.');
+        }
+
         if (in_array($leaveTypeValue, [LeaveType::SAKIT->value, LeaveType::IZIN->value], true)) {
             $deductLeaveField = $leaveTypeValue === LeaveType::SAKIT->value ? 'deduct_leave_sakit' : 'deduct_leave_izin';
-            if ($request->filled($deductLeaveField) && $request->filled('deduct_um')) {
+            if (($isAutomaticLeaveDeduction || $request->filled($deductLeaveField)) && $request->filled('deduct_um')) {
                 return redirect()->back()->with('error', 'Pilih salah satu: Potong Cuti atau Potong UM.');
             }
         }
@@ -975,13 +986,15 @@ class HrLeaveController extends Controller
             $approved = $this->stateMachine->perform(
                 $leave,
                 LeaveRequestStateMachine::APPROVE,
-                function (LeaveRequest $lockedLeave) use ($request, $actor) {
-                    if ($request->has('daily_treatments')) {
-                        $targetDeduction = $this->leaveRequestDayService->saveDecisions(
-                            $lockedLeave,
-                            $request->input('daily_treatments', []),
-                            $actor->id,
-                        );
+                function (LeaveRequest $lockedLeave) use ($request, $actor, $isAutomaticLeaveDeduction) {
+                    if ($isAutomaticLeaveDeduction || $request->has('daily_treatments')) {
+                        $targetDeduction = $isAutomaticLeaveDeduction
+                            ? $this->leaveRequestDayService->saveAutomaticLeaveDecisions($lockedLeave, $actor->id)
+                            : $this->leaveRequestDayService->saveDecisions(
+                                $lockedLeave,
+                                $request->input('daily_treatments', []),
+                                $actor->id,
+                            );
                         $currentDeduction = $this->leaveBalanceService->currentNetDeductionForLeave($lockedLeave);
 
                         if ($currentDeduction <= 0 && $targetDeduction > 0) {

@@ -80,6 +80,33 @@ describe('HrLeaveController', function () {
             expect($response->viewData('leaves')->total())->toBeGreaterThanOrEqual(1);
         });
 
+        it('keeps the supervisor and shows the assigned approver on a request card', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $supervisor = User::factory()->create([
+                'name' => 'Supervisor Kartu HR',
+                'role' => UserRole::SUPERVISOR,
+            ]);
+            $approver = User::factory()->create([
+                'name' => 'Approver Kartu HR',
+                'role' => UserRole::EMPLOYEE,
+            ]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'direct_supervisor_id' => $supervisor->id,
+                'approver_id' => $approver->id,
+            ]);
+            LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.index'))
+                ->assertOk()
+                ->assertSee('Atasan: Supervisor Kartu HR')
+                ->assertSee('Approver: Approver Kartu HR');
+        });
+
         it('index filters by submitted_today', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
@@ -527,6 +554,24 @@ describe('HrLeaveController', function () {
                 ->assertSee('value="LEAVE_BALANCE_0_5"', false);
         });
 
+        it('marks Sunday below its date in red in manual leave treatments', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create(['role' => UserRole::EMPLOYEE]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-05',
+                'end_date' => '2026-06-07',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('<td style="padding:10px 12px; font-weight:600; white-space:nowrap; color:var(--error, #EF4444);">', false)
+                ->assertSeeInOrder(['05/06/26', '06/06/26', '07/06/26', 'Hari Minggu']);
+        });
+
         it('shows the short notice warning without the word termasuk', function () {
             $hrd = User::factory()->create(['role' => UserRole::HRD]);
             $employee = User::factory()->create();
@@ -833,6 +878,118 @@ describe('HrLeaveController', function () {
                     LeaveRequestDay::NONE,
                 ])
                 ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(1.5);
+        });
+
+        it('shows automatic leave deduction estimate while preserving manual daily choices for IZIN', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 10,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-05',
+                'end_date' => '2026-06-08',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('name="auto_deduct_leave"', false)
+                ->assertSee('Potong Cuti Manual')
+                ->assertSee('Estimasi potongan otomatis: 2,5 hari')
+                ->assertSee('name="daily_treatments[2026-06-07]"', false);
+        });
+
+        it('shows the last uncovered date when automatic IZIN deduction exceeds the balance', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-03',
+                'end_date' => '2026-06-18',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->get(route('hr.leave.show', $leave))
+                ->assertOk()
+                ->assertSee('Estimasi potongan otomatis: 12 hari')
+                ->assertSee('18/06/26 tidak dipotong karena saldo cuti habis');
+        });
+
+        it('automatically deducts IZIN by skipping Sunday and counting Saturday as half a day', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 10,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-05',
+                'end_date' => '2026-06-08',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('hr.leave.approve', $leave), [
+                'auto_deduct_leave' => '1',
+            ])->assertRedirect()->assertSessionHas('success');
+
+            $leave->refresh();
+            $employee->refresh();
+            $days = $leave->days()->orderBy('leave_date')->get();
+
+            expect($leave->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and($leave->type)->toBe(LeaveType::IZIN)
+                ->and((float) $employee->leave_balance)->toBe(7.5)
+                ->and($days->pluck('treatment')->all())->toBe([
+                    LeaveRequestDay::LEAVE_BALANCE,
+                    LeaveRequestDay::LEAVE_BALANCE,
+                    LeaveRequestDay::NONE,
+                    LeaveRequestDay::LEAVE_BALANCE,
+                ])
+                ->and($days->pluck('deduction_amount')->map(fn (float $amount) => round($amount, 1))->all())->toBe([1.0, 0.5, 0.0, 1.0])
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(2.5);
+        });
+
+        it('automatically deducts IZIN chronologically only until the leave balance is exhausted', function () {
+            $hrd = User::factory()->create(['role' => UserRole::HRD]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'leave_balance' => 12,
+            ]);
+            $leave = LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_HR,
+                'type' => LeaveType::IZIN->value,
+                'start_date' => '2026-06-03',
+                'end_date' => '2026-06-18',
+            ]);
+
+            actingAs($hrd, 'web');
+
+            $this->post(route('hr.leave.approve', $leave), [
+                'auto_deduct_leave' => '1',
+            ])->assertRedirect()->assertSessionHas('success');
+
+            $days = $leave->days()->orderBy('leave_date')->get()->keyBy(
+                fn (LeaveRequestDay $day) => $day->leave_date->toDateString(),
+            );
+
+            expect($leave->fresh()->status)->toBe(LeaveRequest::STATUS_APPROVED)
+                ->and((float) $employee->fresh()->leave_balance)->toBe(0.0)
+                ->and(app(LeaveBalanceService::class)->currentNetDeductionForLeave($leave))->toBe(12.0)
+                ->and((float) $days['2026-06-06']->deduction_amount)->toBe(0.5)
+                ->and((float) $days['2026-06-13']->deduction_amount)->toBe(0.5)
+                ->and($days['2026-06-18']->treatment)->toBe(LeaveRequestDay::NONE)
+                ->and((float) $days['2026-06-18']->deduction_amount)->toBe(0.0);
         });
 
         it('rejects an incomplete daily treatment selection atomically', function () {

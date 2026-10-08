@@ -63,6 +63,12 @@
         $days = app(\App\Services\LeaveBalanceService::class)->calculateEffectiveDaysForLeave($item);
         $formattedDays = rtrim(rtrim(number_format($days, 1), '0'), '.');
         $durationLabel = $formattedDays == 1 ? '1 hari' : $formattedDays . ' hari';
+        $automaticDeductionTotal = $automaticLeavePlan['total'] ?? 0;
+        $automaticDeductionLabel = rtrim(rtrim(number_format($automaticDeductionTotal, 1, ',', '.'), '0'), ',');
+        $automaticUncoveredDates = $automaticLeavePlan['uncovered_dates'] ?? [];
+        $automaticUncoveredDateLabel = collect($automaticUncoveredDates)
+            ->map(fn ($date) => \Carbon\Carbon::parse($date)->format('d/m/y'))
+            ->implode(', ');
         $currentNetDeduction = app(\App\Services\LeaveBalanceService::class)->currentNetDeductionForLeave($item);
         $defaultDeductionMode = old('deduction_mode_edit');
         if ($defaultDeductionMode === null) {
@@ -928,7 +934,26 @@
             </p>
 
             @if($dailyTreatmentDays->isNotEmpty())
-                @include('hr.leave_requests._daily_treatments', ['radioPrefix' => 'approve-daily'])
+                @if($isTypeIzin)
+                <div class="edit-form-group" style="margin-bottom:15px; background:var(--gray-50, #F5F7FA); padding:12px; border-radius:10px; border:1px solid var(--border-light, #E5E7EB);">
+                    <label class="edit-checkbox-wrapper">
+                        <input type="checkbox" name="auto_deduct_leave" value="1" id="auto_deduct_leave" onchange="toggleAutomaticLeaveDeduction()">
+                        <span>Potong Cuti Otomatis</span>
+                    </label>
+                    <small style="display:block; margin-top:8px; color:var(--text-muted, #6B7280); font-size:12px; margin-left:24px;">
+                        Estimasi potongan otomatis: {{ $automaticDeductionLabel }} hari. Minggu tidak dipotong; Sabtu mengikuti pola kerja karyawan.
+                    </small>
+                    @if($automaticUncoveredDates)
+                    <small style="display:block; margin-top:6px; color:var(--error, #EF4444); font-size:12px; margin-left:24px;">
+                        {{ $automaticUncoveredDateLabel }} tidak dipotong karena saldo cuti habis.
+                    </small>
+                    @endif
+                </div>
+                @endif
+                <div id="approve-daily-treatments">
+                    <p style="margin:0 0 8px; color:var(--text-secondary, #374151); font-size:12px; font-weight:600;">Potong Cuti Manual</p>
+                    @include('hr.leave_requests._daily_treatments', ['radioPrefix' => 'approve-daily'])
+                </div>
             @else
             @if($isTypeSakit)
             <div class="edit-form-group" style="margin-bottom: 15px; background: var(--gray-50, #F5F7FA); padding: 12px; border-radius: 10px; border: 1px solid var(--border-light, #E5E7EB);">
@@ -1059,6 +1084,36 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            const automaticLeavePlan = @json($automaticLeavePlan ?? ['decisions' => [], 'uncovered_dates' => []]);
+
+            window.toggleAutomaticLeaveDeduction = function() {
+                const checkbox = document.getElementById('auto_deduct_leave');
+                const manualTreatments = document.getElementById('approve-daily-treatments');
+                if (!checkbox || !manualTreatments) return;
+
+                manualTreatments.querySelectorAll('select').forEach((select) => {
+                    const date = select.name.match(/\[([^\]]+)\]/)?.[1];
+                    if (checkbox.checked && date && automaticLeavePlan.decisions[date]) {
+                        select.value = automaticLeavePlan.decisions[date];
+                    }
+
+                    const marker = select.parentElement.querySelector('[data-auto-deduction-marker]');
+                    if (marker && date) {
+                        marker.hidden = !checkbox.checked || !automaticLeavePlan.uncovered_dates.includes(date);
+                    }
+                });
+            };
+
+            document.querySelectorAll('#approve-daily-treatments select').forEach((select) => {
+                select.addEventListener('change', () => {
+                    const checkbox = document.getElementById('auto_deduct_leave');
+                    if (!checkbox || !checkbox.checked) return;
+
+                    checkbox.checked = false;
+                    window.toggleAutomaticLeaveDeduction();
+                });
+            });
+
             // Toggle SAKIT deduct options
             window.toggleSakitOptions = function() {
                 const checkbox = document.getElementById('deduct_leave_sakit');

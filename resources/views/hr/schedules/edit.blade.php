@@ -55,10 +55,12 @@
 
                 <div class="form-group">
                     <label for="location_id">Lokasi Presensi <span class="req">*</span></label>
+                    @php($selectedLocationId = old('location_id', $schedule->is_all_locations ? 'all' : $schedule->location_id))
                     <select name="location_id" id="location_id" class="form-control" required>
                         <option value="">-- Pilih Lokasi --</option>
+                        <option value="all" @selected($selectedLocationId === 'all')>All Locations</option>
                         @foreach($locations as $loc)
-                            <option value="{{ $loc->id }}" @selected($schedule->location_id == $loc->id)>
+                            <option value="{{ $loc->id }}" @selected($selectedLocationId == $loc->id)>
                                 {{ $loc->name }}
                             </option>
                         @endforeach

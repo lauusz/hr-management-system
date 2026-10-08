@@ -35,10 +35,14 @@
                             default => 'NONE',
                         };
                         $selectedValue = old("daily_treatments.$dateKey", $selectedValue);
+                        $isSunday = $day->leave_date->isSunday();
                     @endphp
                     <tr style="border-top:1px solid var(--border-light, #E5E7EB);">
-                        <td style="padding:10px 12px; font-weight:600; white-space:nowrap;">
+                        <td style="padding:10px 12px; font-weight:600; white-space:nowrap;{{ $isSunday ? ' color:var(--error, #EF4444);' : '' }}">
                             {{ $day->leave_date->format('d/m/y') }}
+                            @if($isSunday)
+                                <small style="display:block; margin-top:3px; font-size:11px; font-weight:400;">Hari Minggu</small>
+                            @endif
                         </td>
                         <td style="padding:8px 12px;">
                             @php $selectId = $radioPrefix.'-'.str_replace('-', '', $dateKey).'-treatment'; @endphp
@@ -55,6 +59,9 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <small data-auto-deduction-marker="{{ $dateKey }}" hidden style="display:block; margin-top:5px; color:var(--error, #EF4444); font-size:11px;">
+                                Saldo cuti habis
+                            </small>
                         </td>
                     </tr>
                 @endforeach

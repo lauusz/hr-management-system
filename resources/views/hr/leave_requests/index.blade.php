@@ -250,6 +250,14 @@
                         <span>Atasan: {{ $supervisorName ?? 'Tidak ada' }}</span>
                     </div>
                 @endif
+                @if($lv->user->assignedApprover?->name)
+                    <div class="apv-card-approver">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <span>Approver: {{ $lv->user->assignedApprover->name }}</span>
+                    </div>
+                @endif
 
                 <div class="apv-card-footer">
                     <div class="apv-card-meta">
@@ -636,17 +644,24 @@
         }
 
         /* Supervisor chip (for pending supervisor items) */
-        .apv-card-supervisor {
+        .apv-card-supervisor,
+        .apv-card-approver {
             display: inline-flex;
             align-items: center;
             gap: 5px;
             font-size: 0.75rem;
-            color: var(--purple, #9333EA);
-            background: rgba(147, 51, 234, 0.08);
             padding: 4px 10px;
             border-radius: 8px;
             margin-bottom: 12px;
             width: fit-content;
+        }
+        .apv-card-supervisor {
+            color: var(--purple, #9333EA);
+            background: rgba(147, 51, 234, 0.08);
+        }
+        .apv-card-approver {
+            color: #0f766e;
+            background: rgba(20, 184, 166, 0.1);
         }
 
         /* Footer */

@@ -62,11 +62,25 @@
         </form>
     </div>
 
+    @php
+        $selectedUserIds = old('user_ids', []);
+        $selectedUserIds = is_array($selectedUserIds) ? $selectedUserIds : [];
+    @endphp
+
     <div class="card">
+        <div class="bulk-actions">
+            <span id="selected-users-label" class="text-muted">0 karyawan dipilih</span>
+            <button type="button" id="open-bulk-schedule-modal" class="btn-primary" data-modal-target="bulk-schedule-modal" disabled>
+                Atur Jadwal Terpilih
+            </button>
+        </div>
         <div class="table-wrapper">
             <table class="custom-table">
                 <thead>
                     <tr>
+                        <th style="width: 44px; text-align: center;">
+                            <input type="checkbox" id="select-all-users" aria-label="Pilih semua karyawan yang tampil" @disabled($items->isEmpty())>
+                        </th>
                         <th style="min-width: 200px;">Karyawan</th>
                         <th>PT</th>
                         <th>Shift Aktif</th>
@@ -77,6 +91,14 @@
                 <tbody>
                     @forelse($items as $item)
                     <tr>
+                        <td style="text-align: center;">
+                            <input
+                                type="checkbox"
+                                class="user-schedule-checkbox"
+                                value="{{ $item->id }}"
+                                aria-label="Pilih {{ $item->name }}"
+                                @checked(in_array($item->id, $selectedUserIds))>
+                        </td>
                         <td>
                             <div class="user-info">
                                 <span class="fw-bold">{{ $item->name }}</span>
@@ -97,8 +119,8 @@
                         </td>
 
                         <td>
-                            <div class="text-truncate" style="max-width: 150px;" title="{{ $item->location_name }}">
-                                {{ $item->location_name ?? '-' }}
+                            <div class="text-truncate" style="max-width: 150px;" title="{{ $item->is_all_locations ? 'All Locations' : $item->location_name }}">
+                                {{ $item->is_all_locations ? 'All Locations' : ($item->location_name ?? '-') }}
                             </div>
                         </td>
 
@@ -115,16 +137,14 @@
                                         Hapus
                                     </button>
                                 @else
-                                    <a href="{{ route('hr.schedules.create', ['user_id' => $item->id]) }}" class="btn-action primary">
-                                        + Atur Jadwal
-                                    </a>
+                                    <span class="text-muted">-</span>
                                 @endif
                             </div>
                         </td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="empty-state">
+                        <td colspan="6" class="empty-state">
                             Tidak ada data karyawan ditemukan.
                         </td>
                     </tr>
@@ -132,10 +152,6 @@
                 </tbody>
             </table>
         </div>
-    </div>
-
-    <div style="margin-top: 20px;">
-        <x-pagination :items="$items" />
     </div>
 
     @foreach($items as $item)
@@ -160,6 +176,50 @@
         </x-modal>
         @endif
     @endforeach
+
+    <x-modal id="bulk-schedule-modal" title="Atur Jadwal Terpilih" type="form">
+        <form action="{{ route('hr.schedules.store') }}" method="POST" class="bulk-schedule-form">
+            @csrf
+
+            @if($errors->any())
+            <div class="alert-error">
+                {{ $errors->first() }}
+            </div>
+            @endif
+
+            <p class="bulk-schedule-description">
+                Jadwal baru akan diterapkan untuk <strong id="selected-users-modal-label">0</strong> karyawan terpilih, termasuk jadwal yang sudah ada.
+            </p>
+
+            <div id="selected-user-ids"></div>
+
+            <div class="form-group">
+                <label for="bulk_shift_id">Shift Kerja <span class="req">*</span></label>
+                <select name="shift_id" id="bulk_shift_id" class="form-control" required>
+                    <option value="">-- Pilih Shift --</option>
+                    @foreach($shiftOptions as $shift)
+                    <option value="{{ $shift->id }}" @selected(old('shift_id') == $shift->id)>{{ $shift->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="bulk_location_id">Lokasi Presensi <span class="req">*</span></label>
+                <select name="location_id" id="bulk_location_id" class="form-control" required>
+                    <option value="">-- Pilih Lokasi --</option>
+                    <option value="all" @selected(old('location_id') === 'all')>All Locations</option>
+                    @foreach($locationOptions as $location)
+                    <option value="{{ $location->id }}" @selected(old('location_id') == $location->id)>{{ $location->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="modal-form-actions">
+                <button type="button" class="btn-reset" data-modal-close="true">Batal</button>
+                <button type="submit" class="btn-primary">Simpan Jadwal</button>
+            </div>
+        </form>
+    </x-modal>
 
     <style>
         /* --- UTILITY --- */
@@ -189,6 +249,22 @@
             overflow: hidden;
             padding: 0;
         }
+
+        .bulk-actions {
+            padding: 14px 20px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .bulk-schedule-description { margin: 0 0 18px; font-size: 13px; color: #4b5563; }
+        .bulk-schedule-form .form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
+        .bulk-schedule-form label { font-size: 13px; font-weight: 600; color: #374151; }
+        .req { color: #dc2626; }
+        .alert-error { margin-bottom: 16px; padding: 10px 12px; border: 1px solid #fecaca; border-radius: 8px; background: #fef2f2; color: #991b1b; font-size: 13px; }
+        .modal-form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 
         /* --- FILTER SECTION --- */
         .filter-container {
@@ -339,7 +415,59 @@
             .filter-group { width: 100%; min-width: 0; }
             .filter-actions { margin-top: 4px; }
             .btn-primary, .btn-reset { flex: 1; text-align: center; }
+            .bulk-actions { align-items: stretch; flex-direction: column; }
+            .modal-form-actions { flex-direction: column-reverse; }
         }
     </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const selectAll = document.getElementById('select-all-users');
+            const userCheckboxes = Array.from(document.querySelectorAll('.user-schedule-checkbox'));
+            const selectedIds = document.getElementById('selected-user-ids');
+            const selectedLabel = document.getElementById('selected-users-label');
+            const selectedModalLabel = document.getElementById('selected-users-modal-label');
+            const openModalButton = document.getElementById('open-bulk-schedule-modal');
+
+            function syncSelection() {
+                const selected = userCheckboxes.filter((checkbox) => checkbox.checked);
+
+                selectedIds.replaceChildren(...selected.map((checkbox) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'user_ids[]';
+                    input.value = checkbox.value;
+                    return input;
+                }));
+
+                selectedLabel.textContent = `${selected.length} karyawan dipilih`;
+                selectedModalLabel.textContent = selected.length;
+                openModalButton.disabled = selected.length === 0;
+
+                if (selectAll) {
+                    selectAll.checked = selected.length > 0 && selected.length === userCheckboxes.length;
+                    selectAll.indeterminate = selected.length > 0 && selected.length < userCheckboxes.length;
+                }
+            }
+
+            selectAll?.addEventListener('change', function () {
+                userCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = selectAll.checked;
+                });
+                syncSelection();
+            });
+
+            userCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', syncSelection));
+            syncSelection();
+
+            @if($errors->any())
+            const modal = document.getElementById('bulk-schedule-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            }
+            @endif
+        });
+    </script>
 
 </x-app>

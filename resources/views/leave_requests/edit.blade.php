@@ -90,6 +90,15 @@
         <span class="back-btn-text">Kembali</span>
     </a>
 
+    @foreach($evidenceFiles as $evidence)
+        @if(! $evidence['is_legacy'])
+            <form id="delete-attachment-{{ $evidence['attachment_id'] }}" method="POST" action="{{ route('leave-requests.attachments.destroy', [$item, $evidence['attachment_id']]) }}" onsubmit="return confirm('Hapus lampiran ini?');">
+                @csrf
+                @method('DELETE')
+            </form>
+        @endif
+    @endforeach
+
     <div class="lr-form-card">
         <form method="POST" action="{{ route('leave-requests.update', $item) }}" enctype="multipart/form-data" id="edit-leave-form">
             @csrf
@@ -246,15 +255,11 @@
                                     @endif
                                 </a>
                                 @if(! $evidence['is_legacy'])
-                                    <form method="POST" action="{{ route('leave-requests.attachments.destroy', [$item, $evidence['attachment_id']]) }}" onsubmit="return confirm('Hapus lampiran ini?');" style="margin:0;">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" aria-label="Hapus lampiran" style="border:0; background:transparent; cursor:pointer; color:#dc2626; padding:4px;">
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                            </svg>
-                                        </button>
-                                    </form>
+                                    <button type="submit" form="delete-attachment-{{ $evidence['attachment_id'] }}" aria-label="Hapus lampiran" style="border:0; background:transparent; cursor:pointer; color:#dc2626; padding:4px;">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
                                 @endif
                             </div>
                         @endforeach

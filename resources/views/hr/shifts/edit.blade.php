@@ -84,8 +84,9 @@
                                 <th style="width: 15%">Hari</th>
                                 <th style="width: 20%">Jam Masuk</th>
                                 <th style="width: 20%">Jam Pulang</th>
+                                <th style="width: 10%; text-align: center;">Lintas Hari</th>
                                 <th style="width: 10%; text-align: center;">Libur</th>
-                                <th style="width: 35%">Catatan</th>
+                                <th style="width: 25%">Catatan</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -110,6 +111,11 @@
                                     $holidayVal = old("days.$dayNumber.is_holiday");
                                     $isHoliday = $holidayVal !== null ? (bool)$holidayVal : (bool)($current?->is_holiday);
 
+                                    $overnightVal = old("days.$dayNumber.is_overnight");
+                                    $isOvernight = $overnightVal !== null
+                                        ? filter_var($overnightVal, FILTER_VALIDATE_BOOLEAN)
+                                        : (bool)($current?->is_overnight);
+
                                     // Note
                                     $noteVal = old("days.$dayNumber.note", $current?->note);
                                 @endphp
@@ -128,6 +134,16 @@
                                             name="days[{{ $dayNumber }}][end_time]"
                                             class="form-control form-control-sm end-{{ $dayNumber }}"
                                             value="{{ $endVal }}">
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <label class="checkbox-wrapper center-box">
+                                            <input
+                                                type="checkbox"
+                                                name="days[{{ $dayNumber }}][is_overnight]"
+                                                class="overnight-toggle overnight-{{ $dayNumber }}"
+                                                value="1"
+                                                @checked($isOvernight)>
+                                        </label>
                                     </td>
                                     <td style="text-align: center;">
                                         <label class="checkbox-wrapper center-box">
@@ -169,6 +185,7 @@
                 const day = cb.dataset.day;
                 const startInput = document.querySelector('.start-' + day);
                 const endInput = document.querySelector('.end-' + day);
+                const overnightInput = document.querySelector('.overnight-' + day);
                 const noteInput = document.querySelector('.note-' + day);
 
                 const applyState = () => {
@@ -182,12 +199,17 @@
                             endInput.value = '';
                             endInput.disabled = true;
                         }
+                        if(overnightInput) {
+                            overnightInput.checked = false;
+                            overnightInput.disabled = true;
+                        }
                         // Note opsional, boleh didisable atau tidak. 
                         // Di sini kita biarkan note aktif agar bisa tulis alasan libur.
                         // if(noteInput) noteInput.disabled = true; 
                     } else {
                         if(startInput) startInput.disabled = false;
                         if(endInput) endInput.disabled = false;
+                        if(overnightInput) overnightInput.disabled = false;
                         if(noteInput) noteInput.disabled = false;
                     }
                 };

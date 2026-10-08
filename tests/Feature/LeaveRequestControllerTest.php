@@ -210,6 +210,26 @@ describe('LeaveRequestController', function () {
             $response->assertStatus(200);
             expect($response->viewData('items')->total())->toBe(1);
         });
+
+        it('shows the assigned approver on an applicant card', function () {
+            $approver = User::factory()->create([
+                'name' => 'Approver Kartu Saya',
+                'role' => UserRole::EMPLOYEE,
+            ]);
+            $employee = User::factory()->create([
+                'role' => UserRole::EMPLOYEE,
+                'approver_id' => $approver->id,
+            ]);
+            LeaveRequest::factory()->forUser($employee)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+            ]);
+
+            actingAs($employee, 'web');
+
+            $this->get(route('leave-requests.index'))
+                ->assertOk()
+                ->assertSee('Approver: Approver Kartu Saya');
+        });
     });
 
     // =====================================================================
@@ -1039,6 +1059,31 @@ describe('LeaveRequestController', function () {
     // UPDATE
     // =====================================================================
     describe('update', function () {
+        it('keeps the update button in the update form when attachments exist', function () {
+            $user = User::factory()->create();
+            $leave = LeaveRequest::factory()->forUser($user)->create([
+                'status' => LeaveRequest::PENDING_SUPERVISOR,
+            ]);
+            $leave->attachments()->create([
+                'file_name' => 'bukti.pdf',
+                'original_name' => 'bukti.pdf',
+                'sort_order' => 1,
+            ]);
+
+            actingAs($user, 'web');
+
+            $response = $this->get(route('leave-requests.edit', $leave));
+
+            $html = $response->getContent();
+            $updateForm = strpos($html, 'id="edit-leave-form"');
+            $submitButton = strpos($html, 'id="btn-submit-edit"');
+            $updateFormEnd = strpos($html, '</form>', $updateForm);
+
+            expect($updateForm)->not->toBeFalse()
+                ->and($submitButton)->not->toBeFalse()
+                ->and($updateFormEnd)->toBeGreaterThan($submitButton);
+        });
+
         it('can update own pending leave request', function () {
             $user = User::factory()->create();
             $leave = LeaveRequest::factory()->forUser($user)->create([

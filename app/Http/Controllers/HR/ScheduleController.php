@@ -4,12 +4,12 @@ namespace App\Http\Controllers\HR;
 
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceLocation;
-use App\Models\EmployeeProfile;
 use App\Models\EmployeeShift;
 use App\Models\Position;
 use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ScheduleController extends Controller
@@ -36,6 +36,7 @@ class ScheduleController extends Controller
                 'employee_shifts.id as schedule_id',
                 'employee_shifts.shift_id',
                 'employee_shifts.location_id',
+                'employee_shifts.is_all_locations',
                 'shifts.name as shift_name',
                 'attendance_locations.name as location_name'
             )
@@ -63,12 +64,17 @@ class ScheduleController extends Controller
             $query->where('employee_shifts.shift_id', $shiftFilter);
         }
 
-        $items = $query->paginate(20)->withQueryString();
+        $items = $query->get();
 
         $ptOptions = \App\Models\Pt::orderBy('name')->get();
         $positionOptions = Position::orderBy('name')->get();
 
         $shiftOptions = Shift::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        $locationOptions = AttendanceLocation::query()
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -82,48 +88,38 @@ class ScheduleController extends Controller
             'positionOptions' => $positionOptions,
             'shiftId' => $shiftFilter,
             'shiftOptions' => $shiftOptions,
+            'locationOptions' => $locationOptions,
         ]);
-    }
-
-    public function create()
-    {
-        $users = User::orderBy('name')->get();
-
-        $shifts = Shift::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
-
-        $locations = AttendanceLocation::where('is_active', true)
-            ->orderBy('name')
-            ->get();
-
-        return view('hr.schedules.create', compact('users', 'shifts', 'locations'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'user_id' => [
+        $validated = $request->validate([
+            'user_ids' => [
                 'required',
-                'exists:users,id',
-                Rule::unique('employee_shifts', 'user_id'),
+                'array',
+                'min:1',
             ],
+            'user_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
             'shift_id' => ['required', 'exists:shifts,id'],
-            'location_id' => ['required', 'exists:attendance_locations,id'],
-        ], [
-            'user_id.unique' => 'Karyawan ini sudah memiliki jadwal shift.',
+            'location_id' => $this->locationRules($request),
         ]);
 
-        EmployeeShift::create([
-            'user_id' => $request->user_id,
-            'shift_id' => $request->shift_id,
-            'location_id' => $request->location_id,
-        ]);
+        $isAllLocations = $validated['location_id'] === 'all';
+
+        DB::transaction(function () use ($validated, $isAllLocations) {
+            foreach ($validated['user_ids'] as $userId) {
+                EmployeeShift::updateOrCreate(['user_id' => $userId], [
+                    'shift_id' => $validated['shift_id'],
+                    'location_id' => $isAllLocations ? null : $validated['location_id'],
+                    'is_all_locations' => $isAllLocations,
+                ]);
+            }
+        });
 
         return redirect()
             ->route('hr.schedules.index')
-            ->with('success', 'Jadwal karyawan berhasil ditambahkan.');
+            ->with('success', 'Jadwal untuk '.count($validated['user_ids']).' karyawan berhasil disimpan.');
     }
 
     public function edit(EmployeeShift $schedule)
@@ -144,22 +140,25 @@ class ScheduleController extends Controller
 
     public function update(Request $request, EmployeeShift $schedule)
     {
-        $request->validate([
+        $validated = $request->validate([
             'user_id' => [
                 'required',
                 'exists:users,id',
                 Rule::unique('employee_shifts', 'user_id')->ignore($schedule->id),
             ],
             'shift_id' => ['required', 'exists:shifts,id'],
-            'location_id' => ['required', 'exists:attendance_locations,id'],
+            'location_id' => $this->locationRules($request),
         ], [
             'user_id.unique' => 'Karyawan ini sudah memiliki jadwal shift.',
         ]);
 
+        $isAllLocations = $validated['location_id'] === 'all';
+
         $schedule->update([
-            'user_id' => $request->user_id,
-            'shift_id' => $request->shift_id,
-            'location_id' => $request->location_id,
+            'user_id' => $validated['user_id'],
+            'shift_id' => $validated['shift_id'],
+            'location_id' => $isAllLocations ? null : $validated['location_id'],
+            'is_all_locations' => $isAllLocations,
         ]);
 
         return redirect()
@@ -174,5 +173,14 @@ class ScheduleController extends Controller
         return redirect()
             ->route('hr.schedules.index')
             ->with('success', 'Jadwal karyawan berhasil dihapus.');
+    }
+
+    private function locationRules(Request $request): array
+    {
+        if ($request->input('location_id') === 'all') {
+            return ['required', 'in:all'];
+        }
+
+        return ['required', 'integer', 'exists:attendance_locations,id'];
     }
 }

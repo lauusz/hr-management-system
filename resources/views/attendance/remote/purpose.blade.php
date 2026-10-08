@@ -1,11 +1,6 @@
 <x-app title="Keperluan Dinas">
     <x-slot name="header">
         <div class="remote-flow-header">
-            <a href="{{ route('remote-attendance.index') }}" class="remote-flow-back" aria-label="Kembali ke Dinas Luar">
-                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                </svg>
-            </a>
             <div>
                 <h1>Keperluan Dinas</h1>
                 <p>Langkah 1 dari 2</p>
@@ -14,6 +9,13 @@
     </x-slot>
 
     <main class="remote-purpose">
+        <a href="{{ route('remote-attendance.index') }}" class="attendance-back" aria-label="Kembali ke Dinas Luar">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Kembali</span>
+        </a>
+
         <section class="remote-purpose__form" aria-labelledby="purpose-prompt">
             <p id="purpose-prompt" class="remote-purpose__prompt">Tulis tujuan atau lokasi tugas Anda.</p>
 
@@ -41,8 +43,11 @@
 
     <style>
         .remote-flow-header { display:flex; align-items:center; gap:14px; }
-        .remote-flow-back { width:48px; height:48px; display:grid; place-items:center; flex:0 0 auto; border:1px solid var(--border); border-radius:14px; background:var(--white); color:var(--primary-dark); box-shadow:0 4px 12px rgba(15,23,42,.07); }
-        .remote-flow-back:focus-visible { outline:3px solid rgba(20,93,160,.25); outline-offset:2px; }
+        .attendance-back { display:inline-flex; align-items:center; align-self:flex-start; gap:6px; height:36px; margin:20px 24px 0; padding:0 12px 0 10px; border:1px solid var(--border); border-radius:10px; background:var(--white); color:var(--text-muted); box-shadow:0 1px 2px rgba(0,0,0,.04); font-size:.75rem; font-weight:600; line-height:1; text-decoration:none; }
+        .attendance-back:hover { border-color:var(--primary); background:var(--gray-50); color:var(--primary); }
+        .attendance-back:hover svg { transform:translateX(-2px); }
+        .attendance-back svg { flex:0 0 auto; transition:transform .2s ease; }
+        .attendance-back:focus-visible { outline:3px solid rgba(20,93,160,.25); outline-offset:2px; }
         .remote-flow-header h1 { margin:0; font-size:1.25rem; font-weight:700; line-height:1.2; }
         .remote-flow-header p { margin:3px 0 0; color:var(--text-muted); font-size:.8125rem; }
         .remote-purpose { width:100%; max-width:640px; min-height:620px; display:flex; flex-direction:column; margin:0 auto; border:1px solid var(--border); border-radius:18px; background:var(--white); overflow:hidden; }
@@ -64,6 +69,7 @@
             .topbar { flex:0 0 auto; margin-bottom:16px; }
             .burger { display:none; }
             .remote-purpose { flex:1 1 auto; min-height:0; border:0; border-radius:0; background:transparent; }
+            .attendance-back { margin:0 2px; }
             .remote-purpose__form { padding:18px 2px; }
             .remote-purpose__prompt { margin-bottom:28px; }
             .remote-purpose textarea { min-height:0; height:min(42dvh,340px); background:var(--white); }
@@ -73,7 +79,7 @@
             .content-wrapper { padding-top:10px; padding-bottom:max(10px,env(safe-area-inset-bottom)); }
             .topbar { margin-bottom:10px; }
             .remote-flow-header { gap:10px; }
-            .remote-flow-back { width:44px; height:44px; }
+            .attendance-back { height:32px; padding:0 10px 0 8px; font-size:.6875rem; }
             .remote-flow-header h1 { font-size:1.0625rem; }
             .remote-flow-header p { font-size:.6875rem; }
             .remote-purpose__form { padding-top:12px; }

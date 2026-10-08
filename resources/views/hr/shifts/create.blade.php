@@ -72,8 +72,9 @@
                                 <th style="width: 15%">Hari</th>
                                 <th style="width: 20%">Jam Masuk</th>
                                 <th style="width: 20%">Jam Pulang</th>
+                                <th style="width: 10%; text-align: center;">Lintas Hari</th>
                                 <th style="width: 10%; text-align: center;">Libur</th>
-                                <th style="width: 35%">Catatan</th>
+                                <th style="width: 25%">Catatan</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -99,6 +100,16 @@
                                             name="days[{{ $dayNumber }}][end_time]"
                                             class="form-control form-control-sm end-{{ $dayNumber }}"
                                             value="{{ old("days.$dayNumber.end_time") }}">
+                                    </td>
+                                    <td style="text-align: center;">
+                                        <label class="checkbox-wrapper center-box">
+                                            <input
+                                                type="checkbox"
+                                                name="days[{{ $dayNumber }}][is_overnight]"
+                                                class="overnight-toggle overnight-{{ $dayNumber }}"
+                                                value="1"
+                                                @checked(old("days.$dayNumber.is_overnight"))>
+                                        </label>
                                     </td>
                                     <td style="text-align: center;">
                                         <label class="checkbox-wrapper center-box">
@@ -140,12 +151,17 @@
                 const day = cb.dataset.day;
                 const startInput = document.querySelector('.start-' + day);
                 const endInput = document.querySelector('.end-' + day);
+                const overnightInput = document.querySelector('.overnight-' + day);
                 const noteInput = document.querySelector('.note-' + day);
 
                 const applyState = () => {
                     if (cb.checked) {
                         startInput.value = '';
                         endInput.value = '';
+                        if (overnightInput) {
+                            overnightInput.checked = false;
+                            overnightInput.disabled = true;
+                        }
                         if(startInput) startInput.disabled = true;
                         if(endInput) endInput.disabled = true;
                         // Note tetap bisa diisi meski libur, opsional. 
@@ -154,6 +170,7 @@
                     } else {
                         if(startInput) startInput.disabled = false;
                         if(endInput) endInput.disabled = false;
+                        if(overnightInput) overnightInput.disabled = false;
                         if(noteInput) noteInput.disabled = false;
                     }
                 };

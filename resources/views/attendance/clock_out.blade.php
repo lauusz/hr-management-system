@@ -16,8 +16,8 @@
     <div class="capture-shell">
 
         {{-- Compact back nav --}}
-        <a href="{{ url('/attendance') }}" class="capture-back" aria-label="Kembali ke presensi">
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <a href="{{ url('/attendance') }}" class="attendance-back" aria-label="Kembali ke presensi">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
             <span>Kembali</span>
@@ -160,34 +160,34 @@
         /* ============================================= */
         /* BACK BUTTON                                   */
         /* ============================================= */
-        .capture-back {
+        .attendance-back {
             display: inline-flex;
             align-items: center;
-            gap: 5px;
-            height: 32px;
-            padding: 0 10px 0 8px;
+            gap: 6px;
+            height: 36px;
+            padding: 0 12px 0 10px;
             background: var(--white, #fff);
             border: 1px solid var(--border, #E5E7EB);
-            border-radius: 8px;
+            border-radius: 10px;
             color: var(--text-muted, #6B7280);
             text-decoration: none;
             transition: all 0.15s ease;
             flex-shrink: 0;
             align-self: flex-start;
             box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-            font-size: 0.6875rem;
+            font-size: 0.75rem;
             font-weight: 600;
         }
-        .capture-back:hover {
+        .attendance-back:hover {
             border-color: var(--primary, #145DA0);
             color: var(--primary, #145DA0);
             background: var(--gray-50, #F5F7FA);
         }
-        .capture-back svg {
+        .attendance-back svg {
             transition: transform 0.2s ease;
             flex-shrink: 0;
         }
-        .capture-back:hover svg {
+        .attendance-back:hover svg {
             transform: translateX(-2px);
         }
 
@@ -493,10 +493,10 @@
                 max-height: 90vh;
             }
 
-            .capture-back {
-                height: 36px;
-                padding: 0 12px 0 10px;
-                font-size: 0.75rem;
+            .attendance-back {
+                height: 40px;
+                padding: 0 14px 0 12px;
+                font-size: 0.8125rem;
             }
 
             .capture-viewport {
@@ -510,7 +510,9 @@
         }
     </style>
 
-    <script>
+    <script type="module">
+        import { captureAttendancePhoto } from '{{ asset('js/attendance-photo.js') }}';
+
         // DOM Elements - IDs preserved from original
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
@@ -633,23 +635,24 @@
         }
 
         // 4. Fungsi Capture
-        btnCapture.addEventListener('click', () => {
+        btnCapture.addEventListener('click', async () => {
             if (!video.srcObject) return;
 
             flashOverlay.classList.add('flash-anim');
             setTimeout(() => flashOverlay.classList.remove('flash-anim'), 500);
 
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            const ctx = canvas.getContext('2d');
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            canvas.toBlob((blob) => {
-                imageBlob = blob;
-                const url = URL.createObjectURL(blob);
+            try {
+                imageBlob = await captureAttendancePhoto({
+                    video,
+                    canvas,
+                    mirror: true,
+                    onPreparing: () => {
+                        btnCapture.disabled = true;
+                        statusMsg.textContent = 'Menyiapkan foto...';
+                        statusMsg.style.color = 'var(--text-muted, #6B7280)';
+                    },
+                });
+                const url = URL.createObjectURL(imageBlob);
 
                 imgPreview.src = url;
                 imgPreview.classList.add('is-visible');
@@ -659,7 +662,10 @@
                 groupAction.style.display = 'flex';
                 statusMsg.textContent = 'Konfirmasi presensi keluar.';
                 statusMsg.style.color = 'var(--text-muted, #6B7280)';
-            }, 'image/jpeg', 0.85);
+            } catch (error) {
+                window.showToast(error.message || 'Foto gagal disiapkan.', 'error');
+                checkReadiness();
+            }
         });
 
         // 5. Fungsi Ulangi (Retake)

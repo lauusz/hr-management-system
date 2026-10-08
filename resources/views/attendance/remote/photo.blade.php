@@ -6,11 +6,6 @@
 <x-app :title="$isClockIn ? 'Foto & Lokasi' : 'Selesaikan Dinas'">
     <x-slot name="header">
         <div class="remote-capture-header">
-            <a href="{{ $backRoute }}" class="remote-capture-back" aria-label="Kembali">
-                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-                </svg>
-            </a>
             <div>
                 <h1>{{ $isClockIn ? 'Foto & Lokasi' : 'Selesaikan Dinas' }}</h1>
                 <p>{{ $isClockIn ? 'Langkah 2 dari 2' : 'Foto & Lokasi' }}</p>
@@ -19,6 +14,13 @@
     </x-slot>
 
     <main class="remote-capture">
+        <a href="{{ $backRoute }}" class="attendance-back" aria-label="Kembali">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Kembali</span>
+        </a>
+
         <div class="remote-capture__status" aria-live="polite">
             <div class="remote-capture-pill is-loading" id="cameraPill">
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -98,8 +100,11 @@
 
     <style>
         .remote-capture-header { display:flex; align-items:center; gap:14px; }
-        .remote-capture-back { width:48px; height:48px; display:grid; place-items:center; flex:0 0 auto; border:1px solid var(--border); border-radius:14px; background:var(--white); color:var(--primary-dark); box-shadow:0 4px 12px rgba(15,23,42,.07); }
-        .remote-capture-back:focus-visible { outline:3px solid rgba(20,93,160,.25); outline-offset:2px; }
+        .attendance-back { display:inline-flex; align-items:center; align-self:flex-start; gap:6px; height:36px; padding:0 12px 0 10px; border:1px solid var(--border); border-radius:10px; background:var(--white); color:var(--text-muted); box-shadow:0 1px 2px rgba(0,0,0,.04); font-size:.75rem; font-weight:600; line-height:1; text-decoration:none; }
+        .attendance-back:hover { border-color:var(--primary); background:var(--gray-50); color:var(--primary); }
+        .attendance-back:hover svg { transform:translateX(-2px); }
+        .attendance-back svg { flex:0 0 auto; transition:transform .2s ease; }
+        .attendance-back:focus-visible { outline:3px solid rgba(20,93,160,.25); outline-offset:2px; }
         .remote-capture-header h1 { margin:0; font-size:1.25rem; font-weight:700; line-height:1.2; }
         .remote-capture-header p { margin:3px 0 0; color:var(--text-muted); font-size:.8125rem; }
         .remote-capture { width:100%; max-width:520px; min-height:650px; display:flex; flex-direction:column; gap:12px; margin:0 auto; }
@@ -141,7 +146,7 @@
             .content-wrapper { padding-top:10px; padding-bottom:max(10px,env(safe-area-inset-bottom)); }
             .topbar { margin-bottom:10px; }
             .remote-capture-header { gap:10px; }
-            .remote-capture-back { width:44px; height:44px; }
+            .attendance-back { height:32px; padding:0 10px 0 8px; font-size:.6875rem; }
             .remote-capture-header h1 { font-size:1.0625rem; }
             .remote-capture-header p { font-size:.6875rem; }
             .remote-capture { gap:8px; }
@@ -152,7 +157,9 @@
         }
     </style>
 
-    <script>
+    <script type="module">
+        import { captureAttendancePhoto } from '{{ asset('js/attendance-photo.js') }}';
+
         const mode = @json($mode);
         const notesKey = 'remoteAttendanceNotes';
         const notes = sessionStorage.getItem(notesKey) || '';
@@ -246,26 +253,33 @@
             }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
         }
 
-        captureButton.addEventListener('click', () => {
+        captureButton.addEventListener('click', async () => {
             if (!video.videoWidth) return;
 
             flash.classList.add('is-active');
             setTimeout(() => flash.classList.remove('is-active'), 450);
 
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob((blob) => {
-                if (!blob) return;
-                photoBlob = blob;
-                preview.src = URL.createObjectURL(blob);
+            try {
+                photoBlob = await captureAttendancePhoto({
+                    video,
+                    canvas,
+                    onPreparing: () => {
+                        captureButton.disabled = true;
+                        statusMessage.textContent = 'Menyiapkan foto...';
+                        statusMessage.style.color = 'var(--text-muted)';
+                    },
+                });
+                preview.src = URL.createObjectURL(photoBlob);
                 preview.classList.add('is-visible');
                 video.style.display = 'none';
                 captureGroup.hidden = true;
                 submitGroup.hidden = false;
                 statusMessage.textContent = 'Foto siap dikirim.';
                 statusMessage.style.color = 'var(--text-muted)';
-            }, 'image/jpeg', .85);
+            } catch (error) {
+                window.showToast(error.message || 'Foto gagal disiapkan.', 'error');
+                checkReady();
+            }
         });
 
         retakeButton.addEventListener('click', () => {

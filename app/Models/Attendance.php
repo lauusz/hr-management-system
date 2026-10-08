@@ -45,24 +45,27 @@ class Attendance extends Model
         'type',              // Values: 'WFO', 'DINAS_LUAR'
         'approval_status',   // Values: 'PENDING', 'APPROVED', 'REJECTED'
         'rejection_note',
-        'approved_by'
+        'approved_by',
     ];
 
     // --- COMPLETION STATUS CONSTANTS ---
     public const COMPLETION_OPEN = 'OPEN';
+
     public const COMPLETION_CLOSED = 'CLOSED';
+
     public const COMPLETION_MISSED_CLOCK_OUT = 'MISSED_CLOCK_OUT';
+
     public const COMPLETION_LATE_CLOCK_OUT = 'LATE_CLOCK_OUT';
 
     protected $casts = [
-        'date'                      => 'date',
-        'clock_in_at'               => 'datetime',
-        'clock_out_at'              => 'datetime',
+        'date' => 'date',
+        'clock_in_at' => 'datetime',
+        'clock_out_at' => 'datetime',
         'clock_in_photo_deleted_at' => 'datetime',
-        'clock_out_photo_deleted_at'=> 'datetime',
+        'clock_out_photo_deleted_at' => 'datetime',
         // Casting ke datetime memudahkan manipulasi jam di Controller
-        'normal_start_time'         => 'datetime:H:i:s', 
-        'normal_end_time'           => 'datetime:H:i:s',
+        'normal_start_time' => 'datetime:H:i:s',
+        'normal_end_time' => 'datetime:H:i:s',
     ];
 
     // --- RELATIONS ---
@@ -103,6 +106,13 @@ class Attendance extends Model
     public function getNormalEndLabelAttribute(): string
     {
         return $this->normal_end_time ? $this->normal_end_time->format('H:i') : '-';
+    }
+
+    public function getIsOvernightAttribute(): bool
+    {
+        return $this->normal_start_time
+            && $this->normal_end_time
+            && $this->normal_end_time->format('H:i:s') <= $this->normal_start_time->format('H:i:s');
     }
 
     public function getClockInLabelAttribute(): string

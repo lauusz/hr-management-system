@@ -15,10 +15,11 @@ class EmployeeShift extends Model
         'user_id',
         'shift_id',
         'location_id',
+        'is_all_locations',
     ];
 
     protected $casts = [
-        //
+        'is_all_locations' => 'boolean',
     ];
 
     public function user()

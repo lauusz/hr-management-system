@@ -11,8 +11,8 @@ use App\Models\OffSpvPeriod;
 use App\Models\ShiftDay;
 use App\Models\User;
 use App\Services\Image\ImageCompressor;
-use App\Services\LeaveBalanceService;
 use App\Services\LeaveApprovalAssignmentService;
+use App\Services\LeaveBalanceService;
 use App\Services\LeaveRequestDayService;
 use App\Services\LeaveRequestStateMachine;
 use App\Services\LeaveRequestWorkflowService;
@@ -46,7 +46,7 @@ class LeaveRequestController extends Controller
         $userId = $user->id;
 
         // Eager Load
-        $query = LeaveRequest::with(['user.directSupervisor', 'user.manager', 'approver'])
+        $query = LeaveRequest::with(['user.directSupervisor', 'user.manager', 'user.assignedApprover', 'approver'])
             ->orderByDesc('created_at');
 
         // [ADJUSTMENT] STRICTLY MY DATA (HANYA PUNYA SAYA)

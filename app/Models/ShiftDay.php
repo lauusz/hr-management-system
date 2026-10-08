@@ -15,11 +15,13 @@ class ShiftDay extends Model
         'start_time',
         'end_time',
         'is_holiday',
+        'is_overnight',
         'note',
     ];
 
     protected $casts = [
         'is_holiday' => 'boolean',
+        'is_overnight' => 'boolean',
     ];
 
     public function shift()
@@ -44,7 +46,7 @@ class ShiftDay extends Model
 
     public function getStartTimeLabelAttribute(): string
     {
-        if (!$this->start_time) {
+        if (! $this->start_time) {
             return '-';
         }
 
@@ -53,7 +55,7 @@ class ShiftDay extends Model
 
     public function getEndTimeLabelAttribute(): string
     {
-        if (!$this->end_time) {
+        if (! $this->end_time) {
             return '-';
         }
 

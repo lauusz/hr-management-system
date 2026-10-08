@@ -3,26 +3,27 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
-use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class HRAttendanceController extends Controller
 {
     public function index(Request $request)
     {
         $dateStart = $request->query('date_start');
-        $dateEnd   = $request->query('date_end');
-        $status    = $request->query('status');
+        $dateEnd = $request->query('date_end');
+        $status = $request->query('status');
         $completionStatus = $request->query('completion_status');
-        $q         = $request->query('q');
+        $shiftType = $request->query('shift_type');
+        $q = $request->query('q');
 
-        if (!$dateStart && !$dateEnd) {
-            $today     = now()->toDateString();
+        if (! $dateStart && ! $dateEnd) {
+            $today = now()->toDateString();
             $dateStart = $today;
-            $dateEnd   = $today;
-        } elseif ($dateStart && !$dateEnd) {
+            $dateEnd = $today;
+        } elseif ($dateStart && ! $dateEnd) {
             $dateEnd = $dateStart;
-        } elseif (!$dateStart && $dateEnd) {
+        } elseif (! $dateStart && $dateEnd) {
             $dateStart = $dateEnd;
         }
 
@@ -34,17 +35,17 @@ class HRAttendanceController extends Controller
 
         if ($dateStart && $dateEnd) {
             $from = Carbon::parse($dateStart)->toDateString();
-            $to   = Carbon::parse($dateEnd)->toDateString();
+            $to = Carbon::parse($dateEnd)->toDateString();
 
             if ($from > $to) {
-                $tmp  = $from;
+                $tmp = $from;
                 $from = $to;
-                $to   = $tmp;
+                $to = $tmp;
             }
 
             $query->whereBetween('date', [$from, $to]);
             $dateStart = $from;
-            $dateEnd   = $to;
+            $dateEnd = $to;
         }
 
         if ($status === 'TERLAMBAT' || $status === 'HADIR') {
@@ -65,6 +66,14 @@ class HRAttendanceController extends Controller
             $completionStatus = null;
         }
 
+        if ($shiftType === 'overnight') {
+            $query->whereColumn('normal_end_time', '<=', 'normal_start_time');
+        } elseif ($shiftType === 'regular') {
+            $query->whereColumn('normal_end_time', '>', 'normal_start_time');
+        } else {
+            $shiftType = null;
+        }
+
         if ($q) {
             $query->whereHas('user', function ($sub) use ($q) {
                 $sub->whereNormalizedNameContains((string) $q);
@@ -72,20 +81,22 @@ class HRAttendanceController extends Controller
         }
 
         $items = $query->paginate(20)->appends([
-            'date_start'        => $dateStart,
-            'date_end'          => $dateEnd,
-            'status'            => $status,
+            'date_start' => $dateStart,
+            'date_end' => $dateEnd,
+            'status' => $status,
             'completion_status' => $completionStatus,
-            'q'                 => $q,
+            'shift_type' => $shiftType,
+            'q' => $q,
         ]);
 
         return view('hr.attendances.index', [
-            'items'             => $items,
-            'date_start'        => $dateStart,
-            'date_end'          => $dateEnd,
-            'status'            => $status,
+            'items' => $items,
+            'date_start' => $dateStart,
+            'date_end' => $dateEnd,
+            'status' => $status,
             'completion_status' => $completionStatus,
-            'q'                 => $q,
+            'shiftType' => $shiftType,
+            'q' => $q,
         ]);
     }
 }

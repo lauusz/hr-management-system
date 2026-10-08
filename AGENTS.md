@@ -12,7 +12,7 @@ Konsekuensi praktis dari aturan ini:
 
 - **Jangan jalankan `composer run setup`** — script tersebut di dalamnya memanggil `php artisan migrate --force`.
 - **Jangan gunakan `RefreshDatabase` / `LazilyRefreshDatabase` di test** — akan memicu `migrate:fresh`. Lihat bagian Testing di bawah. (Harness test di `tests/TestCase.php` menjalankan migrasi secara internal ke file SQLite sekali pakai yang terisolasi — itu mekanisme yang sudah disahkan pemilik repo; jangan menambahkan cara lain.)
-- Bila perubahan kode membutuhkan perubahan skema, buat/edit file migrasi (atau file SQL di `database/sql/`, `version/sql-updates/`, atau `database/deployment/`) sebagai artefak saja; penerapannya ke database adalah proses manual terpisah milik pemilik repositori. Jangan pernah mencantumkan perintah migrasi sebagai langkah deployment.
+- Bila perubahan kode membutuhkan perubahan skema, **jangan pernah membuat atau mengedit file migration** di `database/migrations/`, serta jangan memasukkan migration ke paket deployment. Siapkan hanya file SQL manual di `database/sql/`, `version/sql-updates/`, atau `database/deployment/` sebagai artefak; penerapannya ke database adalah proses manual terpisah milik pemilik repositori. Migration yang sudah ada hanya menjadi riwayat/fixture test, bukan mekanisme delivery skema. Jangan pernah mencantumkan perintah migrasi sebagai langkah deployment.
 
 ## Gambaran proyek
 
@@ -30,7 +30,7 @@ HRD System adalah aplikasi web manajemen SDM internal (multi-perusahaan/PT, berb
 
 - **Backend**: PHP ^8.2, Laravel 12. Autoload PSR-4: `App\` → `app/`.
 - **Frontend**: Blade (server-rendered, `resources/views/`), Tailwind CSS 4 via `@tailwindcss/vite`, Vite 7, axios. Tidak ada framework JS SPA; interaktivitas ditulis inline di Blade. Entry Vite: `resources/css/app.css` dan `resources/js/app.js`.
-- **Database**: MySQL (`hrd_system`) di lingkungan nyata; SQLite untuk test. Skema didefinisikan di `database/migrations/` (jangan dieksekusi — lihat aturan wajib). Ada juga file SQL manual di `database/sql/`, `version/sql-updates/` (format Markdown per perubahan), `database/deployment/`, dan backup manual di `backups/`.
+- **Database**: MySQL (`hrd_system`) di lingkungan nyata; SQLite untuk test. `database/migrations/` adalah riwayat/fixture test yang tidak boleh dibuat atau diedit untuk perubahan baru. Artefak perubahan skema baru hanya berupa SQL manual di `database/sql/`, `version/sql-updates/` (format Markdown per perubahan), atau `database/deployment/`; ada juga backup manual di `backups/`.
 - **Paket PHP utama**: `maatwebsite/excel` (import/export Excel), `barryvdh/laravel-dompdf` (PDF), `intervention/image` (kompresi gambar), `doctrine/dbal`.
 - **Queue & cache**: driver `database` di development; test memakai `sync`/`array`. Queue terutama untuk pengiriman email slip gaji.
 - **PWA**: manifest dan service worker di `public/` (`manifest.json`, `sw.js`, plus varian `-server`); layout utama `resources/views/layouts/app.blade.php`.

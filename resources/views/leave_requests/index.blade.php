@@ -221,6 +221,21 @@
                             {{ Str::limit($row->reason, 100) }}
                         </div>
                     @endif
+
+                    @php
+                        $supervisorName = $row->user->directSupervisor?->name ?? $row->user->manager?->name;
+                        $approverName = $row->user->assignedApprover?->name;
+                    @endphp
+                    @if($supervisorName || $approverName)
+                        <div class="lr-card-approval">
+                            @if($supervisorName)
+                                <span class="lr-card-supervisor">Atasan: {{ $supervisorName }}</span>
+                            @endif
+                            @if($approverName)
+                                <span class="lr-card-approver">Approver: {{ $approverName }}</span>
+                            @endif
+                        </div>
+                    @endif
                 </a>
 
                 <div class="lr-card-footer">
@@ -569,6 +584,28 @@
             color: var(--text-muted);
             line-height: 1.5;
             margin-bottom: 12px;
+        }
+        .lr-card-approval {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .lr-card-supervisor,
+        .lr-card-approver {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+        }
+        .lr-card-supervisor {
+            color: var(--purple, #9333EA);
+            background: rgba(147, 51, 234, 0.08);
+        }
+        .lr-card-approver {
+            color: #0f766e;
+            background: rgba(20, 184, 166, 0.1);
         }
         .lr-card-footer {
             display: flex;

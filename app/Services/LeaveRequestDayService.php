@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\LeaveType;
 use App\Models\LeaveRequest;
 use App\Models\LeaveRequestDay;
+use App\Models\User;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +114,52 @@ class LeaveRequestDayService
             }
 
             return round($total, 2);
+        });
+    }
+
+    /**
+     * @return array{decisions: array<string, string>, total: float, uncovered_dates: array<int, string>}
+     */
+    public function automaticLeavePlan(LeaveRequest $leave, User $user): array
+    {
+        $remainingBalance = max(0.0, (float) $user->leave_balance);
+        $decisions = [];
+        $uncoveredDates = [];
+        $total = 0.0;
+
+        foreach (CarbonPeriod::create($leave->start_date, $leave->end_date) as $date) {
+            $dateString = $date->toDateString();
+            $amount = $this->leaveBalanceService->calculateEffectiveDaysForUser($user, $date, $date);
+
+            if ($amount > 0 && $remainingBalance >= $amount) {
+                $decisions[$dateString] = $amount === 0.5
+                    ? 'LEAVE_BALANCE_0_5'
+                    : 'LEAVE_BALANCE_1';
+                $remainingBalance = round($remainingBalance - $amount, 2);
+                $total += $amount;
+            } else {
+                $decisions[$dateString] = 'NONE';
+
+                if ($amount > 0) {
+                    $uncoveredDates[] = $dateString;
+                }
+            }
+        }
+
+        return [
+            'decisions' => $decisions,
+            'total' => round($total, 2),
+            'uncovered_dates' => $uncoveredDates,
+        ];
+    }
+
+    public function saveAutomaticLeaveDecisions(LeaveRequest $leave, int $actorId): float
+    {
+        return DB::transaction(function () use ($leave, $actorId) {
+            $lockedUser = User::lockForUpdate()->findOrFail($leave->user_id);
+            $plan = $this->automaticLeavePlan($leave, $lockedUser);
+
+            return $this->saveDecisions($leave, $plan['decisions'], $actorId);
         });
     }
 
