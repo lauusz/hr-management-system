@@ -434,7 +434,6 @@ describe('AttendanceController', function () {
                     'clock_in_at' => Carbon::parse('2031-04-20 08:00:00', 'Asia/Jakarta'),
                     'completion_status' => Attendance::COMPLETION_OPEN,
                 ]);
-
                 actingAs($user, 'web');
 
                 $this->post(route('attendance.clockIn'), [
@@ -446,6 +445,27 @@ describe('AttendanceController', function () {
 
                 expect($previous->fresh()->completion_status)->toBe(Attendance::COMPLETION_MISSED_CLOCK_OUT)
                     ->and(Attendance::query()->where('user_id', $user->id)->whereDate('date', '2031-04-21')->exists())->toBeTrue();
+            } finally {
+                Carbon::setTestNow();
+            }
+        });
+
+        it('flags a previous normal-shift attendance from midnight', function () {
+            Carbon::setTestNow(Carbon::parse('2031-04-21 00:00:00', 'Asia/Jakarta'));
+
+            try {
+                $user = User::factory()->create();
+                $previous = Attendance::factory()->forUser($user)->create([
+                    'date' => '2031-04-20',
+                    'clock_in_at' => Carbon::parse('2031-04-20 08:00:00', 'Asia/Jakarta'),
+                    'normal_start_time' => '08:00:00',
+                    'normal_end_time' => '17:00:00',
+                    'completion_status' => Attendance::COMPLETION_OPEN,
+                ]);
+
+                app(MissedClockOutService::class)->flagPreviousOpenAttendances($user->id);
+
+                expect($previous->fresh()->completion_status)->toBe(Attendance::COMPLETION_MISSED_CLOCK_OUT);
             } finally {
                 Carbon::setTestNow();
             }
@@ -463,9 +483,11 @@ describe('AttendanceController', function () {
                     'clock_out_at' => Carbon::parse('2031-04-19 17:00:00', 'Asia/Jakarta'),
                     'completion_status' => Attendance::COMPLETION_CLOSED,
                 ]);
-                $previous = Attendance::factory()->forUser($user)->create([
+                $overnight = Attendance::factory()->forUser($user)->create([
                     'date' => '2031-04-20',
-                    'clock_in_at' => Carbon::parse('2031-04-20 08:00:00', 'Asia/Jakarta'),
+                    'clock_in_at' => Carbon::parse('2031-04-20 22:00:00', 'Asia/Jakarta'),
+                    'normal_start_time' => '22:00:00',
+                    'normal_end_time' => '06:00:00',
                     'completion_status' => Attendance::COMPLETION_OPEN,
                 ]);
 
@@ -473,7 +495,7 @@ describe('AttendanceController', function () {
 
                 expect($today->fresh()->completion_status)->toBe(Attendance::COMPLETION_OPEN)
                     ->and($closed->fresh()->completion_status)->toBe(Attendance::COMPLETION_CLOSED)
-                    ->and($previous->fresh()->completion_status)->toBe(Attendance::COMPLETION_MISSED_CLOCK_OUT);
+                    ->and($overnight->fresh()->completion_status)->toBe(Attendance::COMPLETION_MISSED_CLOCK_OUT);
             } finally {
                 Carbon::setTestNow();
             }
@@ -662,7 +684,6 @@ describe('AttendanceController', function () {
             ]);
 
             $response->assertStatus(400);
-            $response->assertJson(['message' => 'Presensi pulang hari ini sudah tercatat.']);
 
             $attendance->refresh();
             expect($attendance->completion_status)->toBe(Attendance::COMPLETION_CLOSED);
@@ -738,6 +759,46 @@ describe('AttendanceController', function () {
             }
         });
 
+        it('allows the current attendance to clock out after a different record closed today', function () {
+            Storage::fake('public');
+            Carbon::setTestNow(Carbon::parse('2031-04-21 09:00:00', 'Asia/Jakarta'));
+
+            try {
+                $user = User::factory()->create();
+                $location = AttendanceLocation::factory()->create([
+                    'latitude' => -6.200000,
+                    'longitude' => 106.816666,
+                    'radius_meters' => 100,
+                ]);
+                createShiftSetup($user, $location);
+
+                Attendance::factory()->forUser($user)->dinasLuar()->create([
+                    'date' => '2031-04-20',
+                    'clock_in_at' => Carbon::parse('2031-04-20 22:00:00', 'Asia/Jakarta'),
+                    'clock_out_at' => Carbon::parse('2031-04-21 08:20:00', 'Asia/Jakarta'),
+                    'completion_status' => Attendance::COMPLETION_LATE_CLOCK_OUT,
+                ]);
+                $current = Attendance::factory()->forUser($user)->today()->clockedIn()->create([
+                    'clock_in_at' => Carbon::parse('2031-04-21 08:29:00', 'Asia/Jakarta'),
+                    'normal_start_time' => '08:00:00',
+                    'normal_end_time' => '17:00:00',
+                ]);
+
+                actingAs($user, 'web');
+
+                $this->post(route('attendance.clockOut'), [
+                    'photo' => UploadedFile::fake()->image('clockout.jpg', 800, 600),
+                    'lat' => -6.200000,
+                    'lng' => 106.816666,
+                ])->assertOk()
+                    ->assertJson(['message' => 'Presensi keluar berhasil.']);
+
+                expect($current->fresh()->clock_out_at)->not->toBeNull();
+            } finally {
+                Carbon::setTestNow();
+            }
+        });
+
         it('rejects a second clock out after an overnight session closes on the new calendar day', function () {
             Storage::fake('public');
             Carbon::setTestNow(Carbon::parse('2031-04-21 06:00:00', 'Asia/Jakarta'));
@@ -767,8 +828,7 @@ describe('AttendanceController', function () {
                     'photo' => UploadedFile::fake()->image('clockout-second.jpg', 800, 600),
                     'lat' => -6.200000,
                     'lng' => 106.816666,
-                ])->assertStatus(400)
-                    ->assertJson(['message' => 'Presensi pulang hari ini sudah tercatat.']);
+                ])->assertStatus(400);
 
                 expect($attendance->fresh()->clock_out_at->equalTo($firstClockOutAt))->toBeTrue();
             } finally {

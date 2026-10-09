@@ -87,6 +87,13 @@ Jangan jalankan `composer run setup` (memicu migrasi — dilarang).
 
 Tidak ada CI/CD di repositori ini (`.github/workflows` tidak ada). Deployment adalah proses manual/internal oleh personel berotorisasi, dijelaskan di `README.md` bagian "Deployment Internal": unggah hanya kelompok file yang berubah (`app/`, `resources/`, `routes/`, `config/`, `public/` hasil build, lock file), jalankan test yang relevan, `npm run build` bila sumber CSS/JS berubah, backup dulu, jaga permission `storage/` dan `bootstrap/cache/`, dan pastikan queue worker memakai kode terbaru. File `database/` dan `version/` dikirim hanya sebagai artefak skema untuk proses manual terpisah — bukan untuk dieksekusi lewat Artisan.
 
+### Staging upload wajib
+
+- Setelah setiap perbaikan kode yang siap diunggah, salin atau perbarui seluruh file deployable yang berubah ke folder `update ke server/` dengan struktur path yang sama seperti source. Sertakan artefak SQL manual yang relevan di bawah `database/deployment/`, tetapi jangan pernah memasukkan migration.
+- Folder `update ke server/` bersifat kumulatif: **jangan pernah mengosongkan, menghapus, atau mengabaikan isinya** saat menyiapkan perubahan baru. Periksa isinya terlebih dahulu, lalu hanya tambahkan atau segarkan file yang relevan.
+- Folder `update ke server/` yang kosong berarti pemilik telah mengunggah seluruh isi staging ke server. Setelah itu, perubahan berikutnya memulai staging baru.
+- Jangan memasukkan test atau dokumentasi lokal ke staging upload, kecuali diminta secara eksplisit. Setelah penyalinan, verifikasi file staging identik dengan source yang dimaksud.
+
 ## Keamanan
 
 - Jangan pernah membaca, menyalin, atau menuliskan isi `.env` ke output. File contoh yang aman: `.env.example`.
