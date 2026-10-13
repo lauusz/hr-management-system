@@ -8,6 +8,7 @@ use App\Models\Shift;
 use App\Models\ShiftDay;
 use App\Models\User;
 use App\Services\Attendance\MissedClockOutService;
+use App\Services\Image\ImageCompressor;
 use Carbon\Carbon;
 // ⚠️ PERINGATAN: JANGAN gunakan LazilyRefreshDatabase / RefreshDatabase
 // karena akan men-trigger migrate:fresh yang menghapus SEMUA data.
@@ -90,6 +91,18 @@ describe('AttendanceController', function () {
                 ->assertDontSee('Panduan Singkat');
         });
 
+        it('enables both clock in and clock out before the first attendance action', function () {
+            $user = User::factory()->create();
+
+            actingAs($user, 'web');
+
+            $this->get(route('attendance.dashboard'))
+                ->assertOk()
+                ->assertSee(route('attendance.clockIn.form'), false)
+                ->assertSee(route('attendance.clockOut.form'), false)
+                ->assertSee('Catat jam pulang kerja');
+        });
+
         it('shows the active attendance state', function () {
             $user = User::factory()->create();
             Attendance::factory()->forUser($user)->today()->clockedIn()->create();
@@ -147,7 +160,7 @@ describe('AttendanceController', function () {
                 ->assertSee('attendance-action-dock--complete', false);
         });
 
-        it('explains the next step for a missed clock out from a previous day', function () {
+        it('does not show a warning for a missed clock out from a previous day', function () {
             $user = User::factory()->create();
             Attendance::factory()->forUser($user)->create([
                 'date' => now()->subDay()->toDateString(),
@@ -159,7 +172,8 @@ describe('AttendanceController', function () {
 
             $this->get(route('attendance.dashboard'))
                 ->assertOk()
-                ->assertSee('Presensi hari ini tetap dapat dilanjutkan.');
+                ->assertDontSee('Absensi sebelumnya belum selesai')
+                ->assertDontSee('Presensi hari ini tetap dapat dilanjutkan.');
         });
 
         it('unauthenticated redirected to login', function () {
@@ -653,6 +667,117 @@ describe('AttendanceController', function () {
             expect($attendance->clock_out_at)->toBeTruthy();
         });
 
+        it('records a direct WFO clock out as missed clock in', function () {
+            Storage::fake('public');
+            Carbon::setTestNow(Carbon::parse('2031-04-21 17:15:00', 'Asia/Jakarta'));
+
+            try {
+                $user = User::factory()->create();
+                $location = AttendanceLocation::factory()->create([
+                    'latitude' => -6.200000,
+                    'longitude' => 106.816666,
+                    'radius_meters' => 100,
+                ]);
+                createShiftSetup($user, $location);
+
+                actingAs($user, 'web');
+
+                $this->post(route('attendance.clockOut'), [
+                    'photo' => UploadedFile::fake()->image('clockout-tanpa-clockin.jpg', 800, 600),
+                    'lat' => -6.200000,
+                    'lng' => 106.816666,
+                ])->assertOk()
+                    ->assertJson(['message' => 'Presensi keluar berhasil.']);
+
+                $attendance = Attendance::query()
+                    ->where('user_id', $user->id)
+                    ->whereDate('date', now()->toDateString())
+                    ->firstOrFail();
+
+                expect($attendance->clock_in_at)->toBeNull()
+                    ->and($attendance->clock_out_at)->not->toBeNull()
+                    ->and($attendance->status)->toBe('TIDAK CLOCK IN')
+                    ->and($attendance->completion_status)->toBe('MISSED_CLOCK_IN')
+                    ->and($attendance->type)->toBe('WFO');
+            } finally {
+                Carbon::setTestNow();
+            }
+        });
+
+        it('blocks a later clock in after direct clock out without leaving a photo', function () {
+            Storage::fake('public');
+            Carbon::setTestNow(Carbon::parse('2031-04-21 17:15:00', 'Asia/Jakarta'));
+
+            try {
+                $user = User::factory()->create();
+                $location = AttendanceLocation::factory()->create([
+                    'latitude' => -6.200000,
+                    'longitude' => 106.816666,
+                    'radius_meters' => 100,
+                ]);
+                createShiftSetup($user, $location);
+
+                actingAs($user, 'web');
+
+                $this->post(route('attendance.clockOut'), [
+                    'photo' => UploadedFile::fake()->image('clockout-tanpa-clockin.jpg', 800, 600),
+                    'lat' => -6.200000,
+                    'lng' => 106.816666,
+                ])->assertOk();
+
+                $this->post(route('attendance.clockIn'), [
+                    'photo' => UploadedFile::fake()->image('clockin-terlambat.jpg', 800, 600),
+                    'lat' => -6.200000,
+                    'lng' => 106.816666,
+                ])->assertStatus(400)
+                    ->assertJson(['message' => 'Presensi masuk hari ini sudah tercatat.']);
+
+                expect(Attendance::query()->where('user_id', $user->id)->count())->toBe(1)
+                    ->and(Storage::disk('public')->allFiles('attendance_photos'))->toHaveCount(1);
+            } finally {
+                Carbon::setTestNow();
+            }
+        });
+
+        it('rejects direct clock out when outside the office radius', function () {
+            Storage::fake('public');
+            $user = User::factory()->create();
+            $location = AttendanceLocation::factory()->create([
+                'latitude' => -6.200000,
+                'longitude' => 106.816666,
+                'radius_meters' => 100,
+            ]);
+            createShiftSetup($user, $location);
+
+            actingAs($user, 'web');
+
+            $this->post(route('attendance.clockOut'), [
+                'photo' => UploadedFile::fake()->image('clockout-luar-radius.jpg', 800, 600),
+                'lat' => -6.205000,
+                'lng' => 106.816666,
+            ])->assertStatus(400)
+                ->assertJson(['message' => 'Anda harus berada di kantor untuk melakukan presensi keluar (556 m).']);
+
+            expect(Attendance::query()->where('user_id', $user->id)->exists())->toBeFalse();
+        });
+
+        it('invalidates stale GPS data before clock out and remote attendance can be submitted', function () {
+            $user = User::factory()->create();
+            actingAs($user, 'web');
+
+            $this->get(route('attendance.clockOut.form'))
+                ->assertOk()
+                ->assertSee('function invalidateLocationState()', false)
+                ->assertSee("isLocationValid = false;\n            userLat = null;\n            userLng = null;", false)
+                ->assertSee('if (!imageBlob || !isLocationValid || userLat === null || userLng === null) return;', false);
+
+            $this->get(route('remote-attendance.clockOut.form'))
+                ->assertOk()
+                ->assertSee('function invalidateLocationState()', false)
+                ->assertSee("locationReady = false;\n            latitude = null;\n            longitude = null;", false)
+                ->assertSee('if (!photoBlob || !locationReady || latitude === null || longitude === null) return;', false);
+        });
+
         it('prevents double clock out on same attendance', function () {
             Storage::fake('public');
             $user = User::factory()->create();
@@ -689,6 +814,71 @@ describe('AttendanceController', function () {
             expect($attendance->completion_status)->toBe(Attendance::COMPLETION_CLOSED);
         });
 
+        it('keeps the first clock out data when another request closes the attendance during photo upload', function () {
+            Storage::fake('public');
+            $user = User::factory()->create();
+            $location = AttendanceLocation::factory()->create([
+                'latitude' => -6.200000,
+                'longitude' => 106.816666,
+                'radius_meters' => 100,
+            ]);
+            createShiftSetup($user, $location);
+
+            $attendance = Attendance::factory()->forUser($user)->today()->clockedIn()->create([
+                'normal_end_time' => Carbon::parse(now()->toDateString().' 17:00:00'),
+            ]);
+
+            $winnerPhotoPath = 'attendance_photos/winner.jpg';
+            $loserPhotoPath = 'attendance_photos/loser.jpg';
+
+            $this->app->instance(ImageCompressor::class, new class($attendance, $winnerPhotoPath, $loserPhotoPath) extends ImageCompressor
+            {
+                public function __construct(
+                    private Attendance $attendance,
+                    private string $winnerPhotoPath,
+                    private string $loserPhotoPath,
+                ) {}
+
+                public function compressAndStore(
+                    UploadedFile $file,
+                    string $type = 'photo',
+                    string $folderName = 'uploads',
+                    string $prefix = 'img_',
+                ): string {
+                    Storage::disk('public')->put($this->winnerPhotoPath, 'foto pemenang');
+                    Storage::disk('public')->put($this->loserPhotoPath, 'foto request kedua');
+
+                    Attendance::query()->whereKey($this->attendance->id)->update([
+                        'clock_out_at' => now(),
+                        'clock_out_photo' => $this->winnerPhotoPath,
+                        'clock_out_lat' => -6.200000,
+                        'clock_out_lng' => 106.816666,
+                        'clock_out_distance_m' => 0,
+                        'early_leave_minutes' => 0,
+                        'overtime_minutes' => 0,
+                        'completion_status' => Attendance::COMPLETION_CLOSED,
+                    ]);
+
+                    return $this->loserPhotoPath;
+                }
+            });
+
+            actingAs($user, 'web');
+
+            $this->post(route('attendance.clockOut'), [
+                'photo' => UploadedFile::fake()->image('clockout.jpg', 800, 600),
+                'lat' => -6.200000,
+                'lng' => 106.816666,
+            ])->assertStatus(400)
+                ->assertJson(['message' => 'Presensi keluar sudah tercatat. Silakan kembali ke halaman Absensi.']);
+
+            $attendance->refresh();
+            expect($attendance->clock_out_photo)->toBe($winnerPhotoPath)
+                ->and($attendance->completion_status)->toBe(Attendance::COMPLETION_CLOSED);
+            Storage::disk('public')->assertExists($winnerPhotoPath);
+            Storage::disk('public')->assertMissing($loserPhotoPath);
+        });
+
         it('rejects clock out when outside radius', function () {
             Storage::fake('public');
             $user = User::factory()->create();
@@ -713,7 +903,7 @@ describe('AttendanceController', function () {
             $response->assertJsonFragment(['message' => 'Anda harus berada di kantor untuk melakukan presensi keluar (556 m).']);
         });
 
-        it('returns error when no active attendance to clock out', function () {
+        it('requires a shift before direct clock out', function () {
             Storage::fake('public');
             $user = User::factory()->create();
 
@@ -726,7 +916,7 @@ describe('AttendanceController', function () {
             ]);
 
             $response->assertStatus(400);
-            $response->assertJson(['message' => 'Tidak ada sesi presensi aktif untuk ditutup.']);
+            $response->assertJson(['message' => 'Jadwal shift belum diatur. Hubungi HR.']);
         });
 
         it('allows clock out for a previous open attendance without an automatic cutoff', function () {
@@ -1051,6 +1241,22 @@ describe('AttendanceController', function () {
             $response->assertStatus(200);
             $attendance->refresh();
             expect($attendance->clock_out_at)->toBeTruthy();
+        });
+
+        it('does not allow direct remote clock out without an active session', function () {
+            Storage::fake('public');
+            $user = User::factory()->create();
+
+            actingAs($user, 'web');
+
+            $this->post(route('remote-attendance.clockOut'), [
+                'photo' => UploadedFile::fake()->image('remote_out_tanpa_clockin.jpg', 800, 600),
+                'lat' => -7.500000,
+                'lng' => 110.000000,
+            ])->assertStatus(400)
+                ->assertJson(['message' => 'Tidak ada sesi presensi aktif untuk ditutup.']);
+
+            expect(Attendance::query()->where('user_id', $user->id)->exists())->toBeFalse();
         });
     });
 

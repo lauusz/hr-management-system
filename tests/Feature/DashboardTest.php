@@ -2,6 +2,7 @@
 
 use App\Models\Asset;
 use App\Models\AssetCategory;
+use App\Models\Attendance;
 use App\Models\Division;
 use App\Models\EmployeeProfile;
 use App\Models\User;
@@ -45,6 +46,97 @@ it('marks the tenure card to span the full mobile summary row', function () {
     $xpath = new DOMXPath($dom);
 
     expect($xpath->query('//div[contains(concat(" ", normalize-space(@class), " "), " summary-item--mobile-wide ")][.//div[normalize-space()="Masa Kerja"]]')->length)->toBe(1);
+});
+
+it('groups Clock In and Clock Out in the attendance section before quick actions', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk();
+    $dom = new DOMDocument;
+    @$dom->loadHTML($response->getContent());
+    $xpath = new DOMXPath($dom);
+
+    $attendanceSection = $xpath->query('//section[.//h2[normalize-space()="ABSEN"]]');
+    $quickActionSection = $xpath->query('//section[.//h2[normalize-space()="Aksi Cepat"]]');
+
+    expect($attendanceSection->length)->toBe(1)
+        ->and($quickActionSection->length)->toBe(1)
+        ->and(strpos($response->getContent(), 'ABSEN'))->toBeLessThan(strpos($response->getContent(), 'Aksi Cepat'))
+        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//a[contains(@href, "/attendance/clock-in")]')->length)->toBe(1)
+        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//a[contains(@href, "/attendance/clock-out")]')->length)->toBe(1)
+        ->and($xpath->query('//section[.//h2[normalize-space()="Aksi Cepat"]]//span[normalize-space()="Clock In" or normalize-space()="Clock Out"]')->length)->toBe(0);
+});
+
+it('uses prominent attendance action cards without changing their copy', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk();
+    $dom = new DOMDocument;
+    @$dom->loadHTML($response->getContent());
+    $xpath = new DOMXPath($dom);
+
+    $attendanceCards = $xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//a[contains(concat(" ", normalize-space(@class), " "), " attendance-action-card ")]');
+
+    expect($attendanceCards->length)->toBe(2)
+        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//span[normalize-space()="Clock In"]')->length)->toBe(1)
+        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//span[normalize-space()="Masuk kerja"]')->length)->toBe(1)
+        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//span[normalize-space()="Clock Out"]')->length)->toBe(1)
+        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//span[normalize-space()="Pulang kerja"]')->length)->toBe(1);
+});
+
+it('shows Clock In as completed while Clock Out remains actionable', function () {
+    $user = User::factory()->create();
+    $clockInAt = now()->startOfDay()->setTime(8, 3);
+    Attendance::factory()->forUser($user)->today()->create([
+        'clock_in_at' => $clockInAt,
+        'completion_status' => Attendance::COMPLETION_OPEN,
+    ]);
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk()
+        ->assertSee('attendance-action-card--completed', false)
+        ->assertSee('Berhasil · 08:03')
+        ->assertSee(route('attendance.clockOut.form'), false);
+});
+
+it('shows both attendance cards as completed after Clock In and Clock Out', function () {
+    $user = User::factory()->create();
+    $clockInAt = now()->startOfDay()->setTime(8, 3);
+    $clockOutAt = now()->startOfDay()->setTime(17, 8);
+    Attendance::factory()->forUser($user)->today()->create([
+        'clock_in_at' => $clockInAt,
+        'clock_out_at' => $clockOutAt,
+        'completion_status' => Attendance::COMPLETION_CLOSED,
+    ]);
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk()
+        ->assertSee('Berhasil · 08:03')
+        ->assertSee('Berhasil · 17:08')
+        ->assertDontSee(route('attendance.clockIn.form'), false)
+        ->assertDontSee(route('attendance.clockOut.form'), false);
+});
+
+it('shows Clock In as not recorded after a direct Clock Out', function () {
+    $user = User::factory()->create();
+    $clockOutAt = now()->startOfDay()->setTime(17, 8);
+    Attendance::factory()->forUser($user)->today()->create([
+        'clock_out_at' => $clockOutAt,
+        'completion_status' => Attendance::COMPLETION_MISSED_CLOCK_IN,
+    ]);
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk()
+        ->assertSee('Tidak tercatat')
+        ->assertSee('Berhasil · 17:08')
+        ->assertDontSee(route('attendance.clockIn.form'), false);
 });
 
 it('shows division in the hero badge instead of role', function () {

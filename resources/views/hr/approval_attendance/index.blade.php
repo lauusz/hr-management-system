@@ -8,7 +8,7 @@
         
         /* Table Styles */
         .table-responsive { width: 100%; overflow-x: auto; }
-        .table { width: 100%; border-collapse: collapse; min-width: 900px; }
+        .table { width: 100%; border-collapse: collapse; min-width: 1050px; }
         .table th { background: #f8fafc; padding: 14px 16px; text-align: left; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; }
         .table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #1e293b; font-size: 0.9rem; }
         .table tr:last-child td { border-bottom: none; }
@@ -24,15 +24,56 @@
         .btn-blue:hover { background: #1e4a8d; color: #fff; }
         .btn-sky { background: #f0f9ff; color: #0369a1; border-color: #e0f2fe; }
         .btn-sky:hover { background: #0369a1; color: #fff; }
-        .badge-type { display: inline-flex; padding: 4px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
-        .badge-type-wfo { background: #dbeafe; color: #1d4ed8; }
-        .badge-type-remote { background: #f3e8ff; color: #7e22ce; }
 
         .btn-action { border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; transition: 0.2s; }
         .btn-approve { background: #dcfce7; color: #166534; }
         .btn-approve:hover { background: #bbf7d0; transform: translateY(-1px); }
         .btn-reject { background: #fee2e2; color: #991b1b; }
         .btn-reject:hover { background: #fecaca; transform: translateY(-1px); }
+        /* Filter mengikuti pola master cuti agar pencarian dan status mudah dibedakan. */
+        .aa-filter-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); margin-bottom: 16px; overflow: hidden; }
+        .aa-search-row { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
+        .aa-search-input-wrap { position: relative; flex: 1; }
+        .aa-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
+        .aa-search-input, .aa-filter-input { width: 100%; color: #1e293b; background: #fff; font: inherit; outline: none; transition: all .2s ease; }
+        .aa-search-input { padding: 10px 14px 10px 42px; border: 1.5px solid #cbd5e1; border-radius: 12px; font-size: 14px; }
+        .aa-search-input:focus, .aa-filter-input:focus { border-color: #145da0; box-shadow: 0 0 0 4px rgba(20,93,160,.1); }
+        .aa-search-input::placeholder { color: #94a3b8; }
+        .aa-btn-reset, .aa-btn-toggle-filter { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 12px; background: #fff; color: #64748b; font: inherit; font-size: 13px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+        .aa-filter-controls { display: contents; }
+        .aa-btn-toggle-filter { padding: 10px 16px; cursor: pointer; }
+        .aa-btn-reset:hover { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+        .aa-btn-toggle-filter:hover { border-color: #145da0; color: #145da0; }
+        .aa-btn-toggle-filter.active { background: #145da0; border-color: #145da0; color: #fff; }
+        .aa-btn-toggle-filter.active svg { stroke: #fff; }
+        .aa-filter-badge { min-width: 18px; padding: 2px 6px; border-radius: 10px; background: #dc2626; color: #fff; font-size: 10px; font-weight: 700; text-align: center; }
+        .aa-btn-toggle-filter.active .aa-filter-badge { background: rgba(255,255,255,.3); }
+        .aa-filter-panel { padding: 14px 16px; border-top: 1px solid #e2e8f0; background: #f8fafc; animation: aaSlideDown .2s ease; }
+        @keyframes aaSlideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+        .aa-filter-grid { display: flex; flex-direction: column; gap: 14px; }
+        .aa-filter-group { display: flex; flex-direction: column; gap: 6px; }
+        .aa-filter-label { color: #64748b; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+        .aa-filter-input { padding: 10px 14px; border: 1.5px solid #cbd5e1; border-radius: 10px; font-size: 13px; }
+        .aa-filter-actions { display: flex; justify-content: flex-end; }
+        .aa-btn-apply { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 20px; border: 0; border-radius: 10px; background: #145da0; color: #fff; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; transition: all .2s ease; }
+        .aa-btn-apply:hover { background: #0f4c81; }
+        .bulk-approve-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: #166534; }
+        .bulk-approve-bar { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); z-index: 1500; display: flex; align-items: center; gap: 14px; padding: 12px 16px; transform: translateX(-50%); border: 1px solid #bbf7d0; border-radius: 12px; background: #fff; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18); }
+        .bulk-approve-count { color: #166534; font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+        .bulk-approve-list { max-height: 136px; overflow-y: auto; margin: 12px 0 0; padding-left: 20px; color: #374151; }
+        .bulk-approve-list li + li { margin-top: 4px; }
+        @media (max-width: 480px) {
+            .bulk-approve-bar { right: 16px; left: 16px; justify-content: space-between; transform: none; }
+        }
+        @media (min-width: 480px) {
+            .aa-search-row { flex-direction: row; align-items: center; flex-wrap: wrap; }
+            .aa-search-input-wrap { min-width: 260px; }
+            .aa-btn-reset, .aa-btn-toggle-filter { flex-shrink: 0; width: auto; }
+            .aa-filter-panel { padding: 16px 20px; }
+            .aa-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .aa-filter-actions { align-items: end; }
+        }
+        @media (min-width: 768px) { .aa-filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
         /* Note Box */
         .note-box { background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #f1f5f9; font-size: 0.85rem; color: #475569; line-height: 1.5; max-width: 280px; }
@@ -44,13 +85,24 @@
         
         .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; margin-bottom: 16px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
         .form-control:focus { border-color: #2563eb; }
+        #approval-attendance-location-map .modal-card { max-width: 720px; }
+        .approval-attendance-location-modal__coordinates { margin: 0 0 14px; color: #475569; font-family: monospace; }
+        #approval-attendance-location-frame { display: block; width: 100%; height: min(55vh, 420px); border: 0; border-radius: 10px; background: #f1f5f9; }
 
     </style>
 
     <div class="container-xl">
         
-        <div style="margin-bottom: 24px;">
-            <p style="color:#64748b; margin:4px 0 0; font-size:0.95rem;">Validasi kehadiran WFO dan Dinas Luar.</p>
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px;">
+            <p style="color:#64748b; margin:4px 0 0; font-size:0.95rem;">Validasi absensi karyawan.</p>
+            <div data-approval-attendance-bulk-all>
+                @if($pendingAttendances->isNotEmpty())
+                    <button type="button" id="bulkApproveAllButton" class="btn-action btn-approve">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Terima Semua
+                    </button>
+                @endif
+            </div>
         </div>
 
         @if(session('success'))
@@ -60,15 +112,53 @@
             </div>
         @endif
 
-        <div class="card">
+        @php
+            $activeAttendanceFilterCount = collect([
+                $filters['submitted_range'] ?? null,
+                $filters['name'] ?? null,
+                $filters['clock_in'] ?? null,
+                $filters['clock_out'] ?? null,
+            ])->filter()->count();
+        @endphp
+        <div class="aa-filter-card">
+            <form method="GET" action="{{ route('hr.approval_attendance.index') }}" id="approvalAttendanceFilterForm">
+                <div class="aa-search-row">
+                    <div class="aa-search-input-wrap">
+                        <svg class="aa-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <input id="attendance-filter-name" type="search" name="name" value="{{ $filters['name'] ?? '' }}" placeholder="Cari nama karyawan..." autocomplete="off" class="aa-search-input" aria-label="Cari nama karyawan" data-approval-attendance-live-search>
+                    </div>
+                    <div class="aa-filter-controls" data-approval-attendance-filter-controls>
+                        @if($activeAttendanceFilterCount)
+                            <a href="{{ route('hr.approval_attendance.index') }}" class="aa-btn-reset"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Reset</a>
+                        @endif
+                        <button type="button" class="aa-btn-toggle-filter {{ $activeAttendanceFilterCount ? 'active' : '' }}" data-approval-attendance-filter-toggle aria-controls="approval-attendance-filter-panel" aria-expanded="{{ $activeAttendanceFilterCount ? 'true' : 'false' }}" onclick="toggleApprovalAttendanceFilterPanel()"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 00-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>Filter @if($activeAttendanceFilterCount)<span class="aa-filter-badge">{{ $activeAttendanceFilterCount }}</span>@endif</button>
+                    </div>
+                </div>
+                <div class="aa-filter-panel" id="approval-attendance-filter-panel" style="{{ $activeAttendanceFilterCount ? '' : 'display: none;' }}">
+                    <div class="aa-filter-grid">
+                        <div class="aa-filter-group"><label class="aa-filter-label" for="attendance-filter-date-range">Tanggal Pengajuan</label><input id="attendance-filter-date-range" type="text" name="submitted_range" value="{{ $filters['submitted_range'] ?? '' }}" placeholder="Pilih rentang tanggal" class="aa-filter-input" autocomplete="off"></div>
+                        <div class="aa-filter-group"><label class="aa-filter-label" for="attendance-filter-clock-in">Clock In</label><select id="attendance-filter-clock-in" name="clock_in" class="aa-filter-input"><option value="">Semua</option><option value="ada" @selected(($filters['clock_in'] ?? null) === 'ada')>Ada</option><option value="tidak_ada" @selected(($filters['clock_in'] ?? null) === 'tidak_ada')>Tidak ada</option></select></div>
+                        <div class="aa-filter-group"><label class="aa-filter-label" for="attendance-filter-clock-out">Clock Out</label><select id="attendance-filter-clock-out" name="clock_out" class="aa-filter-input"><option value="">Semua</option><option value="ada" @selected(($filters['clock_out'] ?? null) === 'ada')>Ada</option><option value="tidak_ada" @selected(($filters['clock_out'] ?? null) === 'tidak_ada')>Tidak ada</option></select></div>
+                        <div class="aa-filter-actions"><button type="submit" class="aa-btn-apply">Terapkan Filter</button></div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="card" data-approval-attendance-results>
+
             @if($pendingAttendances->count() > 0)
                 <div class="table-responsive">
                     <table class="table">
                         <thead>
                             <tr>
+                                <th style="width:48px; text-align:center;">
+                                    <input type="checkbox" id="bulkApproveAll" class="bulk-approve-checkbox" aria-label="Pilih semua absensi yang tampil">
+                                </th>
                                 <th>Karyawan</th>
-                                <th>Jenis</th>
-                                <th>Waktu & Tanggal</th>
+                                <th>Clock In</th>
+                                <th>Clock Out</th>
+                                <th>Tanggal</th>
                                 <th>Bukti Validasi</th>
                                 <th>Lokasi Maps</th>
                                 <th>Keperluan / Catatan</th>
@@ -77,21 +167,30 @@
                         </thead>
                         <tbody>
                             @foreach($pendingAttendances as $item)
-                            <tr data-attendance-id="{{ $item->id }}" data-attendance-type="{{ $item->type }}">
+                            <tr data-attendance-id="{{ $item->id }}">
+                                <td style="text-align:center;">
+                                    <input type="checkbox"
+                                        class="bulk-approve-checkbox bulk-approve-checkbox-item"
+                                        name="attendance_ids[]"
+                                        value="{{ $item->id }}"
+                                        data-bulk-approve-name="{{ $item->user->name }}"
+                                        aria-label="Pilih absensi {{ $item->user->name }}">
+                                </td>
                                 <td>
                                     <div class="user-name">{{ $item->user->name }}</div>
                                     <div class="user-role">{{ $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->label() : $item->user->role }}</div>
                                 </td>
 
                                 <td>
-                                    <span class="badge-type {{ $item->type === 'DINAS_LUAR' ? 'badge-type-remote' : 'badge-type-wfo' }}">
-                                        {{ $item->type === 'DINAS_LUAR' ? 'Dinas Luar' : 'WFO' }}
-                                    </span>
+                                    {{ $item->clock_in_at?->format('H:i') ?? '-' }}
                                 </td>
 
                                 <td>
-                                    <div style="font-weight:600; font-size:0.95rem;">{{ $item->clock_in_at ? $item->clock_in_at->format('H:i') : '-' }}</div>
-                                    <div style="font-size:0.8rem; color:#64748b;">{{ $item->date->translatedFormat('j F Y') }}</div>
+                                    {{ $item->clock_out_at?->format('H:i') ?? '-' }}
+                                </td>
+
+                                <td>
+                                    {{ $item->work_date_label }}
                                 </td>
 
                                 <td>
@@ -100,20 +199,48 @@
                                             data-image-viewer-src="{{ asset('storage/'.$item->clock_in_photo) }}"
                                             data-image-viewer-alt="Foto absensi {{ $item->user->name }}">
                                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                            Lihat Foto
+                                            Foto
                                         </button>
-                                    @else
+                                    @endif
+                                    @if($item->clock_out_photo)
+                                        <button type="button" class="btn-pill btn-blue"
+                                            data-image-viewer-src="{{ asset('storage/'.$item->clock_out_photo) }}"
+                                            data-image-viewer-alt="Foto clock out {{ $item->user->name }}">
+                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                            Foto
+                                        </button>
+                                    @endif
+                                    @if(! $item->clock_in_photo && ! $item->clock_out_photo)
                                         <span style="color:#94a3b8; font-size:0.85rem;">-</span>
                                     @endif
                                 </td>
 
                                 <td>
-                                    @if($item->clock_in_lat)
-                                        <a href="https://www.google.com/maps/search/?api=1&query={{ $item->clock_in_lat }},{{ $item->clock_in_lng }}" target="_blank" class="btn-pill btn-sky">
+                                    @if($item->clock_in_lat !== null && $item->clock_in_lng !== null)
+                                        <button type="button"
+                                            class="btn-pill btn-sky"
+                                            data-modal-target="approval-attendance-location-map"
+                                            data-approval-attendance-location
+                                            data-approval-attendance-location-lat="{{ $item->clock_in_lat }}"
+                                            data-approval-attendance-location-lng="{{ $item->clock_in_lng }}"
+                                            data-approval-attendance-location-label="Clock In">
                                             <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                            Cek Lokasi
-                                        </a>
-                                    @else
+                                            Lokasi
+                                        </button>
+                                    @endif
+                                    @if($item->clock_out_lat !== null && $item->clock_out_lng !== null)
+                                        <button type="button"
+                                            class="btn-pill btn-sky"
+                                            data-modal-target="approval-attendance-location-map"
+                                            data-approval-attendance-location
+                                            data-approval-attendance-location-lat="{{ $item->clock_out_lat }}"
+                                            data-approval-attendance-location-lng="{{ $item->clock_out_lng }}"
+                                            data-approval-attendance-location-label="Clock Out">
+                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                            Lokasi
+                                        </button>
+                                    @endif
+                                    @if(($item->clock_in_lat === null || $item->clock_in_lng === null) && ($item->clock_out_lat === null || $item->clock_out_lng === null))
                                         <span style="color:#94a3b8; font-size:0.85rem;">-</span>
                                     @endif
                                 </td>
@@ -146,6 +273,14 @@
                         </tbody>
                     </table>
                 </div>
+
+                <div id="bulkApproveBar" class="bulk-approve-bar" style="display:none;">
+                    <span id="bulkApproveCount" class="bulk-approve-count">0 absensi dipilih</span>
+                    <button type="button" id="bulkApproveSelectedButton" class="btn-action btn-approve">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Terima Terpilih
+                    </button>
+                </div>
             @else
                 <div style="padding:60px; text-align:center; color:#94a3b8;">
                     <div style="background:#f1f5f9; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
@@ -157,6 +292,13 @@
             @endif
         </div>
     </div>
+
+    <x-modal id="approval-attendance-location-map" title="Lokasi Absensi" type="info" variant="info" cancelLabel="Tutup">
+        <div class="approval-attendance-location-modal">
+            <p class="approval-attendance-location-modal__coordinates" id="approval-attendance-location-coordinates"></p>
+            <iframe id="approval-attendance-location-frame" title="Peta lokasi Clock In" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+    </x-modal>
 
     {{-- MODAL APPROVE --}}
     <x-modal
@@ -176,6 +318,19 @@
                 Persetujuan absensi akan dicatat.
             </p>
         </div>
+    </x-modal>
+
+    <x-modal
+        id="bulkApproveModal"
+        title="Terima Absensi Terpilih?"
+        type="confirm"
+        variant="success"
+        confirmLabel="Ya, Terima"
+        cancelLabel="Batal"
+        confirmFormAction="{{ route('hr.approval_attendance.bulk_approve') }}"
+        confirmFormMethod="POST">
+        <p style="margin:0; color:#374151;">Absensi berikut akan disetujui:</p>
+        <ul id="bulkApproveList" class="bulk-approve-list"></ul>
     </x-modal>
 
     {{-- MODAL REJECT (Custom HTML untuk Input Textarea) --}}
@@ -204,6 +359,9 @@
             </form>
         </div>
     </div>
+
+    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
+    <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
 
     {{-- JAVASCRIPT LOGIC --}}
     <script>
@@ -235,6 +393,187 @@
         function closeRejectModal() {
             document.getElementById('rejectModal').style.display = 'none';
         }
+
+        function toggleApprovalAttendanceFilterPanel() {
+            const panel = document.getElementById('approval-attendance-filter-panel');
+            const button = document.querySelector('[data-approval-attendance-filter-toggle]');
+
+            if (!panel || !button) {
+                return;
+            }
+
+            const isOpening = panel.style.display === 'none';
+            panel.style.display = isOpening ? '' : 'none';
+            button.classList.toggle('active', isOpening);
+            button.setAttribute('aria-expanded', isOpening ? 'true' : 'false');
+        }
+
+        function initializeApprovalAttendanceInteractions() {
+            const coordinates = document.getElementById('approval-attendance-location-coordinates');
+            const frame = document.getElementById('approval-attendance-location-frame');
+            const locationTitle = document.getElementById('approval-attendance-location-map_title');
+            const bulkApproveAll = document.getElementById('bulkApproveAll');
+            const bulkApproveAllButton = document.getElementById('bulkApproveAllButton');
+            const bulkApproveBar = document.getElementById('bulkApproveBar');
+            const bulkApproveCount = document.getElementById('bulkApproveCount');
+            const bulkApproveSelectedButton = document.getElementById('bulkApproveSelectedButton');
+            const bulkApproveModal = document.getElementById('bulkApproveModal');
+            const bulkApproveList = document.getElementById('bulkApproveList');
+            const bulkApproveForm = bulkApproveModal?.querySelector('form');
+            const bulkApproveCheckboxes = Array.from(document.querySelectorAll('.bulk-approve-checkbox-item'));
+
+            function selectedBulkAttendances() {
+                return bulkApproveCheckboxes.filter(function (checkbox) {
+                    return checkbox.checked;
+                });
+            }
+
+            function updateBulkApproveControls() {
+                const selected = selectedBulkAttendances();
+
+                if (bulkApproveBar) {
+                    bulkApproveBar.style.display = selected.length ? 'flex' : 'none';
+                }
+
+                if (bulkApproveCount) {
+                    bulkApproveCount.textContent = `${selected.length} absensi dipilih`;
+                }
+
+                if (bulkApproveAll) {
+                    bulkApproveAll.checked = selected.length === bulkApproveCheckboxes.length && selected.length > 0;
+                    bulkApproveAll.indeterminate = selected.length > 0 && selected.length < bulkApproveCheckboxes.length;
+                }
+            }
+
+            function openBulkApproveModal(selected) {
+                if (!bulkApproveModal || !bulkApproveList || !bulkApproveForm || selected.length === 0) {
+                    return;
+                }
+
+                bulkApproveList.replaceChildren();
+                bulkApproveForm.querySelectorAll('input[name="attendance_ids[]"]').forEach(function (input) {
+                    input.remove();
+                });
+
+                selected.forEach(function (checkbox) {
+                    const item = document.createElement('li');
+                    item.textContent = checkbox.dataset.bulkApproveName;
+                    bulkApproveList.appendChild(item);
+
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'attendance_ids[]';
+                    input.value = checkbox.value;
+                    bulkApproveForm.appendChild(input);
+                });
+
+                bulkApproveModal.style.display = 'flex';
+            }
+
+            bulkApproveCheckboxes.forEach(function (checkbox) {
+                checkbox.addEventListener('change', updateBulkApproveControls);
+            });
+
+            bulkApproveAll?.addEventListener('change', function () {
+                bulkApproveCheckboxes.forEach(function (checkbox) {
+                    checkbox.checked = bulkApproveAll.checked;
+                });
+                updateBulkApproveControls();
+            });
+
+            bulkApproveSelectedButton?.addEventListener('click', function () {
+                openBulkApproveModal(selectedBulkAttendances());
+            });
+
+            bulkApproveAllButton?.addEventListener('click', function () {
+                bulkApproveCheckboxes.forEach(function (checkbox) {
+                    checkbox.checked = true;
+                });
+                updateBulkApproveControls();
+                openBulkApproveModal(selectedBulkAttendances());
+            });
+
+            document.querySelectorAll('[data-approval-attendance-location]').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    const location = `${this.dataset.approvalAttendanceLocationLat}, ${this.dataset.approvalAttendanceLocationLng}`;
+                    const label = this.dataset.approvalAttendanceLocationLabel || 'Absensi';
+
+                    coordinates.textContent = location;
+                    locationTitle.textContent = `Lokasi ${label}`;
+                    frame.title = `Peta lokasi ${label}`;
+                    frame.src = `https://www.google.com/maps?q=${encodeURIComponent(location)}&z=16&output=embed`;
+                    document.getElementById('approval-attendance-location-map').style.display = 'flex';
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('approvalAttendanceFilterForm');
+            const input = form?.querySelector('[data-approval-attendance-live-search]');
+            const results = document.querySelector('[data-approval-attendance-results]');
+            let timer;
+            let request;
+
+            initializeApprovalAttendanceInteractions();
+
+            flatpickr('#attendance-filter-date-range', {
+                mode: 'range',
+                dateFormat: 'Y-m-d',
+                allowInput: true,
+                locale: { rangeSeparator: ' sampai ' },
+            });
+
+            if (!form || !input || !results) return;
+
+            async function loadApprovalAttendanceResults() {
+                const url = new URL(form.action, window.location.origin);
+                const params = new URLSearchParams(new FormData(form));
+                url.search = params.toString();
+
+                request?.abort();
+                const currentRequest = new AbortController();
+                request = currentRequest;
+                results.classList.add('is-loading');
+                results.setAttribute('aria-busy', 'true');
+
+                try {
+                    const response = await fetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        signal: currentRequest.signal,
+                    });
+                    if (!response.ok) throw new Error('Pencarian persetujuan absensi gagal');
+
+                    const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
+                    const selectors = [
+                        '[data-approval-attendance-bulk-all]',
+                        '[data-approval-attendance-filter-controls]',
+                        '[data-approval-attendance-results]',
+                    ];
+
+                    selectors.forEach((selector) => {
+                        const current = document.querySelector(selector);
+                        const next = documentResult.querySelector(selector);
+                        if (!current || !next) throw new Error('Hasil pencarian persetujuan absensi tidak lengkap');
+                        current.innerHTML = next.innerHTML;
+                    });
+
+                    initializeApprovalAttendanceInteractions();
+                    window.history.replaceState(null, '', url);
+                } catch (error) {
+                    if (error.name !== 'AbortError') console.error(error);
+                } finally {
+                    if (request === currentRequest) {
+                        results.classList.remove('is-loading');
+                        results.setAttribute('aria-busy', 'false');
+                    }
+                }
+            }
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(loadApprovalAttendanceResults, 350);
+            });
+        });
 
     </script>
 

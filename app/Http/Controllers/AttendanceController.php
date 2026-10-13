@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class AttendanceController extends Controller
 {
@@ -127,7 +128,7 @@ class AttendanceController extends Controller
 
     public function remoteClockOut(Request $request)
     {
-        return $this->clockOut($request);
+        return $this->clockOut($request, false);
     }
 
     private function activeOfficeHoliday(): ?OfficeHoliday
@@ -196,7 +197,7 @@ class AttendanceController extends Controller
 
             // 6. Cek Double Absen (fast path tanpa lock)
             $existing = Attendance::where('user_id', $user->id)->whereDate('date', $today)->first();
-            if ($existing && $existing->clock_in_at) {
+            if ($existing) {
                 return response()->json(['message' => 'Presensi masuk hari ini sudah tercatat.'], 400);
             }
 
@@ -260,7 +261,7 @@ class AttendanceController extends Controller
                         ->lockForUpdate()
                         ->first();
 
-                    if ($existingLocked && $existingLocked->clock_in_at) {
+                    if ($existingLocked) {
                         throw new \RuntimeException('ALREADY_CLOCKED_IN');
                     }
 
@@ -310,7 +311,7 @@ class AttendanceController extends Controller
     // =========================================================================
     // LOGIC UTAMA: CLOCK OUT
     // =========================================================================
-    public function clockOut(Request $request)
+    public function clockOut(Request $request, bool $allowMissingClockIn = true)
     {
         // 1. Validasi Input (di luar try/catch agar validation error tidak jadi 500)
         $request->validate([
@@ -319,14 +320,21 @@ class AttendanceController extends Controller
             'lng' => ['required', 'numeric'],
         ]);
 
+        $user = Auth::user();
+        $photoPath = null;
+        $clockOutSaved = false;
+
         try {
-            $user = Auth::user();
             $now = now();
 
             // 2. Cari Absensi Aktif
             $attendance = $this->findOpenAttendance($user);
 
             if (! $attendance) {
+                if ($allowMissingClockIn) {
+                    return $this->clockOutWithoutClockIn($request, $user);
+                }
+
                 return response()->json(['message' => 'Tidak ada sesi presensi aktif untuk ditutup.'], 400);
             }
 
@@ -400,8 +408,8 @@ class AttendanceController extends Controller
                 $request->file('photo'), 'photo', $folder, $prefix
             );
 
-            // 8. Update Database
-            $attendance->update([
+            // 8. Hanya request pertama yang boleh menutup attendance yang masih OPEN.
+            $clockOutData = [
                 'clock_out_at' => $now,
                 'clock_out_lat' => $request->lat,
                 'clock_out_lng' => $request->lng,
@@ -410,7 +418,24 @@ class AttendanceController extends Controller
                 'early_leave_minutes' => $earlyLeaveMinutes,
                 'overtime_minutes' => $overtimeMinutes,
                 'completion_status' => $completionStatus,
-            ]);
+            ];
+
+            $updated = Attendance::query()
+                ->whereKey($attendance->id)
+                ->whereNull('clock_out_at')
+                ->where('completion_status', Attendance::COMPLETION_OPEN)
+                ->update($clockOutData);
+
+            if ($updated !== 1) {
+                Storage::disk('public')->delete($photoPath);
+
+                return response()->json([
+                    'message' => 'Presensi keluar sudah tercatat. Silakan kembali ke halaman Absensi.',
+                ], 400);
+            }
+
+            $clockOutSaved = true;
+            $attendance->refresh();
 
             return response()->json([
                 'message' => 'Presensi keluar berhasil.',
@@ -418,7 +443,130 @@ class AttendanceController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            if ($photoPath !== null && ! $clockOutSaved) {
+                Storage::disk('public')->delete($photoPath);
+            }
+
             Log::error("ClockOut Error User {$user->id}: ".$e->getMessage());
+
+            return response()->json(['message' => 'Presensi keluar gagal. Silakan coba lagi.'], 500);
+        }
+    }
+
+    private function clockOutWithoutClockIn(Request $request, $user)
+    {
+        $photoPath = null;
+        $clockOutSaved = false;
+
+        try {
+            $now = now();
+            $today = $now->toDateString();
+
+            if (Attendance::where('user_id', $user->id)->whereDate('date', $today)->exists()) {
+                return response()->json(['message' => 'Presensi hari ini sudah tercatat.'], 400);
+            }
+
+            $employeeShift = EmployeeShift::with($this->employeeShiftRelations(true))
+                ->where('user_id', $user->id)
+                ->first();
+
+            if (! $employeeShift || ! $employeeShift->shift) {
+                return response()->json(['message' => 'Jadwal shift belum diatur. Hubungi HR.'], 400);
+            }
+
+            $pattern = $employeeShift->shift->patternDays()
+                ->where('day_of_week', Carbon::parse($today)->dayOfWeekIso)
+                ->first();
+
+            if (! $pattern) {
+                return response()->json(['message' => 'Tidak ada jadwal shift hari ini.'], 400);
+            }
+
+            if ($pattern->is_holiday) {
+                return response()->json(['message' => 'Hari ini adalah hari libur.'], 400);
+            }
+
+            $locations = $this->scheduleLocations($employeeShift);
+            if (! $employeeShift->is_all_locations && $locations->isEmpty()) {
+                return response()->json(['message' => 'Lokasi kantor belum diatur.'], 400);
+            }
+
+            $matchedLocation = null;
+            $distance = 0;
+            if (! $employeeShift->is_all_locations) {
+                $match = $this->allowedAttendanceLocationResolver->resolve($locations, (float) $request->lat, (float) $request->lng);
+                if ($match === null) {
+                    $nearest = $this->allowedAttendanceLocationResolver->nearest($locations, (float) $request->lat, (float) $request->lng);
+
+                    return response()->json(['message' => "Anda harus berada di kantor untuk melakukan presensi keluar ({$nearest['distance']} m)."], 400);
+                }
+
+                $matchedLocation = $match['location'];
+                $distance = $match['distance'];
+            }
+
+            $shiftStart = Carbon::parse($today.' '.$pattern->start_time);
+            $shiftEnd = Carbon::parse($today.' '.$pattern->end_time);
+            if ($pattern->is_overnight) {
+                $shiftEnd->addDay();
+            }
+
+            $photoPath = $this->imageCompressor->compressAndStore(
+                $request->file('photo'), 'photo', 'attendance_photos', 'att_out_'
+            );
+
+            $attendance = DB::transaction(function () use ($user, $today, $employeeShift, $shiftStart, $shiftEnd, $matchedLocation, $distance, $photoPath, $request, $now) {
+                $existingLocked = Attendance::where('user_id', $user->id)
+                    ->whereDate('date', $today)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($existingLocked) {
+                    throw new \RuntimeException('ALREADY_RECORDED');
+                }
+
+                return Attendance::create([
+                    'user_id' => $user->id,
+                    'date' => $today,
+                    'shift_id' => $employeeShift->shift_id,
+                    'employee_shift_id' => $employeeShift->id,
+                    'normal_start_time' => $shiftStart,
+                    'normal_end_time' => $shiftEnd,
+                    'location_id' => $employeeShift->is_all_locations ? null : $matchedLocation?->id,
+                    'clock_out_at' => $now,
+                    'clock_out_photo' => $photoPath,
+                    'clock_out_lat' => $request->lat,
+                    'clock_out_lng' => $request->lng,
+                    'clock_out_distance_m' => $distance,
+                    'status' => 'TIDAK CLOCK IN',
+                    'type' => 'WFO',
+                    'approval_status' => 'PENDING',
+                    'completion_status' => Attendance::COMPLETION_MISSED_CLOCK_IN,
+                ]);
+            });
+
+            $clockOutSaved = true;
+
+            return response()->json([
+                'message' => 'Presensi keluar berhasil.',
+                'data' => $attendance,
+            ]);
+        } catch (\RuntimeException|UniqueConstraintViolationException $e) {
+            if ($photoPath !== null) {
+                Storage::disk('public')->delete($photoPath);
+            }
+
+            if ($e instanceof \RuntimeException && $e->getMessage() !== 'ALREADY_RECORDED') {
+                throw $e;
+            }
+
+            return response()->json(['message' => 'Presensi hari ini sudah tercatat.'], 400);
+        } catch (\Exception $e) {
+            if ($photoPath !== null && ! $clockOutSaved) {
+                Storage::disk('public')->delete($photoPath);
+            }
+
+            Log::error("ClockOut tanpa ClockIn Error User {$user->id}: ".$e->getMessage());
 
             return response()->json(['message' => 'Presensi keluar gagal. Silakan coba lagi.'], 500);
         }

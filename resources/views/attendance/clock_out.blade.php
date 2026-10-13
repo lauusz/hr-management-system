@@ -541,6 +541,17 @@
         let userLat = null;
         let userLng = null;
         let isLocationValid = false;
+        let isSubmitting = false;
+
+        function invalidateLocationState() {
+            isLocationValid = false;
+            userLat = null;
+            userLng = null;
+            document.getElementById('lat').value = '';
+            document.getElementById('lng').value = '';
+            btnCapture.disabled = true;
+            btnSubmit.disabled = true;
+        }
 
         // 1. Inisialisasi Kamera
         async function startCamera() {
@@ -603,6 +614,7 @@
                     },
                     (error) => {
                         console.error('GPS Error:', error);
+                        invalidateLocationState();
                         gpsText.textContent = 'GPS Error';
                         gpsDot.style.backgroundColor = 'var(--error, #EF4444)';
                         gpsOverlayText.textContent = 'GPS Error';
@@ -619,6 +631,7 @@
                     }
                 );
             } else {
+                invalidateLocationState();
                 statusMsg.textContent = 'Browser tidak support GPS.';
                 gpsPill.className = 'capture-pill capture-pill--error';
                 gpsText.textContent = 'GPS Error';
@@ -627,8 +640,10 @@
 
         // 3. Cek Kesiapan (Kamera + Lokasi)
         function checkReadiness() {
+            btnCapture.disabled = !(video.srcObject && isLocationValid);
+            btnSubmit.disabled = isSubmitting || !imageBlob || !isLocationValid;
+
             if (video.srcObject && isLocationValid) {
-                btnCapture.disabled = false;
                 statusMsg.textContent = 'Siap untuk presensi keluar.';
                 statusMsg.style.color = 'var(--success, #22C55E)';
             }
@@ -636,7 +651,7 @@
 
         // 4. Fungsi Capture
         btnCapture.addEventListener('click', async () => {
-            if (!video.srcObject) return;
+            if (!video.srcObject || !isLocationValid) return;
 
             flashOverlay.classList.add('flash-anim');
             setTimeout(() => flashOverlay.classList.remove('flash-anim'), 500);
@@ -660,6 +675,7 @@
 
                 groupCapture.style.display = 'none';
                 groupAction.style.display = 'flex';
+                btnSubmit.disabled = !isLocationValid;
                 statusMsg.textContent = 'Konfirmasi presensi keluar.';
                 statusMsg.style.color = 'var(--text-muted, #6B7280)';
             } catch (error) {
@@ -683,9 +699,10 @@
 
         // 6. Fungsi Submit (Clock Out)
         btnSubmit.addEventListener('click', async () => {
-            if (!imageBlob || !userLat) return;
+            if (!imageBlob || !isLocationValid || userLat === null || userLng === null) return;
 
             const originalText = btnSubmit.innerHTML;
+            isSubmitting = true;
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = `
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="animation: spin 1s linear infinite;">
@@ -740,14 +757,16 @@
                     });
                 } else {
                     window.showToast(firstErrorMessage(data, 'Gagal melakukan presensi keluar.'), 'error');
-                    btnSubmit.disabled = false;
+                    isSubmitting = false;
+                    btnSubmit.disabled = !isLocationValid;
                     btnSubmit.innerHTML = originalText;
                     btnRetake.disabled = false;
                 }
             } catch (error) {
                 console.error(error);
                 window.showToast('Terjadi kesalahan koneksi.', 'warning');
-                btnSubmit.disabled = false;
+                isSubmitting = false;
+                btnSubmit.disabled = !isLocationValid;
                 btnSubmit.innerHTML = originalText;
                 btnRetake.disabled = false;
             }

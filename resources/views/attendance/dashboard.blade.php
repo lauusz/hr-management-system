@@ -16,43 +16,18 @@
     @php
         $hasTodayClockIn = (bool) ($attendance?->clock_in_at);
         $hasTodayClockOut = (bool) ($attendance?->clock_out_at);
+        $hasTodayAttendance = (bool) $attendance;
+        $hasMissingClockIn = $attendance?->completion_status === App\Models\Attendance::COMPLETION_MISSED_CLOCK_IN;
         $hasActiveAttendance = (bool) $activeAttendance;
-        $canClockIn = ! $hasTodayClockIn && ! $hasActiveAttendance;
-        $canClockOut = $hasActiveAttendance && ! $activeAttendance->clock_out_at;
+        $canClockIn = ! $hasTodayAttendance && ! $hasActiveAttendance;
+        $canClockOut = (! $hasTodayAttendance && ! $hasActiveAttendance)
+            || ($hasActiveAttendance && ! $activeAttendance->clock_out_at);
         $hasAvailableAction = $canClockIn || $canClockOut;
         $isActiveOvernight = $hasActiveAttendance && $activeAttendance->is_overnight;
     @endphp
 
     <div class="attendance-page {{ $hasAvailableAction ? 'attendance-page--has-action' : 'attendance-page--complete' }}">
         <div class="attendance-content">
-            @if($previousIncompleteAttendance)
-                <section class="attendance-warning" aria-labelledby="previous-attendance-title">
-                    <div class="attendance-warning__heading">
-                        <span class="attendance-warning__icon" aria-hidden="true">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                            </svg>
-                        </span>
-                        <h2 id="previous-attendance-title">Absensi sebelumnya belum selesai</h2>
-                        <span class="attendance-warning__badge">
-                            {{ $previousIncompleteAttendance->completion_status === 'MISSED_CLOCK_OUT' ? 'Terlewat' : 'Berjalan' }}
-                        </span>
-                    </div>
-                    <div class="attendance-warning__details">
-                        <span>{{ $previousIncompleteAttendance->date->translatedFormat('d M Y') }}</span>
-                        <span>Masuk {{ $previousIncompleteAttendance->clock_in_at->format('H:i') }}</span>
-                        <span>{{ $previousIncompleteAttendance->completion_status_label }}</span>
-                    </div>
-                    <p class="attendance-warning__next-step">
-                        @if($previousIncompleteAttendance->completion_status === 'MISSED_CLOCK_OUT')
-                            Presensi hari ini tetap dapat dilanjutkan.
-                        @else
-                            Selesaikan clock out sesi ini sebelum memulai presensi baru.
-                        @endif
-                    </p>
-                </section>
-            @endif
-
             <section class="attendance-status-panel" aria-labelledby="attendance-status-title">
                 <div class="attendance-status-panel__header">
                     <div class="attendance-status-panel__heading">
@@ -107,12 +82,14 @@
                             </div>
                         </div>
                     @elseif($hasTodayClockOut)
-                        <p class="attendance-status-panel__title">Presensi selesai</p>
-                        <p class="attendance-status-panel__description">Kehadiran hari ini sudah tercatat lengkap.</p>
+                        <p class="attendance-status-panel__title">{{ $hasMissingClockIn ? 'Clock Out tercatat tanpa Clock In' : 'Presensi selesai' }}</p>
+                        <p class="attendance-status-panel__description">
+                            {{ $hasMissingClockIn ? 'Clock In tidak tercatat. Data ini akan terlihat oleh HR.' : 'Kehadiran hari ini sudah tercatat lengkap.' }}
+                        </p>
                         <div class="attendance-time-summary">
                             <div>
                                 <span>Jam masuk</span>
-                                <strong>{{ $attendance->clock_in_at->format('H:i') }}</strong>
+                                <strong>{{ $attendance->clock_in_at?->format('H:i') ?? 'Tidak tercatat' }}</strong>
                             </div>
                             <div>
                                 <span>Jam pulang</span>
@@ -146,6 +123,8 @@
                                 Sudah tercatat {{ $attendance->clock_in_at->format('H:i') }}
                             @elseif($hasActiveAttendance)
                                 Sudah tercatat {{ $activeAttendance->clock_in_at->format('H:i') }}
+                            @elseif($hasMissingClockIn)
+                                Clock Out tercatat {{ $attendance->clock_out_at->format('H:i') }}
                             @else
                                 Catat jam masuk kerja
                             @endif
@@ -178,7 +157,7 @@
                             @elseif($canClockOut)
                                 Catat jam pulang kerja
                             @else
-                                Tersedia setelah clock in
+                                Sudah tidak tersedia hari ini
                             @endif
                         </small>
                     </span>
@@ -238,7 +217,6 @@
             gap: 16px;
         }
 
-        .attendance-warning,
         .attendance-status-panel,
         .attendance-action-dock {
             background: var(--white);
@@ -246,35 +224,6 @@
             border-radius: 16px;
         }
 
-        .attendance-warning {
-            padding: 18px 20px;
-            border-color: #f4cf99;
-            background: #fffdfa;
-        }
-
-        .attendance-warning__heading {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .attendance-warning__icon {
-            display: grid;
-            place-items: center;
-            flex: 0 0 auto;
-            color: #d97706;
-        }
-
-        .attendance-warning h2 {
-            flex: 1;
-            margin: 0;
-            color: var(--text-primary);
-            font-size: .9375rem;
-            font-weight: 700;
-            line-height: 1.35;
-        }
-
-        .attendance-warning__badge,
         .attendance-status-badge {
             display: inline-flex;
             align-items: center;
@@ -285,35 +234,6 @@
             font-weight: 700;
             line-height: 1;
             white-space: nowrap;
-        }
-
-        .attendance-warning__badge {
-            background: #fff0e8;
-            color: #c2410c;
-        }
-
-        .attendance-warning__details {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px 18px;
-            margin: 12px 0 0 32px;
-            color: var(--text-muted);
-            font-size: .75rem;
-            font-weight: 500;
-        }
-
-        .attendance-warning__details span:not(:last-child)::after {
-            content: '·';
-            margin-left: 18px;
-            color: #cbd5e1;
-        }
-
-        .attendance-warning__next-step {
-            margin: 10px 0 0 32px;
-            color: var(--text-secondary);
-            font-size: .75rem;
-            font-weight: 600;
-            line-height: 1.5;
         }
 
         .attendance-status-panel {
@@ -527,40 +447,6 @@
                 padding-bottom: calc(120px + env(safe-area-inset-bottom));
             }
 
-            .attendance-warning {
-                padding: 16px;
-            }
-
-            .attendance-warning__heading {
-                align-items: flex-start;
-                gap: 10px;
-            }
-
-            .attendance-warning h2 {
-                font-size: .875rem;
-            }
-
-            .attendance-warning__badge {
-                min-height: 26px;
-                padding-inline: 9px;
-                font-size: .625rem;
-            }
-
-            .attendance-warning__details {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 8px;
-                margin: 12px 0 0 30px;
-            }
-
-            .attendance-warning__next-step {
-                margin-left: 30px;
-            }
-
-            .attendance-warning__details span:not(:last-child)::after {
-                content: none;
-            }
-
             .attendance-status-panel__header {
                 padding: 15px 16px;
             }
@@ -652,14 +538,6 @@
         @media (max-width: 359px) {
             .section-subtitle {
                 display: none;
-            }
-
-            .attendance-warning__heading {
-                flex-wrap: wrap;
-            }
-
-            .attendance-warning__badge {
-                margin-left: 30px;
             }
 
             .attendance-status-badge {

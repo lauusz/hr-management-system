@@ -55,6 +55,8 @@ class Attendance extends Model
 
     public const COMPLETION_MISSED_CLOCK_OUT = 'MISSED_CLOCK_OUT';
 
+    public const COMPLETION_MISSED_CLOCK_IN = 'MISSED_CLOCK_IN';
+
     public const COMPLETION_LATE_CLOCK_OUT = 'LATE_CLOCK_OUT';
 
     protected $casts = [
@@ -115,6 +117,21 @@ class Attendance extends Model
             && $this->normal_end_time->format('H:i:s') <= $this->normal_start_time->format('H:i:s');
     }
 
+    public function getWorkDateLabelAttribute(): string
+    {
+        if (! $this->date) {
+            return '-';
+        }
+
+        $workDate = $this->date->copy()->locale('id');
+
+        if (! $this->is_overnight) {
+            return $workDate->translatedFormat('j M Y');
+        }
+
+        return $workDate->translatedFormat('j M').' - '.$workDate->copy()->addDay()->translatedFormat('j M Y');
+    }
+
     public function getClockInLabelAttribute(): string
     {
         return $this->clock_in_at ? $this->clock_in_at->format('H:i') : '-';
@@ -131,6 +148,7 @@ class Attendance extends Model
             self::COMPLETION_CLOSED => 'Lengkap',
             self::COMPLETION_OPEN => 'Berjalan',
             self::COMPLETION_MISSED_CLOCK_OUT => 'Belum Clock Out',
+            self::COMPLETION_MISSED_CLOCK_IN => 'Belum Clock In',
             self::COMPLETION_LATE_CLOCK_OUT => 'Clock Out Terlambat',
             default => $this->completion_status ?? '-',
         };

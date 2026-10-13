@@ -58,6 +58,7 @@ use App\Http\Controllers\SupervisorDataController;
 use App\Http\Controllers\SupervisorOvertimeController;
 use App\Http\Controllers\V2AccessController;
 use App\Models\Asset;
+use App\Models\Attendance;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -189,7 +190,11 @@ Route::middleware('auth')->group(function () {
             ->orderBy('name')
             ->get();
 
-        return view('dashboard', compact('receivedAssets'));
+        $todayAttendance = Attendance::where('user_id', auth()->id())
+            ->whereDate('date', now()->toDateString())
+            ->first();
+
+        return view('dashboard', compact('receivedAssets', 'todayAttendance'));
     })->name('dashboard');
 
     Route::get('/leave-requests/search-substitute', [LeaveRequestController::class, 'searchSubstitute'])
@@ -338,6 +343,7 @@ Route::middleware('auth')->group(function () {
 
         // APPROVAL ATTENDANCE (WFO dan Dinas Luar)
         Route::get('/hr/approval-attendance', [ApprovalAttendanceController::class, 'index'])->name('hr.approval_attendance.index');
+        Route::post('/hr/approval-attendance/bulk-approve', [ApprovalAttendanceController::class, 'bulkApprove'])->name('hr.approval_attendance.bulk_approve');
         Route::post('/hr/approval-attendance/{attendance}/approve', [ApprovalAttendanceController::class, 'approve'])->name('hr.approval_attendance.approve');
         Route::post('/hr/approval-attendance/{attendance}/reject', [ApprovalAttendanceController::class, 'reject'])->name('hr.approval_attendance.reject');
 

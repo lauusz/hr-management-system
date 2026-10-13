@@ -194,9 +194,19 @@
         let longitude = null;
         let locationReady = false;
         let cameraReady = false;
+        let isSubmitting = false;
+
+        function invalidateLocationState() {
+            locationReady = false;
+            latitude = null;
+            longitude = null;
+            captureButton.disabled = true;
+            submitButton.disabled = true;
+        }
 
         function checkReady() {
             captureButton.disabled = !(cameraReady && locationReady);
+            submitButton.disabled = isSubmitting || !photoBlob || !locationReady;
             if (cameraReady && locationReady) {
                 statusMessage.textContent = 'Siap untuk mengambil foto.';
                 statusMessage.style.color = 'var(--success)';
@@ -226,6 +236,7 @@
 
         function startLocation() {
             if (!navigator.geolocation) {
+                invalidateLocationState();
                 gpsPill.className = 'remote-capture-pill is-error';
                 gpsText.textContent = 'GPS tidak tersedia';
                 return;
@@ -244,6 +255,7 @@
                 gpsOverlayDot.style.background = accuracy <= 100 ? 'var(--success)' : 'var(--warning)';
                 checkReady();
             }, () => {
+                invalidateLocationState();
                 gpsPill.className = 'remote-capture-pill is-error';
                 gpsText.textContent = 'GPS error';
                 gpsOverlayText.textContent = 'Lokasi tidak tersedia';
@@ -254,7 +266,7 @@
         }
 
         captureButton.addEventListener('click', async () => {
-            if (!video.videoWidth) return;
+            if (!video.videoWidth || !locationReady) return;
 
             flash.classList.add('is-active');
             setTimeout(() => flash.classList.remove('is-active'), 450);
@@ -274,6 +286,7 @@
                 video.style.display = 'none';
                 captureGroup.hidden = true;
                 submitGroup.hidden = false;
+                submitButton.disabled = !locationReady;
                 statusMessage.textContent = 'Foto siap dikirim.';
                 statusMessage.style.color = 'var(--text-muted)';
             } catch (error) {
@@ -294,9 +307,10 @@
         });
 
         async function submitRemoteAttendance() {
-            if (!photoBlob || latitude === null || longitude === null) return;
+            if (!photoBlob || !locationReady || latitude === null || longitude === null) return;
 
             const originalText = submitButton.textContent;
+            isSubmitting = true;
             submitButton.disabled = true;
             retakeButton.disabled = true;
             submitButton.textContent = 'Mengirim...';
@@ -326,14 +340,15 @@
                 });
             } catch (error) {
                 window.showToast(error.message || 'Gagal terhubung ke server.', 'error');
-                submitButton.disabled = false;
+                isSubmitting = false;
+                submitButton.disabled = !locationReady;
                 retakeButton.disabled = false;
                 submitButton.textContent = originalText;
             }
         }
 
         submitButton.addEventListener('click', () => {
-            if (!photoBlob || latitude === null || longitude === null) return;
+            if (!photoBlob || !locationReady || latitude === null || longitude === null) return;
 
             if (mode === 'in' && officeHolidayModal) {
                 officeHolidayModal.style.display = 'flex';

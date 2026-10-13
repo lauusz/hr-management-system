@@ -41,6 +41,7 @@ STRICT-RULES.md
 settings.local.json
 /.worktrees
 /.codex-tmp/
+/update ke server/
 # Added by code-review-graph
 .code-review-graph/
 

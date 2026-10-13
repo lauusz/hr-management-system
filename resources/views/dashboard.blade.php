@@ -14,6 +14,9 @@
         'NEED_REPAIR' => 'Perlu Service',
         'DAMAGED' => 'Rusak',
       ];
+      $todayAttendance = $todayAttendance ?? null;
+      $clockInAt = $todayAttendance?->clock_in_at;
+      $clockOutAt = $todayAttendance?->clock_out_at;
     @endphp
 
     {{-- ============================================ --}}
@@ -87,16 +90,45 @@
     </div>
 
     {{-- ============================================ --}}
-    {{-- PRIMARY QUICK ACTIONS - 2-Column Grid        --}}
+    {{-- ATTENDANCE - 2-Column Grid                   --}}
     {{-- ============================================ --}}
-    <section class="dash-section dash-section--primary">
+    <section class="dash-section dash-section--primary attendance-section">
       <div class="section-header">
-        <h2 class="section-title">Aksi Cepat</h2>
-        <p class="section-subtitle">Fitur yang sering digunakan</p>
+        <h2 class="section-title">ABSEN</h2>
+        <p class="section-subtitle">Catat kehadiran hari ini</p>
       </div>
-      <div class="action-grid">
+      <div class="attendance-action-grid">
 
-        <a class="action-card" href="{{ route('attendance.clockIn.form') }}">
+        @if ($clockInAt)
+        <div class="action-card attendance-action-card attendance-action-card--completed" aria-label="Clock In berhasil pukul {{ $clockInAt->format('H:i') }}">
+          <div class="action-card__top">
+            <div class="action-card__icon">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12l4 4L19 6"/>
+              </svg>
+            </div>
+          </div>
+          <div class="action-card__body">
+            <span class="action-card__name">Clock In</span>
+            <span class="action-card__desc">Berhasil · {{ $clockInAt->format('H:i') }}</span>
+          </div>
+        </div>
+        @elseif ($todayAttendance)
+        <div class="action-card attendance-action-card attendance-action-card--not-recorded" aria-label="Clock In tidak tercatat">
+          <div class="action-card__top">
+            <div class="action-card__icon">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+              </svg>
+            </div>
+          </div>
+          <div class="action-card__body">
+            <span class="action-card__name">Clock In</span>
+            <span class="action-card__desc">Tidak tercatat</span>
+          </div>
+        </div>
+        @else
+        <a class="action-card attendance-action-card" href="{{ route('attendance.clockIn.form') }}" aria-label="Clock In — Masuk kerja">
           <div class="action-card__top">
             <div class="action-card__icon icon-green">
               <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,8 +146,24 @@
             <span class="action-card__desc">Masuk kerja</span>
           </div>
         </a>
+        @endif
 
-        <a class="action-card" href="{{ route('attendance.clockOut.form') }}">
+        @if ($clockOutAt)
+        <div class="action-card attendance-action-card attendance-action-card--completed" aria-label="Clock Out berhasil pukul {{ $clockOutAt->format('H:i') }}">
+          <div class="action-card__top">
+            <div class="action-card__icon">
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12l4 4L19 6"/>
+              </svg>
+            </div>
+          </div>
+          <div class="action-card__body">
+            <span class="action-card__name">Clock Out</span>
+            <span class="action-card__desc">Berhasil · {{ $clockOutAt->format('H:i') }}</span>
+          </div>
+        </div>
+        @else
+        <a class="action-card attendance-action-card" href="{{ route('attendance.clockOut.form') }}" aria-label="Clock Out — Pulang kerja">
           <div class="action-card__top">
             <div class="action-card__icon icon-red">
               <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,6 +181,20 @@
             <span class="action-card__desc">Pulang kerja</span>
           </div>
         </a>
+        @endif
+
+      </div>
+    </section>
+
+    {{-- ============================================ --}}
+    {{-- PRIMARY QUICK ACTIONS - 2-Column Grid        --}}
+    {{-- ============================================ --}}
+    <section class="dash-section dash-section--primary">
+      <div class="section-header">
+        <h2 class="section-title">Aksi Cepat</h2>
+        <p class="section-subtitle">Fitur yang sering digunakan</p>
+      </div>
+      <div class="action-grid">
 
         <a class="action-card" href="{{ route('leave-requests.create') }}">
           <div class="action-card__top">
@@ -801,6 +863,78 @@
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 8px;
+    }
+
+    .attendance-action-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .attendance-action-grid .attendance-action-card {
+      min-height: 128px;
+      padding: 16px;
+      gap: 14px;
+      border-color: var(--border, #E5E7EB);
+      box-shadow: 0 2px 8px rgba(10, 61, 98, 0.05);
+    }
+
+    .attendance-action-card:focus-visible {
+      outline: 3px solid rgba(20, 93, 160, 0.35);
+      outline-offset: 2px;
+    }
+
+    .attendance-action-card .action-card__icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+    }
+
+    .attendance-action-card .action-card__icon svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .attendance-action-card .action-card__arrow svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .attendance-action-card .action-card__name {
+      font-size: 1rem;
+    }
+
+    .attendance-action-card .action-card__desc {
+      font-size: 0.8125rem;
+      white-space: normal;
+      overflow: visible;
+    }
+
+    .attendance-action-card--completed {
+      border-color: #BBF7D0;
+      background: #F0FDF4;
+      box-shadow: none;
+    }
+
+    .attendance-action-card--completed .action-card__icon {
+      background: #DCFCE7;
+      color: #16A34A;
+    }
+
+    .attendance-action-card--completed .action-card__desc {
+      color: #15803D;
+      font-weight: 700;
+    }
+
+    .attendance-action-card--not-recorded {
+      border-color: #FDE68A;
+      background: #FFFBEB;
+      box-shadow: none;
+    }
+
+    .attendance-action-card--not-recorded .action-card__icon {
+      background: #FEF3C7;
+      color: #B45309;
     }
 
     .settings-grid {

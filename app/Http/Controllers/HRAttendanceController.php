@@ -58,6 +58,7 @@ class HRAttendanceController extends Controller
             Attendance::COMPLETION_OPEN,
             Attendance::COMPLETION_CLOSED,
             Attendance::COMPLETION_MISSED_CLOCK_OUT,
+            Attendance::COMPLETION_MISSED_CLOCK_IN,
             Attendance::COMPLETION_LATE_CLOCK_OUT,
         ];
         if (in_array($completionStatus, $validCompletionStatuses, true)) {
