@@ -154,7 +154,7 @@
     @endpush
 
     <style>
-        .schedule-edit-page { display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; padding-bottom: 116px; }
+        .schedule-edit-page { display: flex; flex-direction: column; gap: 12px; width: 100%; padding-bottom: 160px; }
         .section-header-inline { display: flex; align-items: center; gap: 10px; }
         .section-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .icon-navy { color: var(--primary-dark, #0A3D62); background: rgba(10, 61, 98, 0.08); }
@@ -199,24 +199,27 @@
         .schedule-edit-location-option { display: flex; align-items: flex-start; gap: 8px; padding: 8px; border-radius: 8px; color: var(--text-secondary, #374151); font-size: 13px; font-weight: 600; cursor: pointer; }
         .schedule-edit-location-option:hover { background: var(--white, #fff); }
 
-        .schedule-edit-action-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 50; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, 0.96); border-top: 1px solid var(--border-light, #E5E7EB); box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06); }
-        .schedule-edit-action-dock { display: flex; gap: 10px; max-width: 720px; margin: 0 auto; }
-        .schedule-edit-action-secondary, .schedule-edit-action-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 10px; font: inherit; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; }
-        .schedule-edit-action-secondary { flex: 1; border: 1.5px solid var(--border-light, #E5E7EB); background: var(--white, #fff); color: var(--text-secondary, #374151); }
-        .schedule-edit-action-primary { flex: 2; border: 0; background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0)); color: #fff; box-shadow: 0 4px 12px rgba(20, 93, 160, 0.2); }
-        .schedule-edit-action-secondary:hover { border-color: var(--text-muted, #6B7280); background: var(--gray-50, #F5F7FA); }
-        .schedule-edit-action-primary:hover { box-shadow: 0 6px 18px rgba(20, 93, 160, 0.3); }
+        .schedule-edit-action-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 50; pointer-events: none; transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1), right 0.35s cubic-bezier(0.4, 0, 0.2, 1), bottom 0.35s ease; }
+        .schedule-edit-action-dock { display: flex; flex-direction: column-reverse; gap: 10px; margin: 0 auto; padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border-light, #E5E7EB); border-radius: 18px 18px 0 0; background: var(--white, #fff); box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06); pointer-events: auto; }
+        .schedule-edit-action-secondary, .schedule-edit-action-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 11px 18px; border-radius: 10px; font: inherit; font-size: 13.5px; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; transition: all 0.2s; }
+        .schedule-edit-action-secondary { border: 1.5px solid var(--border-light, #E5E7EB); background: var(--gray-50, #F5F7FA); color: var(--text-secondary, #6B7280); }
+        .schedule-edit-action-primary { border: 0; background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0)); color: #fff; box-shadow: 0 2px 8px rgba(10, 61, 98, 0.2); }
+        .schedule-edit-action-secondary:hover { border-color: var(--gray-300, #D1D5DB); background: var(--white, #fff); }
+        .schedule-edit-action-primary:hover { box-shadow: 0 4px 12px rgba(10, 61, 98, 0.3); transform: translateY(-1px); }
+
+        @media (min-width: 640px) {
+            .schedule-edit-action-dock { flex-direction: row; gap: 12px; }
+            .schedule-edit-action-secondary, .schedule-edit-action-primary { flex: 1 1 0; min-width: 0; padding: 12px 24px; font-size: 14px; }
+        }
 
         @media (min-width: 768px) {
             .schedule-edit-page { padding-bottom: 100px; }
             .schedule-edit-card { padding: 24px; }
-            .schedule-edit-action-secondary, .schedule-edit-action-primary { flex: none; padding: 0 24px; }
-            .schedule-edit-action-dock { justify-content: flex-end; }
         }
         @media (min-width: 1025px) {
             .schedule-edit-action-bar { left: calc(var(--sidebar-width) + 12px); right: 0; bottom: 16px; padding: 0 16px; background: transparent; border: 0; box-shadow: none; }
             .app.sidebar-collapsed .schedule-edit-action-bar { left: 0; }
-            .schedule-edit-action-dock { padding: 14px 24px; border: 1px solid var(--border-light, #E5E7EB); border-radius: 18px; background: var(--white, #fff); box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04); }
+            .schedule-edit-action-dock { max-width: 1200px; padding: 10px; border: 1px solid var(--border-light, #E5E7EB); border-radius: 18px; box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04); }
         }
         @media (max-width: 420px) {
             .schedule-edit-employee-card { align-items: flex-start; }
