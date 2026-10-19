@@ -39,6 +39,7 @@ class ScheduleController extends Controller
                 'employee_shifts.shift_id',
                 'employee_shifts.location_id',
                 'employee_shifts.is_all_locations',
+                'employee_shifts.is_flexible',
                 'shifts.name as shift_name',
                 'attendance_locations.name as location_name'
             )
@@ -112,6 +113,7 @@ class ScheduleController extends Controller
     {
         $usesLocationAssignments = $this->usesLocationAssignments($request);
         $this->normalizeLocationInput($request);
+        $locationMode = $request->input('location_mode');
 
         $validated = $request->validate([
             'user_ids' => [
@@ -121,28 +123,30 @@ class ScheduleController extends Controller
             ],
             'user_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
             'shift_id' => ['required', 'exists:shifts,id'],
-            'all_locations' => ['required', 'boolean'],
-            'location_ids' => $request->boolean('all_locations')
-                ? ['prohibited']
-                : ['required', 'array', 'min:1'],
-            'location_ids.*' => ['required', 'integer', 'distinct', 'exists:attendance_locations,id'],
+            'location_mode' => ['required', Rule::in(['selected', 'all', 'flexible'])],
+            'location_ids' => $locationMode === 'selected'
+                ? ['required', 'array', 'min:1']
+                : ['prohibited'],
+            'location_ids.*' => ['required', 'integer', 'distinct', Rule::exists('attendance_locations', 'id')->where('is_active', true)],
         ]);
 
         $this->ensureLocationAssignmentsReady($usesLocationAssignments);
 
-        $isAllLocations = $validated['all_locations'];
+        $isAllLocations = $validated['location_mode'] === 'all';
+        $isFlexible = $validated['location_mode'] === 'flexible';
         $locationIds = $validated['location_ids'] ?? [];
 
-        DB::transaction(function () use ($validated, $isAllLocations, $locationIds, $usesLocationAssignments) {
+        DB::transaction(function () use ($validated, $isAllLocations, $isFlexible, $locationIds, $usesLocationAssignments) {
             foreach ($validated['user_ids'] as $userId) {
                 $schedule = EmployeeShift::updateOrCreate(['user_id' => $userId], [
                     'shift_id' => $validated['shift_id'],
-                    'location_id' => $isAllLocations ? null : $locationIds[0],
+                    'location_id' => $isAllLocations || $isFlexible ? null : $locationIds[0],
                     'is_all_locations' => $isAllLocations,
+                    'is_flexible' => $isFlexible,
                 ]);
 
                 if ($usesLocationAssignments) {
-                    $schedule->locations()->sync($isAllLocations ? [] : $locationIds);
+                    $schedule->locations()->sync($isAllLocations || $isFlexible ? [] : $locationIds);
                 }
             }
         });
@@ -174,6 +178,7 @@ class ScheduleController extends Controller
     {
         $usesLocationAssignments = $this->usesLocationAssignments($request);
         $this->normalizeLocationInput($request);
+        $locationMode = $request->input('location_mode');
 
         $validated = $request->validate([
             'user_id' => [
@@ -182,29 +187,31 @@ class ScheduleController extends Controller
                 Rule::unique('employee_shifts', 'user_id')->ignore($schedule->id),
             ],
             'shift_id' => ['required', 'exists:shifts,id'],
-            'all_locations' => ['required', 'boolean'],
-            'location_ids' => $request->boolean('all_locations')
-                ? ['prohibited']
-                : ['required', 'array', 'min:1'],
-            'location_ids.*' => ['required', 'integer', 'distinct', 'exists:attendance_locations,id'],
+            'location_mode' => ['required', Rule::in(['selected', 'all', 'flexible'])],
+            'location_ids' => $locationMode === 'selected'
+                ? ['required', 'array', 'min:1']
+                : ['prohibited'],
+            'location_ids.*' => ['required', 'integer', 'distinct', Rule::exists('attendance_locations', 'id')->where('is_active', true)],
         ], [
             'user_id.unique' => 'Karyawan ini sudah memiliki jadwal shift.',
         ]);
 
         $this->ensureLocationAssignmentsReady($usesLocationAssignments);
 
-        $isAllLocations = $validated['all_locations'];
+        $isAllLocations = $validated['location_mode'] === 'all';
+        $isFlexible = $validated['location_mode'] === 'flexible';
         $locationIds = $validated['location_ids'] ?? [];
 
         $schedule->update([
             'user_id' => $validated['user_id'],
             'shift_id' => $validated['shift_id'],
-            'location_id' => $isAllLocations ? null : $locationIds[0],
+            'location_id' => $isAllLocations || $isFlexible ? null : $locationIds[0],
             'is_all_locations' => $isAllLocations,
+            'is_flexible' => $isFlexible,
         ]);
 
         if ($usesLocationAssignments) {
-            $schedule->locations()->sync($isAllLocations ? [] : $locationIds);
+            $schedule->locations()->sync($isAllLocations || $isFlexible ? [] : $locationIds);
         }
 
         return redirect()
@@ -223,22 +230,30 @@ class ScheduleController extends Controller
 
     private function usesLocationAssignments(Request $request): bool
     {
-        return $request->has('all_locations') || $request->has('location_ids');
+        return $request->has('location_ids') || $request->input('location_mode') === 'selected';
     }
 
     private function normalizeLocationInput(Request $request): void
     {
-        $isAllLocations = $request->boolean('all_locations') || $request->input('location_id') === 'all';
+        $locationMode = $request->input('location_mode');
+
+        if ($locationMode === null) {
+            // Form lama memakai All Locations untuk akses tanpa batas.
+            $locationMode = ($request->boolean('all_locations') || $request->input('location_id') === 'all')
+                ? 'flexible'
+                : 'selected';
+        }
+
         $locationIds = $request->input('location_ids');
 
         if (! $request->has('location_ids')) {
-            $locationIds = $isAllLocations || ! $request->filled('location_id')
+            $locationIds = $locationMode !== 'selected' || ! $request->filled('location_id')
                 ? []
                 : [$request->input('location_id')];
         }
 
         $request->merge([
-            'all_locations' => $isAllLocations,
+            'location_mode' => $locationMode,
             'location_ids' => $locationIds,
         ]);
     }

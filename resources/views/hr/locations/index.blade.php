@@ -112,10 +112,6 @@
         </div>
     </div>
 
-    <div class="loc-pagination">
-        <x-pagination :items="$items" />
-    </div>
-
     @foreach($items as $loc)
     <x-modal
         id="delete-location-{{ $loc->id }}"
@@ -370,11 +366,6 @@
             margin: 0 auto;
             max-width: 280px;
             line-height: 1.5;
-        }
-
-        /* --- PAGINATION --- */
-        .loc-pagination {
-            margin-top: 24px;
         }
 
         /* --- RESPONSIVE --- */

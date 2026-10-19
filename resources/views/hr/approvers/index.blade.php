@@ -13,6 +13,13 @@
         </div>
     </x-slot>
 
+    <section class="approval-map-section">
+        <div class="approval-map-section__header">
+            <div><h2>Lembur</h2><p>Atur supervisor dan manager khusus lembur untuk setiap karyawan.</p></div>
+            <a href="{{ route('hr.approvers.overtime.index') }}" class="approval-map-add-button">Atur Lembur</a>
+        </div>
+    </section>
+
     <div class="approval-map-summary">
         <div class="approval-map-stat">
             <span>Managers</span>

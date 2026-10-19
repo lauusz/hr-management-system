@@ -4,19 +4,22 @@
     <style>
         /* Card & Layout */
         .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 20px; }
-        .container-xl { padding-top: 20px; max-width: 1200px; margin: 0 auto; }
+        .container-xl { padding-top: 0; max-width: 1200px; margin: 0 auto; }
+        .approval-page-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .approval-queue-summary { display: inline-flex; align-items: center; gap: 8px; color: #64748b; font-size: 0.84rem; font-weight: 600; }
+        .approval-queue-count { display: inline-flex; min-width: 24px; height: 24px; align-items: center; justify-content: center; padding: 0 7px; border-radius: 999px; background: #eaf2fb; color: #145da0; font-size: 0.75rem; font-weight: 700; }
         
         /* Table Styles */
-        .table-responsive { width: 100%; overflow-x: auto; }
-        .table { width: 100%; border-collapse: collapse; min-width: 1050px; }
-        .table th { background: #f8fafc; padding: 14px 16px; text-align: left; font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; }
-        .table td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #1e293b; font-size: 0.9rem; }
+        .table-responsive { width: 100%; overflow: visible; }
+        .table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .table th { background: #f8fafc; padding: 12px 10px; text-align: left; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+        .table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #1e293b; font-size: 0.85rem; overflow-wrap: anywhere; }
         .table tr:last-child td { border-bottom: none; }
         .table tr:hover td { background: #fcfcfc; }
 
         /* User Info Column */
-        .user-name { font-weight: 700; color: #1e293b; font-size: 0.95rem; }
-        .user-role { font-size: 0.75rem; color: #64748b; margin-top: 2px; text-transform: uppercase; font-weight: 600; }
+        .user-name { font-weight: 700; color: #1e293b; font-size: 0.75rem; line-height: 1.3; overflow-wrap: anywhere; }
+        .user-schedule { margin-top: 2px; color: #64748b; font-size: 0.7rem; font-weight: 600; }
 
         /* Buttons & Badges */
         .btn-pill { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
@@ -30,6 +33,23 @@
         .btn-approve:hover { background: #bbf7d0; transform: translateY(-1px); }
         .btn-reject { background: #fee2e2; color: #991b1b; }
         .btn-reject:hover { background: #fecaca; transform: translateY(-1px); }
+        .approval-proof-actions, .approval-location-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+        .approval-proof-actions .btn-pill, .approval-location-actions .btn-pill { padding: 5px 8px; font-size: 0.7rem; gap: 4px; }
+        .approval-decision-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
+        .approval-decision-actions .btn-action { position: relative; width: 30px; height: 30px; justify-content: center; padding: 0; font-size: 0.78rem; }
+        .approval-decision-actions .btn-action[data-tooltip]::after { position: absolute; top: 50%; right: calc(100% + 6px); z-index: 30; padding: 5px 7px; border-radius: 6px; background: #1e293b; color: #fff; content: attr(data-tooltip); font-size: 0.68rem; font-weight: 600; line-height: 1; opacity: 0; pointer-events: none; transform: translateY(-50%); transition: opacity .15s ease; white-space: nowrap; }
+        .approval-decision-actions .btn-action[data-tooltip]:hover::after, .approval-decision-actions .btn-action[data-tooltip]:focus-visible::after { opacity: 1; }
+        .approval-decision-heading { text-align: center !important; white-space: nowrap; }
+        .approval-date { color: #475569; font-size: 0.75rem; font-weight: 600; white-space: nowrap; }
+        .clock-in-time--late, .attendance-note--late { color: #dc2626; font-weight: 700; }
+        .clock-side-cell { display: inline-flex; align-items: center; gap: 4px; }
+        .clock-side-move { position: relative; }
+        .clock-side-move summary { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 6px; color: #64748b; cursor: pointer; font-size: 18px; font-weight: 700; line-height: 1; list-style: none; }
+        .clock-side-move summary::-webkit-details-marker { display: none; }
+        .clock-side-move summary:hover, .clock-side-move summary:focus-visible { background: #f1f5f9; color: #145da0; outline: none; }
+        .clock-side-move__menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; width: max-content; padding: 4px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: 0 8px 20px rgba(15, 23, 42, .12); }
+        .clock-side-move__button { border: 0; border-radius: 6px; background: transparent; color: #334155; padding: 8px 10px; font: inherit; font-size: .75rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+        .clock-side-move__button:hover, .clock-side-move__button:focus-visible { background: #eff6ff; color: #145da0; outline: none; }
         /* Filter mengikuti pola master cuti agar pencarian dan status mudah dibedakan. */
         .aa-filter-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); margin-bottom: 16px; overflow: hidden; }
         .aa-search-row { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
@@ -75,8 +95,22 @@
         }
         @media (min-width: 768px) { .aa-filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
-        /* Note Box */
-        .note-box { background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid #f1f5f9; font-size: 0.85rem; color: #475569; line-height: 1.5; max-width: 280px; }
+        @media (max-width: 767px) {
+            .approval-page-toolbar { align-items: flex-start; flex-direction: column; }
+            .table-responsive { padding: 12px; }
+            .approval-attendance-table, .approval-attendance-table tbody { display: block; }
+            .approval-attendance-table colgroup, .approval-attendance-table thead { display: none; }
+            .approval-attendance-table tbody { display: grid; gap: 12px; }
+            .approval-attendance-table tr.approval-attendance-row { display: block; overflow: hidden; border: 1px solid #e2e8f0; border-radius: 12px; }
+            .approval-attendance-table td { display: grid; grid-template-columns: minmax(88px, .7fr) minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+            .approval-attendance-table td::before { content: attr(data-label); color: #64748b; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+            .approval-attendance-table td.approval-selection-cell { display: flex; align-items: center; gap: 10px; }
+            .approval-attendance-table td.approval-user-cell, .approval-attendance-table td.approval-decision-cell { display: block; }
+            .approval-attendance-table td.approval-user-cell::before, .approval-attendance-table td.approval-decision-cell::before { display: block; margin-bottom: 6px; }
+            .approval-decision-actions { justify-content: stretch; }
+            .approval-decision-actions .btn-action { flex: 1; justify-content: center; }
+            .approval-decision-actions .btn-action[data-tooltip]::after { display: none; }
+        }
 
         /* Modal Styles (Custom for Reject Form which has textarea) */
         .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
@@ -93,13 +127,16 @@
 
     <div class="container-xl">
         
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px;">
-            <p style="color:#64748b; margin:4px 0 0; font-size:0.95rem;">Validasi absensi karyawan.</p>
+        <div class="approval-page-toolbar">
+            <div class="approval-queue-summary" data-approval-attendance-queue-summary aria-live="polite">
+                <span class="approval-queue-count">{{ $pendingAttendances->count() }}</span>
+                <span>{{ $pendingAttendances->count() }} absensi menunggu pemeriksaan</span>
+            </div>
             <div data-approval-attendance-bulk-all>
                 @if($pendingAttendances->isNotEmpty())
-                    <button type="button" id="bulkApproveAllButton" class="btn-action btn-approve">
+                    <button type="button" id="bulkApproveAllButton" class="btn-action btn-approve" aria-label="Terima semua {{ $pendingAttendances->count() }} absensi" title="Terima semua absensi yang tampil">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        Terima Semua
+                        Terima Semua ({{ $pendingAttendances->count() }})
                     </button>
                 @endif
             </div>
@@ -116,8 +153,7 @@
             $activeAttendanceFilterCount = collect([
                 $filters['submitted_range'] ?? null,
                 $filters['name'] ?? null,
-                $filters['clock_in'] ?? null,
-                $filters['clock_out'] ?? null,
+                $filters['event_type'] ?? null,
             ])->filter()->count();
         @endphp
         <div class="aa-filter-card">
@@ -137,8 +173,7 @@
                 <div class="aa-filter-panel" id="approval-attendance-filter-panel" style="{{ $activeAttendanceFilterCount ? '' : 'display: none;' }}">
                     <div class="aa-filter-grid">
                         <div class="aa-filter-group"><label class="aa-filter-label" for="attendance-filter-date-range">Tanggal Pengajuan</label><input id="attendance-filter-date-range" type="text" name="submitted_range" value="{{ $filters['submitted_range'] ?? '' }}" placeholder="Pilih rentang tanggal" class="aa-filter-input" autocomplete="off"></div>
-                        <div class="aa-filter-group"><label class="aa-filter-label" for="attendance-filter-clock-in">Clock In</label><select id="attendance-filter-clock-in" name="clock_in" class="aa-filter-input"><option value="">Semua</option><option value="ada" @selected(($filters['clock_in'] ?? null) === 'ada')>Ada</option><option value="tidak_ada" @selected(($filters['clock_in'] ?? null) === 'tidak_ada')>Tidak ada</option></select></div>
-                        <div class="aa-filter-group"><label class="aa-filter-label" for="attendance-filter-clock-out">Clock Out</label><select id="attendance-filter-clock-out" name="clock_out" class="aa-filter-input"><option value="">Semua</option><option value="ada" @selected(($filters['clock_out'] ?? null) === 'ada')>Ada</option><option value="tidak_ada" @selected(($filters['clock_out'] ?? null) === 'tidak_ada')>Tidak ada</option></select></div>
+                        <div class="aa-filter-group"><label class="aa-filter-label" for="attendance-filter-event-type">Tipe Absensi</label><select id="attendance-filter-event-type" name="event_type" class="aa-filter-input"><option value="">Semua</option><option value="CLOCK_IN" @selected(($filters['event_type'] ?? null) === 'CLOCK_IN')>Clock In</option><option value="CLOCK_OUT" @selected(($filters['event_type'] ?? null) === 'CLOCK_OUT')>Clock Out</option></select></div>
                         <div class="aa-filter-actions"><button type="submit" class="aa-btn-apply">Terapkan Filter</button></div>
                     </div>
                 </div>
@@ -149,123 +184,44 @@
 
             @if($pendingAttendances->count() > 0)
                 <div class="table-responsive">
-                    <table class="table">
+                    <table class="table approval-attendance-table">
+                        <colgroup>
+                            <col style="width:4%;">
+                            <col style="width:23%;">
+                            <col style="width:10%;">
+                            <col style="width:10%;">
+                            <col style="width:8%;">
+                            <col style="width:8%;">
+                            <col style="width:14%;">
+                            <col style="width:14%;">
+                            <col style="width:9%;">
+                        </colgroup>
                         <thead>
                             <tr>
-                                <th style="width:48px; text-align:center;">
-                                    <input type="checkbox" id="bulkApproveAll" class="bulk-approve-checkbox" aria-label="Pilih semua absensi yang tampil">
-                                </th>
+                                <th style="width:48px; text-align:center;"><input type="checkbox" id="bulkApproveAll" class="bulk-approve-checkbox" aria-label="Pilih semua event absensi"></th>
                                 <th>Karyawan</th>
-                                <th>Clock In</th>
-                                <th>Clock Out</th>
+                                <th>Tipe</th>
+                                <th>Jam</th>
                                 <th>Tanggal</th>
-                                <th>Bukti Validasi</th>
-                                <th>Lokasi Maps</th>
-                                <th>Keperluan / Catatan</th>
-                                <th style="text-align:right;">Keputusan</th>
+                                <th>Foto</th>
+                                <th>Lokasi</th>
+                                <th class="approval-decision-heading">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($pendingAttendances as $item)
-                            <tr data-attendance-id="{{ $item->id }}">
-                                <td style="text-align:center;">
-                                    <input type="checkbox"
-                                        class="bulk-approve-checkbox bulk-approve-checkbox-item"
-                                        name="attendance_ids[]"
-                                        value="{{ $item->id }}"
-                                        data-bulk-approve-name="{{ $item->user->name }}"
-                                        aria-label="Pilih absensi {{ $item->user->name }}">
-                                </td>
-                                <td>
-                                    <div class="user-name">{{ $item->user->name }}</div>
-                                    <div class="user-role">{{ $item->user->role instanceof \App\Enums\UserRole ? $item->user->role->label() : $item->user->role }}</div>
-                                </td>
-
-                                <td>
-                                    {{ $item->clock_in_at?->format('H:i') ?? '-' }}
-                                </td>
-
-                                <td>
-                                    {{ $item->clock_out_at?->format('H:i') ?? '-' }}
-                                </td>
-
-                                <td>
-                                    {{ $item->work_date_label }}
-                                </td>
-
-                                <td>
-                                    @if($item->clock_in_photo)
-                                        <button type="button" class="btn-pill btn-blue"
-                                            data-image-viewer-src="{{ asset('storage/'.$item->clock_in_photo) }}"
-                                            data-image-viewer-alt="Foto absensi {{ $item->user->name }}">
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                            Foto
-                                        </button>
-                                    @endif
-                                    @if($item->clock_out_photo)
-                                        <button type="button" class="btn-pill btn-blue"
-                                            data-image-viewer-src="{{ asset('storage/'.$item->clock_out_photo) }}"
-                                            data-image-viewer-alt="Foto clock out {{ $item->user->name }}">
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                            Foto
-                                        </button>
-                                    @endif
-                                    @if(! $item->clock_in_photo && ! $item->clock_out_photo)
-                                        <span style="color:#94a3b8; font-size:0.85rem;">-</span>
-                                    @endif
-                                </td>
-
-                                <td>
-                                    @if($item->clock_in_lat !== null && $item->clock_in_lng !== null)
-                                        <button type="button"
-                                            class="btn-pill btn-sky"
-                                            data-modal-target="approval-attendance-location-map"
-                                            data-approval-attendance-location
-                                            data-approval-attendance-location-lat="{{ $item->clock_in_lat }}"
-                                            data-approval-attendance-location-lng="{{ $item->clock_in_lng }}"
-                                            data-approval-attendance-location-label="Clock In">
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                            Lokasi
-                                        </button>
-                                    @endif
-                                    @if($item->clock_out_lat !== null && $item->clock_out_lng !== null)
-                                        <button type="button"
-                                            class="btn-pill btn-sky"
-                                            data-modal-target="approval-attendance-location-map"
-                                            data-approval-attendance-location
-                                            data-approval-attendance-location-lat="{{ $item->clock_out_lat }}"
-                                            data-approval-attendance-location-lng="{{ $item->clock_out_lng }}"
-                                            data-approval-attendance-location-label="Clock Out">
-                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                                            Lokasi
-                                        </button>
-                                    @endif
-                                    @if(($item->clock_in_lat === null || $item->clock_in_lng === null) && ($item->clock_out_lat === null || $item->clock_out_lng === null))
-                                        <span style="color:#94a3b8; font-size:0.85rem;">-</span>
-                                    @endif
-                                </td>
-
-                                <td>
-                                    <div class="note-box">
-                                        {{ $item->notes ?? 'Tidak ada keterangan' }}
-                                    </div>
-                                </td>
-
-                                <td style="text-align:right;">
-                                    <div style="display:flex; gap:8px; justify-content:flex-end;">
-                                        {{-- TOMBOL TERIMA (Pake x-modal) --}}
-                                        <button type="button" class="btn-action btn-approve" 
-                                            onclick="openApproveModal('{{ route('hr.approval_attendance.approve', $item->id) }}', '{{ $item->user->name }}')">
-                                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                            Terima
-                                        </button>
-                                        
-                                        {{-- TOMBOL TOLAK (Custom Modal) --}}
-                                        <button type="button" class="btn-action btn-reject" 
-                                            onclick="openRejectModal('{{ $item->id }}', '{{ $item->user->name }}')">
-                                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                            Tolak
-                                        </button>
+                            @foreach($pendingAttendances as $event)
+                            <tr class="approval-attendance-row" data-attendance-id="{{ $event->id }}">
+                                <td class="approval-selection-cell" data-label="Pilih"><input type="checkbox" class="bulk-approve-checkbox bulk-approve-checkbox-item" name="attendance_ids[]" value="{{ $event->id }}" data-bulk-approve-name="{{ $event->user->name }}"></td>
+                                <td class="approval-user-cell" data-label="Karyawan"><div class="user-name">{{ $event->user->name }}</div></td>
+                                <td data-label="Tipe">{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}</td>
+                                <td data-label="Jam">{{ $event->occurred_at->format('H:i') }}</td>
+                                <td data-label="Tanggal">{{ $event->occurred_at->format('d/m/y') }}</td>
+                                <td data-label="Foto">@if($event->photo)<button type="button" class="btn-pill btn-blue" data-image-viewer-src="{{ asset('storage/'.$event->photo) }}" data-image-viewer-alt="Foto absensi {{ $event->user->name }}">Foto</button>@else - @endif</td>
+                                <td data-label="Lokasi">@if($event->latitude !== null && $event->longitude !== null)<a class="btn-pill btn-blue" target="_blank" rel="noopener" href="https://www.google.com/maps?q={{ $event->latitude }},{{ $event->longitude }}">Lokasi</a>@else - @endif</td>
+                                <td class="approval-decision-cell" data-label="Aksi">
+                                    <div class="approval-decision-actions">
+                                        <form method="POST" action="{{ route('hr.approval_attendance.approve', $event) }}">@csrf<button type="submit" class="btn-action btn-approve" aria-label="Terima absensi {{ $event->user->name }}">✓</button></form>
+                                        <form method="POST" action="{{ route('hr.approval_attendance.move_clock_side', $event) }}">@csrf<button type="submit" class="btn-action" aria-label="Ubah tipe absensi {{ $event->user->name }}">↔</button></form>
                                     </div>
                                 </td>
                             </tr>
@@ -360,6 +316,28 @@
         </div>
     </div>
 
+    <div id="moveClockSideModal" class="modal-backdrop" aria-hidden="true">
+        <div class="modal-content-custom" role="dialog" aria-modal="true" aria-labelledby="moveClockSideTitle">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 id="moveClockSideTitle" style="margin:0; font-size:1.2rem; color:#1e293b; font-weight:700;">Pindahkan Bukti Absensi?</h3>
+                <button type="button" onclick="closeMoveClockSideModal()" style="background:none; border:none; color:#94a3b8; cursor:pointer;" aria-label="Tutup">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <p style="margin-top:-10px; margin-bottom:20px; font-size:0.9rem; color:#64748b;">
+                Bukti absensi <span id="moveClockSideUserName" style="font-weight:700; color:#1e293b;"></span> akan dipindahkan ke <span id="moveClockSideDestination" style="font-weight:700; color:#1e293b;"></span>.
+            </p>
+            <form id="moveClockSideForm" method="POST">
+                @csrf
+                <input id="moveClockSideInput" type="hidden" name="destination">
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                    <button type="button" onclick="closeMoveClockSideModal()" style="border:none; background:#f1f5f9; color:#475569; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Batal</button>
+                    <button type="submit" style="border:none; background:#145da0; color:white; padding:10px 18px; border-radius:8px; font-weight:600; cursor:pointer;">Ya, Pindahkan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
 
@@ -392,6 +370,18 @@
 
         function closeRejectModal() {
             document.getElementById('rejectModal').style.display = 'none';
+        }
+
+        function openMoveClockSideModal(url, name, destination, destinationLabel) {
+            document.getElementById('moveClockSideForm').action = url;
+            document.getElementById('moveClockSideInput').value = destination;
+            document.getElementById('moveClockSideUserName').innerText = name;
+            document.getElementById('moveClockSideDestination').innerText = destinationLabel;
+            document.getElementById('moveClockSideModal').style.display = 'flex';
+        }
+
+        function closeMoveClockSideModal() {
+            document.getElementById('moveClockSideModal').style.display = 'none';
         }
 
         function toggleApprovalAttendanceFilterPanel() {
@@ -545,6 +535,7 @@
 
                     const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
                     const selectors = [
+                        '[data-approval-attendance-queue-summary]',
                         '[data-approval-attendance-bulk-all]',
                         '[data-approval-attendance-filter-controls]',
                         '[data-approval-attendance-results]',
@@ -578,3 +569,4 @@
     </script>
 
 </x-app>
+

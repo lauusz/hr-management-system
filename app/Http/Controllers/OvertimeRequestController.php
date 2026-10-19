@@ -3,9 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\OvertimeRequest;
+use App\Models\OvertimeRequestAttachment;
+use App\Services\OvertimeEvidenceStorage;
+use App\Services\OvertimeApprovalService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class OvertimeRequestController extends Controller
 {
@@ -16,7 +23,7 @@ class OvertimeRequestController extends Controller
     {
         $userId = Auth::id();
         
-        $overtimes = OvertimeRequest::where('user_id', $userId)
+        $overtimes = OvertimeRequest::with(['attachments', 'approvalActions', 'user.overtimeApproverAssignment.supervisor', 'user.overtimeApproverAssignment.manager'])->where('user_id', $userId)
             ->orderByDesc('created_at')
             ->paginate(20);
 
@@ -34,44 +41,99 @@ class OvertimeRequestController extends Controller
     /**
      * Simpan pengajuan lembur.
      */
-    public function store(Request $request)
+    public function store(Request $request, OvertimeEvidenceStorage $evidenceStorage)
     {
         $user = Auth::user();
-
-        if (! $user->direct_supervisor_id) {
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Pengajuan lembur tidak dapat dibuat karena supervisor langsung belum diatur. Hubungi HRD.');
-        }
 
         $validated = $request->validate([
             'overtime_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|different:start_time',
             'description' => 'required|string|max:5000',
+            'photos' => 'nullable|array|max:3',
+            'photos.*' => 'file|mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx|max:8192',
         ], [
             'end_time.different' => 'Jam selesai lembur tidak boleh sama dengan jam mulai.',
+            'photos.max' => 'Maksimal 3 bukti pendukung per pengajuan.',
+            'photos.*.max' => 'Ukuran tiap file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photos.*.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+            'photos.*.mimes' => 'Format file bukti pendukung tidak didukung.',
+            'photos.*.file' => 'File bukti pendukung tidak valid.',
         ]);
 
         $durationMinutes = $this->calculateDurationMinutes($validated['start_time'], $validated['end_time']);
 
-        OvertimeRequest::create([
-            'user_id' => $user->id,
-            'overtime_date' => $validated['overtime_date'],
-            'start_time' => $validated['start_time'],
-            'end_time' => $validated['end_time'],
-            'duration_minutes' => $durationMinutes,
-            'description' => $validated['description'],
-            'status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR,
-        ]);
+        $files = [];
+        try {
+            foreach ($request->file('photos', []) as $file) {
+                $files[] = $evidenceStorage->store($file);
+            }
+
+            DB::transaction(function () use ($user, $validated, $durationMinutes, $files) {
+                $overtime = OvertimeRequest::create([
+                    'user_id' => $user->id,
+                    'overtime_date' => $validated['overtime_date'],
+                    'start_time' => $validated['start_time'],
+                    'end_time' => $validated['end_time'],
+                    'duration_minutes' => $durationMinutes,
+                    'description' => $validated['description'],
+                    'status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR,
+                ]);
+                foreach ($files as $file) {
+                    $overtime->attachments()->create($file);
+                }
+            });
+        } catch (\Throwable $exception) {
+            foreach ($files as $file) {
+                try {
+                    $evidenceStorage->delete($file['file_path']);
+                } catch (\Throwable $cleanupException) {
+                    report($cleanupException);
+                }
+            }
+
+            if ($exception instanceof ValidationException) {
+                throw $exception;
+            }
+
+            report($exception);
+
+            return back()->withInput()->with('error', 'Pengajuan atau bukti lembur gagal disimpan. Silakan coba lagi.');
+        }
 
         return redirect()->route('overtime-requests.index')
             ->with('success', 'Pengajuan lembur berhasil dibuat.');
     }
-    public function update(Request $request, OvertimeRequest $overtimeRequest)
+
+    public function attachment(OvertimeRequest $overtimeRequest, OvertimeRequestAttachment $attachment, OvertimeEvidenceStorage $evidenceStorage)
+    {
+        abort_unless((int) $attachment->overtime_request_id === (int) $overtimeRequest->id, 404);
+        abort_unless($overtimeRequest->canViewEvidence(Auth::user()), 403);
+        abort_unless(Storage::disk('overtime_evidence')->exists($attachment->file_path), 404);
+
+        $mime = in_array($attachment->mime_type, ['image/jpeg', 'application/pdf'], true)
+            ? $attachment->mime_type : 'application/octet-stream';
+        $name = basename(str_replace('\\', '/', $attachment->original_name)) ?: 'bukti';
+        if ($mime === 'image/jpeg') {
+            $name = pathinfo($name, PATHINFO_FILENAME).'.jpg';
+        }
+        $fallback = preg_replace('/[^a-zA-Z0-9._-]/', '_', $name) ?: 'bukti';
+        $response = response($evidenceStorage->read($attachment->file_path), 200, [
+            'Content-Type' => $mime,
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+        ]);
+        $response->headers->set('Content-Disposition', HeaderUtils::makeDisposition(
+            $mime === 'application/octet-stream' ? 'attachment' : 'inline', $name, $fallback
+        ));
+
+        return $response;
+    }
+    public function update(Request $request, OvertimeRequest $overtimeRequest, OvertimeApprovalService $approvalService)
     {
         $user = Auth::user();
-        $isOwner = $user->id === $overtimeRequest->user_id;
+        $isOwner = (int) $user->id === (int) $overtimeRequest->user_id;
 
         $roleStr = strtoupper($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role);
         $isHRD = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER']);
@@ -80,7 +142,7 @@ class OvertimeRequestController extends Controller
             return redirect()->back()->with('error', 'Anda tidak berhak mengubah data ini.');
         }
 
-        if ($isOwner && !$isHRD) {
+        if ($isOwner) {
             if ($overtimeRequest->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
                 return redirect()->back()->with('error', 'Pengajuan sudah diproses, tidak dapat diubah sendiri. Hubungi supervisor atau HRD untuk koreksi data.');
             }
@@ -97,13 +159,32 @@ class OvertimeRequestController extends Controller
 
         $durationMinutes = $this->calculateDurationMinutes($validated['start_time'], $validated['end_time']);
 
-        $overtimeRequest->update([
-            'overtime_date' => $validated['overtime_date'],
-            'start_time' => $validated['start_time'],
-            'end_time' => $validated['end_time'],
-            'duration_minutes' => $durationMinutes,
-            'description' => $validated['description'],
-        ]);
+        try {
+            $approvalService->locked($overtimeRequest, function ($locked) use ($isOwner, $user, $validated, $durationMinutes, $approvalService) {
+                if ($isOwner && $locked->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
+                    throw new \DomainException('Pengajuan sudah diproses, tidak dapat diubah sendiri.');
+                }
+                $changed = $locked->overtime_date->format('Y-m-d') !== $validated['overtime_date']
+                    || $locked->start_time->format('H:i') !== $validated['start_time']
+                    || $locked->end_time->format('H:i') !== $validated['end_time']
+                    || $locked->description !== $validated['description'];
+                if ($changed && $locked->status === OvertimeRequest::STATUS_PENDING_SUPERVISOR && $locked->currentApprovalActions()->contains('action', 'APPROVE')) {
+                    if ($isOwner) {
+                        throw new \DomainException('Pengajuan tidak dapat diubah setelah ada persetujuan.');
+                    }
+                    $approvalService->resetIfApproved($locked, $user);
+                }
+                $locked->update([
+                    'overtime_date' => $validated['overtime_date'],
+                    'start_time' => $validated['start_time'],
+                    'end_time' => $validated['end_time'],
+                    'duration_minutes' => $durationMinutes,
+                    'description' => $validated['description'],
+                ]);
+            });
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
 
         return back()->with('success', 'Data lembur berhasil diperbarui.');
     }
@@ -120,10 +201,10 @@ class OvertimeRequestController extends Controller
         return $start->diffInMinutes($end);
     }
 
-    public function destroy(OvertimeRequest $overtimeRequest)
+    public function destroy(OvertimeRequest $overtimeRequest, OvertimeApprovalService $approvalService)
     {
         $user = Auth::user();
-        $isOwner = $user->id === $overtimeRequest->user_id;
+        $isOwner = (int) $user->id === (int) $overtimeRequest->user_id;
         $roleStr = strtoupper($user->role instanceof \App\Enums\UserRole ? $user->role->value : $user->role);
         $isHRD = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER']);
 
@@ -132,16 +213,23 @@ class OvertimeRequestController extends Controller
         }
 
         // Owner hanya bisa hapus jika status masih pending supervisor
-        if ($isOwner && !$isHRD) {
+        if ($isOwner) {
              if ($overtimeRequest->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
                 return back()->with('error', 'Hanya pengajuan yang belum diproses atasan yang bisa dibatalkan.');
             }
         }
         
         // Update status to CANCELLED instead of deleting
-        $overtimeRequest->update([
-            'status' => OvertimeRequest::STATUS_CANCELLED
-        ]);
+        try {
+            $approvalService->locked($overtimeRequest, function ($locked) use ($isOwner) {
+                if ($isOwner && $locked->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
+                    throw new \DomainException('Hanya pengajuan yang masih menunggu yang dapat dibatalkan.');
+                }
+                $locked->update(['status' => OvertimeRequest::STATUS_CANCELLED]);
+            });
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
 
         if ($isHRD && !$isOwner) return redirect()->route('hr.overtime-requests.master')->with('success', 'Pengajuan lembur berhasil dibatalkan oleh HRD.');
         return redirect()->route('overtime-requests.index')->with('success', 'Pengajuan lembur berhasil dibatalkan.');

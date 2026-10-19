@@ -10,7 +10,7 @@ class AttendanceLocationController extends Controller
 {
     public function index()
     {
-        $items = AttendanceLocation::orderBy('name')->paginate(20);
+        $items = AttendanceLocation::orderBy('name')->get();
 
         return view('hr.locations.index', compact('items'));
     }

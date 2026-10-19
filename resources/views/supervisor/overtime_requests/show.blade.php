@@ -33,7 +33,10 @@
             $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
         }
 
-        $isPending = $st === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR;
+        $mapping = $overtimeRequest->user->overtimeApproverAssignment;
+        $actorId = auth()->id();
+        $slot = $mapping && $mapping->supervisor_id == $actorId ? 'SUPERVISOR' : ($mapping && $mapping->manager_id == $actorId ? 'MANAGER' : null);
+        $isPending = $st === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR && $mapping?->supervisor_id && $mapping?->manager_id && $slot && !$overtimeRequest->currentApprovalActions()->contains('decision_slot', $slot) && !$overtimeRequest->currentApprovalActions()->contains('actor_id', $actorId);
     @endphp
 
     <div class="sov-detail-page">
@@ -145,6 +148,8 @@
                 <div class="sov-reason-box">
                     {{ $overtimeRequest->description }}
                 </div>
+                @include('overtime_requests._attachments', ['overtime' => $overtimeRequest])
+                @include('overtime_requests._approval_status', ['overtime' => $overtimeRequest])
             </div>
 
             {{-- Card: Riwayat Persetujuan --}}

@@ -119,6 +119,17 @@
                     </div>
                 @endif
 
+                @include('overtime_requests._attachments', ['overtime' => $overtime])
+                @include('overtime_requests._approval_status', ['overtime' => $overtime])
+                @if($overtime->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
+                    @unless($overtime->currentApprovalActions()->contains('action', 'APPROVE'))
+                        @include('overtime_requests._edit_form', ['overtime' => $overtime])
+                    @endunless
+                    <form method="POST" action="{{ route('overtime-requests.destroy', $overtime) }}" onsubmit="return confirm('Batalkan pengajuan lembur ini?')">
+                        @csrf @method('DELETE') <button type="submit">Batalkan pengajuan</button>
+                    </form>
+                @endif
+
                 @if($overtime->status === \App\Models\OvertimeRequest::STATUS_REJECTED && $overtime->rejection_note)
                     <div class="ot-card-rejection">
                         <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -696,6 +696,8 @@ class HrLeaveController extends Controller
                     $oldType = $lockedLeave->type instanceof LeaveType
                         ? $lockedLeave->type->value
                         : (string) $lockedLeave->type;
+                    $oldStartDate = $lockedLeave->getRawOriginal('start_date');
+                    $oldEndDate = $lockedLeave->getRawOriginal('end_date');
                     $isApproved = $lockedLeave->status === LeaveRequest::STATUS_APPROVED;
 
                     $usesDailyTreatments = is_array($dailyTreatments);
@@ -721,6 +723,11 @@ class HrLeaveController extends Controller
                         $hasMealAllowance = $lockedLeave->days()
                             ->where('treatment', \App\Models\LeaveRequestDay::MEAL_ALLOWANCE)
                             ->exists();
+
+                        // Rekonsiliasi legacy harus menghitung baseline dari pengajuan sebelum diedit.
+                        $lockedLeave->setAttribute('type', $oldType);
+                        $lockedLeave->setAttribute('start_date', $oldStartDate);
+                        $lockedLeave->setAttribute('end_date', $oldEndDate);
                     } elseif ($effectiveDeductionMode === 'LEAVE_BALANCE_HALF_DAY') {
                         $targetDeduction = 0.5;
                     } elseif ($effectiveDeductionMode === 'LEAVE_BALANCE') {

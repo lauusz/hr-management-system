@@ -94,53 +94,17 @@ class SupervisorOvertimeController extends Controller
     /**
      * Setujui pengajuan lembur.
      */
-    public function approve(OvertimeRequest $overtimeRequest)
+    public function approve(OvertimeRequest $overtimeRequest, \App\Services\OvertimeApprovalService $service)
     {
-        $redirect = $this->authorizeSupervisor($overtimeRequest);
-        if ($redirect) {
-            return $redirect;
-        }
-
-        if ($overtimeRequest->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
-            return back()->with('error', 'Status tidak valid.');
-        }
-
-        $overtimeRequest->update([
-            'status' => OvertimeRequest::STATUS_APPROVED_SUPERVISOR,
-            'approved_by_supervisor_id' => Auth::id(),
-            'approved_by_supervisor_at' => now(),
-        ]);
-
-        return redirect()->route('supervisor.overtime-requests.index')
-            ->with('success', 'Pengajuan lembur berhasil disetujui.');
+        return app(OvertimeApprovalController::class)->approve($overtimeRequest, $service);
     }
 
     /**
      * Tolak pengajuan lembur.
      */
-    public function reject(Request $request, OvertimeRequest $overtimeRequest)
+    public function reject(Request $request, OvertimeRequest $overtimeRequest, \App\Services\OvertimeApprovalService $service)
     {
-        $redirect = $this->authorizeSupervisor($overtimeRequest);
-        if ($redirect) {
-            return $redirect;
-        }
-
-        $request->validate([
-            'rejection_note' => 'required|string|max:255',
-        ]);
-
-        if ($overtimeRequest->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
-            return back()->with('error', 'Status tidak valid.');
-        }
-
-        $overtimeRequest->update([
-            'status' => OvertimeRequest::STATUS_REJECTED,
-            'rejected_by_id' => Auth::id(),
-            'rejection_note' => $request->rejection_note,
-        ]);
-
-        return redirect()->route('supervisor.overtime-requests.index')
-            ->with('success', 'Pengajuan lembur ditolak.');
+        return app(OvertimeApprovalController::class)->reject($request, $overtimeRequest, $service);
     }
 
     private function authorizeSupervisor(OvertimeRequest $overtime)

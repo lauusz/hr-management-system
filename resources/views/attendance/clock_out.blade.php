@@ -773,11 +773,11 @@
         });
 
         // Jalankan saat load
-        document.addEventListener('DOMContentLoaded', () => {
-            cameraDot.classList.add('capture-dot--pulse');
-            startCamera();
-            initGPS();
-        });
+    document.addEventListener('DOMContentLoaded', () => {
+        cameraDot.classList.add('capture-dot--pulse');
+        startCamera();
+        initGPS();
+    });
     </script>
 
     <style>

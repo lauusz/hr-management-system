@@ -1,49 +1,67 @@
 <x-app title="Edit Jadwal Karyawan">
 
-    <div class="form-container">
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke-width="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6" stroke-width="2"/>
+                    <line x1="8" y1="2" x2="8" y2="6" stroke-width="2"/>
+                    <line x1="3" y1="10" x2="21" y2="10" stroke-width="2"/>
+                </svg>
+            </div>
+            <div>
+                <h1 class="section-title">Edit Jadwal Karyawan</h1>
+                <p class="section-subtitle">Perbarui shift dan cakupan lokasi presensi karyawan.</p>
+            </div>
+        </div>
+    </x-slot>
+
+    <div class="schedule-edit-page">
+        <a href="{{ route('hr.schedules.index') }}" class="schedule-edit-back" aria-label="Kembali ke master jadwal karyawan">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span>Kembali</span>
+        </a>
 
         @if ($errors->any())
-            <div class="alert-error">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
+            <div class="schedule-edit-alert" role="alert">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                    <line x1="12" y1="8" x2="12" y2="12" stroke-width="2"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2"/>
                 </svg>
                 <span>{{ $errors->first() }}</span>
             </div>
         @endif
 
-        <div class="card">
-            <div class="card-header">
-                <div>
-                    <h2 class="form-title">Edit Jadwal</h2>
-                    <p class="form-subtitle">Perbarui data shift atau lokasi presensi karyawan.</p>
+        <form id="schedule-edit-form" action="{{ route('hr.schedules.update', $schedule->id) }}" method="POST" class="schedule-edit-form">
+            @csrf
+            @method('PUT')
+
+            <section class="schedule-edit-card schedule-edit-employee-card">
+                <div class="schedule-edit-employee-avatar">{{ strtoupper(substr($schedule->user->name, 0, 1)) }}</div>
+                <div class="schedule-edit-employee-body">
+                    <span class="schedule-edit-label">Karyawan</span>
+                    <h2>{{ $schedule->user->name }}</h2>
+                    <p>Data karyawan tidak dapat diubah dari halaman ini.</p>
                 </div>
-                <a href="{{ route('hr.schedules.index') }}" class="btn-back">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-                    Kembali
-                </a>
-            </div>
+                <input type="hidden" name="user_id" value="{{ $schedule->user_id }}">
+            </section>
 
-            <div class="divider"></div>
-
-            <form action="{{ route('hr.schedules.update', $schedule->id) }}" method="POST" class="form-content">
-                @csrf
-                @method('PUT')
-
-                <div class="form-group">
-                    <label>Karyawan</label>
-                    <div class="readonly-input">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#6b7280"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                        <span>{{ $schedule->user->name }}</span>
-                    </div>
-                    <input type="hidden" name="user_id" value="{{ $schedule->user_id }}">
-                    <small class="helper-text">Data karyawan tidak dapat diubah pada menu edit.</small>
+            <section class="schedule-edit-card">
+                <div class="schedule-edit-card-header">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" stroke-width="2"/>
+                        <polyline points="12 7 12 12 15 14" stroke-width="2"/>
+                    </svg>
+                    <h2>Shift Kerja</h2>
                 </div>
 
-                <div class="form-group">
-                    <label for="shift_id">Shift Kerja <span class="req">*</span></label>
-                    <select name="shift_id" id="shift_id" class="form-control" required>
+                <div class="schedule-edit-field">
+                    <label for="shift_id">Pilih shift <span aria-hidden="true">*</span></label>
+                    <select name="shift_id" id="shift_id" required>
                         <option value="">-- Pilih Shift --</option>
                         @foreach($shifts as $s)
                             <option value="{{ $s->id }}" @selected($schedule->shift_id == $s->id)>
@@ -52,136 +70,158 @@
                         @endforeach
                     </select>
                 </div>
+            </section>
 
-                <div class="form-group">
-                    @php($selectedIds = (array) old('location_ids', $selectedLocationIds))
-                    <label class="location-all-option">
-                        <input type="checkbox" name="all_locations" id="all_locations" value="1" @checked(old('all_locations', $schedule->is_all_locations))>
-                        <span>All Locations</span>
-                    </label>
-                    <small class="helper-text">Pilih ini untuk mengabaikan pembatasan daftar lokasi.</small>
-                </div>
-
-                <div class="form-group" id="location-options">
-                    <label>Lokasi Presensi <span class="req">*</span></label>
-                    <div class="location-checkbox-list">
-                        @foreach($locations as $loc)
-                        <label class="location-checkbox-option">
-                            <input type="checkbox" name="location_ids[]" value="{{ $loc->id }}" @checked(in_array($loc->id, $selectedIds))>
-                            <span>{{ $loc->name }}</span>
-                        </label>
-                        @endforeach
+            <section class="schedule-edit-card">
+                <div class="schedule-edit-card-header">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21s7-4.35 7-11a7 7 0 10-14 0c0 6.65 7 11 7 11z"/>
+                        <circle cx="12" cy="10" r="2.5" stroke-width="2"/>
+                    </svg>
+                    <div>
+                        <h2>Cakupan Lokasi Presensi</h2>
+                        <p>Pilih aturan lokasi yang digunakan saat absensi.</p>
                     </div>
                 </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">
-                        Update Jadwal
-                    </button>
+                @php($selectedIds = (array) old('location_ids', $selectedLocationIds))
+                @php($locationMode = old('location_mode', $schedule->is_flexible ? 'flexible' : ($schedule->is_all_locations ? 'all' : 'selected')))
+                <div class="schedule-edit-location-modes">
+                    <label class="schedule-edit-location-mode">
+                        <input type="radio" name="location_mode" value="selected" @checked($locationMode === 'selected')>
+                        <span class="schedule-edit-location-mode-copy">
+                            <strong>Lokasi Terpilih</strong>
+                            <small>Pilih satu atau beberapa lokasi kantor.</small>
+                        </span>
+                    </label>
+                    <label class="schedule-edit-location-mode">
+                        <input type="radio" name="location_mode" value="all" @checked($locationMode === 'all')>
+                        <span class="schedule-edit-location-mode-copy">
+                            <strong>All Locations</strong>
+                            <small>Semua lokasi presensi aktif yang terdaftar.</small>
+                        </span>
+                    </label>
+                    <label class="schedule-edit-location-mode">
+                        <input type="radio" name="location_mode" value="flexible" @checked($locationMode === 'flexible')>
+                        <span class="schedule-edit-location-mode-copy">
+                            <strong>Fleksibel</strong>
+                            <small>Presensi dari lokasi mana pun.</small>
+                        </span>
+                    </label>
                 </div>
 
-            </form>
+                <div id="location-options" class="schedule-edit-location-options">
+                    <span class="schedule-edit-label">Lokasi Presensi <span aria-hidden="true">*</span></span>
+                    <div class="schedule-edit-location-list">
+                        @foreach($locations as $loc)
+                            <label class="schedule-edit-location-option">
+                                <input type="checkbox" name="location_ids[]" value="{{ $loc->id }}" @checked(in_array($loc->id, $selectedIds))>
+                                <span>{{ $loc->name }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+            </section>
+        </form>
+    </div>
+
+    <div class="schedule-edit-action-bar" aria-label="Aksi edit jadwal">
+        <div class="schedule-edit-action-dock">
+            <a href="{{ route('hr.schedules.index') }}" class="schedule-edit-action-secondary">Batal</a>
+            <button type="submit" form="schedule-edit-form" class="schedule-edit-action-primary">Simpan Perubahan</button>
         </div>
     </div>
 
     @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const allLocations = document.getElementById('all_locations');
+            const locationModes = Array.from(document.querySelectorAll('input[name="location_mode"]'));
+            const locationOptionsContainer = document.getElementById('location-options');
             const locationOptions = Array.from(document.querySelectorAll('#location-options input[type="checkbox"]'));
 
             function syncLocationOptions() {
+                const selectedMode = locationModes.find((input) => input.checked)?.value;
                 locationOptions.forEach((checkbox) => {
-                    checkbox.disabled = allLocations.checked;
-                    if (allLocations.checked) checkbox.checked = false;
+                    checkbox.disabled = selectedMode !== 'selected';
                 });
+                locationOptionsContainer.hidden = selectedMode !== 'selected';
             }
 
-            allLocations.addEventListener('change', syncLocationOptions);
+            locationModes.forEach((input) => input.addEventListener('change', syncLocationOptions));
             syncLocationOptions();
         });
     </script>
     @endpush
 
     <style>
-        /* Container Layout */
-        .form-container {
-            max-width: 550px;
-            margin: 0 auto;
-            padding-bottom: 40px;
+        .schedule-edit-page { display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; padding-bottom: 116px; }
+        .section-header-inline { display: flex; align-items: center; gap: 10px; }
+        .section-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .icon-navy { color: var(--primary-dark, #0A3D62); background: rgba(10, 61, 98, 0.08); }
+        .section-title { margin: 0; color: var(--text-primary, #111827); font-size: 1rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.25; }
+        .section-subtitle { margin: 0; color: var(--text-muted, #6B7280); font-size: 0.8125rem; font-weight: 500; line-height: 1.35; }
+
+        .schedule-edit-back { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 10px; border: 1px solid var(--border-light, #E5E7EB); border-radius: 10px; background: var(--white, #fff); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); color: var(--text-muted, #6B7280); font-size: 0.75rem; font-weight: 600; text-decoration: none; transition: all 0.15s ease; }
+        .schedule-edit-back:hover { border-color: var(--primary, #145DA0); background: var(--gray-50, #F5F7FA); color: var(--primary, #145DA0); }
+        .schedule-edit-back svg { flex-shrink: 0; transition: transform 0.2s ease; }
+        .schedule-edit-back:hover svg { transform: translateX(-2px); }
+
+        .schedule-edit-alert { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; background: rgba(239, 68, 68, 0.08); color: #dc2626; font-size: 13px; font-weight: 500; }
+
+        .schedule-edit-form { display: flex; flex-direction: column; gap: 12px; }
+        .schedule-edit-card { padding: 20px; border: 1px solid var(--border-light, #E5E7EB); border-radius: 16px; background: var(--white, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04); }
+        .schedule-edit-employee-card { display: flex; align-items: center; gap: 14px; }
+        .schedule-edit-employee-avatar { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; flex: 0 0 52px; border-radius: 14px; background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0)); color: #fff; font-size: 20px; font-weight: 700; }
+        .schedule-edit-employee-body { min-width: 0; }
+        .schedule-edit-label { display: block; color: var(--text-muted, #6B7280); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+        .schedule-edit-employee-body h2 { margin: 3px 0; color: var(--text-primary, #111827); font-size: 1.125rem; font-weight: 700; line-height: 1.2; }
+        .schedule-edit-employee-body p { margin: 0; color: var(--text-muted, #6B7280); font-size: 12px; font-weight: 500; line-height: 1.4; }
+
+        .schedule-edit-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border-light, #E5E7EB); color: var(--primary-dark, #0A3D62); }
+        .schedule-edit-card-header h2 { margin: 0; color: var(--text-primary, #111827); font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+        .schedule-edit-card-header p { margin: 3px 0 0; color: var(--text-muted, #6B7280); font-size: 12px; font-weight: 500; line-height: 1.4; }
+        .schedule-edit-field label { display: block; margin-bottom: 7px; color: var(--text-secondary, #374151); font-size: 12px; font-weight: 600; }
+        .schedule-edit-field label span, .schedule-edit-location-options > .schedule-edit-label span { color: #dc2626; }
+        .schedule-edit-field select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-light, #E5E7EB); border-radius: 10px; outline: none; background: var(--white, #fff); color: var(--text-primary, #111827); font: inherit; font-size: 14px; transition: all 0.2s ease; }
+        .schedule-edit-field select:focus { border-color: var(--primary, #145DA0); box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1); }
+
+        .schedule-edit-location-modes { display: grid; gap: 8px; }
+        .schedule-edit-location-mode { display: flex; gap: 10px; padding: 12px; border: 1px solid var(--border-light, #E5E7EB); border-radius: 12px; cursor: pointer; transition: all 0.15s ease; }
+        .schedule-edit-location-mode:hover { border-color: rgba(20, 93, 160, 0.4); background: rgba(20, 93, 160, 0.03); }
+        .schedule-edit-location-mode:has(input:checked) { border-color: var(--primary, #145DA0); background: rgba(20, 93, 160, 0.06); }
+        .schedule-edit-location-mode input, .schedule-edit-location-option input { margin: 2px 0 0; accent-color: var(--primary, #145DA0); }
+        .schedule-edit-location-mode-copy { display: flex; flex-direction: column; gap: 2px; }
+        .schedule-edit-location-mode-copy strong { color: var(--text-primary, #111827); font-size: 14px; }
+        .schedule-edit-location-mode-copy small { color: var(--text-muted, #6B7280); font-size: 12px; font-weight: 500; line-height: 1.4; }
+        .schedule-edit-location-options { margin-top: 16px; }
+        .schedule-edit-location-options > .schedule-edit-label { margin-bottom: 8px; }
+        .schedule-edit-location-list { display: grid; gap: 6px; max-height: 200px; overflow-y: auto; padding: 8px; border: 1px solid var(--border-light, #E5E7EB); border-radius: 10px; background: var(--gray-50, #F5F7FA); }
+        .schedule-edit-location-option { display: flex; align-items: flex-start; gap: 8px; padding: 8px; border-radius: 8px; color: var(--text-secondary, #374151); font-size: 13px; font-weight: 600; cursor: pointer; }
+        .schedule-edit-location-option:hover { background: var(--white, #fff); }
+
+        .schedule-edit-action-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 50; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); background: rgba(255, 255, 255, 0.96); border-top: 1px solid var(--border-light, #E5E7EB); box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06); }
+        .schedule-edit-action-dock { display: flex; gap: 10px; max-width: 720px; margin: 0 auto; }
+        .schedule-edit-action-secondary, .schedule-edit-action-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border-radius: 10px; font: inherit; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; }
+        .schedule-edit-action-secondary { flex: 1; border: 1.5px solid var(--border-light, #E5E7EB); background: var(--white, #fff); color: var(--text-secondary, #374151); }
+        .schedule-edit-action-primary { flex: 2; border: 0; background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0)); color: #fff; box-shadow: 0 4px 12px rgba(20, 93, 160, 0.2); }
+        .schedule-edit-action-secondary:hover { border-color: var(--text-muted, #6B7280); background: var(--gray-50, #F5F7FA); }
+        .schedule-edit-action-primary:hover { box-shadow: 0 6px 18px rgba(20, 93, 160, 0.3); }
+
+        @media (min-width: 768px) {
+            .schedule-edit-page { padding-bottom: 100px; }
+            .schedule-edit-card { padding: 24px; }
+            .schedule-edit-action-secondary, .schedule-edit-action-primary { flex: none; padding: 0 24px; }
+            .schedule-edit-action-dock { justify-content: flex-end; }
         }
-
-        /* Alert Styling */
-        .alert-error {
-            background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
-            padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;
-            display: flex; align-items: center; gap: 10px; font-size: 14px;
+        @media (min-width: 1025px) {
+            .schedule-edit-action-bar { left: calc(var(--sidebar-width) + 12px); right: 0; bottom: 16px; padding: 0 16px; background: transparent; border: 0; box-shadow: none; }
+            .app.sidebar-collapsed .schedule-edit-action-bar { left: 0; }
+            .schedule-edit-action-dock { padding: 14px 24px; border: 1px solid var(--border-light, #E5E7EB); border-radius: 18px; background: var(--white, #fff); box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04); }
         }
-
-        /* Card System */
-        .card {
-            background: #fff; border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
-            border: 1px solid #f3f4f6; overflow: hidden;
-        }
-
-        .card-header {
-            padding: 24px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
-        }
-
-        .form-title { margin: 0; font-size: 18px; font-weight: 700; color: #111827; }
-        .form-subtitle { margin: 4px 0 0 0; font-size: 13.5px; color: #6b7280; line-height: 1.4; }
-        .divider { height: 1px; background: #f3f4f6; width: 100%; }
-        
-        .form-content { padding: 24px; }
-
-        /* Form Controls */
-        .form-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px; }
-        .form-group label { font-size: 13.5px; font-weight: 600; color: #374151; }
-        .req { color: #dc2626; }
-
-        .form-control {
-            padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px;
-            font-size: 14px; width: 100%; outline: none; background: #fff; color: #111827;
-            transition: border-color 0.2s, box-shadow 0.2s; font-family: inherit;
-        }
-        .form-control:focus { border-color: #1e4a8d; box-shadow: 0 0 0 3px rgba(30, 74, 141, 0.1); }
-
-        .location-all-option, .location-checkbox-option { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-        .location-checkbox-option { font-size: 14px; font-weight: 500; }
-        .location-checkbox-list { display: grid; gap: 8px; max-height: 180px; overflow-y: auto; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
-        .location-checkbox-list input { accent-color: #1e4a8d; }
-
-        /* Readonly Box Styling */
-        .readonly-input {
-            padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px;
-            background: #f9fafb; color: #374151; font-size: 14px;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .helper-text { font-size: 12px; color: #6b7280; margin-top: 2px; }
-
-        /* Buttons */
-        .btn-back {
-            display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
-            border-radius: 8px; border: 1px solid #d1d5db; background: #fff; color: #374151;
-            font-size: 13px; font-weight: 500; text-decoration: none; transition: all 0.2s; white-space: nowrap;
-        }
-        .btn-back:hover { background: #f9fafb; border-color: #9ca3af; }
-
-        .form-actions { margin-top: 10px; display: flex; justify-content: flex-end; }
-        .btn-primary {
-            display: inline-flex; justify-content: center; align-items: center;
-            padding: 12px 24px; background: #1e4a8d; color: #fff; border: none; border-radius: 8px;
-            font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; min-width: 140px;
-        }
-        .btn-primary:hover { background: #163a75; }
-
-        /* Mobile Adjustments */
-        @media (max-width: 600px) {
-            .card-header { flex-direction: column; gap: 12px; }
-            .btn-back { align-self: flex-start; }
-            .form-content { padding: 20px; }
-            .btn-primary { width: 100%; }
+        @media (max-width: 420px) {
+            .schedule-edit-employee-card { align-items: flex-start; }
+            .schedule-edit-employee-avatar { width: 44px; height: 44px; flex-basis: 44px; border-radius: 12px; font-size: 17px; }
+            .schedule-edit-employee-body h2 { font-size: 1rem; }
         }
     </style>
 </x-app>

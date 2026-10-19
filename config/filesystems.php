@@ -47,6 +47,14 @@ return [
             'report' => false,
         ],
 
+        'overtime_evidence' => [
+            'driver' => 'local',
+            'root' => storage_path('app/public'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

@@ -2,24 +2,18 @@
 
     @php
         $hasDateFilter = request()->filled('date_start') || request()->filled('date_end');
-        $hasAdvancedFilter = $hasDateFilter || ($status ?? null) || ($completion_status ?? null) || ($shiftType ?? null);
+        $hasAdvancedFilter = $hasDateFilter;
         $activeFilterCount = collect([
             $hasDateFilter ? 'date' : null,
-            $status ?? null,
-            $completion_status ?? null,
-            $shiftType ?? null,
         ])->filter()->count();
     @endphp
 
     <div class="attendance-filter-card">
         <form method="GET" action="{{ route('hr.attendances.index') }}" id="attendance-filter-form">
             @php
-            $rangeValue = '';
-            if (!empty($date_start) && !empty($date_end)) {
-                $rangeValue = $date_start . ' sampai ' . $date_end;
-            } elseif (!empty($date_start)) {
-                $rangeValue = $date_start;
-            }
+            $rangeValue = ($date_start ?? '') === ($date_end ?? '')
+                ? ($date_start ?? '')
+                : trim(($date_start ?? '').' to '.($date_end ?? ''));
             @endphp
 
             <div class="attendance-search-row">
@@ -60,7 +54,7 @@
             <div class="attendance-filter-panel" id="attendance-filter-panel" style="{{ $hasAdvancedFilter ? '' : 'display: none;' }}">
                 <div class="attendance-filter-grid">
                     <div class="attendance-filter-group">
-                        <label class="attendance-filter-label">Rentang Tanggal</label>
+                        <label class="attendance-filter-label">Tanggal</label>
                         <input type="text"
                             id="date_range"
                             name="date_range"
@@ -70,36 +64,6 @@
                             class="attendance-filter-input">
                         <input type="hidden" name="date_start" id="date_start" value="{{ $date_start ?? '' }}">
                         <input type="hidden" name="date_end" id="date_end" value="{{ $date_end ?? '' }}">
-                    </div>
-
-                    <div class="attendance-filter-group">
-                        <label class="attendance-filter-label">Status</label>
-                        <select name="status" class="attendance-filter-input">
-                            <option value="">Semua Status</option>
-                            <option value="HADIR" @selected(($status ?? '' )=='HADIR' )>Hadir</option>
-                            <option value="TERLAMBAT" @selected(($status ?? '' )=='TERLAMBAT' )>Terlambat</option>
-                        </select>
-                    </div>
-
-                    <div class="attendance-filter-group">
-                        <label class="attendance-filter-label">Status Kelengkapan</label>
-                        <select name="completion_status" class="attendance-filter-input">
-                            <option value="">Semua</option>
-                            <option value="{{ App\Models\Attendance::COMPLETION_CLOSED }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_CLOSED)>Lengkap</option>
-                            <option value="{{ App\Models\Attendance::COMPLETION_OPEN }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_OPEN)>Berjalan</option>
-                            <option value="{{ App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_MISSED_CLOCK_OUT)>Belum Clock Out</option>
-                            <option value="{{ App\Models\Attendance::COMPLETION_MISSED_CLOCK_IN }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_MISSED_CLOCK_IN)>Belum Clock In</option>
-                            <option value="{{ App\Models\Attendance::COMPLETION_LATE_CLOCK_OUT }}" @selected(($completion_status ?? '') == App\Models\Attendance::COMPLETION_LATE_CLOCK_OUT)>Clock Out Terlambat</option>
-                        </select>
-                    </div>
-
-                    <div class="attendance-filter-group">
-                        <label class="attendance-filter-label">Jenis Shift</label>
-                        <select name="shift_type" class="attendance-filter-input">
-                            <option value="">Semua</option>
-                            <option value="overnight" @selected(($shiftType ?? '') === 'overnight')>Lintas Hari</option>
-                            <option value="regular" @selected(($shiftType ?? '') === 'regular')>Bukan Lintas Hari</option>
-                        </select>
                     </div>
 
                     <div class="attendance-filter-actions">
@@ -115,170 +79,66 @@
             <table class="custom-table">
                 <thead>
                     <tr>
-                        <th style="min-width: 180px;">Nama Karyawan</th>
-                        <th>Shift</th>
-                        <th>Clock In</th>
-                        <th>Clock Out</th>
-                        <th>Tanggal</th>
-                        <th>Terlambat</th>
-                        <th>Status</th>
-                        <th class="text-center">Foto In</th>
-                        <th class="text-center">Foto Out</th>
-                        <th class="text-center">Lokasi</th>
+                        <th class="attendance-name-column">Nama Karyawan</th>
+                        <th class="attendance-type-column">Tipe</th>
+                        <th class="attendance-time-column">Jam</th>
+                        <th class="attendance-late-column">Terlambat</th>
+                        <th class="attendance-date-column">Tanggal</th>
+                        <th class="attendance-media-column">Foto</th>
+                        <th class="attendance-media-column">Lokasi</th>
+                        <th class="attendance-action-cell">Aksi</th>
                     </tr>
                 </thead>
 
                 <tbody>
-                    @forelse($items as $at)
+                    @forelse($items as $event)
                     <tr>
-                        <td>
+                        <td class="attendance-name-column">
                             <div class="user-info">
-                                <span class="fw-bold">{{ $at->user->name }}</span>
+                                <span class="fw-bold">{{ $event->user->name }}</span>
+                                <span class="user-work-schedule">{{ $event->work_schedule }}</span>
                             </div>
                         </td>
-
-                        <td>
-                            <span class="text-muted">{{ $at->shift->name ?? '-' }}</span>
-                            @if($at->is_overnight)
-                                <span class="badge-status bg-purple">Lintas Hari</span>
-                            @endif
+                        <td class="attendance-type-column">
+                            <span class="attendance-type-chip attendance-type-chip--{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'in' : 'out' }}">
+                                {{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}
+                            </span>
                         </td>
-
-                        <td>
-                            @if($at->clock_in_at)
-                            <div class="time-block">
-                                <span class="time-clock">{{ $at->clock_in_at->format('H:i') }}</span>
-                            </div>
-                            @else
-                            <span class="text-muted">-</span>
-                            @endif
+                        <td class="attendance-time attendance-time-column">{{ $event->occurred_at->format('H:i') }}</td>
+                        <td class="attendance-late-column {{ $event->late_label !== '-' ? 'attendance-late' : 'text-muted' }}">{{ $event->late_label }}</td>
+                        <td class="attendance-date-column">{{ $event->occurred_at->format('d/m/y') }}</td>
+                        <td class="attendance-media-column">
+                            @if($event->photo)
+                            <button type="button" class="btn-pill btn-blue" data-image-viewer-src="{{ asset('storage/'.$event->photo) }}" data-image-viewer-alt="Foto absensi {{ $event->user->name }}">Foto</button>
+                            @else <span class="text-muted">-</span> @endif
                         </td>
-
-                        <td>
-                            @if($at->clock_out_at)
-                            <div class="time-block">
-                                <span class="time-clock">{{ $at->clock_out_at->format('H:i') }}</span>
-                            </div>
-                            @else
-                            <span class="text-muted">-</span>
-                            @endif
+                        <td class="attendance-media-column">
+                            @if($event->latitude !== null && $event->longitude !== null)
+                            <button type="button" class="btn-pill btn-blue"
+                                data-attendance-location="{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'clock-in' : 'clock-out' }}"
+                                data-attendance-location-lat="{{ $event->latitude }}"
+                                data-attendance-location-lng="{{ $event->longitude }}">Lokasi</button>
+                            @else <span class="text-muted">-</span> @endif
                         </td>
-
-                        <td>{{ $at->work_date_label }}</td>
-
-                        <td>
-                            @if($at->late_minutes > 0)
-                                @php
-                                    $jam = floor($at->late_minutes / 60);
-                                    $menit = $at->late_minutes % 60;
-                                    $hasil = '';
-                                    if($jam > 0) $hasil .= $jam . 'j ';
-                                    if($menit > 0) $hasil .= $menit . 'm';
-                                @endphp
-                                <span class="badge-late">{{ $hasil }}</span>
-                            @else
-                                <span class="text-muted">-</span>
-                            @endif
-                        </td>
-
-                        {{-- [ADJUSTMENT] Logic Status untuk Handle Dinas Luar --}}
-                        <td>
-                            @if($at->type === 'DINAS_LUAR')
-                                <span class="badge-status bg-purple">Dinas Luar</span>
-                                @if($at->approval_status === 'APPROVED')
-                                    <span class="badge-status bg-green" style="font-size: 10px; margin-left: 2px;">OK</span>
-                                @elseif($at->approval_status === 'REJECTED')
-                                    <span class="badge-status bg-red" style="font-size: 10px; margin-left: 2px;">Ditolak</span>
-                                @endif
-                            @else
-                                @if ($at->status === 'TERLAMBAT')
-                                    <span class="badge-status bg-red">Terlambat</span>
-                                @elseif ($at->status === 'HADIR')
-                                    <span class="badge-status bg-green">Hadir</span>
-                                @elseif ($at->status === 'ALPHA')
-                                    <span class="badge-status bg-red">Alpha</span>
-                                @else
-                                    <span class="badge-status bg-gray">{{ $at->status ?? '-' }}</span>
-                                @endif
-                            @endif
-                        </td>
-
-                        <td class="text-center">
-                            @if($at->clock_in_photo)
-                            <button type="button"
-                                class="btn-pill btn-blue"
-                                data-image-viewer-src="{{ asset('storage/'.$at->clock_in_photo) }}"
-                                data-image-viewer-alt="Foto clock-in {{ $at->user->name }}"
-                                data-employee-name="{{ $at->user->name }}"
-                                data-datetime="{{ $at->clock_in_at ? $at->clock_in_at->format('d/m/Y H:i') : '' }}"
-                                data-label="Clock-in">
-                                Lihat
-                            </button>
-                            @else
-                                <span class="text-muted">-</span>
-                            @endif
-                        </td>
-
-                        <td class="text-center">
-                            @if($at->clock_out_photo)
-                            <button type="button"
-                                class="btn-pill btn-blue"
-                                data-image-viewer-src="{{ asset('storage/'.$at->clock_out_photo) }}"
-                                data-image-viewer-alt="Foto clock-out {{ $at->user->name }}"
-                                data-employee-name="{{ $at->user->name }}"
-                                data-datetime="{{ $at->clock_out_at ? $at->clock_out_at->format('d/m/Y H:i') : '' }}"
-                                data-label="Clock-out">
-                                Lihat
-                            </button>
-                            @else
-                                <span class="text-muted">-</span>
-                            @endif
-                        </td>
-
-                        <td class="text-center">
-                             <div class="btn-group-pill">
-                                @if($at->clock_in_lat && $at->clock_in_lng)
-                                <button type="button"
-                                    class="btn-pill btn-sky"
-                                    data-modal-target="attendance-location-map"
-                                    data-attendance-location="clock-in"
-                                    data-attendance-location-lat="{{ $at->clock_in_lat }}"
-                                    data-attendance-location-lng="{{ $at->clock_in_lng }}">
-                                    Lihat
-                                </button>
-                                @endif
-
-                                @if($at->clock_out_lat && $at->clock_out_lng)
-                                <button type="button"
-                                    class="btn-pill btn-sky"
-                                    data-modal-target="attendance-location-map"
-                                    data-attendance-location="clock-out"
-                                    data-attendance-location-lat="{{ $at->clock_out_lat }}"
-                                    data-attendance-location-lng="{{ $at->clock_out_lng }}">
-                                    Lihat
-                                </button>
-                                @endif
-
-                                @if(!$at->clock_in_lat && !$at->clock_out_lat)
-                                    <span class="text-muted">-</span>
-                                @endif
-                            </div>
+                        <td class="attendance-action-cell">
+                            @if($event->approval_status === 'PENDING')
+                            <details class="clock-side-move">
+                                <summary aria-label="Opsi koreksi tipe event">⋮</summary>
+                                <div class="clock-side-move__menu">
+                                    <form method="POST" action="{{ route('hr.attendances.move_event_type', $event) }}">@csrf
+                                        <button type="submit" class="clock-side-move__button">Pindahkan ke {{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock Out' : 'Clock In' }}</button>
+                                    </form>
+                                </div>
+                            </details>
+                            @else <span class="text-muted">-</span> @endif
                         </td>
                     </tr>
                     @empty
-                    <tr>
-                        <td colspan="10" class="empty-state">
-                            Tidak ada data absensi yang ditemukan.
-                        </td>
-                    </tr>
+                    <tr><td colspan="8" class="text-center text-muted">Tidak ada event absensi pada periode ini.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
-    </div>
-
-    <div style="margin-top: 20px;" data-attendance-pagination>
-        <x-pagination :items="$items" />
     </div>
 
     <x-modal id="attendance-location-map" title="Lokasi Presensi" type="info" variant="info" cancelLabel="Tutup">
@@ -289,13 +149,21 @@
         </div>
     </x-modal>
 
+    <x-modal id="moveClockSideModal" title="Pindahkan Bukti Absensi?" type="form" variant="warning">
+        <p style="margin:0; color:#64748b;">Bukti absensi <span id="moveClockSideUserName" style="font-weight:700; color:#1e293b;"></span> akan dipindahkan ke <span id="moveClockSideDestination" style="font-weight:700; color:#1e293b;"></span>.</p>
+        <form id="moveClockSideForm" method="POST" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+            @csrf
+            <input id="moveClockSideInput" type="hidden" name="destination">
+            <button type="button" class="modal-btn modal-btn-secondary" data-modal-close="true">Batal</button>
+            <button type="submit" class="modal-btn modal-btn-primary">Ya, Pindahkan</button>
+        </form>
+    </x-modal>
+
     <style>
         /* --- UTILITY --- */
         .mb-4 { margin-bottom: 16px; }
-        .mb-4 { margin-bottom: 16px; }
         .text-center { text-align: center; }
-        .fw-bold { font-weight: 600; color: #111827; }
-        .fw-bold { font-weight: 600; color: #111827; }
+        .fw-bold { font-weight: 700; color: #111827; }
         .text-muted { color: #9ca3af; font-size: 13px; font-style: italic; }
         .text-small { font-size: 13px; color: #4b5563; }
 
@@ -489,11 +357,11 @@
 
         /* --- TABLE --- */
         .table-wrapper { width: 100%; overflow-x: auto; }
-        .custom-table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+        .custom-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 850px; }
 
         .custom-table th {
             background: #f9fafb;
-            padding: 10px 12px;
+            padding: 11px 14px;
             text-align: left;
             font-size: 10px;
             font-weight: 700;
@@ -504,7 +372,7 @@
         }
 
         .custom-table td {
-            padding: 10px 12px;
+            padding: 12px 14px;
             border-bottom: 1px solid #f3f4f6;
             font-size: 12px;
             color: #1f2937;
@@ -515,8 +383,30 @@
         .custom-table tr:hover td { background: #fdfdfd; }
 
         /* --- CUSTOM COLUMNS --- */
+        .attendance-name-column { width: 28%; }
+        .attendance-type-column { width: 116px; }
+        .attendance-time-column { width: 78px; }
+        .attendance-late-column { width: 88px; }
+        .attendance-date-column { width: 92px; }
+        .attendance-media-column { width: 96px; text-align: center !important; }
+        .user-info { display: flex; flex-direction: column; gap: 3px; min-width: 150px; }
+        .user-work-schedule { color: #64748b; font-size: 11px; font-weight: 600; }
+        .attendance-type-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 76px; padding: 4px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+        .attendance-type-chip--in { color: #176b42; background: #e9f8ef; }
+        .attendance-type-chip--out { color: #a33f48; background: #fcebed; }
+        .attendance-time { font-weight: 600; white-space: nowrap; }
+        .attendance-late { color: #b45309 !important; font-weight: 700; white-space: nowrap; }
+        .attendance-action-cell { width: 54px; text-align: center !important; }
         .time-block { display: flex; flex-direction: column; line-height: 1.2; }
         .time-clock { font-weight: 600; color: #111827; }
+        .clock-side-cell { display: inline-flex; align-items: center; gap: 4px; }
+        .clock-side-move { position: relative; display: inline-flex; }
+        .clock-side-move summary { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 6px; color: #64748b; cursor: pointer; font-size: 17px; font-weight: 700; line-height: 1; list-style: none; }
+        .clock-side-move summary::-webkit-details-marker { display: none; }
+        .clock-side-move summary:hover, .clock-side-move summary:focus-visible { background: #f1f5f9; color: #145da0; outline: none; }
+        .clock-side-move__menu { position: absolute; z-index: 20; top: 50%; right: calc(100% + 6px); left: auto; width: max-content; padding: 4px; transform: translateY(-50%); border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: 0 8px 20px rgba(15, 23, 42, .12); }
+        .clock-side-move__button { border: 0; border-radius: 6px; background: transparent; color: #334155; padding: 8px 10px; font: inherit; font-size: .75rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+        .clock-side-move__button:hover, .clock-side-move__button:focus-visible { background: #eff6ff; color: #145da0; outline: none; }
 
         .badge-status {
             display: inline-block;
@@ -549,7 +439,9 @@
         }
 
         .btn-pill {
-            padding: 3px 8px;
+            width: 74px;
+            min-width: 74px;
+            padding: 6px 8px;
             border-radius: 6px;
             font-size: 10px;
             font-weight: 600;
@@ -557,7 +449,9 @@
             cursor: pointer;
             border: 1px solid transparent;
             transition: all 0.2s;
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .btn-blue {
@@ -654,12 +548,9 @@
                     if (!response.ok) throw new Error('Pencarian absensi gagal');
 
                     const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
-                    ['[data-attendance-results]', '[data-attendance-pagination]'].forEach((selector) => {
-                        const current = document.querySelector(selector);
-                        const next = documentResult.querySelector(selector);
-                        if (!current || !next) throw new Error('Hasil pencarian tidak lengkap');
-                        current.innerHTML = next.innerHTML;
-                    });
+                    const nextResults = documentResult.querySelector('[data-attendance-results]');
+                    if (!nextResults) throw new Error('Hasil pencarian tidak lengkap');
+                    results.innerHTML = nextResults.innerHTML;
 
                     initializeAttendanceLocationButtons();
                     window.history.replaceState(null, '', url);
@@ -690,6 +581,33 @@
                 panel.style.display = 'none';
                 button.classList.remove('active');
             }
+        }
+
+        function closeOtherAttendanceActionMenus(currentMenu = null) {
+            document.querySelectorAll('details.clock-side-move[open]').forEach(function(menu) {
+                if (menu !== currentMenu) menu.removeAttribute('open');
+            });
+        }
+
+        document.addEventListener('toggle', function(event) {
+            const menu = event.target;
+
+            if (!(menu instanceof HTMLDetailsElement) || !menu.classList.contains('clock-side-move') || !menu.open) return;
+
+            closeOtherAttendanceActionMenus(menu);
+        }, true);
+
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('details.clock-side-move')) closeOtherAttendanceActionMenus();
+        });
+
+        function openMoveClockSideModal(url, name, destination, destinationLabel) {
+            document.getElementById('moveClockSideForm').action = url;
+            document.getElementById('moveClockSideInput').value = destination;
+            document.getElementById('moveClockSideUserName').innerText = name;
+            document.getElementById('moveClockSideDestination').innerText = destinationLabel;
+            document.getElementById('moveClockSideModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
         }
 
         function initializeAttendanceLocationButtons() {
@@ -725,21 +643,14 @@
                     mode: "range",
                     dateFormat: "Y-m-d",
                     allowInput: true,
-                    locale: { rangeSeparator: " sampai " },
-                    onChange: function(selectedDates, dateStr) {
-                        if (!dateStr) {
+                    onChange: function(selectedDates) {
+                        if (!selectedDates.length) {
                             startHidden.value = "";
                             endHidden.value = "";
                             return;
                         }
-                        const parts = dateStr.split(" sampai ");
-                        if (parts.length === 1) {
-                            startHidden.value = parts[0];
-                            endHidden.value = parts[0];
-                        } else {
-                            startHidden.value = parts[0];
-                            endHidden.value = parts[1];
-                        }
+                        startHidden.value = flatpickr.formatDate(selectedDates[0], "Y-m-d");
+                        endHidden.value = flatpickr.formatDate(selectedDates[selectedDates.length - 1], "Y-m-d");
                     }
                 });
             }

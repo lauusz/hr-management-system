@@ -2,11 +2,18 @@
 
 use App\Models\Asset;
 use App\Models\AssetCategory;
-use App\Models\Attendance;
+use App\Models\AttendanceEvent;
 use App\Models\Division;
 use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Tests\Support\InstallsAttendanceEventSchema;
+
+uses(InstallsAttendanceEventSchema::class);
+
+beforeEach(function () {
+    $this->installAttendanceEventSchema();
+});
 
 it('uses environment-aware PWA asset URLs', function () {
     $user = User::factory()->create();
@@ -17,6 +24,17 @@ it('uses environment-aware PWA asset URLs', function () {
         ->assertSee('href="'.asset('manifest.json').'"', false)
         ->assertSee('href="'.asset('images/icons/icon-192x192.png').'"', false)
         ->assertSee("navigator.serviceWorker.register('".asset('sw.js')."')", false);
+});
+
+it('renders browser-side sidebar position persistence for the signed-in user', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk()
+        ->assertSee("const sidebarScrollStorageKey = 'sidebar-scroll-{$user->id}';", false)
+        ->assertSee("sidebarMenu.addEventListener('scroll', persistSidebarScroll, { passive: true });", false)
+        ->assertSee('sidebarMenu.scrollTop = savedScrollTop;', false);
 });
 
 it('shows employee tenure on dashboard', function () {
@@ -69,7 +87,7 @@ it('groups Clock In and Clock Out in the attendance section before quick actions
         ->and($xpath->query('//section[.//h2[normalize-space()="Aksi Cepat"]]//span[normalize-space()="Clock In" or normalize-space()="Clock Out"]')->length)->toBe(0);
 });
 
-it('uses prominent attendance action cards without changing their copy', function () {
+it('uses text-only attendance action cards', function () {
     $user = User::factory()->create();
 
     $response = $this->actingAs($user, 'web')->get(route('dashboard'));
@@ -83,60 +101,121 @@ it('uses prominent attendance action cards without changing their copy', functio
 
     expect($attendanceCards->length)->toBe(2)
         ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//span[normalize-space()="Clock In"]')->length)->toBe(1)
-        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//span[normalize-space()="Masuk kerja"]')->length)->toBe(1)
         ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//span[normalize-space()="Clock Out"]')->length)->toBe(1)
-        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//span[normalize-space()="Pulang kerja"]')->length)->toBe(1);
+        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//*[contains(concat(" ", normalize-space(@class), " "), " action-card__icon ")]')->length)->toBe(0)
+        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//*[contains(concat(" ", normalize-space(@class), " "), " action-card__desc ")]')->length)->toBe(0);
 });
 
-it('shows Clock In as completed while Clock Out remains actionable', function () {
+it('uses calm Clock In and Clock Out colors on attendance cards', function () {
     $user = User::factory()->create();
-    $clockInAt = now()->startOfDay()->setTime(8, 3);
-    Attendance::factory()->forUser($user)->today()->create([
-        'clock_in_at' => $clockInAt,
-        'completion_status' => Attendance::COMPLETION_OPEN,
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+    $dom = new DOMDocument;
+    @$dom->loadHTML($response->getContent());
+    $xpath = new DOMXPath($dom);
+
+    expect($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//a[contains(concat(" ", normalize-space(@class), " "), " attendance-action-card--clock-in ")]')->length)->toBe(1)
+        ->and($xpath->query('//section[.//h2[normalize-space()="ABSEN"]]//a[contains(concat(" ", normalize-space(@class), " "), " attendance-action-card--clock-out ")]')->length)->toBe(1);
+});
+
+it('keeps attendance action colors above the generic action card style', function () {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk()
+        ->assertSee('.attendance-action-grid .attendance-action-card--clock-in', false)
+        ->assertSee('.attendance-action-grid .attendance-action-card--clock-out', false);
+});
+
+it('shows the attendance cooldown modal after a recent Clock Out', function () {
+    $user = User::factory()->create();
+    $clockOutAt = now()->subMinutes(5)->second(0);
+    AttendanceEvent::factory()->forUser($user)->clockOut()->create([
+        'occurred_at' => $clockOutAt,
     ]);
 
     $response = $this->actingAs($user, 'web')->get(route('dashboard'));
 
     $response->assertOk()
-        ->assertSee('attendance-action-card--completed', false)
-        ->assertSee('Berhasil · 08:03')
+        ->assertSee('data-attendance-cooldown', false)
+        ->assertSee('attendance-cooldown-modal', false)
+        ->assertSee('Anda sudah Clock Out pada pukul '.$clockOutAt->format('H:i').'.');
+});
+
+it('shows today attendance times only for recorded actions', function () {
+    $user = User::factory()->create();
+    $clockInAt = now()->startOfDay()->setTime(8, 3);
+    $clockOutAt = now()->startOfDay()->setTime(17, 8);
+    AttendanceEvent::factory()->forUser($user)->create([
+        'event_type' => AttendanceEvent::CLOCK_IN,
+        'occurred_at' => $clockInAt,
+    ]);
+    AttendanceEvent::factory()->forUser($user)->clockOut()->create([
+        'occurred_at' => $clockOutAt,
+    ]);
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk()
+        ->assertSee('Tercatat 08:03')
+        ->assertSee('Tercatat 17:08');
+});
+
+it('keeps both clock actions text-only after Clock In', function () {
+    $user = User::factory()->create();
+    $clockInAt = now()->startOfDay()->setTime(8, 3);
+    AttendanceEvent::factory()->forUser($user)->create([
+        'event_type' => AttendanceEvent::CLOCK_IN,
+        'occurred_at' => $clockInAt,
+    ]);
+
+    $response = $this->actingAs($user, 'web')->get(route('dashboard'));
+
+    $response->assertOk()
+        ->assertSee('Clock In')
+        ->assertSee('Clock Out')
+        ->assertDontSee('Berhasil')
         ->assertSee(route('attendance.clockOut.form'), false);
 });
 
-it('shows both attendance cards as completed after Clock In and Clock Out', function () {
+it('keeps both clock actions text-only after Clock In and Clock Out', function () {
     $user = User::factory()->create();
     $clockInAt = now()->startOfDay()->setTime(8, 3);
     $clockOutAt = now()->startOfDay()->setTime(17, 8);
-    Attendance::factory()->forUser($user)->today()->create([
-        'clock_in_at' => $clockInAt,
-        'clock_out_at' => $clockOutAt,
-        'completion_status' => Attendance::COMPLETION_CLOSED,
+    AttendanceEvent::factory()->forUser($user)->create([
+        'event_type' => AttendanceEvent::CLOCK_IN,
+        'occurred_at' => $clockInAt,
+    ]);
+    AttendanceEvent::factory()->forUser($user)->clockOut()->create([
+        'occurred_at' => $clockOutAt,
     ]);
 
     $response = $this->actingAs($user, 'web')->get(route('dashboard'));
 
     $response->assertOk()
-        ->assertSee('Berhasil · 08:03')
-        ->assertSee('Berhasil · 17:08')
-        ->assertDontSee(route('attendance.clockIn.form'), false)
-        ->assertDontSee(route('attendance.clockOut.form'), false);
+        ->assertSee('Clock In')
+        ->assertSee('Clock Out')
+        ->assertDontSee('Berhasil')
+        ->assertSee(route('attendance.clockIn.form'), false)
+        ->assertSee(route('attendance.clockOut.form'), false);
 });
 
-it('shows Clock In as not recorded after a direct Clock Out', function () {
+it('keeps both clock actions text-only after direct Clock Out', function () {
     $user = User::factory()->create();
     $clockOutAt = now()->startOfDay()->setTime(17, 8);
-    Attendance::factory()->forUser($user)->today()->create([
-        'clock_out_at' => $clockOutAt,
-        'completion_status' => Attendance::COMPLETION_MISSED_CLOCK_IN,
+    AttendanceEvent::factory()->forUser($user)->clockOut()->create([
+        'occurred_at' => $clockOutAt,
     ]);
 
     $response = $this->actingAs($user, 'web')->get(route('dashboard'));
 
     $response->assertOk()
-        ->assertSee('Tidak tercatat')
-        ->assertSee('Berhasil · 17:08')
-        ->assertDontSee(route('attendance.clockIn.form'), false);
+        ->assertSee('Clock In')
+        ->assertSee('Clock Out')
+        ->assertDontSee('Tidak tercatat')
+        ->assertDontSee('Berhasil')
+        ->assertSee(route('attendance.clockIn.form'), false);
 });
 
 it('shows division in the hero badge instead of role', function () {

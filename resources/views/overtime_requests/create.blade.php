@@ -29,7 +29,7 @@
         </div>
     @endif
 
-    <form action="{{ route('overtime-requests.store') }}" method="POST">
+    <form action="{{ route('overtime-requests.store') }}" method="POST" enctype="multipart/form-data">
         @csrf
 
         <div class="otc-step">
@@ -91,10 +91,34 @@
             </div>
         </div>
 
-        <div class="otc-step">
+        <div class="otc-step otc-step--evidence">
             <div class="otc-step__header">
                 <span class="otc-step__num">2</span>
-                <span class="otc-step__title">Keterangan</span>
+                <span class="otc-step__title">Bukti & Keterangan</span>
+            </div>
+
+            <div class="otc-field">
+                <label for="photoInput" class="otc-label">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Bukti Pendukung <span>(opsional, disarankan)</span>
+                </label>
+                <div class="lrc-upload" id="uploadBox">
+                    <input type="file" name="photos[]" id="photoInput" class="lrc-upload__input" accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.doc,.docx,.xls,.xlsx" data-max-file-size="8388608" data-max-file-label="8 MB" multiple>
+                    <div class="lrc-upload__content">
+                        <svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                        </svg>
+                        <span class="lrc-upload__title">Klik untuk upload file</span>
+                        <span class="lrc-upload__desc">JPG, PNG, PDF, DOCX (Maks 3 file · 8 MB per file)</span>
+                    </div>
+                </div>
+                <div id="photoError" role="alert" style="display:none; color:#dc2626; font-size:13px; margin-top:6px;"></div>
+                @if ($errors->has('photos') || $errors->has('photos.*') || $errors->has('photo'))
+                    <div class="otc-error" role="alert">{{ $errors->first('photos') ?: ($errors->first('photos.*') ?: $errors->first('photo')) }}</div>
+                @endif
+                <div id="photoListContainer" style="display:none; flex-direction:column; gap:8px; margin-top:8px;"></div>
             </div>
 
             <div class="otc-field">
@@ -142,7 +166,204 @@
         });
     </script>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const input = document.getElementById('photoInput');
+            const listContainer = document.getElementById('photoListContainer');
+            const errorEl = document.getElementById('photoError');
+            if (!input || !listContainer) return;
+
+            const MAX_FILES = 3;
+            const MAX_SIZE = parseInt(input.getAttribute('data-max-file-size') || '8388608', 10);
+            const dt = new DataTransfer();
+
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 B';
+                const k = 1024;
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+            }
+
+            function showError(msg) {
+                if (!errorEl) return;
+                errorEl.textContent = msg || '';
+                errorEl.style.display = msg ? 'block' : 'none';
+            }
+
+            function renderList() {
+                listContainer.innerHTML = '';
+                const files = Array.from(dt.files);
+                if (!files.length) {
+                    listContainer.style.display = 'none';
+                    return;
+                }
+                listContainer.style.display = 'flex';
+
+                files.forEach(function(file, idx) {
+                    const item = document.createElement('div');
+                    item.className = 'lrc-preview';
+                    item.style.cssText = 'display:flex; align-items:center; gap:10px; position:relative;';
+
+                    if (file.type && file.type.startsWith('image/')) {
+                        const img = document.createElement('img');
+                        img.alt = 'Preview';
+                        img.style.cssText = 'width:56px; height:56px; object-fit:cover; border-radius:8px; flex-shrink:0;';
+                        img.src = URL.createObjectURL(file);
+                        img.onload = function() { URL.revokeObjectURL(img.src); };
+                        item.appendChild(img);
+                    }
+
+                    const info = document.createElement('div');
+                    info.className = 'lrc-file-info';
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'lrc-file-info__name';
+                    nameSpan.textContent = file.name;
+                    const sizeSpan = document.createElement('span');
+                    sizeSpan.className = 'lrc-file-info__size';
+                    sizeSpan.textContent = 'Ukuran: ' + formatFileSize(file.size);
+                    info.appendChild(nameSpan);
+                    info.appendChild(sizeSpan);
+                    item.appendChild(info);
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'lrc-preview__remove';
+                    removeBtn.setAttribute('aria-label', 'Hapus file');
+                    removeBtn.innerHTML = '<svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+                    removeBtn.addEventListener('click', function() {
+                        const kept = Array.from(dt.files).filter(function(_, i) { return i !== idx; });
+                        dt.items.clear();
+                        kept.forEach(function(f) { dt.items.add(f); });
+                        input.files = dt.files;
+                        showError('');
+                        renderList();
+                    });
+                    item.appendChild(removeBtn);
+
+                    listContainer.appendChild(item);
+                });
+            }
+
+            input.addEventListener('change', function() {
+                showError('');
+                const incoming = Array.from(this.files);
+                for (const file of incoming) {
+                    if (dt.files.length >= MAX_FILES) {
+                        showError('Maksimal ' + MAX_FILES + ' file bukti pendukung.');
+                        break;
+                    }
+                    if (file.size > MAX_SIZE) {
+                        showError('File "' + file.name + '" melebihi 8 MB.');
+                        continue;
+                    }
+                    dt.items.add(file);
+                }
+                this.files = dt.files;
+                renderList();
+            });
+        });
+    </script>
+
     <style>
+        .lrc-upload {
+            position: relative;
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            background: var(--gray-50);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .lrc-upload:hover {
+            border-color: var(--primary);
+            background: rgba(20, 93, 160, 0.03);
+        }
+        .lrc-upload__input {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .lrc-upload__content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+        }
+        .lrc-upload__content svg { color: var(--text-light); }
+        .lrc-upload__title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        .lrc-upload__desc {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+        .lrc-preview {
+            position: relative;
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--gray-50);
+            border: 1px solid var(--border-light);
+            border-radius: 10px;
+        }
+        .lrc-preview img {
+            max-width: 100%;
+            max-height: 180px;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+        }
+        .lrc-file-info {
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: #F8FAFC;
+            border: 1px solid var(--border-light);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .lrc-file-info__name {
+            font-weight: 600;
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+        .lrc-file-info__size {
+            color: var(--text-muted);
+        }
+        .lrc-preview__remove {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--white);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .lrc-preview__remove:hover {
+            background: #FEF2F2;
+            border-color: #FECACA;
+            color: var(--error);
+        }
+
         .section-header-inline {
             display: flex;
             align-items: center;
@@ -273,6 +494,12 @@
             margin-bottom: 16px;
         }
         .otc-field:last-child {
+            margin-bottom: 0;
+        }
+        .otc-step--evidence .otc-field {
+            margin-bottom: 14px;
+        }
+        .otc-step--evidence .otc-field:last-child {
             margin-bottom: 0;
         }
         .otc-label {
@@ -413,6 +640,13 @@
         }
         @keyframes otc-spinner-spin {
             100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 639px) {
+            .otc-step--evidence {
+                padding: 16px;
+                margin-bottom: 10px;
+            }
         }
 
         @media (max-width: 480px) {

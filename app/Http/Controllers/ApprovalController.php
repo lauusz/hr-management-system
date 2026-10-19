@@ -122,6 +122,10 @@ class ApprovalController extends Controller
             });
         }
 
+        $statusCounts = (clone $query)->reorder()
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
         $items = $query->paginate(20);
         $typeOptions = LeaveType::cases();
         $statusOptions = [
@@ -132,7 +136,7 @@ class ApprovalController extends Controller
         ];
 
         return view('supervisor.leave_requests.master', compact(
-            'items', 'typeOptions', 'statusOptions', 'submittedRange',
+            'items', 'statusCounts', 'typeOptions', 'statusOptions', 'submittedRange',
             'typeFilter', 'status', 'q'
         ));
     }
@@ -241,7 +245,7 @@ class ApprovalController extends Controller
                 $fromStatus = $lockedLeave->status;
                 $toStatus = $this->stateMachine->getTargetStatus($fromStatus, LeaveRequestStateMachine::FORWARD_TO_HR);
                 $currentNotes = $lockedLeave->notes;
-                $systemNote = '[System] Diketahui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
+                $systemNote = '[System] Disetujui oleh Atasan ('.$me->name.') pada '.now()->format('d M Y H:i');
                 $newNotes = $currentNotes ? $currentNotes."\n".$systemNote : $systemNote;
                 $this->approvalAssignmentService->recordAction($lockedLeave, $me, $capacity, 'ACK', $fromStatus, $toStatus);
 
@@ -618,5 +622,4 @@ class ApprovalController extends Controller
 
         return in_array(strtoupper($role), ['HRD', 'HR MANAGER'], true);
     }
-
 }

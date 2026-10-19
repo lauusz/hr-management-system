@@ -519,7 +519,11 @@
       height: 100vh;
       height: 100dvh;
       overflow-y: auto;
-      background: var(--gray-50);
+      background:
+        radial-gradient(circle 250px at 100% 0%, rgba(20, 93, 160, 0.07) 0 99%, transparent 100%),
+        radial-gradient(circle 190px at 0% 95%, rgba(20, 93, 160, 0.05) 0 99%, transparent 100%),
+        radial-gradient(circle 90px at 92% 62%, rgba(30, 129, 176, 0.05) 0 99%, transparent 100%),
+        var(--gray-50);
     }
 
     .content-wrapper {
@@ -997,6 +1001,15 @@
         {{-- ============================================== --}}
         {{-- MANAGER AREA --}}
         {{-- ============================================== --}}
+        @if(auth()->user()->isSupervisor() || auth()->user()->isManager())
+        @php
+        $pendingAssignedOvertimeCount = \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
+            ->whereHas('user.overtimeApproverAssignment', function ($q) {
+                $q->where('supervisor_id', auth()->id())->orWhere('manager_id', auth()->id());
+            })
+            ->count();
+        @endphp
+        @endif
         @if(auth()->user()->isManager())
         <div class="menu-section">
           <div class="menu-section-title">Manager</div>
@@ -1008,6 +1021,17 @@
             <span class="menu-text">Approval Pengajuan</span>
             @if(isset($notifCount) && $notifCount > 0)
             <span class="menu-badge">{{ $notifCount }}</span>
+            @endif
+          </a>
+
+          <a href="{{ route('overtime-approvals.index') }}" class="menu-item {{ request()->routeIs('overtime-approvals.*') ? 'active' : '' }}">
+            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="14" r="8" stroke-width="2"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 2h4m-2 0v4m0 8 3-3"/>
+            </svg>
+            <span class="menu-text">Approval Lembur</span>
+            @if($pendingAssignedOvertimeCount > 0)
+            <span class="menu-badge" title="Pengajuan ditugaskan yang berstatus menunggu">{{ $pendingAssignedOvertimeCount }}</span>
             @endif
           </a>
 
@@ -1034,33 +1058,34 @@
           @if(auth()->user()->isSupervisor())
           <a href="{{ route('approval.index') }}" class="menu-item {{ request()->routeIs('approval.index', 'approval.show') ? 'active' : '' }}">
             <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span class="menu-text">Mengetahui Pengajuan</span>
+            <span class="menu-text">Approval Pengajuan</span>
             @if(isset($notifCount) && $notifCount > 0)
             <span class="menu-badge">{{ $notifCount }}</span>
             @endif
           </a>
           @endif
 
-          <a href="{{ route('supervisor.overtime-requests.index') }}" class="menu-item {{ request()->routeIs('supervisor.overtime-requests.index', 'supervisor.overtime-requests.show') ? 'active' : '' }}">
+          @if(!auth()->user()->isManager())
+          <a href="{{ route(auth()->user()->isSupervisor() ? 'overtime-approvals.index' : 'supervisor.overtime-requests.index') }}" class="menu-item {{ request()->routeIs('overtime-approvals.*', 'supervisor.overtime-requests.index', 'supervisor.overtime-requests.show') ? 'active' : '' }}">
             <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/>
+              <circle cx="12" cy="14" r="8" stroke-width="2"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 2h4m-2 0v4m0 8 3-3"/>
             </svg>
             <span class="menu-text">Approval Lembur</span>
             @php
-            $pendingOvertimeCount = \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
+            $pendingOvertimeCount = auth()->user()->isSupervisor() ? $pendingAssignedOvertimeCount : \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
                 ->whereHas('user', function ($q) {
                     $q->where('direct_supervisor_id', auth()->id());
                 })
                 ->count();
             @endphp
             @if($pendingOvertimeCount > 0)
-            <span class="menu-badge">{{ $pendingOvertimeCount }}</span>
+            <span class="menu-badge" title="Pengajuan berstatus menunggu">{{ $pendingOvertimeCount }}</span>
             @endif
           </a>
+          @endif
 
           @if(auth()->user()->isSupervisor())
           <a href="{{ route('supervisor.leave.master') }}" class="menu-item {{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
@@ -1086,7 +1111,7 @@
         @if(auth()->user()->isHR())
         @php
         $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.approvers.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
-        $hrPresensiOpen = request()->routeIs('hr.attendances.*','hr.shifts.*','hr.locations.*','hr.schedules.*','hr.office-holidays.*', 'hr.overtime-requests.master');
+        $hrPresensiOpen = request()->routeIs('hr.shifts.*','hr.locations.*','hr.schedules.*','hr.office-holidays.*');
         $hrLoanOpen = request()->routeIs('hr.loan_requests.*', 'hr.payroll.*');
         $hrAssetOpen = request()->routeIs('hr.assets.*');
         @endphp
@@ -1113,17 +1138,11 @@
             <span class="menu-text">Master Izin/Cuti</span>
           </a>
 
-          <a href="{{ route('hr.approval_attendance.index') }}" class="menu-item {{ request()->routeIs('hr.approval_attendance.*') ? 'active' : '' }}">
+          <a href="{{ route('hr.attendances.index') }}" class="menu-item {{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">
             <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span class="menu-text">Approval Absensi</span>
-            @php
-            $pendingAttendanceCount = \App\Models\Attendance::where('approval_status', 'PENDING')->count();
-            @endphp
-            @if($pendingAttendanceCount > 0)
-            <span class="menu-badge">{{ $pendingAttendanceCount }}</span>
-            @endif
+            <span class="menu-text">Master Absensi</span>
           </a>
 
           <a href="{{ route('hr.overtime-requests.master') }}" class="menu-item {{ request()->routeIs('hr.overtime-requests.*') ? 'active' : '' }}">
@@ -1177,8 +1196,6 @@
             </svg>
           </button>
           <div class="submenu-panel {{ $hrPresensiOpen ? 'open' : '' }}" data-menu-panel="presensi">
-            <a href="{{ route('hr.attendances.index') }}" class="submenu-item {{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">Master Absensi</a>
-            <a href="{{ route('hr.overtime-requests.master') }}" class="submenu-item {{ request()->routeIs('hr.overtime-requests.master') ? 'active' : '' }}">Rekap Lembur</a>
             <a href="{{ route('hr.shifts.index') }}" class="submenu-item {{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">Master Shift</a>
             <a href="{{ route('hr.locations.index') }}" class="submenu-item {{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">Lokasi Presensi</a>
             <a href="{{ route('hr.schedules.index') }}" class="submenu-item {{ request()->routeIs('hr.schedules.*') ? 'active' : '' }}">Jadwal Karyawan</a>
@@ -1288,6 +1305,19 @@
     const backdrop = document.getElementById('backdrop');
     const sidebarToggle = document.getElementById('sidebarToggle');
     const appRoot = document.querySelector('.app');
+    const sidebarMenu = document.querySelector('.sidebar-menu');
+    const sidebarScrollStorageKey = 'sidebar-scroll-{{ auth()->id() }}';
+
+    if (sidebarMenu) {
+      const savedScrollTop = Number(sessionStorage.getItem(sidebarScrollStorageKey));
+      if (Number.isFinite(savedScrollTop)) sidebarMenu.scrollTop = savedScrollTop;
+
+      function persistSidebarScroll() {
+        sessionStorage.setItem(sidebarScrollStorageKey, String(sidebarMenu.scrollTop));
+      }
+
+      sidebarMenu.addEventListener('scroll', persistSidebarScroll, { passive: true });
+    }
 
     // Mobile Menu Toggle
     function toggleMobile() {

@@ -33,117 +33,62 @@
         </div>
     @endif
 
-    {{-- ============================================== --}}
-    {{-- STATS ROW                                    --}}
-    {{-- ============================================== --}}
-    <div class="hom-stats">
-        <div class="hom-stat">
-            <div class="hom-stat-value">{{ $overtimes->total() }}</div>
-            <div class="hom-stat-label">Total</div>
-        </div>
-        <div class="hom-stat-divider"></div>
-        <div class="hom-stat">
-            <div class="hom-stat-value hom-stat-value--warning">
-                {{ $overtimes->where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)->count() }}
-            </div>
-            <div class="hom-stat-label">Menunggu</div>
-        </div>
-        <div class="hom-stat-divider"></div>
-        <div class="hom-stat">
-            <div class="hom-stat-value hom-stat-value--success">
-                {{ $overtimes->whereIn('status', [\App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR, \App\Models\OvertimeRequest::STATUS_APPROVED_HRD])->count() }}
-            </div>
-            <div class="hom-stat-label">Disetujui</div>
-        </div>
-        <div class="hom-stat-divider"></div>
-        <div class="hom-stat">
-            <div class="hom-stat-value hom-stat-value--error">
-                {{ $overtimes->where('status', \App\Models\OvertimeRequest::STATUS_REJECTED)->count() }}
-            </div>
-            <div class="hom-stat-label">Ditolak</div>
-        </div>
-    </div>
+    @php
+        $defaultDateRange = now()->startOfMonth()->format('Y-m-d').' sampai '.now()->endOfMonth()->format('Y-m-d');
+        $hasDateFilter = !empty($overtimeDateRange) && $overtimeDateRange !== $defaultDateRange;
+        $activeFilterCount = (int) $hasDateFilter + (int) !empty($status);
+        $hasAdvancedFilter = $activeFilterCount > 0;
+        $statusLabels = [
+            \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR => 'Menunggu SPV dan Manager',
+            \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
+            \App\Models\OvertimeRequest::STATUS_APPROVED_HRD => 'Disetujui',
+            \App\Models\OvertimeRequest::STATUS_REJECTED => 'Ditolak',
+            \App\Models\OvertimeRequest::STATUS_CANCELLED => 'Dibatalkan',
+        ];
+    @endphp
 
-    {{-- ============================================== --}}
-    {{-- FILTER CARD                                  --}}
-    {{-- ============================================== --}}
     <div class="hom-card">
-        <div class="hom-card-header">
-            <div class="hom-card-header-icon">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                </svg>
-            </div>
-            <div>
-                <h4 class="hom-card-title">Filter Data</h4>
-                <p class="hom-card-subtitle">Menampilkan data lembur berdasarkan periode yang dipilih</p>
-            </div>
-        </div>
-
-        <form method="GET" action="{{ route('hr.overtime-requests.master') }}" class="hom-filter-form">
-            <div class="hom-filter-fields">
-                <div class="hom-filter-field">
-                    <label for="overtime_date_range">Tanggal Lembur</label>
-                    <input type="text"
-                        id="overtime_date_range"
-                        name="overtime_date_range"
-                        value="{{ $overtimeDateRange ?? '' }}"
-                        placeholder="Rentang tanggal..."
-                        class="hom-input"
-                        autocomplete="off">
+        <form method="GET" action="{{ route('hr.overtime-requests.master') }}" id="hom-filter-form" data-default-range="{{ $defaultDateRange }}">
+            <div class="hom-search-row">
+                <div class="hom-search-wrap">
+                    <svg class="hom-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="search" id="q" name="q" value="{{ $q ?? '' }}" placeholder="Cari nama karyawan..." autocomplete="off" class="hom-search-input" aria-label="Cari nama karyawan" data-overtime-live-search>
                 </div>
-
-                @php
-                    $statusLabels = [
-                        \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR => 'Menunggu Supervisor',
-                        \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
-                        \App\Models\OvertimeRequest::STATUS_APPROVED_HRD => 'Disetujui',
-                        \App\Models\OvertimeRequest::STATUS_REJECTED => 'Ditolak',
-                        \App\Models\OvertimeRequest::STATUS_CANCELLED => 'Dibatalkan',
-                    ];
-                @endphp
-                <div class="hom-filter-field">
-                    <label for="status">Status</label>
-                    <select name="status" id="status" class="hom-input">
-                        <option value="">Semua Status</option>
-                        @foreach($statusOptions as $opt)
-                            <option value="{{ $opt }}" @selected($status === $opt)>
-                                {{ $statusLabels[$opt] ?? $opt }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="hom-filter-field hom-filter-field--wide">
-                    <label for="q">Karyawan</label>
-                    <input type="text"
-                        id="q"
-                        name="q"
-                        value="{{ $q ?? '' }}"
-                        placeholder="Cari nama karyawan..."
-                        autocomplete="off"
-                        class="hom-input">
-                </div>
-            </div>
-
-            <div class="hom-filter-actions">
-                <button type="submit" class="hom-btn hom-btn--primary">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
+                <a href="{{ route('hr.overtime-requests.master') }}" id="hom-search-reset" class="hom-btn-reset" @if(trim((string) ($q ?? '')) === '' && !$hasAdvancedFilter) hidden @endif>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Reset
+                </a>
+                <button type="button" id="hom-filter-toggle" class="hom-btn-toggle {{ $hasAdvancedFilter ? 'active' : '' }}" aria-controls="hom-filter-panel" aria-expanded="{{ $hasAdvancedFilter ? 'true' : 'false' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
                     Filter
+                    <span id="hom-filter-badge" class="hom-filter-badge" @unless($hasAdvancedFilter) hidden @endunless>{{ $activeFilterCount }}</span>
                 </button>
-                @if(($q ?? null) || ($status ?? null) || ($overtimeDateRange ?? null))
-                    <a href="{{ route('hr.overtime-requests.master') }}" class="hom-btn hom-btn--secondary">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                        Reset
-                    </a>
-                @endif
+            </div>
+            <div class="hom-filter-panel" id="hom-filter-panel" @unless($hasAdvancedFilter) hidden @endunless>
+                <div class="hom-filter-grid">
+                    <div class="hom-filter-field">
+                        <label for="overtime_date_range">Tanggal Lembur</label>
+                        <input type="text" id="overtime_date_range" name="overtime_date_range" value="{{ $overtimeDateRange ?? '' }}" placeholder="Rentang tanggal..." class="hom-input" autocomplete="off">
+                    </div>
+                    <div class="hom-filter-field">
+                        <label for="status">Status</label>
+                        <select name="status" id="status" class="hom-input">
+                            <option value="">Semua Status</option>
+                            @foreach($statusOptions as $opt)
+                                <option value="{{ $opt }}" @selected($status === $opt)>{{ $statusLabels[$opt] ?? $opt }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="hom-filter-actions">
+                        <button type="submit" class="hom-btn-apply">Terapkan Filter</button>
+                    </div>
+                </div>
             </div>
         </form>
     </div>
+
+    <div id="hom-search-error" class="hom-alert hom-alert--error" role="alert" hidden>Hasil pencarian tidak dapat dimuat. Coba lagi atau gunakan tombol Terapkan Filter.</div>
+    <div data-overtime-results aria-live="polite" aria-busy="false">
 
     {{-- ============================================== --}}
     {{-- TABLE CARD                                   --}}
@@ -160,8 +105,6 @@
                         <th>Status / Supervisor</th>
                         <th>Clock In</th>
                         <th>Clock Out</th>
-                        <th>Cocok Absensi</th>
-                        <th>Selisih</th>
                         <th style="width: 80px;">Aksi</th>
                     </tr>
                 </thead>
@@ -192,13 +135,6 @@
                                 $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
                             }
 
-                            $matchColor = $recap['status_color'] ?? 'gray';
-                            $matchBadgeClass = match($matchColor) {
-                                'green' => 'hom-badge--success',
-                                'red' => 'hom-badge--error',
-                                'yellow' => 'hom-badge--warning',
-                                default => 'hom-badge--gray',
-                            };
                         @endphp
                         <tr>
                             <td class="hom-text-muted hom-text-center">
@@ -225,15 +161,8 @@
                                     {!! $statusIcon !!}
                                     {{ $statusLabel }}
                                 </span>
-                                @if($overtime->status == \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
-                                    <div class="hom-approver-info">
-                                        Menunggu: <strong>{{ $overtime->user->directSupervisor->name ?? '-' }}</strong>
-                                    </div>
-                                @elseif($overtime->status == \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR)
-                                    <div class="hom-approver-info">
-                                        Disetujui: <strong>{{ $overtime->supervisorApprover->name ?? '-' }}</strong>
-                                    </div>
-                                @elseif($overtime->status === \App\Models\OvertimeRequest::STATUS_REJECTED && $overtime->rejection_note)
+                                @include('overtime_requests._approval_status', ['overtime' => $overtime, 'compact' => true])
+                                @if($overtime->status === \App\Models\OvertimeRequest::STATUS_REJECTED && $overtime->rejection_note)
                                     <div class="hom-rejection-mini">
                                         Note: {{ $overtime->rejection_note }}
                                     </div>
@@ -253,31 +182,15 @@
                                     <span class="hom-text-muted">-</span>
                                 @endif
                             </td>
-                            <td>
-                                <span class="hom-badge {{ $matchBadgeClass }}">
-                                    {{ $recap['status'] ?? '-' }}
-                                </span>
-                            </td>
-                            <td>
-                                @if(!is_null($recap['variance_minutes'] ?? null))
-                                    @if($recap['variance_minutes'] >= 0)
-                                        <span class="hom-variance hom-variance--positive">+{{ $recap['variance_minutes'] }} m</span>
-                                    @else
-                                        <span class="hom-variance hom-variance--negative">{{ $recap['variance_minutes'] }} m</span>
-                                    @endif
-                                @else
-                                    <span class="hom-text-muted">-</span>
-                                @endif
-                            </td>
                             <td class="hom-text-right">
-                                <a href="{{ route('hr.overtime-requests.show', $overtime->id) }}" class="hom-action-link">
+                                <a href="{{ route('hr.overtime-requests.show', $overtime->id) }}" class="hom-action-link" data-overtime-detail aria-haspopup="dialog" aria-controls="hom-detail-modal">
                                     Detail
                                 </a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="10" class="hom-empty-cell">
+                            <td colspan="8" class="hom-empty-cell">
                                 <div class="hom-empty">
                                     <div class="hom-empty-icon">
                                         <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -300,6 +213,17 @@
             <x-pagination :items="$overtimes" />
         </div>
     @endif
+    </div>
+
+    <dialog id="hom-detail-modal" aria-labelledby="hom-detail-modal-title">
+        <div class="hom-detail-modal-header">
+            <h2 id="hom-detail-modal-title">Detail Rekap Lembur</h2>
+            <button type="button" id="hom-detail-modal-close" aria-label="Tutup detail lembur">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <iframe id="hom-detail-frame" title="Detail pengajuan lembur"></iframe>
+    </dialog>
 
     <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
@@ -313,8 +237,159 @@
             });
         });
     </script>
+    <script data-overtime-detail-modal>
+        (() => {
+            const dialog = document.getElementById('hom-detail-modal');
+            const frame = document.getElementById('hom-detail-frame');
+            const closeButton = document.getElementById('hom-detail-modal-close');
+            let opener = null;
+            let refreshOnClose = false;
+
+            document.addEventListener('click', (event) => {
+                const link = event.target.closest('a[data-overtime-detail]');
+                if (!link || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || typeof dialog.showModal !== 'function') return;
+                event.preventDefault();
+                opener = link;
+                refreshOnClose = false;
+                const url = new URL(link.href, window.location.origin);
+                url.searchParams.set('modal', '1');
+                frame.src = url.toString();
+                dialog.showModal();
+            });
+
+            closeButton.addEventListener('click', () => dialog.close());
+            dialog.addEventListener('click', (event) => {
+                if (event.target === dialog) dialog.close();
+            });
+            frame.addEventListener('load', () => {
+                if (!dialog.open || frame.getAttribute('src') === 'about:blank') return;
+                try {
+                    const content = frame.contentDocument;
+                    if (content.querySelector('.hov-alert--success')) refreshOnClose = true;
+                    content.addEventListener('keydown', (event) => {
+                        if (event.key === 'Escape') dialog.close();
+                    });
+                } catch (error) {
+                    // Dokumen dari luar origin aplikasi tidak dapat dibaca.
+                }
+            });
+            dialog.addEventListener('close', () => {
+                frame.src = 'about:blank';
+                if (refreshOnClose) window.location.reload();
+                else opener?.focus();
+            });
+        })();
+    </script>
+    <script data-overtime-live-search>
+        (() => {
+            const form = document.getElementById('hom-filter-form');
+            const input = form?.querySelector('[data-overtime-live-search]');
+            const results = document.querySelector('[data-overtime-results]');
+            const panel = document.getElementById('hom-filter-panel');
+            const toggle = document.getElementById('hom-filter-toggle');
+            const badge = document.getElementById('hom-filter-badge');
+            const reset = document.getElementById('hom-search-reset');
+            const errorMessage = document.getElementById('hom-search-error');
+            if (!form || !input || !results || !panel || !toggle || !badge || !reset || !errorMessage) return;
+
+            let timer;
+            let request;
+            const activeCount = () => Number(!!form.elements.status.value) + Number(!!form.elements.overtime_date_range.value && form.elements.overtime_date_range.value !== form.dataset.defaultRange);
+            const syncReset = () => { reset.hidden = !input.value.trim() && activeCount() === 0; };
+            const syncFilter = () => {
+                const count = activeCount();
+                badge.textContent = count;
+                badge.hidden = count === 0;
+                toggle.classList.toggle('active', !panel.hidden || count > 0);
+            };
+
+            toggle.addEventListener('click', () => {
+                panel.hidden = !panel.hidden;
+                toggle.setAttribute('aria-expanded', String(!panel.hidden));
+                toggle.classList.toggle('active', !panel.hidden || !badge.hidden);
+            });
+            const onFilterChange = () => { request?.abort(); syncReset(); };
+            form.elements.status.addEventListener('change', onFilterChange);
+            form.elements.overtime_date_range.addEventListener('change', onFilterChange);
+            form.addEventListener('submit', () => { clearTimeout(timer); request?.abort(); });
+
+            async function loadResults() {
+                const url = new URL(form.action, window.location.origin);
+                const params = new URLSearchParams(new FormData(form));
+                params.delete('page');
+                url.search = params.toString();
+                const currentRequest = new AbortController();
+                request = currentRequest;
+                results.classList.add('is-loading');
+                results.setAttribute('aria-busy', 'true');
+
+                try {
+                    const response = await fetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        signal: currentRequest.signal,
+                    });
+                    if (!response.ok) throw new Error('Pencarian lembur gagal');
+                    const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
+                    const nextResults = documentResult.querySelector('[data-overtime-results]');
+                    if (!nextResults) throw new Error('Hasil pencarian tidak lengkap');
+                    if (request !== currentRequest || currentRequest.signal.aborted) return;
+                    results.innerHTML = nextResults.innerHTML;
+                    window.history.replaceState(null, '', url);
+                    syncFilter();
+                } catch (error) {
+                    if (error.name !== 'AbortError' && request === currentRequest && !currentRequest.signal.aborted) errorMessage.hidden = false;
+                } finally {
+                    if (request === currentRequest) {
+                        results.classList.remove('is-loading');
+                        results.setAttribute('aria-busy', 'false');
+                    }
+                }
+            }
+
+            input.addEventListener('input', () => {
+                clearTimeout(timer);
+                request?.abort();
+                errorMessage.hidden = true;
+                syncReset();
+                timer = setTimeout(loadResults, 350);
+            });
+        })();
+    </script>
 
     <style>
+        #hom-detail-modal {
+            width: min(960px, calc(100% - 32px));
+            max-width: none;
+            height: min(820px, 90vh);
+            max-height: calc(100% - 32px);
+            padding: 0;
+            border: 0;
+            border-radius: 16px;
+            background: #fff;
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+        }
+        #hom-detail-modal[open] { display: flex; flex-direction: column; }
+        #hom-detail-modal::backdrop { background: rgba(0, 0, 0, 0.4); }
+        .hom-detail-modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 14px 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .hom-detail-modal-header h2 { margin: 0; font-size: 1rem; color: #111827; }
+        .hom-detail-modal-header button {
+            display: flex;
+            padding: 8px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: #6b7280;
+            cursor: pointer;
+        }
+        .hom-detail-modal-header button:hover { background: #f3f4f6; color: #111827; }
+        #hom-detail-frame { width: 100%; min-height: 0; flex: 1; border: 0; }
         /* ========================================== */
         /* ALERTS                                     */
         /* ========================================== */
@@ -377,190 +452,42 @@
         }
         .icon-navy { background: rgba(10, 61, 98, 0.08); color: var(--primary-dark, #0A3D62); }
 
-        /* ========================================== */
-        /* STATS ROW                                  */
-        /* ========================================== */
-        .hom-stats {
-            display: flex;
-            align-items: center;
-            gap: 1px;
-            background: var(--border-light, #E5E7EB);
-            border-radius: 16px;
-            overflow: hidden;
-            margin-bottom: 16px;
-            border: 1px solid var(--border-light, #E5E7EB);
+        /* Kartu dan filter mengikuti Master Absensi. */
+        .hom-card { background: #fff; border-radius: 16px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow: hidden; margin-bottom: 16px; }
+        .hom-card--table { padding: 0; }
+        .hom-search-row { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; }
+        .hom-search-wrap { position: relative; flex: 1; }
+        .hom-search-icon { position: absolute; top: 50%; left: 14px; color: #9ca3af; pointer-events: none; transform: translateY(-50%); }
+        .hom-search-input, .hom-input { width: 100%; color: #111827; outline: none; font-family: inherit; transition: all 0.2s ease; background: #fff; border: 1.5px solid #d1d5db; }
+        .hom-search-input { padding: 10px 14px 10px 42px; border-radius: 12px; font-size: 14px; }
+        .hom-input { padding: 10px 14px; border-radius: 10px; font-size: 13px; }
+        .hom-search-input:focus, .hom-input:focus { border-color: #145da0; box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1); }
+        .hom-btn-reset, .hom-btn-toggle, .hom-btn-apply { display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; font-size: 13px; font-weight: 500; transition: all 0.2s ease; }
+        .hom-btn-reset, .hom-btn-toggle { width: 100%; padding: 10px 14px; color: #6b7280; background: #fff; border: 1.5px solid #d1d5db; border-radius: 12px; }
+        .hom-btn-reset { text-decoration: none; }
+        .hom-btn-reset:hover { color: #dc2626; background: #fef2f2; border-color: #fecaca; }
+        .hom-btn-toggle { cursor: pointer; }
+        .hom-btn-toggle:hover { color: #145da0; border-color: #145da0; }
+        .hom-btn-toggle.active, .hom-btn-apply { color: #fff; background: #145da0; border-color: #145da0; }
+        .hom-filter-badge { min-width: 18px; padding: 2px 6px; color: #fff; font-size: 10px; font-weight: 700; text-align: center; background: rgba(255,255,255,0.3); border-radius: 10px; }
+        .hom-filter-panel { padding: 14px 16px; background: #f9fafb; border-top: 1px solid #e5e7eb; }
+        .hom-filter-grid { display: flex; flex-direction: column; gap: 14px; }
+        .hom-filter-field { display: flex; flex-direction: column; gap: 6px; }
+        .hom-filter-field label { color: #6b7280; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+        .hom-filter-actions { display: flex; justify-content: flex-end; }
+        .hom-btn-apply { padding: 10px 20px; cursor: pointer; border: 1px solid #145da0; border-radius: 10px; font-weight: 600; }
+        .hom-btn-apply:hover { background: #0d4a83; }
+        .hom-btn-reset[hidden], .hom-filter-panel[hidden], .hom-filter-badge[hidden], #hom-search-error[hidden] { display: none; }
+        [data-overtime-results].is-loading { opacity: 0.55; pointer-events: none; }
+        @media (min-width: 600px) {
+            .hom-search-row { flex-direction: row; align-items: center; flex-wrap: wrap; padding: 16px 20px; }
+            .hom-search-wrap { min-width: 260px; }
+            .hom-btn-reset, .hom-btn-toggle { flex-shrink: 0; width: auto; }
+            .hom-filter-panel { padding: 16px 20px; }
+            .hom-filter-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 16px; align-items: end; }
+            .hom-filter-actions { grid-column: 1 / -1; }
         }
-        .hom-stat {
-            flex: 1;
-            background: var(--white, #FFFFFF);
-            padding: 10px 4px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 3px;
-            min-width: 0;
-        }
-        .hom-stat-value {
-            font-size: 1.0625rem;
-            font-weight: 700;
-            color: var(--text-primary, #111827);
-            line-height: 1;
-        }
-        .hom-stat-value--success { color: var(--success, #22C55E); }
-        .hom-stat-value--warning { color: var(--warning, #F59E0B); }
-        .hom-stat-value--error   { color: var(--error, #EF4444); }
-        .hom-stat-label {
-            font-size: 0.5625rem;
-            font-weight: 600;
-            color: var(--text-muted, #6B7280);
-            text-transform: uppercase;
-            letter-spacing: 0.02em;
-            line-height: 1.2;
-        }
-        .hom-stat-divider {
-            display: none;
-        }
-
-        /* ========================================== */
-        /* CARDS                                      */
-        /* ========================================== */
-        .hom-card {
-            background: var(--white, #FFFFFF);
-            border-radius: 16px;
-            border: 1px solid var(--border-light, #E5E7EB);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-            overflow: hidden;
-            margin-bottom: 16px;
-        }
-        .hom-card--table {
-            padding: 0;
-        }
-        .hom-card-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 16px 20px 0;
-        }
-        .hom-card-header-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            background: rgba(10, 61, 98, 0.08);
-            color: var(--primary-dark, #0A3D62);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .hom-card-title {
-            margin: 0;
-            font-size: 0.9375rem;
-            font-weight: 700;
-            color: var(--text-primary, #111827);
-            line-height: 1.25;
-        }
-        .hom-card-subtitle {
-            margin: 2px 0 0;
-            font-size: 0.8125rem;
-            color: var(--text-muted, #6B7280);
-        }
-
-        /* ========================================== */
-        /* FILTER FORM                                */
-        /* ========================================== */
-        .hom-filter-form {
-            padding: 16px 20px 20px;
-        }
-        .hom-filter-fields {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-        .hom-filter-field {
-            flex: 1;
-            min-width: 160px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        .hom-filter-field--wide {
-            flex: 1.5;
-            min-width: 200px;
-        }
-        .hom-filter-field label {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text-muted, #6B7280);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .hom-input {
-            padding: 9px 12px;
-            border: 1.5px solid var(--border, #E5E7EB);
-            border-radius: 10px;
-            font-size: 13.5px;
-            color: var(--text-primary, #374151);
-            background: var(--white, #FFFFFF);
-            width: 100%;
-            outline: none;
-            transition: all 0.2s ease;
-            font-family: inherit;
-            -webkit-appearance: none;
-            appearance: none;
-        }
-        .hom-input:focus {
-            border-color: var(--primary, #145DA0);
-            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
-        }
-        select.hom-input {
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
-            padding-right: 40px;
-        }
-        .hom-filter-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .hom-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 18px;
-            border-radius: 10px;
-            font-size: 13.5px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            white-space: nowrap;
-            font-family: inherit;
-        }
-        .hom-btn svg { flex-shrink: 0; }
-        .hom-btn--primary {
-            background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
-            color: #fff;
-            box-shadow: 0 2px 8px rgba(10, 61, 98, 0.18);
-        }
-        .hom-btn--primary:hover {
-            box-shadow: 0 4px 14px rgba(10, 61, 98, 0.28);
-            transform: translateY(-1px);
-        }
-        .hom-btn--secondary {
-            background: var(--gray-50, #F5F7FA);
-            color: var(--text-secondary, #374151);
-            border: 1.5px solid var(--border, #E5E7EB);
-        }
-        .hom-btn--secondary:hover {
-            background: var(--white, #FFFFFF);
-            border-color: var(--gray-300, #D1D5DB);
-        }
+        @media (min-width: 768px) { .hom-filter-grid { grid-template-columns: repeat(3, 1fr); } }
 
         /* ========================================== */
         /* TABLE                                      */
@@ -677,16 +604,6 @@
         }
 
         /* ========================================== */
-        /* VARIANCE                                   */
-        /* ========================================== */
-        .hom-variance {
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .hom-variance--positive { color: #15803d; }
-        .hom-variance--negative { color: #dc2626; }
-
-        /* ========================================== */
         /* ACTION LINK                                */
         /* ========================================== */
         .hom-action-link {
@@ -762,38 +679,7 @@
         /* ========================================== */
         /* RESPONSIVE                                 */
         /* ========================================== */
-        @media (min-width: 480px) {
-            .hom-stats {
-                display: flex;
-                align-items: center;
-                background: var(--white, #FFFFFF);
-                padding: 14px 20px;
-            }
-            .hom-stat {
-                flex: 1;
-                padding: 0;
-                gap: 4px;
-            }
-            .hom-stat-value {
-                font-size: 1.375rem;
-            }
-            .hom-stat-label {
-                font-size: 0.6875rem;
-                letter-spacing: 0.04em;
-            }
-            .hom-stat-divider {
-                display: block;
-                width: 1px;
-                height: 36px;
-                background: var(--border, #D1D5DB);
-                flex-shrink: 0;
-            }
-        }
-
         @media (min-width: 768px) {
-            .hom-filter-form {
-                padding: 20px 24px 24px;
-            }
             .hom-table tbody td {
                 padding: 12px 14px;
             }
@@ -856,34 +742,11 @@
                 max-width: 120px;
             }
 
-            /* Compact variance */
-            .hom-variance {
-                font-size: 11px;
-            }
-
             /* Compact action */
             .hom-action-link {
                 padding: 4px 10px;
                 font-size: 11px;
                 border-radius: 6px;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .hom-filter-fields {
-                flex-direction: column;
-            }
-            .hom-filter-field,
-            .hom-filter-field--wide {
-                min-width: 0;
-                flex: none;
-                width: 100%;
-            }
-            .hom-filter-actions {
-                flex-direction: column;
-            }
-            .hom-btn {
-                width: 100%;
             }
         }
 
@@ -934,13 +797,11 @@
                 margin-bottom: 12px;
             }
 
-            /* Tanggal, Waktu, Clock In, Clock Out, Cocok, Selisih */
+            /* Tanggal, Waktu, Clock In, Clock Out */
             .hom-table td:nth-child(3),
             .hom-table td:nth-child(4),
             .hom-table td:nth-child(6),
-            .hom-table td:nth-child(7),
-            .hom-table td:nth-child(8),
-            .hom-table td:nth-child(9) {
+            .hom-table td:nth-child(7) {
                 display: block;
                 background: var(--gray-50, #F5F7FA);
                 padding: 6px 10px;
@@ -954,9 +815,6 @@
             .hom-table td:nth-child(4)::before { content: 'Waktu: '; font-weight: 600; color: var(--text-primary, #374151); }
             .hom-table td:nth-child(6)::before { content: 'Clock In: '; font-weight: 600; color: var(--text-primary, #374151); }
             .hom-table td:nth-child(7)::before { content: 'Clock Out: '; font-weight: 600; color: var(--text-primary, #374151); }
-            .hom-table td:nth-child(8)::before { content: 'Cocok: '; font-weight: 600; color: var(--text-primary, #374151); }
-            .hom-table td:nth-child(9)::before { content: 'Selisih: '; font-weight: 600; color: var(--text-primary, #374151); }
-
             /* Action */
             .hom-table td:last-child {
                 border-top: 1px solid var(--border-light, #E5E7EB);

@@ -17,7 +17,7 @@ class HrOvertimeController extends Controller
     public function master(Request $request)
     {
         // Master Data: Tampilkan SEMUA request (History) dengan Filter
-        $query = OvertimeRequest::with(['user.profile.pt', 'user.division', 'supervisorApprover', 'hrdApprover'])
+        $query = OvertimeRequest::with(['user.profile.pt', 'user.division', 'user.overtimeApproverAssignment.supervisor', 'user.overtimeApproverAssignment.manager', 'approvalActions', 'supervisorApprover', 'hrdApprover'])
             ->orderByDesc('created_at');
 
         // Filter: Search User Name
@@ -110,15 +110,18 @@ class HrOvertimeController extends Controller
         ));
     }
 
-    public function show(OvertimeRequest $overtimeRequest)
+    public function show(Request $request, OvertimeRequest $overtimeRequest)
     {
+        $overtimeRequest->load(['user.overtimeApproverAssignment.supervisor', 'user.overtimeApproverAssignment.manager', 'approvalActions']);
         $attendance = Attendance::where('user_id', $overtimeRequest->user_id)
             ->whereDate('date', $overtimeRequest->overtime_date)
             ->first();
 
         $recap = $this->computeRecapData($overtimeRequest, $attendance);
 
-        return view('hr.overtime_requests.show', compact('overtimeRequest', 'attendance', 'recap'));
+        $view = $request->boolean('modal') ? 'hr.overtime_requests.detail-modal' : 'hr.overtime_requests.show';
+
+        return view($view, compact('overtimeRequest', 'attendance', 'recap'));
     }
 
     public function approve(Request $request, OvertimeRequest $overtimeRequest)

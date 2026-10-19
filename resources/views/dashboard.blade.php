@@ -14,9 +14,13 @@
         'NEED_REPAIR' => 'Perlu Service',
         'DAMAGED' => 'Rusak',
       ];
-      $todayAttendance = $todayAttendance ?? null;
-      $clockInAt = $todayAttendance?->clock_in_at;
-      $clockOutAt = $todayAttendance?->clock_out_at;
+      $latestAttendanceEvent = $latestAttendanceEvent ?? null;
+      $todayAttendanceEvents = $todayAttendanceEvents ?? collect();
+      $clockInAt = $todayAttendanceEvents->firstWhere('event_type', App\Models\AttendanceEvent::CLOCK_IN)?->occurred_at;
+      $clockOutAt = $todayAttendanceEvents->firstWhere('event_type', App\Models\AttendanceEvent::CLOCK_OUT)?->occurred_at;
+      $isAttendanceCooldownActive = $latestAttendanceEvent?->occurred_at->gt(now()->subMinutes(15));
+      $cooldownLabel = $latestAttendanceEvent?->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out';
+      $cooldownMessage = $latestAttendanceEvent ? "Anda sudah {$cooldownLabel} pada pukul {$latestAttendanceEvent->occurred_at->format('H:i')}." : null;
     @endphp
 
     {{-- ============================================ --}}
@@ -98,93 +102,20 @@
         <p class="section-subtitle">Catat kehadiran hari ini</p>
       </div>
       <div class="attendance-action-grid">
-
-        @if ($clockInAt)
-        <div class="action-card attendance-action-card attendance-action-card--completed" aria-label="Clock In berhasil pukul {{ $clockInAt->format('H:i') }}">
-          <div class="action-card__top">
-            <div class="action-card__icon">
-              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12l4 4L19 6"/>
-              </svg>
-            </div>
-          </div>
-          <div class="action-card__body">
-            <span class="action-card__name">Clock In</span>
-            <span class="action-card__desc">Berhasil · {{ $clockInAt->format('H:i') }}</span>
-          </div>
-        </div>
-        @elseif ($todayAttendance)
-        <div class="action-card attendance-action-card attendance-action-card--not-recorded" aria-label="Clock In tidak tercatat">
-          <div class="action-card__top">
-            <div class="action-card__icon">
-              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-              </svg>
-            </div>
-          </div>
-          <div class="action-card__body">
-            <span class="action-card__name">Clock In</span>
-            <span class="action-card__desc">Tidak tercatat</span>
-          </div>
-        </div>
-        @else
-        <a class="action-card attendance-action-card" href="{{ route('attendance.clockIn.form') }}" aria-label="Clock In — Masuk kerja">
-          <div class="action-card__top">
-            <div class="action-card__icon icon-green">
-              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-              </svg>
-            </div>
-            <div class="action-card__arrow">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-            </div>
-          </div>
-          <div class="action-card__body">
-            <span class="action-card__name">Clock In</span>
-            <span class="action-card__desc">Masuk kerja</span>
-          </div>
+        <a class="action-card attendance-action-card attendance-action-card--clock-in" href="{{ route('attendance.clockIn.form') }}" aria-label="Clock In" @if($isAttendanceCooldownActive) data-attendance-cooldown data-attendance-cooldown-until="{{ $latestAttendanceEvent->occurred_at->copy()->addMinutes(15)->toIso8601String() }}" data-attendance-cooldown-message="{{ $cooldownMessage }}" @endif>
+          <span class="attendance-action-card__label">Clock In</span>
+          @if($clockInAt)<span class="attendance-action-card__description">Tercatat {{ $clockInAt->format('H:i') }}</span>@endif
         </a>
-        @endif
-
-        @if ($clockOutAt)
-        <div class="action-card attendance-action-card attendance-action-card--completed" aria-label="Clock Out berhasil pukul {{ $clockOutAt->format('H:i') }}">
-          <div class="action-card__top">
-            <div class="action-card__icon">
-              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12l4 4L19 6"/>
-              </svg>
-            </div>
-          </div>
-          <div class="action-card__body">
-            <span class="action-card__name">Clock Out</span>
-            <span class="action-card__desc">Berhasil · {{ $clockOutAt->format('H:i') }}</span>
-          </div>
-        </div>
-        @else
-        <a class="action-card attendance-action-card" href="{{ route('attendance.clockOut.form') }}" aria-label="Clock Out — Pulang kerja">
-          <div class="action-card__top">
-            <div class="action-card__icon icon-red">
-              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-              </svg>
-            </div>
-            <div class="action-card__arrow">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-              </svg>
-            </div>
-          </div>
-          <div class="action-card__body">
-            <span class="action-card__name">Clock Out</span>
-            <span class="action-card__desc">Pulang kerja</span>
-          </div>
+        <a class="action-card attendance-action-card attendance-action-card--clock-out" href="{{ route('attendance.clockOut.form') }}" aria-label="Clock Out" @if($isAttendanceCooldownActive) data-attendance-cooldown data-attendance-cooldown-until="{{ $latestAttendanceEvent->occurred_at->copy()->addMinutes(15)->toIso8601String() }}" data-attendance-cooldown-message="{{ $cooldownMessage }}" @endif>
+          <span class="attendance-action-card__label">Clock Out</span>
+          @if($clockOutAt)<span class="attendance-action-card__description">Tercatat {{ $clockOutAt->format('H:i') }}</span>@endif
         </a>
-        @endif
-
       </div>
     </section>
+
+    <x-modal id="attendance-cooldown-modal" title="Absensi Sudah Tercatat" variant="info" type="info" cancelLabel="Tutup">
+      <p id="attendance-cooldown-message" style="margin:0; color:var(--text-muted);"></p>
+    </x-modal>
 
     {{-- ============================================ --}}
     {{-- PRIMARY QUICK ACTIONS - 2-Column Grid        --}}
@@ -872,11 +803,13 @@
     }
 
     .attendance-action-grid .attendance-action-card {
-      min-height: 128px;
-      padding: 16px;
-      gap: 14px;
-      border-color: var(--border, #E5E7EB);
-      box-shadow: 0 2px 8px rgba(10, 61, 98, 0.05);
+      min-height: 72px;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 16px;
+      border: 0;
+      color: var(--white, #FFFFFF);
+      box-shadow: none;
     }
 
     .attendance-action-card:focus-visible {
@@ -884,57 +817,37 @@
       outline-offset: 2px;
     }
 
-    .attendance-action-card .action-card__icon {
-      width: 48px;
-      height: 48px;
-      border-radius: 14px;
-    }
-
-    .attendance-action-card .action-card__icon svg {
-      width: 24px;
-      height: 24px;
-    }
-
-    .attendance-action-card .action-card__arrow svg {
-      width: 20px;
-      height: 20px;
-    }
-
-    .attendance-action-card .action-card__name {
+    .attendance-action-card__label {
       font-size: 1rem;
-    }
-
-    .attendance-action-card .action-card__desc {
-      font-size: 0.8125rem;
-      white-space: normal;
-      overflow: visible;
-    }
-
-    .attendance-action-card--completed {
-      border-color: #BBF7D0;
-      background: #F0FDF4;
-      box-shadow: none;
-    }
-
-    .attendance-action-card--completed .action-card__icon {
-      background: #DCFCE7;
-      color: #16A34A;
-    }
-
-    .attendance-action-card--completed .action-card__desc {
-      color: #15803D;
       font-weight: 700;
+      position: relative;
+      z-index: 1;
     }
 
-    .attendance-action-card--not-recorded {
-      border-color: #FDE68A;
-      background: #FFFBEB;
-      box-shadow: none;
+    .attendance-action-card__description {
+      margin-top: 3px;
+      font-size: 0.75rem;
+      opacity: 0.78;
+      position: relative;
+      z-index: 1;
     }
 
-    .attendance-action-card--not-recorded .action-card__icon {
-      background: #FEF3C7;
-      color: #B45309;
+    .attendance-action-grid .attendance-action-card--clock-in {
+      background: #2F6B4F;
+    }
+
+    .attendance-action-grid .attendance-action-card--clock-out {
+      background: #914B4B;
+    }
+
+    .attendance-action-grid .attendance-action-card--clock-in:hover,
+    .attendance-action-grid .attendance-action-card--clock-in:focus-visible {
+      background: #25563F;
+    }
+
+    .attendance-action-grid .attendance-action-card--clock-out:hover,
+    .attendance-action-grid .attendance-action-card--clock-out:focus-visible {
+      background: #783D3D;
     }
 
     .settings-grid {
@@ -1486,4 +1399,16 @@
     })();
   </script>
   @endif
+
+  <script>
+    document.querySelectorAll('[data-attendance-cooldown]').forEach((action) => {
+      action.addEventListener('click', (event) => {
+        if (new Date(action.dataset.attendanceCooldownUntil).getTime() <= Date.now()) return;
+
+        event.preventDefault();
+        document.getElementById('attendance-cooldown-message').textContent = action.dataset.attendanceCooldownMessage;
+        document.getElementById('attendance-cooldown-modal').style.display = 'flex';
+      });
+    });
+  </script>
 </x-app>

@@ -1,249 +1,156 @@
 <?php
 
 use App\Enums\UserRole;
-use App\Models\Attendance;
+use App\Models\AttendanceEvent;
+use App\Models\EmployeeShift;
+use App\Models\Shift;
+use App\Models\ShiftDay;
 use App\Models\User;
+use Tests\Support\InstallsAttendanceEventSchema;
 
-pest()->extend(Tests\TestCase::class)
-    ->in('Feature');
+uses(InstallsAttendanceEventSchema::class);
 
-it('uses the updated attendance recap columns', function () {
-    $hrd = User::factory()->create(['role' => UserRole::HRD]);
-    $employee = User::factory()->create();
-    $today = now()->startOfDay();
-
-    Attendance::factory()->forUser($employee)->today()->create([
-        'normal_start_time' => '06:45:00',
-        'normal_end_time' => '15:45:00',
-        'clock_in_at' => $today->copy()->setTime(8, 0),
-        'clock_out_at' => $today->copy()->setTime(17, 0),
-    ]);
-
-    $this->actingAs($hrd, 'web')
-        ->get(route('hr.attendances.index'))
-        ->assertOk()
-        ->assertSee('<th>Clock In</th>', false)
-        ->assertSee('<th>Clock Out</th>', false)
-        ->assertDontSee('<th>Check In</th>', false)
-        ->assertDontSee('<th>Check Out</th>', false)
-        ->assertDontSee('<th>Jam Kerja</th>', false)
-        ->assertDontSee('<th>Status Kelengkapan</th>', false)
-        ->assertDontSee('06:45');
+beforeEach(function () {
+    $this->installAttendanceEventSchema();
 });
 
-it('shows a work-date range only for overnight attendance in the recap', function () {
+it('lists each Clock In and Clock Out as an independent event across dates', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);
-    $normalEmployee = User::factory()->create();
-    $overnightEmployee = User::factory()->create();
-    $workDate = now()->startOfDay();
-    $normalDateLabel = $workDate->copy()->locale('id')->translatedFormat('j M Y');
-    $overnightDateLabel = $workDate->copy()->locale('id')->translatedFormat('j M').' - '.$workDate->copy()->addDay()->locale('id')->translatedFormat('j M Y');
+    $employee = User::factory()->create(['name' => 'USER LINTAS HARI']);
 
-    Attendance::factory()->forUser($normalEmployee)->create([
-        'date' => $workDate->toDateString(),
-        'normal_start_time' => '08:00:00',
-        'normal_end_time' => '17:00:00',
-        'clock_in_at' => $workDate->copy()->setTime(8, 30),
-        'clock_out_at' => $workDate->copy()->setTime(17, 0),
-    ]);
-    Attendance::factory()->forUser($overnightEmployee)->create([
-        'date' => $workDate->toDateString(),
-        'normal_start_time' => '20:00:00',
-        'normal_end_time' => '06:00:00',
-        'clock_in_at' => $workDate->copy()->setTime(20, 0),
-        'clock_out_at' => $workDate->copy()->addDay()->setTime(6, 0),
-    ]);
+    AttendanceEvent::factory()->forUser($employee)->create(['event_type' => AttendanceEvent::CLOCK_IN, 'occurred_at' => '2026-10-10 18:00:00']);
+    AttendanceEvent::factory()->forUser($employee)->clockOut()->create(['occurred_at' => '2026-10-11 02:00:00']);
+    AttendanceEvent::factory()->forUser($employee)->create(['event_type' => AttendanceEvent::CLOCK_IN, 'occurred_at' => '2026-10-11 15:00:00']);
+    AttendanceEvent::factory()->forUser($employee)->clockOut()->create(['occurred_at' => '2026-10-11 20:00:00']);
 
-    $response = $this->actingAs($hrd, 'web')
-        ->get(route('hr.attendances.index', [
-            'date_start' => $workDate->copy()->subDay()->toDateString(),
-            'date_end' => $workDate->copy()->addDay()->toDateString(),
-        ]));
+    $response = $this->actingAs($hrd, 'web')->get(route('hr.attendances.index', [
+        'date_start' => '2026-10-10',
+        'date_end' => '2026-10-11',
+    ]));
 
-    expect($response->viewData('items')->total())->toBe(2);
+    expect($response->viewData('items'))->toHaveCount(4)
+        ->and($response->viewData('items')->pluck('event_type')->all())
+        ->toContain(AttendanceEvent::CLOCK_IN, AttendanceEvent::CLOCK_OUT);
 
-    $response
-        ->assertOk()
-        ->assertSee('<th>Tanggal</th>', false)
-        ->assertSee($normalDateLabel)
-        ->assertSee($overnightDateLabel)
-        ->assertSee('08:30')
-        ->assertSee('17:00')
+    $response->assertOk()
+        ->assertSee('18:00')
+        ->assertSee('02:00')
+        ->assertSee('15:00')
         ->assertSee('20:00')
-        ->assertSee('06:00');
+        ->assertSee('10/10/26')
+        ->assertSee('11/10/26');
 });
 
-it('uses Lihat for attendance location buttons', function () {
+it('filters event history by occurred_at range and employee name without blank rows', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $match = User::factory()->create(['name' => 'MOH. AINUL YAQIN']);
+    $other = User::factory()->create(['name' => 'KARYAWAN LAIN']);
+
+    AttendanceEvent::factory()->forUser($match)->create(['occurred_at' => '2026-10-12 08:00:00']);
+    AttendanceEvent::factory()->forUser($match)->clockOut()->create(['occurred_at' => '2026-10-13 17:00:00']);
+    AttendanceEvent::factory()->forUser($other)->create(['occurred_at' => '2026-10-13 08:00:00']);
+
+    $response = $this->actingAs($hrd, 'web')->get(route('hr.attendances.index', [
+        'date_start' => '2026-10-13',
+        'date_end' => '2026-10-13',
+        'q' => 'mohainul',
+    ]));
+
+    expect($response->viewData('items'))->toHaveCount(1)
+        ->and($response->viewData('items')->sole()->user_id)->toBe($match->id)
+        ->and($response->viewData('items')->sole()->event_type)->toBe(AttendanceEvent::CLOCK_OUT);
+});
+
+it('sorts attendance events by the latest submitted input, not by attendance time', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);
     $employee = User::factory()->create();
-
-    Attendance::factory()->forUser($employee)->today()->create([
-        'clock_in_lat' => -6.200000,
-        'clock_in_lng' => 106.816666,
-        'clock_out_lat' => -6.210000,
-        'clock_out_lng' => 106.826666,
+    $earliestSubmission = AttendanceEvent::factory()->forUser($employee)->clockOut()->create([
+        'occurred_at' => '2026-10-15 02:00:00',
+        'created_at' => '2026-10-15 09:00:00',
+        'updated_at' => '2026-10-15 09:00:00',
+    ]);
+    $latestSubmission = AttendanceEvent::factory()->forUser($employee)->create([
+        'occurred_at' => '2026-10-15 18:00:00',
+        'created_at' => '2026-10-15 18:00:00',
+        'updated_at' => '2026-10-15 18:00:00',
+    ]);
+    $sameSecondLatestSubmission = AttendanceEvent::factory()->forUser($employee)->clockOut()->create([
+        'occurred_at' => '2026-10-15 15:00:00',
+        'created_at' => '2026-10-15 18:00:00',
+        'updated_at' => '2026-10-15 18:00:00',
     ]);
 
     $response = $this->actingAs($hrd, 'web')->get(route('hr.attendances.index', [
-        'date_start' => now()->subDay()->toDateString(),
-        'date_end' => now()->addDay()->toDateString(),
+        'date_start' => '2026-10-15',
+        'date_end' => '2026-10-15',
     ]));
-    $response->assertOk()
-        ->assertSee('data-attendance-location="clock-in"', false)
-        ->assertSee('data-attendance-location="clock-out"', false);
 
-    preg_match_all(
-        '/data-attendance-location="[^"]+"[^>]*>\s*([^<]+?)\s*<\/button>/',
-        $response->getContent(),
-        $matches,
-    );
-
-    expect($matches[1])->toBe(['Lihat', 'Lihat']);
+    expect($response->viewData('items')->pluck('id')->all())
+        ->toBe([$sameSecondLatestSubmission->id, $latestSubmission->id, $earliestSubmission->id]);
 });
 
-it('renders the attendance live search filter contract', function () {
+it('does not expose events belonging to inactive employees', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $active = User::factory()->create(['name' => 'KARYAWAN AKTIF']);
+    $inactive = User::factory()->create(['name' => 'KARYAWAN NONAKTIF', 'status' => 'INACTIVE']);
 
-    $response = $this->actingAs($hrd, 'web')
-        ->get(route('hr.attendances.index'));
+    AttendanceEvent::factory()->forUser($active)->create(['occurred_at' => '2026-10-13 08:00:00']);
+    AttendanceEvent::factory()->forUser($inactive)->create(['occurred_at' => '2026-10-13 08:00:00']);
 
-    $response->assertOk();
+    $response = $this->actingAs($hrd, 'web')->get(route('hr.attendances.index', [
+        'date_start' => '2026-10-13',
+        'date_end' => '2026-10-13',
+    ]));
 
-    $dom = new DOMDocument;
-    $previousState = libxml_use_internal_errors(true);
-    $dom->loadHTML($response->getContent());
-    libxml_clear_errors();
-    libxml_use_internal_errors($previousState);
-    $xpath = new DOMXPath($dom);
-
-    expect($xpath->query('//*[@data-attendance-live-search and @aria-label="Cari nama karyawan"]')->length)->toBe(1)
-        ->and($xpath->query('//*[@data-attendance-results and @aria-live="polite" and @aria-busy="false"]')->length)->toBe(1)
-        ->and($xpath->query('//*[@data-attendance-pagination]')->length)->toBe(1)
-        ->and($xpath->query('//button[contains(concat(" ", normalize-space(@class), " "), " attendance-btn-toggle-filter ")]')->length)->toBe(1);
+    $response->assertSee($active->name)->assertDontSee($inactive->name);
 });
 
-it('attendance search ignores dots and spaces in employee names', function () {
+it('shows the event date work schedule and distinct event type chips', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);
-    $matchingEmployee = User::factory()->create(['name' => 'MOH. AINUL YAQIN']);
-    $otherEmployee = User::factory()->create(['name' => 'MOHAMMAD FAJAR']);
+    $scheduledEmployee = User::factory()->create(['name' => 'KARYAWAN BERSHIFT']);
+    $employeeWithoutShift = User::factory()->create(['name' => 'KARYAWAN TANPA SHIFT']);
+    $onTimeEmployee = User::factory()->create(['name' => 'KARYAWAN TEPAT WAKTU']);
+    $shift = Shift::factory()->create();
 
-    Attendance::factory()->forUser($matchingEmployee)->today()->create();
-    Attendance::factory()->forUser($otherEmployee)->today()->create();
-
-    $response = $this->actingAs($hrd, 'web')
-        ->get(route('hr.attendances.index', [
-            'q' => 'mohainul',
-            'date_start' => now()->subDay()->toDateString(),
-            'date_end' => now()->addDay()->toDateString(),
-        ]));
-
-    $response->assertOk();
-    expect($response->viewData('items')->total())->toBe(1)
-        ->and($response->viewData('items')->first()->user_id)->toBe($matchingEmployee->id);
-});
-
-it('filters attendance recap by overnight schedule snapshot', function () {
-    $hrd = User::factory()->create(['role' => UserRole::HRD]);
-    $overnightEmployee = User::factory()->create();
-    $regularEmployee = User::factory()->create();
-    $workDate = now()->startOfDay();
-
-    Attendance::factory()->forUser($overnightEmployee)->create([
-        'date' => $workDate->toDateString(),
-        'clock_in_at' => $workDate->copy()->setTime(22, 0),
-        'normal_start_time' => '22:00:00',
-        'normal_end_time' => '06:00:00',
-    ]);
-    Attendance::factory()->forUser($regularEmployee)->create([
-        'date' => $workDate->toDateString(),
-        'clock_in_at' => $workDate->copy()->setTime(8, 0),
-        'normal_start_time' => '08:00:00',
-        'normal_end_time' => '17:00:00',
+    EmployeeShift::factory()->forUser($scheduledEmployee)->forShift($shift)->create();
+    EmployeeShift::factory()->forUser($onTimeEmployee)->forShift($shift)->create();
+    ShiftDay::factory()->forShift($shift)->create([
+        'day_of_week' => 3,
+        'start_time' => '08:00:00',
+        'end_time' => '16:00:00',
     ]);
 
-    $overnightResponse = $this->actingAs($hrd, 'web')
-        ->get(route('hr.attendances.index', [
-            'date_start' => $workDate->copy()->subDay()->toDateString(),
-            'date_end' => $workDate->copy()->addDay()->toDateString(),
-            'shift_type' => 'overnight',
-        ]));
-
-    $overnightResponse->assertOk()
-        ->assertSee('Jenis Shift')
-        ->assertSee('Bukan Lintas Hari');
-    expect($overnightResponse->viewData('items')->total())->toBe(1)
-        ->and($overnightResponse->viewData('items')->first()->user_id)->toBe($overnightEmployee->id);
-
-    $regularResponse = $this->actingAs($hrd, 'web')
-        ->get(route('hr.attendances.index', [
-            'date_start' => $workDate->copy()->subDay()->toDateString(),
-            'date_end' => $workDate->copy()->addDay()->toDateString(),
-            'shift_type' => 'regular',
-        ]));
-
-    expect($regularResponse->viewData('items')->total())->toBe(1)
-        ->and($regularResponse->viewData('items')->first()->user_id)->toBe($regularEmployee->id);
-});
-
-it('opens attendance coordinates in the location modal instead of a new maps tab', function () {
-    $hrd = User::factory()->create(['role' => UserRole::HRD]);
-    $employee = User::factory()->create();
-
-    Attendance::factory()->forUser($employee)->today()->create([
-        'clock_in_lat' => -6.200000,
-        'clock_in_lng' => 106.816666,
-        'clock_out_lat' => -6.210000,
-        'clock_out_lng' => 106.826666,
+    AttendanceEvent::factory()->forUser($scheduledEmployee)->create([
+        'event_type' => AttendanceEvent::CLOCK_IN,
+        'occurred_at' => '2026-10-14 08:45:00',
+    ]);
+    AttendanceEvent::factory()->forUser($employeeWithoutShift)->clockOut()->create([
+        'occurred_at' => '2026-10-14 17:00:00',
+    ]);
+    AttendanceEvent::factory()->forUser($onTimeEmployee)->create([
+        'event_type' => AttendanceEvent::CLOCK_IN,
+        'occurred_at' => '2026-10-14 08:00:59',
     ]);
 
     $response = $this->actingAs($hrd, 'web')->get(route('hr.attendances.index', [
-        'date_start' => now()->subDay()->toDateString(),
-        'date_end' => now()->addDay()->toDateString(),
+        'date_start' => '2026-10-14',
+        'date_end' => '2026-10-14',
     ]));
 
-    expect($response->viewData('items')->total())->toBe(1);
+    $items = $response->viewData('items')->keyBy('user_id');
+
+    expect($items[$scheduledEmployee->id]->work_schedule)->toBe('08:00–16:00')
+        ->and($items[$scheduledEmployee->id]->late_label)->toBe('45 min')
+        ->and($items[$employeeWithoutShift->id]->work_schedule)->toBe('-')
+        ->and($items[$onTimeEmployee->id]->late_label)->toBe('-');
 
     $response->assertOk()
-        ->assertSee($employee->name)
-        ->assertSee('data-attendance-location="clock-in"', false)
-        ->assertSee('data-attendance-location="clock-out"', false)
-        ->assertSee('id="attendance-location-map"', false)
-        ->assertDontSee('https://www.google.com/maps/search/?api=1', false);
-});
-
-it('reinitializes location buttons after the attendance search replaces the results', function () {
-    $hrd = User::factory()->create(['role' => UserRole::HRD]);
-
-    $this->actingAs($hrd, 'web')
-        ->get(route('hr.attendances.index'))
-        ->assertOk()
-        ->assertSee('function initializeAttendanceLocationButtons()', false)
-        ->assertSee('initializeAttendanceLocationButtons();', false);
-});
-
-it('filters direct clock out records as missed clock in', function () {
-    $hrd = User::factory()->create(['role' => UserRole::HRD]);
-    $employee = User::factory()->create();
-    $otherEmployee = User::factory()->create();
-
-    $missingClockIn = Attendance::factory()->forUser($employee)->today()->create([
-        'clock_in_at' => null,
-        'clock_out_at' => now(),
-        'status' => 'TIDAK CLOCK IN',
-        'completion_status' => 'MISSED_CLOCK_IN',
-    ]);
-    Attendance::factory()->forUser($otherEmployee)->today()->create([
-        'completion_status' => Attendance::COMPLETION_CLOSED,
-    ]);
-
-    $response = $this->actingAs($hrd, 'web')->get(route('hr.attendances.index', [
-        'completion_status' => 'MISSED_CLOCK_IN',
-        'date_start' => now()->subDay()->toDateString(),
-        'date_end' => now()->addDay()->toDateString(),
-    ]));
-
-    $response->assertOk()
-        ->assertSee('Belum Clock In');
-    expect($response->viewData('items')->total())->toBe(1)
-        ->and($response->viewData('items')->first()->id)->toBe($missingClockIn->id);
+        ->assertSee('08:00–16:00')
+        ->assertSee('Terlambat')
+        ->assertSee('45 min')
+        ->assertSee('attendance-type-chip--in', false)
+        ->assertSee('attendance-type-chip--out', false)
+        ->assertSee('attendance-media-column', false)
+        ->assertSee('right: calc(100% + 6px)', false)
+        ->assertSee('closeOtherAttendanceActionMenus', false);
 });

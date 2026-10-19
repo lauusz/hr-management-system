@@ -263,6 +263,21 @@ class User extends Authenticatable
         return $this->hasMany(LeaveRequest::class);
     }
 
+    public function overtimeApproverAssignment()
+    {
+        return $this->hasOne(OvertimeApproverAssignment::class, 'employee_id');
+    }
+
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function attendanceEvents(): HasMany
+    {
+        return $this->hasMany(AttendanceEvent::class);
+    }
+
     public function offSpvPeriods()
     {
         return $this->hasMany(OffSpvPeriod::class);

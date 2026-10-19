@@ -67,7 +67,9 @@ describe('ApprovalController', function () {
             $response->assertRedirect(route('approval.index'));
             $leave->refresh();
             expect($leave->status)->toBe(LeaveRequest::PENDING_HR)
-                ->and($leave->supervisor_ack_at)->toBeTruthy();
+                ->and($leave->supervisor_ack_at)->toBeTruthy()
+                ->and($leave->notes)->toContain('[System] Disetujui oleh Atasan ('.$supervisor->name.') pada')
+                ->and($leave->notes)->not->toContain('[System] Diketahui oleh Atasan');
         });
 
         test('supervisor can REJECT pending leave', function () {

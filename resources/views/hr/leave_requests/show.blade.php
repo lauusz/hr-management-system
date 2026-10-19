@@ -707,8 +707,14 @@
             @method('PUT')
 
             <div class="edit-modal-content">
-                <div class="apv-status-notice apv-status-notice--info" style="margin-bottom: 16px;">
-                    Perubahan hanya disimpan dan tidak mengubah status pengajuan. Persetujuan dilakukan melalui tombol Setujui.
+                <div class="edit-status-message">
+                    <span class="edit-status-icon" aria-hidden="true">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </span>
+                    <div>
+                        <strong>Status pengajuan tetap</strong>
+                        <p>Perubahan hanya disimpan; status pengajuan tetap seperti semula.</p>
+                    </div>
                 </div>
                 <div class="edit-section">
                     <div class="edit-section-header">
@@ -719,7 +725,7 @@
                         <label class="edit-form-label">Jenis Pengajuan</label>
                         <select name="type" id="edit_type" class="edit-form-select">
                             @foreach(\App\Enums\LeaveType::cases() as $type)
-                                <option value="{{ $type->value }}" @selected($typeValue == $type->value)>{{ $type->label() }}</option>
+                                <option value="{{ $type->value }}" @selected(old('type', $typeValue) == $type->value)>{{ $type->label() }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -745,16 +751,16 @@
                     <div class="edit-form-row">
                         <div class="edit-form-group">
                             <label class="edit-form-label">Tanggal Mulai</label>
-                            <input type="date" name="start_date" class="edit-form-input" value="{{ $item->start_date->format('Y-m-d') }}" required>
+                            <input type="date" name="start_date" class="edit-form-input" value="{{ old('start_date', $item->start_date->format('Y-m-d')) }}" required>
                         </div>
                         <div class="edit-form-group">
                             <label class="edit-form-label">Tanggal Selesai</label>
-                            <input type="date" name="end_date" class="edit-form-input" value="{{ $item->end_date->format('Y-m-d') }}" required>
+                            <input type="date" name="end_date" class="edit-form-input" value="{{ old('end_date', $item->end_date->format('Y-m-d')) }}" required>
                         </div>
                     </div>
                 </div>
 
-                <div class="edit-section">
+                <div class="edit-section edit-section--time">
                     <div class="edit-section-header">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         <span>Detail Waktu</span>
@@ -771,7 +777,7 @@
                     </div>
                 </div>
 
-                <div class="edit-section">
+                <div class="edit-section edit-section--substitute">
                     <div class="edit-section-header">
                         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         <span>Penugasan Pengganti</span>
@@ -805,7 +811,7 @@
                     </div>
                 </div>
 
-                <div class="apv-status-notice apv-status-notice--info" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;">
+                <div class="apv-status-notice apv-status-notice--info edit-balance-notice">
                     <span>Saldo Cuti Aktual</span>
                     <strong>{{ $leaveBalanceLabel }}</strong>
                 </div>
@@ -880,6 +886,7 @@
             </div>
 
             <div class="edit-modal-footer">
+                <span class="edit-footer-hint">Pastikan data sudah sesuai sebelum disimpan.</span>
                 <button type="button" data-modal-close="true" class="edit-btn-cancel">Batal</button>
                 <button type="submit" class="edit-btn-save">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -1182,6 +1189,80 @@
                 if (typeSelect.value === 'CUTI_KHUSUS') {
                     specialWrapper.style.display = 'block';
                 }
+            }
+
+            // Edit HR: sesuaikan pilihan per tanggal dengan rentang yang dipilih.
+            const editForm = document.getElementById('form-edit-hr');
+            const startDate = editForm?.querySelector('[name="start_date"]');
+            const endDate = editForm?.querySelector('[name="end_date"]');
+            const treatmentBody = editForm?.querySelector('[data-daily-treatment-table] tbody');
+            if (startDate && endDate && treatmentBody && treatmentBody.rows.length) {
+                const savedTreatments = @json(old('daily_treatments', []));
+                const rowsByDate = new Map();
+                Array.from(treatmentBody.rows).forEach((row) => {
+                    const date = row.querySelector('select')?.name.match(/\[([^\]]+)\]/)?.[1];
+                    if (date) rowsByDate.set(date, row);
+                });
+                const templateRow = treatmentBody.rows[0].cloneNode(true);
+
+                const syncEditDates = () => {
+                    const isOffSpv = typeSelect?.value === 'OFF_SPV';
+                    endDate.readOnly = isOffSpv;
+                    if (isOffSpv) endDate.value = startDate.value;
+                    if (!startDate.value || !endDate.value || startDate.value > endDate.value) return;
+
+                    const first = new Date(`${startDate.value}T00:00:00Z`);
+                    const last = new Date(`${endDate.value}T00:00:00Z`);
+                    if (Number.isNaN(first.getTime()) || Number.isNaN(last.getTime())) return;
+
+                    const visibleDates = new Set();
+                    for (const date = new Date(first); date <= last; date.setUTCDate(date.getUTCDate() + 1)) {
+                        const dateKey = date.toISOString().slice(0, 10);
+                        visibleDates.add(dateKey);
+                        let row = rowsByDate.get(dateKey);
+                        if (!row) {
+                            row = templateRow.cloneNode(true);
+                            const dateCell = row.cells[0];
+                            const isSunday = date.getUTCDay() === 0;
+                            const dateLabel = `${dateKey.slice(8, 10)}/${dateKey.slice(5, 7)}/${dateKey.slice(2, 4)}`;
+                            dateCell.textContent = dateLabel;
+                            dateCell.style.color = isSunday ? 'var(--error, #EF4444)' : '';
+                            if (isSunday) {
+                                const sundayLabel = document.createElement('small');
+                                sundayLabel.style.cssText = 'display:block; margin-top:3px; font-size:11px; font-weight:400;';
+                                sundayLabel.textContent = 'Hari Minggu';
+                                dateCell.appendChild(sundayLabel);
+                            }
+
+                            const select = row.querySelector('select');
+                            select.id = `edit-daily-${dateKey.replace(/-/g, '')}-treatment`;
+                            select.name = `daily_treatments[${dateKey}]`;
+                            select.setAttribute('aria-label', `${dateLabel} - Perlakuan`);
+                            const placeholder = document.createElement('option');
+                            placeholder.value = '';
+                            placeholder.textContent = '-- Pilih perlakuan --';
+                            placeholder.disabled = true;
+                            select.prepend(placeholder);
+                            select.value = savedTreatments[dateKey] ?? '';
+
+                            const marker = row.querySelector('[data-auto-deduction-marker]');
+                            if (marker) marker.dataset.autoDeductionMarker = dateKey;
+                            rowsByDate.set(dateKey, row);
+                        }
+                        treatmentBody.appendChild(row);
+                    }
+
+                    rowsByDate.forEach((row, dateKey) => {
+                        if (!visibleDates.has(dateKey)) row.remove();
+                    });
+                };
+
+                startDate.addEventListener('input', syncEditDates);
+                startDate.addEventListener('change', syncEditDates);
+                endDate.addEventListener('input', syncEditDates);
+                endDate.addEventListener('change', syncEditDates);
+                typeSelect?.addEventListener('change', syncEditDates);
+                syncEditDates();
             }
 
             // Edit modal: file upload preview
@@ -1804,14 +1885,14 @@
         }
         .apv-action-primary-row {
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             gap: 8px;
             order: -1;
         }
         .apv-action-primary-row .apv-action-btn {
-            width: 100%;
+            min-width: 0;
             justify-content: center;
-            flex: none;
+            flex: 1;
         }
 
         .apv-action-btn {
@@ -2089,35 +2170,28 @@
         /* ========================================== */
         /* RESPONSIVE                                 */
         /* ========================================== */
-        @media (min-width: 768px) {
+        @media (min-width: 640px) {
             .apv-action-main {
                 flex-direction: row;
                 flex-wrap: wrap;
-                justify-content: space-between;
                 align-items: center;
                 gap: 12px;
+                width: 100%;
             }
-            .apv-action-secondary {
-                justify-content: flex-start;
-                gap: 12px;
-            }
-            .apv-action-secondary .apv-action-btn {
-                flex: none;
-                padding: 12px 24px;
-                font-size: 14px;
-            }
+            .apv-action-secondary,
             .apv-action-primary-row {
-                flex-direction: row;
-                flex: 1;
-                justify-content: flex-end;
-                order: 0;
-                gap: 12px;
+                display: contents;
             }
+            .apv-action-secondary .apv-action-btn,
             .apv-action-primary-row .apv-action-btn {
                 width: auto;
-                flex: none;
-                padding: 12px 24px;
+                flex: 1 1 0;
+                min-width: 0;
+                padding: 12px 8px;
                 font-size: 14px;
+            }
+            .apv-action-main .apv-status-notice {
+                flex: 1 1 100%;
             }
             .apv-action-btn {
                 padding: 12px 24px;
@@ -2139,8 +2213,8 @@
                 border: 1px solid var(--border-light, #E5E7EB);
                 border-radius: 18px;
                 box-shadow: 0 -4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
-                padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
-                max-width: 800px;
+                padding: 10px;
+                max-width: 1200px;
                 margin: 0 auto;
             }
         }
@@ -2148,6 +2222,203 @@
         @media (max-width: 640px) {
             .edit-form-row { grid-template-columns: 1fr; }
             .edit-section--notes .edit-form-row { grid-template-columns: 1fr; }
+        }
+
+        /* Tampilan khusus modal edit HR; modal lain tetap menggunakan gaya semula. */
+        #modal-edit-hr .modal-card {
+            max-width: 880px;
+            max-height: calc(100vh - 32px);
+            max-height: min(900px, calc(100dvh - 32px));
+            border-radius: 18px;
+            box-shadow: 0 20px 60px rgba(10, 35, 55, 0.22);
+        }
+        #modal-edit-hr .modal-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #E5EAF0;
+            flex-shrink: 0;
+        }
+        #modal-edit-hr .modal-title {
+            color: var(--primary-dark, #0A3D62);
+            font-size: 18px;
+        }
+        #modal-edit-hr .modal-close {
+            width: 44px;
+            height: 44px;
+            color: var(--text-muted, #6B7280);
+        }
+        #modal-edit-hr .modal-body {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        #modal-edit-hr .modal-body + div { display: none; }
+        #form-edit-hr {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0;
+            margin: 0;
+        }
+        #form-edit-hr .edit-modal-content {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            align-content: start;
+            gap: 14px;
+            flex: 1 1 auto;
+            min-height: 0;
+            max-height: none;
+            padding: 20px 24px 24px;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            background: var(--gray-50, #F5F7FA);
+        }
+        #form-edit-hr .edit-modal-content > * { min-width: 0; }
+        #form-edit-hr .edit-status-message {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 13px 15px;
+            border: 1px solid #CFE2F0;
+            border-radius: 12px;
+            background: #EDF6FC;
+            color: var(--primary-dark, #0A3D62);
+            line-height: 1.5;
+        }
+        #form-edit-hr .edit-status-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 30px;
+            height: 30px;
+            border-radius: 9px;
+            background: #DCEEF9;
+            color: var(--primary, #145DA0);
+        }
+        #form-edit-hr .edit-status-message strong { display: block; font-size: 13px; }
+        #form-edit-hr .edit-status-message p { margin: 2px 0 0; font-size: 12px; }
+        #form-edit-hr .edit-section {
+            min-width: 0;
+            margin: 0;
+            padding: 18px;
+            border: 1px solid #E5EAF0;
+            border-radius: 12px;
+            background: #FFF;
+        }
+        #form-edit-hr .edit-section--warning {
+            border-color: rgba(245, 158, 11, 0.25);
+            background: #FFFCF5;
+        }
+        #form-edit-hr .edit-section-header {
+            gap: 10px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom-color: #EDF0F4;
+            color: var(--text-primary, #111827);
+            font-size: 14px;
+            font-weight: 700;
+        }
+        #form-edit-hr .edit-section-header svg {
+            flex: 0 0 18px;
+            color: var(--primary, #145DA0);
+        }
+        #form-edit-hr .edit-section--warning .edit-section-header svg { color: #D97706; }
+        #form-edit-hr .edit-form-row { gap: 14px; }
+        #form-edit-hr .edit-form-group { min-width: 0; }
+        #form-edit-hr .edit-form-label { margin-bottom: 7px; font-size: 12px; }
+        #form-edit-hr .edit-form-input,
+        #form-edit-hr .edit-form-select,
+        #form-edit-hr .edit-form-textarea {
+            min-width: 0;
+            min-height: 44px;
+            border: 1px solid #D8E0E8;
+            border-radius: 9px;
+        }
+        #form-edit-hr .edit-form-textarea { min-height: 86px; }
+        #form-edit-hr .edit-form-input:focus,
+        #form-edit-hr .edit-form-select:focus,
+        #form-edit-hr .edit-form-textarea:focus {
+            border-color: var(--primary, #145DA0);
+            box-shadow: 0 0 0 3px rgba(20, 93, 160, 0.13);
+        }
+        #form-edit-hr .edit-balance-notice {
+            justify-content: space-between;
+            gap: 12px;
+            margin: 0;
+            padding: 12px 16px;
+            border-color: #D6E6F1;
+            background: #EDF6FC;
+            color: var(--primary-dark, #0A3D62);
+        }
+        #form-edit-hr .edit-balance-notice strong { white-space: nowrap; }
+        #form-edit-hr .edit-upload-label {
+            padding: 18px;
+            border-color: #C9D7E4;
+            background: #FAFCFE;
+        }
+        #form-edit-hr .edit-upload-input:focus-visible + .edit-upload-label {
+            outline: 3px solid rgba(20, 93, 160, 0.4);
+            outline-offset: 2px;
+        }
+        #form-edit-hr .edit-current-file { overflow-wrap: anywhere; }
+        #form-edit-hr .edit-modal-footer {
+            align-items: center;
+            flex: 0 0 auto;
+            gap: 10px;
+            margin: 0;
+            padding: 14px 24px;
+            border-top: 1px solid #E5EAF0;
+            background: #FFF;
+        }
+        #form-edit-hr .edit-footer-hint {
+            margin-right: auto;
+            color: var(--text-muted, #6B7280);
+            font-size: 12px;
+        }
+        #form-edit-hr .edit-btn-cancel,
+        #form-edit-hr .edit-btn-save {
+            justify-content: center;
+            min-height: 44px;
+            white-space: nowrap;
+        }
+        #modal-edit-hr .modal-close:focus-visible,
+        #form-edit-hr .edit-btn-cancel:focus-visible,
+        #form-edit-hr .edit-btn-save:focus-visible {
+            outline: 3px solid rgba(20, 93, 160, 0.5);
+            outline-offset: 2px;
+        }
+        @media (min-width: 820px) {
+            #form-edit-hr .edit-modal-content { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            #form-edit-hr .edit-modal-content > * { grid-column: 1 / -1; }
+            #form-edit-hr .edit-modal-content > .edit-section--time,
+            #form-edit-hr .edit-modal-content > .edit-section--substitute { grid-column: auto; }
+        }
+        @media (max-width: 640px) {
+            #modal-edit-hr.modal-backdrop { padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+            #modal-edit-hr .modal-card {
+                max-height: calc(100vh - 24px - env(safe-area-inset-bottom));
+                max-height: calc(100dvh - 24px - env(safe-area-inset-bottom));
+                border-radius: 14px;
+            }
+            #modal-edit-hr .modal-header { padding: 12px 16px; }
+            #modal-edit-hr .modal-title { font-size: 16px; }
+            #form-edit-hr .edit-modal-content { gap: 12px; padding: 16px; }
+            #form-edit-hr .edit-section { padding: 15px; }
+            #form-edit-hr .edit-modal-footer { padding: 12px 16px; }
+            #form-edit-hr .edit-footer-hint { display: none; }
+            #form-edit-hr .edit-btn-save { flex: 1; }
+        }
+        @media (max-width: 480px) {
+            #form-edit-hr [data-daily-treatment-table] table { table-layout: fixed; }
+            #form-edit-hr [data-daily-treatment-table] th:first-child { width: 88px !important; }
+            #form-edit-hr [data-daily-treatment-table] th,
+            #form-edit-hr [data-daily-treatment-table] td { padding: 8px !important; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #modal-edit-hr .modal-card { animation: none; }
+            #modal-edit-hr *, #modal-edit-hr *::before, #modal-edit-hr *::after { transition: none; }
         }
     </style>
 

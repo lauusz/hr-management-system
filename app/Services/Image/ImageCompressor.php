@@ -31,7 +31,8 @@ class ImageCompressor
         UploadedFile $file,
         string $type = 'photo',
         string $folderName = 'uploads',
-        string $prefix = 'img_'
+        string $prefix = 'img_',
+        string $disk = 'public'
     ): string {
         $extension = strtolower($file->getClientOriginalExtension());
         $shouldCompress = $type === 'photo'
@@ -44,7 +45,7 @@ class ImageCompressor
         ]);
 
         if (! $shouldCompress) {
-            return $file->store($folderName, 'public');
+            return $file->store($folderName, $disk);
         }
 
         try {
@@ -54,7 +55,7 @@ class ImageCompressor
 
             $fullPath = $folderName.'/'.$prefix.uniqid('', true).'.jpg';
 
-            if (! Storage::disk('public')->put($fullPath, $contents)) {
+            if (! Storage::disk($disk)->put($fullPath, $contents)) {
                 throw new \RuntimeException('Gagal menyimpan hasil kompresi gambar.');
             }
 

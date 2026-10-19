@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
@@ -53,6 +54,37 @@ class OvertimeRequest extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function attachments()
+    {
+        return $this->hasMany(OvertimeRequestAttachment::class);
+    }
+
+    public function approvalActions()
+    {
+        return $this->hasMany(OvertimeApprovalAction::class)->orderBy('id');
+    }
+
+    public function currentApprovalActions()
+    {
+        $actions = $this->approvalActions;
+        $round = $actions->max('approval_round') ?? 1;
+
+        return $actions->where('approval_round', $round)->whereIn('action', ['APPROVE', 'REJECT']);
+    }
+
+    public function canViewEvidence(User $viewer): bool
+    {
+        if ((int) $viewer->id === (int) $this->user_id
+            || ($this->user?->direct_supervisor_id !== null && (int) $viewer->id === (int) $this->user->direct_supervisor_id)
+            || in_array($viewer->role, [UserRole::HRD, UserRole::HR_STAFF], true)) {
+            return true;
+        }
+
+        $assignment = $this->user?->overtimeApproverAssignment;
+        return ($assignment && in_array((int) $viewer->id, [(int) $assignment->supervisor_id, (int) $assignment->manager_id], true))
+            || $this->approvalActions->whereIn('action', ['APPROVE', 'REJECT'])->contains('actor_id', $viewer->id);
+    }
+
     public function supervisorApprover()
     {
         return $this->belongsTo(User::class, 'approved_by_supervisor_id');
@@ -89,7 +121,7 @@ class OvertimeRequest extends Model
     public function getStatusLabelAttribute()
     {
         return match ($this->status) {
-            self::STATUS_PENDING_SUPERVISOR => 'Menunggu Supervisor',
+            self::STATUS_PENDING_SUPERVISOR => 'Menunggu SPV dan Manager',
             self::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
             self::STATUS_APPROVED_HRD => 'Disetujui',
             self::STATUS_REJECTED => 'Ditolak',
@@ -104,7 +136,7 @@ class OvertimeRequest extends Model
     public function getHrdStatusLabelAttribute()
     {
         return match ($this->status) {
-            self::STATUS_PENDING_SUPERVISOR => 'Menunggu Supervisor',
+            self::STATUS_PENDING_SUPERVISOR => 'Menunggu SPV dan Manager',
             self::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
             self::STATUS_APPROVED_HRD => 'Disetujui',
             self::STATUS_REJECTED => 'Ditolak',

@@ -36,7 +36,7 @@
     {{-- ============================================== --}}
     {{-- STATS ROW                                    --}}
     {{-- ============================================== --}}
-    <div class="som-stats">
+    <div class="som-stats" data-supervisor-overtime-stats>
         <div class="som-stat">
             <div class="som-stat-value">{{ $overtimes->total() }}</div>
             <div class="som-stat-label">Total</div>
@@ -67,87 +67,60 @@
     {{-- ============================================== --}}
     {{-- FILTER CARD                                  --}}
     {{-- ============================================== --}}
-    <div class="som-card">
-        <div class="som-card-header">
-            <div class="som-card-header-icon">
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                </svg>
-            </div>
-            <div>
-                <h4 class="som-card-title">Filter Data</h4>
-                <p class="som-card-subtitle">Cari riwayat pengajuan lembur bawahan Anda</p>
-            </div>
-        </div>
-
-        <form method="GET" action="{{ route('supervisor.overtime-requests.master') }}" class="som-filter-form">
-            <div class="som-filter-fields">
-                <div class="som-filter-field">
-                    <label for="date_range">Tanggal Lembur</label>
-                    <input type="text"
-                        id="date_range"
-                        name="date_range"
-                        value="{{ request('date_range') }}"
-                        placeholder="Rentang tanggal..."
-                        class="som-input"
-                        autocomplete="off">
+    @php
+        $hasAdvancedFilter = request()->filled('date_range') || request()->filled('status');
+        $activeFilterCount = collect([request('date_range'), request('status')])->filter()->count();
+        $statusLabels = [
+            \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR => 'Menunggu Approval',
+            \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
+            \App\Models\OvertimeRequest::STATUS_APPROVED_HRD => 'Disetujui',
+            \App\Models\OvertimeRequest::STATUS_REJECTED => 'Ditolak',
+            \App\Models\OvertimeRequest::STATUS_CANCELLED => 'Dibatalkan',
+        ];
+    @endphp
+    <div class="lm-filter-card">
+        <form method="GET" action="{{ route('supervisor.overtime-requests.master') }}" id="filterForm" data-has-filters="{{ $hasAdvancedFilter ? '1' : '0' }}">
+            <div class="lm-search-row">
+                <div class="lm-search-input-wrap">
+                    <svg class="lm-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input type="search" id="q" name="q" value="{{ request('q') }}" placeholder="Cari nama karyawan..." autocomplete="off" class="lm-search-input" aria-label="Cari nama karyawan">
                 </div>
-
-                @php
-                    $statusLabels = [
-                        \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR => 'Menunggu Approval',
-                        \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
-                        \App\Models\OvertimeRequest::STATUS_APPROVED_HRD => 'Disetujui',
-                        \App\Models\OvertimeRequest::STATUS_REJECTED => 'Ditolak',
-                        \App\Models\OvertimeRequest::STATUS_CANCELLED => 'Dibatalkan',
-                    ];
-                @endphp
-                <div class="som-filter-field">
-                    <label for="status">Status</label>
-                    <select name="status" id="status" class="som-input">
-                        <option value="">Semua Status</option>
-                        @foreach($statusOptions as $opt)
-                            <option value="{{ $opt }}" @selected(request('status') === $opt)>
-                                {{ $statusLabels[$opt] ?? $opt }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="som-filter-field som-filter-field--wide">
-                    <label for="q">Karyawan</label>
-                    <input type="text"
-                        id="q"
-                        name="q"
-                        value="{{ request('q') }}"
-                        placeholder="Cari nama bawahan..."
-                        autocomplete="off"
-                        class="som-input">
-                </div>
-            </div>
-
-            <div class="som-filter-actions">
-                <button type="submit" class="som-btn som-btn--primary">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
+                <a href="{{ route('supervisor.overtime-requests.master') }}" id="searchReset" class="lm-btn-reset" @if(!request('q') && !$hasAdvancedFilter) hidden @endif>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    Reset
+                </a>
+                <button type="button" id="filterToggle" class="lm-btn-toggle-filter {{ $hasAdvancedFilter ? 'active' : '' }}" aria-controls="filterPanel" aria-expanded="{{ $hasAdvancedFilter ? 'true' : 'false' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
                     Filter
+                    <span id="filterBadge" class="lm-filter-badge" @if(!$hasAdvancedFilter) hidden @endif>{{ $activeFilterCount }}</span>
                 </button>
-                @if(request('q') || request('status') || request('date_range'))
-                    <a href="{{ route('supervisor.overtime-requests.master') }}" class="som-btn som-btn--secondary">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                        </svg>
-                        Reset
-                    </a>
-                @endif
+            </div>
+            <div class="lm-filter-panel" id="filterPanel" @if(!$hasAdvancedFilter) hidden @endif>
+                <div class="lm-filter-grid">
+                    <div class="lm-filter-group">
+                        <label class="lm-filter-label" for="date_range">Tanggal Lembur</label>
+                        <input type="text" id="date_range" name="date_range" value="{{ request('date_range') }}" placeholder="Pilih rentang tanggal" class="lm-filter-input" autocomplete="off">
+                    </div>
+                    <div class="lm-filter-group">
+                        <label class="lm-filter-label" for="status">Status</label>
+                        <select name="status" id="status" class="lm-filter-input">
+                            <option value="">Semua Status</option>
+                            @foreach($statusOptions as $opt)
+                                <option value="{{ $opt }}" @selected(request('status') === $opt)>{{ $statusLabels[$opt] ?? $opt }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="lm-filter-actions"><button type="submit" class="lm-btn-apply">Terapkan Filter</button></div>
+                </div>
             </div>
         </form>
     </div>
+    <p id="searchError" class="lm-search-error" role="alert" hidden>Pencarian gagal. Silakan coba lagi atau tekan Enter untuk memuat ulang.</p>
 
     {{-- ============================================== --}}
     {{-- TABLE CARD                                   --}}
     {{-- ============================================== --}}
+    <div data-supervisor-overtime-results aria-live="polite">
     <div class="som-card som-card--table">
         <div class="som-table-wrapper">
             <table class="som-table">
@@ -184,11 +157,11 @@
                                 $statusIcon = '<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
                             }
                         @endphp
-                        <tr>
-                            <td class="som-text-muted som-text-center">
+                        <tr class="som-data-row">
+                            <td class="som-row-number som-text-muted som-text-center">
                                 {{ $overtimes->firstItem() + $i }}
                             </td>
-                            <td>
+                            <td class="som-row-employee">
                                 <div class="som-employee">
                                     <div class="som-employee-avatar">{{ substr($overtime->user->name, 0, 1) }}</div>
                                     <div class="som-employee-info">
@@ -197,31 +170,31 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="som-text-muted">
+                            <td class="som-row-submitted som-text-muted">
                                 {{ $overtime->created_at->translatedFormat('j F Y') }}
                                 <div class="som-text-muted som-text-xs">{{ $overtime->created_at->format('H:i') }}</div>
                             </td>
-                            <td>
+                            <td class="som-row-overtime">
                                 <span class="som-text-date">{{ $overtime->overtime_date->translatedFormat('j F Y') }}</span>
                                 <div class="som-text-muted som-text-xs">{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</div>
                             </td>
-                            <td>
+                            <td class="som-row-duration">
                                 <span class="som-duration">{{ $overtime->duration_human }}</span>
                             </td>
-                            <td>
+                            <td class="som-row-status">
                                 <span class="som-badge {{ $badgeClass }}">
                                     {!! $statusIcon !!}
                                     {{ $statusLabel }}
                                 </span>
                             </td>
-                            <td class="som-text-right">
+                            <td class="som-row-action som-text-right">
                                 <a href="{{ route('supervisor.overtime-requests.show', $overtime->id) }}" class="som-action-link">
                                     Detail
                                 </a>
                             </td>
                         </tr>
                     @empty
-                        <tr>
+                        <tr class="som-empty-row">
                             <td colspan="7" class="som-empty-cell">
                                 <div class="som-empty">
                                     <div class="som-empty-icon">
@@ -242,12 +215,14 @@
 
     @if($overtimes->hasPages())
         <div class="som-pagination">
-            <x-pagination :items="$overtimes" />
+            <x-pagination :items="$overtimes" :preserve-query="true" />
         </div>
     @endif
+    </div>
 
     <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
+    <script src="{{ asset('vendor/jquery/3.7.1/jquery.min.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             flatpickr("#date_range", {
@@ -258,8 +233,102 @@
             });
         });
     </script>
+    <script data-supervisor-overtime-search>
+        (function ($) {
+            const form = $('#filterForm');
+            const input = $('#q');
+            const panel = $('#filterPanel');
+            const toggle = $('#filterToggle');
+            const badge = $('#filterBadge');
+            const reset = $('#searchReset');
+            const error = $('#searchError');
+            let timer;
+            let request;
+            let version = 0;
+
+            function cancelSearch() {
+                version++;
+                clearTimeout(timer);
+                if (request) request.abort();
+                request = null;
+            }
+
+            toggle.on('click', function () {
+                const open = panel.prop('hidden');
+                panel.prop('hidden', !open);
+                toggle.attr('aria-expanded', String(open)).toggleClass('active', open);
+            });
+
+            form.on('change', function (event) {
+                if (event.target !== input[0]) cancelSearch();
+            });
+
+            input.on('input', function () {
+                cancelSearch();
+                reset.prop('hidden', !input.val() && form[0].dataset.hasFilters !== '1');
+                error.prop('hidden', true);
+                const currentVersion = version;
+                timer = setTimeout(function () {
+                    const url = new URL(form[0].action, window.location.origin);
+                    url.search = form.serialize();
+                    url.searchParams.delete('page');
+                    request = $.ajax({ url: url.toString(), headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                        .done(function (html) {
+                            if (currentVersion !== version) return;
+                            const page = new DOMParser().parseFromString(html, 'text/html');
+                            const selectors = ['[data-supervisor-overtime-stats]', '[data-supervisor-overtime-results]'];
+                            const fragments = selectors.map(function (selector) {
+                                return [document.querySelector(selector), page.querySelector(selector)];
+                            });
+                            if (fragments.some(function (fragment) { return !fragment[0] || !fragment[1]; })) {
+                                error.prop('hidden', false);
+                                return;
+                            }
+                            fragments.forEach(function (fragment) { fragment[0].innerHTML = fragment[1].innerHTML; });
+                            const filterCount = ['date_range', 'status'].filter(function (name) {
+                                return url.searchParams.get(name);
+                            }).length;
+                            form[0].dataset.hasFilters = filterCount ? '1' : '0';
+                            badge.text(filterCount).prop('hidden', !filterCount);
+                            reset.prop('hidden', !input.val() && !filterCount);
+                            window.history.replaceState(null, '', url);
+                        })
+                        .fail(function (_xhr, status) {
+                            if (status !== 'abort' && currentVersion === version) error.prop('hidden', false);
+                        });
+                }, 350);
+            });
+        })(jQuery);
+    </script>
 
     <style>
+        .lm-filter-card { margin-bottom: 16px; background: var(--white); border: 1px solid var(--border-light); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+        .lm-search-row { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+        .lm-search-input-wrap { position: relative; flex: 1; }
+        .lm-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-light); }
+        .lm-search-input { width: 100%; padding: 10px 14px 10px 42px; border: 1.5px solid var(--border); border-radius: 12px; font: inherit; font-size: 13px; color: var(--text-primary); outline: none; }
+        .lm-search-input:focus, .lm-filter-input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(20,93,160,.1); }
+        .lm-search-input::placeholder { color: var(--text-light); }
+        .lm-btn-reset, .lm-btn-toggle-filter { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 16px; background: var(--white); color: var(--text-muted); border: 1.5px solid var(--border); border-radius: 12px; font: inherit; font-size: 13px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+        .lm-btn-reset[hidden], .lm-filter-panel[hidden], .lm-filter-badge[hidden], .lm-search-error[hidden] { display: none; }
+        .lm-btn-reset:hover { background: var(--danger-light); border-color: #fecaca; color: var(--danger); }
+        .lm-btn-toggle-filter:hover { border-color: var(--primary); color: var(--primary); }
+        .lm-btn-toggle-filter.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+        .lm-filter-badge { background: var(--error); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 10px; }
+        .lm-filter-panel { background: var(--gray-50); border-top: 1px solid var(--border-light); padding: 14px 16px; }
+        .lm-filter-grid { display: flex; flex-direction: column; gap: 14px; }
+        .lm-filter-group { display: flex; flex-direction: column; gap: 6px; }
+        .lm-filter-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+        .lm-filter-input { width: 100%; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font: inherit; font-size: 13px; color: var(--text-primary); background: var(--white); outline: none; }
+        .lm-filter-actions { display: flex; justify-content: flex-end; }
+        .lm-btn-apply { padding: 10px 20px; background: var(--primary); color: #fff; border: none; border-radius: 10px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .lm-btn-apply:hover { background: var(--primary-dark); }
+        .lm-search-error { color: #b91c1c; font-size: 13px; margin: 0 0 12px; }
+        @media (min-width: 480px) {
+            .lm-search-row { flex-direction: row; align-items: center; flex-wrap: wrap; padding: 16px 20px; } .lm-search-input-wrap { min-width: 260px; }
+            .lm-filter-panel { padding: 16px 20px; } .lm-filter-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 16px; align-items: end; } .lm-filter-actions { grid-column: 1 / -1; }
+        }
+        @media (min-width: 768px) { .lm-filter-grid { grid-template-columns: repeat(3, 1fr); } }
         /* ========================================== */
         /* ALERTS                                     */
         /* ========================================== */
@@ -380,126 +449,6 @@
         }
         .som-card--table {
             padding: 0;
-        }
-
-        /* Card header inside filter card */
-        .som-card-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 16px 20px 0;
-        }
-        .som-card-header-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            background: rgba(10, 61, 98, 0.08);
-            color: var(--primary-dark, #0A3D62);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .som-card-title {
-            margin: 0;
-            font-size: 0.9375rem;
-            font-weight: 700;
-            color: var(--text-primary, #111827);
-            line-height: 1.25;
-        }
-        .som-card-subtitle {
-            margin: 2px 0 0;
-            font-size: 0.8125rem;
-            color: var(--text-muted, #6B7280);
-        }
-
-        /* ========================================== */
-        /* FILTER FORM                                */
-        /* ========================================== */
-        .som-filter-form {
-            padding: 16px 20px 20px;
-        }
-        .som-filter-fields {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-        .som-filter-field {
-            flex: 1;
-            min-width: 160px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        .som-filter-field--wide {
-            flex: 1.5;
-            min-width: 200px;
-        }
-        .som-filter-field label {
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text-muted, #6B7280);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .som-input {
-            padding: 9px 12px;
-            border: 1.5px solid var(--border, #E5E7EB);
-            border-radius: 10px;
-            font-size: 13.5px;
-            color: var(--text-primary, #374151);
-            background: var(--white, #FFFFFF);
-            width: 100%;
-            outline: none;
-            transition: all 0.2s ease;
-            font-family: inherit;
-        }
-        .som-input:focus {
-            border-color: var(--primary, #145DA0);
-            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
-        }
-
-        .som-filter-actions {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .som-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 18px;
-            border-radius: 10px;
-            font-size: 13.5px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            white-space: nowrap;
-            font-family: inherit;
-        }
-        .som-btn svg { flex-shrink: 0; }
-        .som-btn--primary {
-            background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
-            color: #fff;
-            box-shadow: 0 2px 8px rgba(10, 61, 98, 0.18);
-        }
-        .som-btn--primary:hover {
-            box-shadow: 0 4px 14px rgba(10, 61, 98, 0.28);
-            transform: translateY(-1px);
-        }
-        .som-btn--secondary {
-            background: var(--gray-50, #F5F7FA);
-            color: var(--text-secondary, #374151);
-            border: 1.5px solid var(--border, #E5E7EB);
-        }
-        .som-btn--secondary:hover {
-            background: var(--white, #FFFFFF);
-            border-color: var(--gray-300, #D1D5DB);
         }
 
         /* ========================================== */
@@ -714,9 +663,6 @@
         }
 
         @media (min-width: 768px) {
-            .som-filter-form {
-                padding: 20px 24px 24px;
-            }
             .som-table tbody td {
                 padding: 16px;
             }
@@ -725,22 +671,50 @@
             }
         }
 
-        @media (max-width: 640px) {
-            .som-filter-fields {
-                flex-direction: column;
+        @media (max-width: 1024px) {
+            .lm-search-input, .lm-filter-input { font-size: 16px; }
+            .lm-btn-reset, .lm-btn-toggle-filter, .lm-btn-apply { min-height: 44px; }
+            .som-card--table { background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+            .som-table-wrapper { overflow: visible; }
+            .som-table { display: block; min-width: 0; }
+            .som-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+            .som-table tbody { display: flex; flex-direction: column; gap: 10px; }
+            .som-table tbody .som-data-row {
+                display: grid;
+                position: relative;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-areas: "employee employee" "status status" "overtime submitted" "duration action";
+                gap: 12px;
+                padding: 16px;
+                background: var(--white, #fff);
+                border: 1px solid var(--border-light, #E5E7EB);
+                border-radius: 16px;
+                box-shadow: 0 1px 3px rgba(0,0,0,.04);
             }
-            .som-filter-field,
-            .som-filter-field--wide {
-                min-width: 0;
-                flex: none;
-                width: 100%;
+            .som-table tbody td { display: block; min-width: 0; padding: 0; border: 0; overflow-wrap: anywhere; }
+            .som-table tbody tr:hover td { background: transparent; }
+            .som-row-number { position: absolute; top: 16px; right: 16px; }
+            .som-row-employee { grid-area: employee; padding-right: 36px !important; }
+            .som-row-status { grid-area: status; }
+            .som-row-overtime { grid-area: overtime; }
+            .som-row-submitted { grid-area: submitted; }
+            .som-row-duration { grid-area: duration; }
+            .som-row-action { grid-area: action; align-self: end; }
+            .som-row-overtime::before, .som-row-submitted::before, .som-row-duration::before {
+                display: block; margin-bottom: 4px; color: var(--text-muted, #6B7280);
+                font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
             }
-            .som-filter-actions {
-                flex-direction: column;
-            }
-            .som-btn {
-                width: 100%;
-            }
+            .som-row-overtime::before { content: 'Tgl Lembur'; }
+            .som-row-submitted::before { content: 'Tgl Pengajuan'; }
+            .som-row-duration::before { content: 'Durasi'; }
+            .som-employee-name { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
+            .som-employee-role { overflow-wrap: anywhere; }
+            .som-badge { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+            .som-badge svg { flex-shrink: 0; }
+            .som-action-link { min-height: 44px; }
+            .som-empty-row { display: block; }
+            .som-empty { background: var(--white, #fff); border: 1px solid var(--border-light, #E5E7EB); border-radius: 16px; }
         }
+
     </style>
 </x-app>

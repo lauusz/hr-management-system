@@ -138,16 +138,17 @@
                         </td>
 
                         <td>
-                            @if($item->shift_name)
+                            @if($item->shift_id)
                                 <span class="badge-shift">{{ $item->shift_name }}</span>
                             @else
-                                <span class="text-muted" style="font-size:12px; font-style:italic;">Belum diatur</span>
+                                <span class="text-muted" style="font-size:12px; font-style:italic;">-</span>
                             @endif
                         </td>
 
                         <td>
-                            <div class="text-truncate" style="max-width: 150px;" title="{{ $item->is_all_locations ? 'All Locations' : ($item->location_names ?? $item->location_name) }}">
-                                {{ $item->is_all_locations ? 'All Locations' : ($item->location_names ?? $item->location_name ?? '-') }}
+                            @php($locationScope = $item->is_flexible ? 'Fleksibel' : ($item->is_all_locations ? 'All Locations' : ($item->location_names ?? $item->location_name ?? '-')))
+                            <div class="text-truncate" style="max-width: 150px;" title="{{ $locationScope }}">
+                                {{ $locationScope }}
                             </div>
                         </td>
 
@@ -232,11 +233,22 @@
             </div>
 
             <div class="form-group">
-                <label class="location-all-option">
-                    <input type="checkbox" name="all_locations" id="bulk_all_locations" value="1" @checked(old('all_locations'))>
-                    <span>All Locations</span>
-                </label>
-                <small class="text-muted">Pilih ini untuk mengabaikan pembatasan daftar lokasi.</small>
+                @php($bulkLocationMode = old('location_mode', 'selected'))
+                <label>Cakupan Lokasi Presensi <span class="req">*</span></label>
+                <div class="location-mode-options">
+                    <label class="location-mode-option">
+                        <input type="radio" name="location_mode" value="selected" @checked($bulkLocationMode === 'selected')>
+                        <span><strong>Lokasi Terpilih</strong><small>Pilih satu atau beberapa lokasi kantor.</small></span>
+                    </label>
+                    <label class="location-mode-option">
+                        <input type="radio" name="location_mode" value="all" @checked($bulkLocationMode === 'all')>
+                        <span><strong>All Locations</strong><small>Semua lokasi presensi aktif yang terdaftar.</small></span>
+                    </label>
+                    <label class="location-mode-option">
+                        <input type="radio" name="location_mode" value="flexible" @checked($bulkLocationMode === 'flexible')>
+                        <span><strong>Fleksibel</strong><small>Presensi dari lokasi mana pun.</small></span>
+                    </label>
+                </div>
             </div>
 
             <div class="form-group" id="bulk-location-options">
@@ -300,7 +312,10 @@
         .bulk-schedule-description { margin: 0 0 18px; font-size: 13px; color: #4b5563; }
         .bulk-schedule-form .form-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 6px; }
         .bulk-schedule-form label { font-size: 13px; font-weight: 600; color: #374151; }
-        .location-all-option, .location-checkbox-option { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .location-mode-options { display: grid; gap: 8px; }
+        .location-mode-option, .location-checkbox-option { display: flex; align-items: flex-start; gap: 8px; cursor: pointer; }
+        .location-mode-option strong { display: block; font-size: 13px; }
+        .location-mode-option small { display: block; margin-top: 2px; color: #6b7280; font-size: 11px; font-weight: 400; }
         .location-checkbox-list { display: grid; gap: 8px; max-height: 180px; overflow-y: auto; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
         .location-checkbox-option { font-size: 13px; font-weight: 500; }
         .location-checkbox-list input { accent-color: #1e4a8d; }
@@ -553,13 +568,17 @@
             const selectedIds = document.getElementById('selected-user-ids');
             const selectedLabel = document.getElementById('selected-users-label');
             const selectedModalLabel = document.getElementById('selected-users-modal-label');
-            const allLocations = document.getElementById('bulk_all_locations');
+            const locationModes = Array.from(document.querySelectorAll('input[name="location_mode"]'));
+            const locationOptionsContainer = document.getElementById('bulk-location-options');
             const locationOptions = Array.from(document.querySelectorAll('#bulk-location-options input[type="checkbox"]'));
             const filterToggle = document.getElementById('schedule-filter-toggle');
             const filterPanel = document.getElementById('schedule-filter-panel');
             const filterForm = document.querySelector('.schedule-filter-form');
             const searchInput = filterForm?.querySelector('[data-schedule-live-search]');
             const results = document.querySelector('[data-schedule-results]');
+            const selectedUserIds = new Set(
+                Array.from(document.querySelectorAll('.user-schedule-checkbox:checked'), (checkbox) => checkbox.value)
+            );
             let searchTimer;
             let searchRequest;
 
@@ -575,23 +594,27 @@
                 const userCheckboxes = Array.from(document.querySelectorAll('.user-schedule-checkbox'));
                 const selectAll = document.getElementById('select-all-users');
                 const openModalButton = document.getElementById('open-bulk-schedule-modal');
-                const selected = userCheckboxes.filter((checkbox) => checkbox.checked);
 
-                selectedIds.replaceChildren(...selected.map((checkbox) => {
+                userCheckboxes.forEach((checkbox) => {
+                    checkbox.checked = selectedUserIds.has(checkbox.value);
+                });
+
+                selectedIds.replaceChildren(...Array.from(selectedUserIds).map((userId) => {
                     const input = document.createElement('input');
                     input.type = 'hidden';
                     input.name = 'user_ids[]';
-                    input.value = checkbox.value;
+                    input.value = userId;
                     return input;
                 }));
 
-                selectedLabel.textContent = `${selected.length} karyawan dipilih`;
-                selectedModalLabel.textContent = selected.length;
-                if (openModalButton) openModalButton.disabled = selected.length === 0;
+                selectedLabel.textContent = `${selectedUserIds.size} karyawan dipilih`;
+                selectedModalLabel.textContent = selectedUserIds.size;
+                if (openModalButton) openModalButton.disabled = selectedUserIds.size === 0;
 
                 if (selectAll) {
-                    selectAll.checked = selected.length > 0 && selected.length === userCheckboxes.length;
-                    selectAll.indeterminate = selected.length > 0 && selected.length < userCheckboxes.length;
+                    const selectedVisible = userCheckboxes.filter((checkbox) => selectedUserIds.has(checkbox.value));
+                    selectAll.checked = selectedVisible.length > 0 && selectedVisible.length === userCheckboxes.length;
+                    selectAll.indeterminate = selectedVisible.length > 0 && selectedVisible.length < userCheckboxes.length;
                 }
             }
 
@@ -599,21 +622,34 @@
                 if (event.target.id === 'select-all-users') {
                     document.querySelectorAll('.user-schedule-checkbox').forEach((checkbox) => {
                         checkbox.checked = event.target.checked;
+                        if (checkbox.checked) {
+                            selectedUserIds.add(checkbox.value);
+                        } else {
+                            selectedUserIds.delete(checkbox.value);
+                        }
                     });
                     syncSelection();
                 }
 
-                if (event.target.classList.contains('user-schedule-checkbox')) syncSelection();
+                if (event.target.classList.contains('user-schedule-checkbox')) {
+                    if (event.target.checked) {
+                        selectedUserIds.add(event.target.value);
+                    } else {
+                        selectedUserIds.delete(event.target.value);
+                    }
+                    syncSelection();
+                }
             });
 
             function syncLocationOptions() {
+                const selectedMode = locationModes.find((input) => input.checked)?.value;
                 locationOptions.forEach((checkbox) => {
-                    checkbox.disabled = allLocations.checked;
-                    if (allLocations.checked) checkbox.checked = false;
+                    checkbox.disabled = selectedMode !== 'selected';
                 });
+                locationOptionsContainer.hidden = selectedMode !== 'selected';
             }
 
-            allLocations?.addEventListener('change', syncLocationOptions);
+            locationModes.forEach((input) => input.addEventListener('change', syncLocationOptions));
 
             document.addEventListener('click', function (event) {
                 const modalTarget = event.target.closest('[data-schedule-results] [data-modal-target]');

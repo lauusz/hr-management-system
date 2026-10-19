@@ -1143,20 +1143,23 @@
             }
             .apv-action-btn--primary {
                 width: auto;
-                flex: 1;
+                flex: 1 1 0;
+                min-width: 0;
                 order: 2;
                 padding: 12px 24px;
                 font-size: 14px;
+                line-height: 1.3;
+                text-align: center;
+                white-space: normal;
             }
             .apv-action-secondary {
-                width: auto;
-                flex: 1;
-                order: 1;
-                gap: 12px;
+                display: contents;
             }
             .apv-action-secondary .apv-action-btn {
-                flex: none;
-                padding: 12px 24px;
+                flex: 1 1 0;
+                min-width: 0;
+                order: 1;
+                padding: 12px 8px;
                 font-size: 14px;
             }
             .apv-action-btn {
@@ -1168,14 +1171,6 @@
         @media (min-width: 768px) {
             .apv-action-main {
                 flex-wrap: nowrap;
-            }
-            .apv-action-btn--primary {
-                flex: none;
-                padding: 12px 24px;
-                font-size: 14px;
-            }
-            .apv-action-secondary {
-                flex: none;
             }
         }
 
@@ -1193,8 +1188,8 @@
                 border: 1px solid var(--border-light, #E5E7EB);
                 border-radius: 18px;
                 box-shadow: 0 -4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
-                padding: 14px 24px calc(14px + env(safe-area-inset-bottom));
-                max-width: 800px;
+                padding: 10px;
+                max-width: 1200px;
                 margin: 0 auto;
             }
         }

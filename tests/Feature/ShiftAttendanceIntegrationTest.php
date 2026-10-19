@@ -1,7 +1,7 @@
 <?php
 
 use App\Enums\UserRole;
-use App\Models\Attendance;
+use App\Models\AttendanceEvent;
 use App\Models\AttendanceLocation;
 use App\Models\EmployeeShift;
 use App\Models\Shift;
@@ -10,6 +10,16 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\InstallsAttendanceEventSchema;
+use Tests\Support\InstallsFlexibleScheduleSchema;
+
+uses(InstallsAttendanceEventSchema::class);
+uses(InstallsFlexibleScheduleSchema::class);
+
+beforeEach(function () {
+    $this->installAttendanceEventSchema();
+    $this->installFlexibleScheduleSchema();
+});
 
 it('menghubungkan shift Minggu lintas hari yang dibuat HR ke absensi karyawan', function () {
     Storage::fake('public');
@@ -71,14 +81,11 @@ it('menghubungkan shift Minggu lintas hari yang dibuat HR ke absensi karyawan', 
             ->assertOk()
             ->assertJson(['message' => 'Presensi masuk berhasil.']);
 
-        $attendance = Attendance::query()->where('user_id', $employee->id)->firstOrFail();
+        $clockIn = AttendanceEvent::query()->where('user_id', $employee->id)->sole();
 
-        expect($attendance->date->toDateString())->toBe('2026-04-19')
-            ->and($attendance->shift_id)->toBe($shift->id)
-            ->and($attendance->employee_shift_id)->toBe($employeeShift->id)
-            ->and($attendance->status)->toBe('HADIR')
-            ->and($attendance->normal_start_time->format('Y-m-d H:i'))->toBe('2026-04-19 21:00')
-            ->and($attendance->normal_end_time->format('Y-m-d H:i'))->toBe('2026-04-20 05:00');
+        expect($clockIn->event_type)->toBe(AttendanceEvent::CLOCK_IN)
+            ->and($clockIn->occurred_at->format('Y-m-d H:i'))->toBe('2026-04-19 20:55')
+            ->and($clockIn->location_id)->toBe($location->id);
 
         Carbon::setTestNow(Carbon::parse('2026-04-20 05:05:00'));
 
@@ -91,7 +98,9 @@ it('menghubungkan shift Minggu lintas hari yang dibuat HR ke absensi karyawan', 
             ->assertOk()
             ->assertJson(['message' => 'Presensi keluar berhasil.']);
 
-        expect($attendance->fresh()->completion_status)->toBe(Attendance::COMPLETION_CLOSED);
+        expect(AttendanceEvent::query()->where('user_id', $employee->id)->count())->toBe(2)
+            ->and(AttendanceEvent::query()->where('user_id', $employee->id)->latest('occurred_at')->value('event_type'))
+            ->toBe(AttendanceEvent::CLOCK_OUT);
     } finally {
         Carbon::setTestNow();
     }
@@ -132,7 +141,7 @@ it('menolak penanda lintas hari yang tidak sesuai dengan jam shift', function ()
         ->assertSessionHasErrors('days.1.is_overnight');
 });
 
-it('allows HR to assign All Locations for WFO attendance outside an office radius', function () {
+it('allows HR to assign Fleksibel for WFO attendance outside an office radius', function () {
     Storage::fake('public');
     Carbon::setTestNow(Carbon::parse('2026-04-20 08:30:00'));
 
@@ -157,14 +166,15 @@ it('allows HR to assign All Locations for WFO attendance outside an office radiu
             ->post(route('hr.schedules.store'), [
                 'user_ids' => [$employee->id],
                 'shift_id' => $shift->id,
-                'location_id' => 'all',
+                'location_mode' => 'flexible',
             ])
             ->assertRedirect(route('hr.schedules.index'));
 
         $this->assertDatabaseHas('employee_shifts', [
             'user_id' => $employee->id,
             'location_id' => null,
-            'is_all_locations' => true,
+            'is_all_locations' => false,
+            'is_flexible' => true,
         ]);
 
         $this->actingAs($employee, 'web')
@@ -176,11 +186,114 @@ it('allows HR to assign All Locations for WFO attendance outside an office radiu
             ->assertOk()
             ->assertJson(['message' => 'Presensi masuk berhasil.']);
 
-        $this->assertDatabaseHas('attendances', [
+        $this->assertDatabaseHas('attendance_events', [
             'user_id' => $employee->id,
             'type' => 'WFO',
             'location_id' => null,
         ]);
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('mencatat lokasi aktif baru yang cocok untuk All Locations pada Clock In dan Clock Out', function () {
+    Storage::fake('public');
+    Carbon::setTestNow(Carbon::parse('2026-04-20 08:30:00'));
+
+    try {
+        $hrd = User::factory()->create(['role' => UserRole::HRD]);
+        $employee = User::factory()->create();
+        $location = AttendanceLocation::factory()->create([
+            'latitude' => -6.200000,
+            'longitude' => 106.816666,
+            'radius_meters' => 100,
+        ]);
+        $shift = Shift::factory()->create(['is_active' => true]);
+        ShiftDay::factory()->create([
+            'shift_id' => $shift->id,
+            'day_of_week' => 1,
+            'start_time' => '08:00:00',
+            'end_time' => '17:00:00',
+            'is_holiday' => false,
+        ]);
+
+        $this->actingAs($hrd, 'web')
+            ->post(route('hr.schedules.store'), [
+                'user_ids' => [$employee->id],
+                'shift_id' => $shift->id,
+                'location_mode' => 'all',
+            ])
+            ->assertRedirect(route('hr.schedules.index'));
+
+        $newLocation = AttendanceLocation::factory()->create([
+            'latitude' => -6.210000,
+            'longitude' => 106.816666,
+            'radius_meters' => 100,
+        ]);
+
+        $this->actingAs($employee, 'web')
+            ->post(route('attendance.clockIn'), [
+                'photo' => UploadedFile::fake()->image('all-locations-in.jpg', 800, 600),
+                'lat' => -6.210000,
+                'lng' => 106.816666,
+            ])
+            ->assertOk();
+
+        Carbon::setTestNow(Carbon::parse('2026-04-20 08:45:00'));
+
+        $this->actingAs($employee, 'web')
+            ->post(route('attendance.clockOut'), [
+                'photo' => UploadedFile::fake()->image('all-locations-out.jpg', 800, 600),
+                'lat' => -6.210000,
+                'lng' => 106.816666,
+            ])
+            ->assertOk();
+
+        expect(AttendanceEvent::query()->where('user_id', $employee->id)->pluck('location_id')->all())
+            ->toBe([$newLocation->id, $newLocation->id]);
+    } finally {
+        Carbon::setTestNow();
+    }
+});
+
+it('menolak All Locations di luar seluruh radius lokasi aktif', function () {
+    Storage::fake('public');
+    Carbon::setTestNow(Carbon::parse('2026-04-20 08:30:00'));
+
+    try {
+        $hrd = User::factory()->create(['role' => UserRole::HRD]);
+        $employee = User::factory()->create();
+        AttendanceLocation::factory()->create([
+            'latitude' => -6.200000,
+            'longitude' => 106.816666,
+            'radius_meters' => 100,
+        ]);
+        $shift = Shift::factory()->create(['is_active' => true]);
+        ShiftDay::factory()->create([
+            'shift_id' => $shift->id,
+            'day_of_week' => 1,
+            'start_time' => '08:00:00',
+            'end_time' => '17:00:00',
+            'is_holiday' => false,
+        ]);
+
+        $this->actingAs($hrd, 'web')
+            ->post(route('hr.schedules.store'), [
+                'user_ids' => [$employee->id],
+                'shift_id' => $shift->id,
+                'location_mode' => 'all',
+            ])
+            ->assertRedirect(route('hr.schedules.index'));
+
+        $this->actingAs($employee, 'web')
+            ->post(route('attendance.clockIn'), [
+                'photo' => UploadedFile::fake()->image('all-locations-outside.jpg', 800, 600),
+                'lat' => -6.205000,
+                'lng' => 106.816666,
+            ])
+            ->assertStatus(400);
+
+        expect(AttendanceEvent::query()->where('user_id', $employee->id)->count())->toBe(0);
     } finally {
         Carbon::setTestNow();
     }

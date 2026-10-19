@@ -59,6 +59,7 @@ use App\Http\Controllers\SupervisorOvertimeController;
 use App\Http\Controllers\V2AccessController;
 use App\Models\Asset;
 use App\Models\Attendance;
+use App\Models\AttendanceEvent;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -190,11 +191,18 @@ Route::middleware('auth')->group(function () {
             ->orderBy('name')
             ->get();
 
-        $todayAttendance = Attendance::where('user_id', auth()->id())
-            ->whereDate('date', now()->toDateString())
+        $latestAttendanceEvent = AttendanceEvent::query()
+            ->where('user_id', auth()->id())
+            ->latest('occurred_at')
             ->first();
 
-        return view('dashboard', compact('receivedAssets', 'todayAttendance'));
+        $todayAttendanceEvents = AttendanceEvent::query()
+            ->where('user_id', auth()->id())
+            ->whereDate('occurred_at', now()->toDateString())
+            ->latest('occurred_at')
+            ->get();
+
+        return view('dashboard', compact('receivedAssets', 'latestAttendanceEvent', 'todayAttendanceEvents'));
     })->name('dashboard');
 
     Route::get('/leave-requests/search-substitute', [LeaveRequestController::class, 'searchSubstitute'])
@@ -216,8 +224,16 @@ Route::middleware('auth')->group(function () {
     Route::post('/leave-requests/calculate-effective-days', [LeaveRequestController::class, 'calculateEffectiveDays'])
         ->name('leave-requests.calculate-effective-days');
 
+    Route::get('/overtime-requests/{overtimeRequest}/attachments/{attachment}', [OvertimeRequestController::class, 'attachment'])
+        ->name('overtime-requests.attachments.show');
+
     Route::resource('overtime-requests', OvertimeRequestController::class)
         ->only(['index', 'create', 'store', 'update', 'destroy']);
+
+    Route::get('/overtime-approvals', [\App\Http\Controllers\OvertimeApprovalController::class, 'index'])->name('overtime-approvals.index');
+    Route::get('/overtime-approvals/{overtimeRequest}', [\App\Http\Controllers\OvertimeApprovalController::class, 'show'])->name('overtime-approvals.show');
+    Route::post('/overtime-approvals/{overtimeRequest}/approve', [\App\Http\Controllers\OvertimeApprovalController::class, 'approve'])->name('overtime-approvals.approve');
+    Route::post('/overtime-approvals/{overtimeRequest}/reject', [\App\Http\Controllers\OvertimeApprovalController::class, 'reject'])->name('overtime-approvals.reject');
 
     Route::get('/attendance', [AttendanceController::class, 'dashboard'])->name('attendance.dashboard');
     Route::get('/attendance/clock-in', [AttendanceController::class, 'showClockInForm'])->name('attendance.clockIn.form');
@@ -280,6 +296,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/employees/create', [HREmployeeController::class, 'create'])->name('hr.employees.create');
         Route::post('/hr/employees', [HREmployeeController::class, 'store'])->name('hr.employees.store');
         Route::get('/hr/approvers', [HRApproverMappingController::class, 'index'])->name('hr.approvers.index');
+        Route::get('/hr/approvers/lembur', [\App\Http\Controllers\HROvertimeApproverController::class, 'index'])->name('hr.approvers.overtime.index');
+        Route::post('/hr/approvers/lembur', [\App\Http\Controllers\HROvertimeApproverController::class, 'store'])->name('hr.approvers.overtime.store');
+        Route::post('/hr/approvers/lembur/bulk', [\App\Http\Controllers\HROvertimeApproverController::class, 'bulk'])->name('hr.approvers.overtime.bulk');
         Route::get('/hr/approvers/search', [HRApproverMappingController::class, 'searchApprovers'])->name('hr.approvers.search');
         Route::get('/hr/approvers/create', [HRApproverMappingController::class, 'create'])->name('hr.approvers.create');
         Route::post('/hr/approvers', [HRApproverMappingController::class, 'store'])->name('hr.approvers.store');
@@ -340,12 +359,14 @@ Route::middleware('auth')->group(function () {
 
         // [UBAH DISINI] MASTER ATTENDANCE (Hanya List)
         Route::get('/hr/attendances', [HRAttendanceController::class, 'index'])->name('hr.attendances.index');
+        Route::post('/hr/attendances/{event}/move-event-type', [HRAttendanceController::class, 'moveEventType'])->name('hr.attendances.move_event_type');
 
         // APPROVAL ATTENDANCE (WFO dan Dinas Luar)
         Route::get('/hr/approval-attendance', [ApprovalAttendanceController::class, 'index'])->name('hr.approval_attendance.index');
         Route::post('/hr/approval-attendance/bulk-approve', [ApprovalAttendanceController::class, 'bulkApprove'])->name('hr.approval_attendance.bulk_approve');
-        Route::post('/hr/approval-attendance/{attendance}/approve', [ApprovalAttendanceController::class, 'approve'])->name('hr.approval_attendance.approve');
-        Route::post('/hr/approval-attendance/{attendance}/reject', [ApprovalAttendanceController::class, 'reject'])->name('hr.approval_attendance.reject');
+        Route::post('/hr/approval-attendance/{event}/move-clock-side', [ApprovalAttendanceController::class, 'moveClockSide'])->name('hr.approval_attendance.move_clock_side');
+        Route::post('/hr/approval-attendance/{event}/approve', [ApprovalAttendanceController::class, 'approve'])->name('hr.approval_attendance.approve');
+        Route::post('/hr/approval-attendance/{event}/reject', [ApprovalAttendanceController::class, 'reject'])->name('hr.approval_attendance.reject');
 
         // LOAN REQUESTS (HRD & HR STAFF)
         Route::middleware('role:HRD,HR STAFF')->group(function () {
@@ -409,8 +430,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/overtime-requests/master', [SupervisorOvertimeController::class, 'master'])->name('overtime-requests.master');
         Route::get('/overtime-requests', [SupervisorOvertimeController::class, 'index'])->name('overtime-requests.index');
         Route::get('/overtime-requests/{overtimeRequest}', [SupervisorOvertimeController::class, 'show'])->name('overtime-requests.show');
-        Route::post('/overtime-requests/{overtimeRequest}/approve', [SupervisorOvertimeController::class, 'approve'])->name('overtime-requests.approve');
-        Route::post('/overtime-requests/{overtimeRequest}/reject', [SupervisorOvertimeController::class, 'reject'])->name('overtime-requests.reject');
+        Route::post('/overtime-requests/{overtimeRequest}/approve', [\App\Http\Controllers\OvertimeApprovalController::class, 'approve'])->name('overtime-requests.approve');
+        Route::post('/overtime-requests/{overtimeRequest}/reject', [\App\Http\Controllers\OvertimeApprovalController::class, 'reject'])->name('overtime-requests.reject');
     });
 
     Route::middleware('leave.approval')->group(function () {
