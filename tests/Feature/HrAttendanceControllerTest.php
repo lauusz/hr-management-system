@@ -105,6 +105,29 @@ it('does not expose events belonging to inactive employees', function () {
     $response->assertSee($active->name)->assertDontSee($inactive->name);
 });
 
+it('offers flexible attendance details without exposing the option for regular attendance', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $employee = User::factory()->create();
+    $flexible = AttendanceEvent::factory()->forUser($employee)->create([
+        'is_flexible' => true,
+        'approval_status' => 'APPROVED',
+        'notes' => 'Bekerja dari rumah',
+        'occurred_at' => '2026-10-20 08:00:00',
+    ]);
+    $regular = AttendanceEvent::factory()->forUser($employee)->create([
+        'is_flexible' => false,
+        'occurred_at' => '2026-10-20 09:00:00',
+    ]);
+
+    $this->actingAs($hrd, 'web')->get(route('hr.attendances.index', [
+        'date_start' => '2026-10-20',
+        'date_end' => '2026-10-20',
+    ]))->assertOk()
+        ->assertSee('data-attendance-detail-event="'.$flexible->id.'"', false)
+        ->assertDontSee('data-attendance-detail-event="'.$regular->id.'"', false)
+        ->assertSee('Bekerja dari rumah');
+});
+
 it('shows the event date work schedule and distinct event type chips', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);
     $scheduledEmployee = User::factory()->create(['name' => 'KARYAWAN BERSHIFT']);

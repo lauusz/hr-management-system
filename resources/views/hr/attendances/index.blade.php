@@ -121,13 +121,27 @@
                             @else <span class="text-muted">-</span> @endif
                         </td>
                         <td class="attendance-action-cell">
-                            @if($event->approval_status === 'PENDING')
+                            @if($event->is_flexible === true || $event->approval_status === 'PENDING')
                             <details class="clock-side-move">
                                 <summary aria-label="Opsi koreksi tipe event">⋮</summary>
                                 <div class="clock-side-move__menu">
+                                    @if($event->is_flexible === true)
+                                    <button type="button" class="clock-side-move__button" data-attendance-detail
+                                        data-attendance-detail-event="{{ $event->id }}"
+                                        data-attendance-detail-name="{{ $event->user->name }}"
+                                        data-attendance-detail-type="{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}"
+                                        data-attendance-detail-time="{{ $event->occurred_at->format('H:i') }}"
+                                        data-attendance-detail-date="{{ $event->occurred_at->format('d/m/y') }}"
+                                        data-attendance-detail-notes="{{ $event->notes ?? '' }}"
+                                        data-attendance-detail-photo="{{ $event->photo ? asset('storage/'.$event->photo) : '' }}"
+                                        data-attendance-detail-latitude="{{ $event->latitude ?? '' }}"
+                                        data-attendance-detail-longitude="{{ $event->longitude ?? '' }}">Detail</button>
+                                    @endif
+                                    @if($event->approval_status === 'PENDING')
                                     <form method="POST" action="{{ route('hr.attendances.move_event_type', $event) }}">@csrf
                                         <button type="submit" class="clock-side-move__button">Pindahkan ke {{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock Out' : 'Clock In' }}</button>
                                     </form>
+                                    @endif
                                 </div>
                             </details>
                             @else <span class="text-muted">-</span> @endif
@@ -157,6 +171,18 @@
             <button type="button" class="modal-btn modal-btn-secondary" data-modal-close="true">Batal</button>
             <button type="submit" class="modal-btn modal-btn-primary">Ya, Pindahkan</button>
         </form>
+    </x-modal>
+
+    <x-modal id="attendance-detail-modal" title="Detail Absensi Fleksibel" type="info" variant="info" cancelLabel="Tutup">
+        <dl class="attendance-detail-grid">
+            <div><dt>Karyawan</dt><dd id="attendance-detail-name"></dd></div>
+            <div><dt>Tipe</dt><dd id="attendance-detail-type"></dd></div>
+            <div><dt>Jam</dt><dd id="attendance-detail-time"></dd></div>
+            <div><dt>Tanggal</dt><dd id="attendance-detail-date"></dd></div>
+            <div class="attendance-detail-grid__full"><dt>Alasan</dt><dd id="attendance-detail-notes"></dd></div>
+            <div class="attendance-detail-grid__full"><dt>Foto</dt><dd><img id="attendance-detail-photo" alt="Foto absensi" hidden><span id="attendance-detail-photo-empty">Foto tidak tersedia</span></dd></div>
+            <div class="attendance-detail-grid__full"><dt>Lokasi</dt><dd><button type="button" id="attendance-detail-location-button" class="btn-pill btn-blue" hidden>Lihat Lokasi</button><span id="attendance-detail-location-empty">Lokasi tidak tersedia</span></dd></div>
+        </dl>
     </x-modal>
 
     <style>
@@ -472,6 +498,12 @@
         .attendance-location-modal__label { margin: 0; font-weight: 700; color: #111827; }
         .attendance-location-modal__coordinates { margin: 4px 0 14px; color: #4b5563; font-family: monospace; }
         #attendance-location-frame { display: block; width: 100%; height: min(55vh, 420px); border: 0; border-radius: 10px; background: #f3f4f6; }
+        .attendance-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0; }
+        .attendance-detail-grid div { min-width: 0; }
+        .attendance-detail-grid dt { color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+        .attendance-detail-grid dd { margin: 3px 0 0; color: #1f2937; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; white-space: pre-wrap; }
+        .attendance-detail-grid__full { grid-column: 1 / -1; }
+        #attendance-detail-photo { display: block; width: 100%; max-height: 280px; object-fit: contain; border-radius: 10px; background: #f3f4f6; }
 
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
@@ -553,6 +585,7 @@
                     results.innerHTML = nextResults.innerHTML;
 
                     initializeAttendanceLocationButtons();
+                    initializeAttendanceDetailButtons();
                     window.history.replaceState(null, '', url);
                 } catch (error) {
                     if (error.name !== 'AbortError') console.error(error);
@@ -632,6 +665,68 @@
             });
         }
 
+        function initializeAttendanceDetailButtons() {
+            const modal = document.getElementById('attendance-detail-modal');
+            const fields = {
+                name: document.getElementById('attendance-detail-name'),
+                type: document.getElementById('attendance-detail-type'),
+                time: document.getElementById('attendance-detail-time'),
+                date: document.getElementById('attendance-detail-date'),
+                notes: document.getElementById('attendance-detail-notes'),
+                photo: document.getElementById('attendance-detail-photo'),
+                locationButton: document.getElementById('attendance-detail-location-button'),
+                locationEmpty: document.getElementById('attendance-detail-location-empty'),
+            };
+
+            if (!fields.locationButton.dataset.attendanceDetailInitialized) {
+                fields.locationButton.dataset.attendanceDetailInitialized = 'true';
+                fields.locationButton.addEventListener('click', function() {
+                    const coordinates = `${this.dataset.latitude}, ${this.dataset.longitude}`;
+                    document.getElementById('attendance-location-label').textContent = 'Lokasi Absensi Fleksibel';
+                    document.getElementById('attendance-location-coordinates').textContent = coordinates;
+                    document.getElementById('attendance-location-frame').src = `https://www.google.com/maps?q=${encodeURIComponent(coordinates)}&z=16&output=embed`;
+                    modal.style.display = 'none';
+                    document.getElementById('attendance-location-map').style.display = 'flex';
+                });
+            }
+
+            document.querySelectorAll('[data-attendance-detail]').forEach(function(button) {
+                if (button.dataset.attendanceDetailInitialized) return;
+
+                button.dataset.attendanceDetailInitialized = 'true';
+                button.addEventListener('click', function() {
+                    fields.name.textContent = this.dataset.attendanceDetailName;
+                    fields.type.textContent = this.dataset.attendanceDetailType;
+                    fields.time.textContent = this.dataset.attendanceDetailTime;
+                    fields.date.textContent = this.dataset.attendanceDetailDate;
+                    fields.notes.textContent = this.dataset.attendanceDetailNotes || 'Alasan tidak tersedia';
+
+                    if (this.dataset.attendanceDetailPhoto) {
+                        fields.photo.src = this.dataset.attendanceDetailPhoto;
+                        fields.photo.hidden = false;
+                        document.getElementById('attendance-detail-photo-empty').hidden = true;
+                    } else {
+                        fields.photo.removeAttribute('src');
+                        fields.photo.hidden = true;
+                        document.getElementById('attendance-detail-photo-empty').hidden = false;
+                    }
+
+                    if (this.dataset.attendanceDetailLatitude && this.dataset.attendanceDetailLongitude) {
+                        fields.locationButton.dataset.latitude = this.dataset.attendanceDetailLatitude;
+                        fields.locationButton.dataset.longitude = this.dataset.attendanceDetailLongitude;
+                        fields.locationButton.hidden = false;
+                        fields.locationEmpty.hidden = true;
+                    } else {
+                        fields.locationButton.hidden = true;
+                        fields.locationEmpty.hidden = false;
+                    }
+                    closeOtherAttendanceActionMenus();
+                    modal.style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
+                });
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // --- Flatpickr Logic ---
             const rangeInput = document.getElementById('date_range');
@@ -656,6 +751,7 @@
             }
 
             initializeAttendanceLocationButtons();
+            initializeAttendanceDetailButtons();
         });
     </script>
 

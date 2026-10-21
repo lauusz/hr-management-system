@@ -105,14 +105,18 @@
                         <input type="radio" name="location_mode" value="flexible" @checked($locationMode === 'flexible')>
                         <span class="schedule-edit-location-mode-copy">
                             <strong>Fleksibel</strong>
-                            <small>Presensi dari lokasi mana pun.</small>
+                            <small>Di luar lokasi absen wajib menyertakan alasan saat Clock In.</small>
                         </span>
                     </label>
                 </div>
 
                 <div id="location-options" class="schedule-edit-location-options">
-                    <span class="schedule-edit-label">Lokasi Presensi <span aria-hidden="true">*</span></span>
+                    <span class="schedule-edit-label">Lokasi Absen <span aria-hidden="true">*</span></span>
                     <div class="schedule-edit-location-list">
+                        <label class="schedule-edit-location-option">
+                            <input type="checkbox" id="schedule-edit-select-all-locations" aria-label="Pilih semua lokasi absen">
+                            <span>Pilih semua</span>
+                        </label>
                         @foreach($locations as $loc)
                             <label class="schedule-edit-location-option">
                                 <input type="checkbox" name="location_ids[]" value="{{ $loc->id }}" @checked(in_array($loc->id, $selectedIds))>
@@ -137,17 +141,32 @@
         document.addEventListener('DOMContentLoaded', function () {
             const locationModes = Array.from(document.querySelectorAll('input[name="location_mode"]'));
             const locationOptionsContainer = document.getElementById('location-options');
-            const locationOptions = Array.from(document.querySelectorAll('#location-options input[type="checkbox"]'));
+            const locationOptions = Array.from(document.querySelectorAll('#location-options input[name="location_ids[]"]'));
+            const selectAllLocations = document.getElementById('schedule-edit-select-all-locations');
 
             function syncLocationOptions() {
                 const selectedMode = locationModes.find((input) => input.checked)?.value;
+                const isLocationMode = ['selected', 'flexible'].includes(selectedMode);
                 locationOptions.forEach((checkbox) => {
-                    checkbox.disabled = selectedMode !== 'selected';
+                    checkbox.disabled = !isLocationMode;
                 });
-                locationOptionsContainer.hidden = selectedMode !== 'selected';
+                if (selectAllLocations) {
+                    const selectedCount = locationOptions.filter((checkbox) => checkbox.checked).length;
+                    selectAllLocations.checked = locationOptions.length > 0 && selectedCount === locationOptions.length;
+                    selectAllLocations.indeterminate = selectedCount > 0 && selectedCount < locationOptions.length;
+                    selectAllLocations.disabled = !isLocationMode;
+                }
+                locationOptionsContainer.hidden = !isLocationMode;
             }
 
             locationModes.forEach((input) => input.addEventListener('change', syncLocationOptions));
+            selectAllLocations?.addEventListener('change', function () {
+                locationOptions.forEach((checkbox) => {
+                    checkbox.checked = this.checked;
+                });
+                syncLocationOptions();
+            });
+            locationOptions.forEach((checkbox) => checkbox.addEventListener('change', syncLocationOptions));
             syncLocationOptions();
         });
     </script>

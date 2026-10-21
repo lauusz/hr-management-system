@@ -1,4 +1,4 @@
-<x-app title="Rekap Data Lembur Bawahan">
+<x-app title="Daftar Lembur Bawahan">
     <x-slot name="header">
         <div class="section-header-inline">
             <div class="section-icon icon-navy">
@@ -7,7 +7,7 @@
                 </svg>
             </div>
             <div>
-                <h1 class="section-title">Rekap Data Lembur</h1>
+                <h1 class="section-title">Daftar Lembur</h1>
                 <p class="section-subtitle">Riwayat pengajuan lembur staf di bawah supervisi Anda</p>
             </div>
         </div>

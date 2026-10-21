@@ -19,6 +19,10 @@ class AssetController extends Controller
 
     public function index(Request $request)
     {
+        $totalCount = Asset::count();
+        $assignedCount = Asset::where('asset_status', Asset::STATUS_ASSIGNED)->count();
+        $availableCount = Asset::where('asset_status', Asset::STATUS_AVAILABLE)->count();
+
         $assets = Asset::with(['category', 'currentUser', 'currentPt'])
             ->when($request->filled('q'), function ($query) use ($request): void {
                 $keyword = '%'.$request->string('q')->toString().'%';
@@ -35,7 +39,12 @@ class AssetController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('hr.assets.index', compact('assets'));
+        return view('hr.assets.index', compact(
+            'assets',
+            'totalCount',
+            'assignedCount',
+            'availableCount',
+        ));
     }
 
     public function create()

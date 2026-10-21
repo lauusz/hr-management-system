@@ -10,6 +10,18 @@ trait InstallsAttendanceEventSchema
     protected function installAttendanceEventSchema(): void
     {
         if (Schema::hasTable('attendance_events')) {
+            if (! Schema::hasColumn('attendance_events', 'is_flexible')) {
+                Schema::table('attendance_events', function (Blueprint $table): void {
+                    $table->boolean('is_flexible')->nullable();
+                });
+            }
+
+            if (! Schema::hasColumn('attendance_events', 'is_outside_reference_location')) {
+                Schema::table('attendance_events', function (Blueprint $table): void {
+                    $table->boolean('is_outside_reference_location')->nullable();
+                });
+            }
+
             return;
         }
 
@@ -29,6 +41,8 @@ trait InstallsAttendanceEventSchema
             $table->text('rejection_note')->nullable();
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();
+            $table->boolean('is_flexible')->nullable();
+            $table->boolean('is_outside_reference_location')->nullable();
             $table->unsignedBigInteger('legacy_attendance_id')->nullable();
             $table->string('legacy_side', 20)->nullable();
             $table->timestamps();

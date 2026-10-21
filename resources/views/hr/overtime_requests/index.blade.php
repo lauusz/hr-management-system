@@ -1,4 +1,4 @@
-<x-app title="Rekap Lembur (HR)">
+<x-app title="Daftar Lembur (HR)">
     <div class="container mx-auto px-4 py-6">
         @if(session('success'))
             <div class="alert-success">
@@ -8,7 +8,7 @@
 
         <div class="card">
             <div class="card-header-simple">
-                <h4 class="card-title-sm">Rekap Lembur</h4>
+                <h4 class="card-title-sm">Daftar Lembur</h4>
                 <p class="card-subtitle-sm">Daftar pengajuan lembur untuk pencocokan dengan data absensi.</p>
             </div>
 

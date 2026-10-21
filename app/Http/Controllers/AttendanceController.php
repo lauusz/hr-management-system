@@ -53,12 +53,16 @@ class AttendanceController extends Controller
     {
         return view('attendance.clock_in', [
             'officeHoliday' => $this->activeOfficeHoliday(),
+            ...$this->flexibleAttendanceContext(),
         ]);
     }
 
     public function showClockOutForm()
     {
-        return view('attendance.clock_out', ['attendance' => null]);
+        return view('attendance.clock_out', [
+            'attendance' => null,
+            ...$this->flexibleAttendanceContext(),
+        ]);
     }
 
     public function remoteIndex()
@@ -143,24 +147,53 @@ class AttendanceController extends Controller
                 return response()->json(['message' => 'Jadwal shift belum diatur. Hubungi HR.'], 400);
             }
 
+            if (! $isRemote && (! Schema::hasColumn('attendance_events', 'is_flexible') || ! Schema::hasColumn('attendance_events', 'is_outside_reference_location'))) {
+                return response()->json(['message' => 'Pembaruan absensi belum tersedia. Hubungi HR atau IT.'], 503);
+            }
+
             $matchedLocation = null;
             $distance = 0;
-            if (! $isRemote && ! $employeeShift->is_flexible) {
+            $isFlexibleEvent = ! $isRemote && $employeeShift->is_flexible;
+            $isOutsideReferenceLocation = null;
+            $referenceLocationIds = [];
+
+            if (! $isRemote) {
                 $locations = $this->scheduleLocations($employeeShift);
                 if ($locations->isEmpty()) {
-                    return response()->json(['message' => 'Lokasi kantor belum diatur.'], 400);
+                    return response()->json([
+                        'message' => $isFlexibleEvent
+                            ? 'Lokasi absen Fleksibel belum diatur. Hubungi HR.'
+                            : 'Lokasi kantor belum diatur.',
+                    ], 400);
                 }
 
                 $match = $this->allowedAttendanceLocationResolver->resolve($locations, (float) $request->lat, (float) $request->lng);
                 if ($match === null) {
-                    $nearest = $this->allowedAttendanceLocationResolver->nearest($locations, (float) $request->lat, (float) $request->lng);
-                    $action = $eventType === AttendanceEvent::CLOCK_IN ? 'berada di luar radius kantor' : 'harus berada di kantor untuk melakukan presensi keluar';
+                    if ($isFlexibleEvent) {
+                        if (trim((string) $request->notes) === '') {
+                            $action = $eventType === AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out';
+                            $message = "Alasan {$action} di luar lokasi absen wajib diisi.";
 
-                    return response()->json(['message' => "Anda {$action} ({$nearest['distance']} m)."], 400);
+                            return response()->json(['message' => $message, 'errors' => ['notes' => [$message]]], 422);
+                        }
+
+                        $isOutsideReferenceLocation = true;
+                        $referenceLocationIds = $locations->pluck('id')->sort()->values()->all();
+                    } else {
+                        $nearest = $this->allowedAttendanceLocationResolver->nearest($locations, (float) $request->lat, (float) $request->lng);
+                        $action = $eventType === AttendanceEvent::CLOCK_IN ? 'berada di luar radius kantor' : 'harus berada di kantor untuk melakukan presensi keluar';
+
+                        return response()->json(['message' => "Anda {$action} ({$nearest['distance']} m)."], 400);
+                    }
+                } else {
+                    $matchedLocation = $match['location'];
+                    $distance = $match['distance'];
+
+                    if ($isFlexibleEvent) {
+                        $isOutsideReferenceLocation = false;
+                        $referenceLocationIds = $locations->pluck('id')->sort()->values()->all();
+                    }
                 }
-
-                $matchedLocation = $match['location'];
-                $distance = $match['distance'];
             }
 
             $folder = $isRemote ? 'remote_photos' : 'attendance_photos';
@@ -169,11 +202,36 @@ class AttendanceController extends Controller
                 : ($eventType === AttendanceEvent::CLOCK_IN ? 'att_in_' : 'att_out_');
             $photoPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', $folder, $prefix);
 
-            $recordedEvent = DB::transaction(function () use ($user, $eventType, $isRemote, $employeeShift, $matchedLocation, $photoPath, $request, $distance) {
+            $recordedEvent = DB::transaction(function () use ($user, $eventType, $isRemote, $employeeShift, $matchedLocation, $photoPath, $request, $distance, $isFlexibleEvent, $isOutsideReferenceLocation, $referenceLocationIds) {
                 User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
 
                 if ($cooldownEvent = $this->activeCooldownEvent($user->id)) {
                     return ['event' => $cooldownEvent, 'is_cooldown' => true];
+                }
+
+                if (! $isRemote) {
+                    $currentShift = EmployeeShift::with($this->employeeShiftRelations(true))
+                        ->where('user_id', $user->id)
+                        ->lockForUpdate()
+                        ->first();
+                    if (! $currentShift || $currentShift->id !== $employeeShift->id || $currentShift->is_flexible !== $employeeShift->is_flexible) {
+                        return ['is_cooldown' => false, 'is_schedule_changed' => true];
+                    }
+
+                    if ($isFlexibleEvent) {
+                        $currentLocations = $this->scheduleLocations($currentShift);
+                        $currentMatch = $currentLocations->isEmpty()
+                            ? null
+                            : $this->allowedAttendanceLocationResolver->resolve($currentLocations, (float) $request->lat, (float) $request->lng);
+                        $currentReferenceLocationIds = $currentLocations->pluck('id')->sort()->values()->all();
+
+                        if ($currentLocations->isEmpty()
+                            || $currentReferenceLocationIds !== $referenceLocationIds
+                            || ($currentMatch !== null ? $currentMatch['location']->id : null) !== ($matchedLocation?->id)
+                            || ($currentMatch === null) !== $isOutsideReferenceLocation) {
+                            return ['is_cooldown' => false, 'is_schedule_changed' => true];
+                        }
+                    }
                 }
 
                 return [
@@ -182,13 +240,17 @@ class AttendanceController extends Controller
                         'event_type' => $eventType,
                         'type' => $isRemote ? 'DINAS_LUAR' : 'WFO',
                         'occurred_at' => now(),
-                        'location_id' => $isRemote || $employeeShift->is_flexible ? null : $matchedLocation?->id,
+                        'location_id' => $isRemote ? null : $matchedLocation?->id,
                         'photo' => $photoPath,
                         'latitude' => $request->lat,
                         'longitude' => $request->lng,
                         'distance_m' => $distance,
                         'approval_status' => 'PENDING',
                         'notes' => $request->notes,
+                        ...($isRemote ? [] : [
+                            'is_flexible' => $employeeShift->is_flexible,
+                            'is_outside_reference_location' => $employeeShift->is_flexible ? $isOutsideReferenceLocation : null,
+                        ]),
                     ]),
                     'is_cooldown' => false,
                 ];
@@ -198,6 +260,12 @@ class AttendanceController extends Controller
                 Storage::disk('public')->delete($photoPath);
 
                 return $this->cooldownResponse($recordedEvent['event']);
+            }
+
+            if ($recordedEvent['is_schedule_changed'] ?? false) {
+                Storage::disk('public')->delete($photoPath);
+
+                return response()->json(['message' => 'Jadwal presensi berubah. Muat ulang halaman dan coba lagi.'], 409);
             }
 
             $event = $recordedEvent['event'];
@@ -262,6 +330,30 @@ class AttendanceController extends Controller
         }
 
         return $relations;
+    }
+
+    /**
+     * @return array{isFlexible: bool, flexibleReferenceLocations: array<int, array{latitude: float, longitude: float, radius_meters: int}>}
+     */
+    private function flexibleAttendanceContext(): array
+    {
+        $employeeShift = EmployeeShift::with($this->employeeShiftRelations())
+            ->where('user_id', Auth::id())
+            ->first();
+
+        return [
+            'isFlexible' => (bool) $employeeShift?->is_flexible,
+            'flexibleReferenceLocations' => $employeeShift?->is_flexible
+                ? $this->scheduleLocations($employeeShift)
+                    ->map(fn (AttendanceLocation $location) => [
+                        'latitude' => (float) $location->latitude,
+                        'longitude' => (float) $location->longitude,
+                        'radius_meters' => (int) $location->radius_meters,
+                    ])
+                    ->values()
+                    ->all()
+                : [],
+        ];
     }
 
     /**

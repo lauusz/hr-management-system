@@ -13,7 +13,7 @@
         </div>
     </x-slot>
 
-    <div class="capture-shell">
+    <div class="capture-shell {{ $isFlexible ? 'clock-out-screen--flexible' : '' }}">
 
         {{-- Compact back nav --}}
         <a href="{{ url('/attendance') }}" class="attendance-back" aria-label="Kembali ke presensi">
@@ -64,6 +64,13 @@
         {{-- Bottom controls --}}
         <div class="capture-controls">
             <p class="capture-hint" id="statusMessage">Menyiapkan kamera dan lokasi...</p>
+
+            @if($isFlexible)
+                <label id="attendanceReasonField" class="capture-reason" for="attendanceReason" hidden>
+                    <span>Alasan Clock Out di luar lokasi absen <span aria-hidden="true">*</span></span>
+                    <textarea id="attendanceReason" name="notes" rows="2" placeholder="Tuliskan alasan absensi di luar lokasi absen"></textarea>
+                </label>
+            @endif
 
             <input type="hidden" id="lat">
             <input type="hidden" id="lng">
@@ -377,6 +384,30 @@
             line-height: 1.4;
         }
 
+        .capture-reason {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            color: #334155;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .capture-reason textarea {
+            width: 100%;
+            min-height: 58px;
+            padding: 8px 10px;
+            border: 1px solid var(--border, #E5E7EB);
+            border-radius: 10px;
+            color: var(--text-primary, #111827);
+            font: inherit;
+            font-size: 16px;
+            resize: vertical;
+        }
+        .capture-reason textarea:focus {
+            outline: 2px solid #145DA0;
+            outline-offset: 1px;
+        }
+
         /* ============================================= */
         /* BUTTONS                                       */
         /* ============================================= */
@@ -460,6 +491,12 @@
                 height: calc(100svh - 80px);
                 overflow: hidden;
             }
+            .clock-out-screen--flexible {
+                overflow-y: auto;
+            }
+            .clock-out-screen--flexible .capture-viewport {
+                min-height: 140px;
+            }
         }
 
         @media (max-width: 359px) {
@@ -534,6 +571,9 @@
         const btnSubmit = document.getElementById('btnSubmit');
         const groupCapture = document.getElementById('btnGroupCapture');
         const groupAction = document.getElementById('btnGroupAction');
+        const attendanceReasonField = document.getElementById('attendanceReasonField');
+        const attendanceReason = document.getElementById('attendanceReason');
+        const flexibleReferenceLocations = @json($flexibleReferenceLocations ?? []);
 
         // Data Variables
         let currentStream = null;
@@ -592,6 +632,7 @@
 
                         document.getElementById('lat').value = userLat;
                         document.getElementById('lng').value = userLng;
+                        syncFlexibleReason();
 
                         if (acc <= 100) {
                             isLocationValid = true;
@@ -649,6 +690,41 @@
             }
         }
 
+        function isWithinReferenceLocation(location) {
+            const earthRadius = 6371000;
+            const latitudeDelta = (location.latitude - userLat) * Math.PI / 180;
+            const longitudeDelta = (location.longitude - userLng) * Math.PI / 180;
+            const latitudeStart = userLat * Math.PI / 180;
+            const latitudeEnd = location.latitude * Math.PI / 180;
+            const distanceFactor = Math.sin(latitudeDelta / 2) ** 2
+                + Math.cos(latitudeStart) * Math.cos(latitudeEnd) * Math.sin(longitudeDelta / 2) ** 2;
+            const angle = 2 * Math.atan2(Math.sqrt(distanceFactor), Math.sqrt(1 - distanceFactor));
+
+            return earthRadius * angle <= location.radius_meters;
+        }
+
+        function syncFlexibleReason() {
+            if (!attendanceReasonField || userLat === null || userLng === null) return;
+
+            const isOutsideReferenceLocation = flexibleReferenceLocations.length > 0
+                && !flexibleReferenceLocations.some(isWithinReferenceLocation);
+
+            attendanceReasonField.hidden = !isOutsideReferenceLocation;
+            attendanceReason.required = isOutsideReferenceLocation;
+
+            if (!isOutsideReferenceLocation) attendanceReason.value = '';
+        }
+
+        function hasValidReason() {
+            if (attendanceReason?.required && !attendanceReason.value.trim()) {
+                window.showToast('Alasan Clock Out di luar lokasi absen wajib diisi.', 'error');
+                attendanceReason.focus();
+                return false;
+            }
+
+            return true;
+        }
+
         // 4. Fungsi Capture
         btnCapture.addEventListener('click', async () => {
             if (!video.srcObject || !isLocationValid) return;
@@ -699,7 +775,7 @@
 
         // 6. Fungsi Submit (Clock Out)
         btnSubmit.addEventListener('click', async () => {
-            if (!imageBlob || !isLocationValid || userLat === null || userLng === null) return;
+            if (!imageBlob || !isLocationValid || userLat === null || userLng === null || !hasValidReason()) return;
 
             const originalText = btnSubmit.innerHTML;
             isSubmitting = true;
@@ -717,6 +793,7 @@
             formData.append('lat', userLat);
             formData.append('lng', userLng);
             formData.append('photo', imageBlob, 'clock-out.jpg');
+            if (attendanceReason) formData.append('notes', attendanceReason.value.trim());
 
             function firstErrorMessage(data, fallback) {
                 if (data?.message) return data.message;

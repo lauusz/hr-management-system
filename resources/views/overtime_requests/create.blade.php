@@ -54,7 +54,7 @@
             </div>
 
             <div class="otc-field">
-                <label class="otc-label">
+                <label class="otc-label otc-time-label">
                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
@@ -62,6 +62,7 @@
                 </label>
                 <div class="otc-time-grid">
                     <div>
+                        <label class="otc-time-field-label" for="start_time">Jam Mulai Lembur</label>
                         <div class="otc-input-wrap">
                             <svg class="otc-input__icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -75,6 +76,7 @@
                         @enderror
                     </div>
                     <div>
+                        <label class="otc-time-field-label" for="end_time">Jam Selesai Lembur</label>
                         <div class="otc-input-wrap">
                             <svg class="otc-input__icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -592,6 +594,17 @@
             gap: 14px;
         }
 
+        .otc-time-field-label {
+            display: block;
+            width: auto;
+            height: auto;
+            padding: 0;
+            margin: 0 0 6px;
+            color: var(--text-primary, #1F2937);
+            font-size: 0.8125rem;
+            font-weight: 600;
+        }
+
         .otc-submit-wrap {
             display: flex;
             gap: 10px;
@@ -643,6 +656,9 @@
         }
 
         @media (max-width: 639px) {
+            .otc-time-label {
+                display: none;
+            }
             .otc-step--evidence {
                 padding: 16px;
                 margin-bottom: 10px;

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -29,6 +30,8 @@ class AttendanceEvent extends Model
         'rejection_note',
         'approved_by',
         'notes',
+        'is_flexible',
+        'is_outside_reference_location',
         'legacy_attendance_id',
         'legacy_side',
     ];
@@ -36,7 +39,25 @@ class AttendanceEvent extends Model
     protected $casts = [
         'occurred_at' => 'datetime',
         'photo_deleted_at' => 'datetime',
+        'is_flexible' => 'boolean',
+        'is_outside_reference_location' => 'boolean',
     ];
+
+    public function scopePendingApproval(Builder $query): void
+    {
+        $query->where('approval_status', 'PENDING')
+            ->where(function (Builder $query): void {
+                $query->where('type', 'DINAS_LUAR')
+                    ->orWhere(function (Builder $query): void {
+                        $query->where('type', 'WFO')
+                            ->where('is_flexible', true)
+                            ->where(function (Builder $query): void {
+                                $query->whereNull('is_outside_reference_location')
+                                    ->orWhere('is_outside_reference_location', true);
+                            });
+                    });
+            });
+    }
 
     public function user(): BelongsTo
     {

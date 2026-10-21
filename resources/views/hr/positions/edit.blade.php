@@ -1,296 +1,625 @@
 <x-app title="Edit Jabatan">
 
-    <div class="div-create-container">
-
-        {{-- Flash / Error Messages --}}
-        @if ($errors->any())
-        <div class="flash flash-error">
-            <svg class="flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <span>{{ $errors->first() }}</span>
-        </div>
-        @endif
-
-        {{-- Back Link --}}
-        <a href="{{ route('hr.organization') }}" class="back-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
-            Kembali
-        </a>
-
-        {{-- Page Header --}}
-        <div class="page-header">
-            <div class="page-icon page-icon-purple">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    <x-slot name="header">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
             </div>
             <div>
-                <h1 class="page-title">Edit Jabatan</h1>
-                <p class="page-subtitle">Perbarui nama jabatan, divisi, atau status aktif.</p>
+                <h1 class="section-title">Edit Jabatan</h1>
+                <p class="section-subtitle">Perbarui nama jabatan, divisi, atau status aktif</p>
             </div>
         </div>
+    </x-slot>
 
-        {{-- Form Card --}}
-        <div class="form-card">
-            <form method="POST" action="{{ route('hr.positions.update', $item->id) }}" class="form-layout">
-                @csrf
-                @method('PUT')
+    @php
+        $currentDivision = $divisions->firstWhere('id', $item->division_id) ?? $item->division;
+    @endphp
 
-                <div class="form-group">
-                    <label for="name">Nama Jabatan <span class="req">*</span></label>
-                    <input
-                        id="name"
-                        type="text"
-                        name="name"
-                        class="form-input"
-                        value="{{ old('name', $item->name) }}"
-                        placeholder="Contoh: Senior Staff"
-                        required>
+    <div class="apv-detail-page">
+
+        {{-- Back Button --}}
+        <a href="{{ route('hr.organization', ['tab' => 'positions']) }}" class="back-btn" aria-label="Kembali ke Divisi dan Jabatan">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            <span class="back-btn-text">Kembali</span>
+        </a>
+
+        {{-- Flash / Error Messages --}}
+        @if (session('success'))
+            <div class="apv-alert apv-alert--success">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>{{ session('success') }}</span>
+            </div>
+        @endif
+
+        @if ($errors->any())
+            <div class="apv-alert apv-alert--error" role="alert">
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" stroke-width="2"/>
+                    <line x1="12" y1="8" x2="12" y2="12" stroke-width="2"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16" stroke-width="2"/>
+                </svg>
+                <span>{{ $errors->first() }}</span>
+            </div>
+        @endif
+
+        <form id="position-edit-form" method="POST" action="{{ route('hr.positions.update', $item->id) }}" class="apv-detail-body">
+            @csrf
+            @method('PUT')
+
+            {{-- Summary Header Card (selaras dengan /hr/leave-requests/show & /hr/divisions/edit) --}}
+            <div class="apv-card">
+                <div class="apv-card-header">
+                    <div class="apv-avatar apv-avatar--lg">{{ strtoupper(substr($item->name, 0, 1)) }}</div>
+                    <div class="apv-card-header-info">
+                        <span class="apv-entity-label">Jabatan Organisasi</span>
+                        <h2 class="apv-employee-name">{{ $item->name }}</h2>
+                        <div class="apv-employee-meta">
+                            <span class="apv-role-chip">JABATAN</span>
+                            <span class="apv-meta-dot">•</span>
+                            <span>Divisi: {{ $currentDivision?->name ?? 'Umum / Tanpa Divisi' }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="apv-card-header-footer">
+                    @if($item->is_active)
+                        <span class="apv-badge apv-badge--success">
+                            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Jabatan Aktif
+                        </span>
+                    @else
+                        <span class="apv-badge apv-badge--gray">
+                            Jabatan Nonaktif
+                        </span>
+                    @endif
+                    <span class="apv-submit-time">ID Jabatan #{{ $item->id }}</span>
+                </div>
+            </div>
+
+            {{-- Form Detail Card --}}
+            <div class="apv-card">
+                <div class="apv-section-title">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                    </svg>
+                    Informasi &amp; Pengaturan Jabatan
                 </div>
 
-                <div class="form-group">
-                    <label for="division_id">Divisi</label>
-                    <select id="division_id" name="division_id" class="form-input">
-                        <option value="">Tidak ada / Umum</option>
-                        @foreach ($divisions as $division)
-                        <option value="{{ $division->id }}" @selected(old('division_id', $item->division_id) == $division->id)>
-                            {{ $division->name }}
-                        </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label class="checkbox-wrapper">
+                <div class="edit-fields">
+                    <div class="edit-form-group">
+                        <label for="name" class="edit-form-label">
+                            Nama Jabatan <span class="req">*</span>
+                        </label>
                         <input
-                            type="checkbox"
-                            name="is_active"
-                            value="1"
-                            @checked(old('is_active', $item->is_active))>
-                        <span class="checkbox-label">Jabatan aktif dan dapat digunakan</span>
-                    </label>
-                </div>
+                            id="name"
+                            type="text"
+                            name="name"
+                            class="edit-form-input"
+                            value="{{ old('name', $item->name) }}"
+                            placeholder="Contoh: Senior Staff"
+                            required>
+                        <small class="form-helper">Nama jabatan harus unik dalam divisi yang sama.</small>
+                    </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                        Simpan Perubahan
-                    </button>
+                    <div class="edit-form-group">
+                        <label for="division_id" class="edit-form-label">
+                            Divisi
+                        </label>
+                        <select id="division_id" name="division_id" class="edit-form-select">
+                            <option value="">Tidak ada / Umum</option>
+                            @foreach ($divisions as $division)
+                                <option
+                                    value="{{ $division->id }}"
+                                    @selected((string) old('division_id', $item->division_id) === (string) $division->id)
+                                >
+                                    {{ $division->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="form-helper">Opsional. Pilih divisi yang menaungi jabatan ini.</small>
+                    </div>
+
+                    <div class="edit-form-group">
+                        <span class="edit-form-label">Status Jabatan</span>
+                        <label class="edit-checkbox-card">
+                            <input
+                                type="checkbox"
+                                name="is_active"
+                                value="1"
+                                @checked(old('is_active', $item->is_active))>
+                            <span class="edit-checkbox-card__content">
+                                <span class="edit-checkbox-card__title">Jabatan aktif dan dapat digunakan</span>
+                                <span class="edit-checkbox-card__desc">Jabatan nonaktif tidak akan muncul pada pilihan di formulir kepegawaian.</span>
+                            </span>
+                        </label>
+                    </div>
                 </div>
-            </form>
+            </div>
+        </form>
+    </div>
+
+    {{-- FIXED ACTION BAR (selaras dengan /hr/leave-requests/show & /hr/divisions/edit) --}}
+    <div class="apv-action-bar" aria-label="Aksi edit jabatan">
+        <div class="apv-action-dock">
+            <div class="apv-action-main">
+                <a href="{{ route('hr.organization', ['tab' => 'positions']) }}" class="apv-action-btn apv-action-btn--secondary">
+                    Batal
+                </a>
+                <button type="submit" form="position-edit-form" class="apv-action-btn apv-action-btn--primary">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Simpan Perubahan
+                </button>
+            </div>
         </div>
-
     </div>
 
     <style>
-        /* === BASE VARIABLES === */
-        :root {
-            --primary: #2563eb;
-            --primary-dark: #1e40af;
-            --secondary: #64748b;
-            --bg-body: #f1f5f9;
-            --bg-card: #ffffff;
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --danger-bg: #fef2f2;
-            --danger-text: #b91c1c;
-            --danger-border: #fecaca;
-            --purple-light: #faf5ff;
-            --purple-text: #7e22ce;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-            --radius-sm: 8px;
-        }
-
-        /* === RESET & BASE === */
-        .div-create-container {
-            max-width: 560px;
-            margin: 0 auto;
-            padding: 20px 16px 60px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-            color: var(--text-main);
-        }
-
-        /* === FLASH MESSAGES === */
-        .flash {
+        /* ========================================== */
+        /* HEADER (x-slot)                            */
+        /* ========================================== */
+        .section-header-inline {
             display: flex;
             align-items: center;
             gap: 10px;
-            padding: 14px 18px;
-            border-radius: var(--radius-md);
-            margin-bottom: 16px;
-            font-size: 0.9rem;
-            font-weight: 500;
         }
-        .flash-error { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
-        .flash-icon { width: 18px; height: 18px; flex-shrink: 0; }
-
-        /* === BACK LINK === */
-        .back-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-decoration: none;
-            margin-bottom: 16px;
-            transition: color 0.2s;
-        }
-        .back-link:hover { color: var(--primary); }
-        .back-link svg { width: 16px; height: 16px; }
-
-        /* === PAGE HEADER === */
-        .page-header {
-            display: flex;
-            align-items: flex-start;
-            gap: 14px;
-            margin-bottom: 20px;
-        }
-        .page-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--primary);
-            color: #fff;
-            border-radius: var(--radius-md);
+        .section-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
         }
-        .page-icon-purple { background: var(--purple-text); }
-        .page-icon svg { width: 24px; height: 24px; }
-        .page-title {
+        .section-icon svg {
+            width: 16px;
+            height: 16px;
+        }
+        .section-title {
             margin: 0;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--text-main);
+            font-size: 1rem;
+            font-weight: 800;
+            color: var(--text-primary, #111827);
+            letter-spacing: -0.01em;
+            line-height: 1.25;
         }
-        .page-subtitle {
-            margin: 4px 0 0;
-            font-size: 0.875rem;
-            color: var(--text-muted);
+        .section-subtitle {
+            margin: 0;
+            font-size: 0.8125rem;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+            line-height: 1.35;
         }
-
-        /* === FORM CARD === */
-        .form-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
-            overflow: hidden;
-        }
-
-        /* === FORM LAYOUT === */
-        .form-layout {
-            padding: 24px;
+        .icon-navy {
+            background: rgba(10, 61, 98, 0.08);
+            color: var(--primary-dark, #0A3D62);
         }
 
-        .form-group {
-            margin-bottom: 20px;
+        /* ========================================== */
+        /* PAGE & BACK BUTTON                         */
+        /* ========================================== */
+        .apv-detail-page {
+            max-width: 100%;
+            margin: 0 auto;
+            padding-bottom: 120px;
         }
-
-        .form-group label {
-            display: block;
-            font-size: 0.875rem;
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            height: 36px;
+            padding: 0 12px 0 10px;
+            background: var(--white, #FFFFFF);
+            border: 1px solid var(--border-light, #E5E7EB);
+            border-radius: 10px;
+            color: var(--text-muted, #6B7280);
+            text-decoration: none;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            margin-bottom: 16px;
+        }
+        .back-btn:hover {
+            border-color: var(--primary, #145DA0);
+            color: var(--primary, #145DA0);
+            background: var(--gray-50, #F5F7FA);
+        }
+        .back-btn svg {
+            transition: transform 0.2s ease;
+            flex-shrink: 0;
+        }
+        .back-btn:hover svg {
+            transform: translateX(-2px);
+        }
+        .back-btn-text {
+            font-size: 0.75rem;
             font-weight: 600;
-            color: var(--text-main);
-            margin-bottom: 6px;
+            line-height: 1;
         }
 
-        .req { color: var(--danger-text); }
-
-        .form-input {
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
-            color: var(--text-main);
-            background: #fff;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            font-family: inherit;
-            box-sizing: border-box;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-        }
-
-        /* Checkbox Styling */
-        .checkbox-wrapper {
+        /* ========================================== */
+        /* ALERTS                                     */
+        /* ========================================== */
+        .apv-alert {
             display: flex;
             align-items: center;
             gap: 10px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .apv-alert svg { flex-shrink: 0; }
+        .apv-alert--success {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: #15803d;
+        }
+        .apv-alert--error {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #dc2626;
+        }
+
+        /* ========================================== */
+        /* CARDS (selaras dengan /hr/leave-requests/show) */
+        /* ========================================== */
+        .apv-detail-body {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .apv-card {
+            background: var(--white, #FFFFFF);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid var(--border-light, #E5E7EB);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .apv-card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .apv-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .apv-avatar--lg {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            font-size: 20px;
+        }
+        .apv-card-header-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .apv-entity-label {
+            display: block;
+            color: var(--text-muted, #6B7280);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .apv-employee-name {
+            margin: 0 0 4px 0;
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: var(--text-primary, #111827);
+            line-height: 1.25;
+        }
+        .apv-employee-meta {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+        }
+        .apv-role-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: rgba(20, 93, 160, 0.08);
+            color: var(--primary, #145DA0);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .apv-meta-dot {
+            color: var(--text-light, #9CA3AF);
+        }
+        .apv-card-header-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-light, #E5E7EB);
+        }
+        .apv-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .apv-badge--success {
+            background: rgba(34, 197, 94, 0.1);
+            color: #15803d;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+        .apv-badge--gray {
+            background: var(--gray-100, #F3F4F6);
+            color: var(--text-muted, #6B7280);
+            border: 1px solid var(--border-light, #E5E7EB);
+        }
+        .apv-submit-time {
+            font-size: 12px;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+        }
+
+        /* ========================================== */
+        /* SECTION TITLE & FORM FIELDS                */
+        /* ========================================== */
+        .apv-section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: var(--text-primary, #111827);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-light, #E5E7EB);
+        }
+        .apv-section-title svg {
+            color: var(--primary, #145DA0);
+            flex-shrink: 0;
+        }
+        .edit-fields {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .edit-form-group {
+            margin: 0;
+        }
+        .edit-form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary, #374151);
+            margin-bottom: 7px;
+        }
+        .req {
+            color: var(--error, #EF4444);
+            font-weight: 700;
+        }
+        .edit-form-input,
+        .edit-form-select {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border-light, #E5E7EB);
+            border-radius: 10px;
+            font-size: 14px;
+            color: var(--text-primary, #111827);
+            background: var(--white, #FFFFFF);
+            transition: all 0.2s ease;
+            font-family: inherit;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .edit-form-input:focus,
+        .edit-form-select:focus {
+            border-color: var(--primary, #145DA0);
+            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
+        }
+        .form-helper {
+            display: block;
+            font-size: 12px;
+            color: var(--text-muted, #6B7280);
+            margin-top: 6px;
+            line-height: 1.45;
+        }
+
+        /* ========================================== */
+        /* CHECKBOX CARD                              */
+        /* ========================================== */
+        .edit-checkbox-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border-light, #E5E7EB);
+            border-radius: 10px;
             cursor: pointer;
-            padding: 8px 0;
+            transition: all 0.15s ease;
+            background: var(--white, #FFFFFF);
+            box-sizing: border-box;
         }
-
-        .checkbox-wrapper input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--primary);
+        .edit-checkbox-card:hover {
+            border-color: var(--primary, #145DA0);
+            background: var(--gray-50, #F5F7FA);
+        }
+        .edit-checkbox-card:has(input:checked) {
+            border-color: var(--primary, #145DA0);
+            background: rgba(20, 93, 160, 0.06);
+        }
+        .edit-checkbox-card input[type="checkbox"] {
+            accent-color: var(--primary, #145DA0);
+            width: 17px;
+            height: 17px;
+            margin: 1px 0 0;
+            flex-shrink: 0;
             cursor: pointer;
         }
-
-        .checkbox-label {
-            font-size: 0.9rem;
-            color: var(--text-main);
+        .edit-checkbox-card__content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        .edit-checkbox-card__title {
+            font-size: 13px;
+            color: var(--text-primary, #111827);
+            font-weight: 600;
+            line-height: 1.35;
+        }
+        .edit-checkbox-card__desc {
+            font-size: 12px;
+            color: var(--text-muted, #6B7280);
+            font-weight: 500;
+            line-height: 1.45;
         }
 
-        /* === BUTTONS === */
-        .btn {
+        /* ========================================== */
+        /* FIXED ACTION BAR (selaras dengan /hr/leave-requests/show) */
+        /* ========================================== */
+        .apv-action-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            pointer-events: none;
+            transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        right 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        bottom 0.35s ease;
+        }
+        .apv-action-dock {
+            background: var(--white, #FFFFFF);
+            border-top: 1px solid var(--border-light, #E5E7EB);
+            border-radius: 18px 18px 0 0;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+            padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+            pointer-events: auto;
+        }
+        .apv-action-main {
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 8px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .apv-action-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 8px;
-            padding: 10px 20px;
-            border-radius: var(--radius-sm);
-            font-size: 0.9rem;
+            gap: 6px;
+            padding: 11px 18px;
+            border-radius: 10px;
+            font-size: 13.5px;
             font-weight: 600;
             cursor: pointer;
+            transition: all 0.2s;
             border: none;
-            transition: 0.2s;
             text-decoration: none;
+            font-family: inherit;
+            min-height: 44px;
         }
-        .btn svg { width: 16px; height: 16px; }
-
-        .btn-primary {
-            background: var(--primary);
-            color: #fff;
+        .apv-action-btn svg { flex-shrink: 0; }
+        .apv-action-btn--primary {
+            background: linear-gradient(135deg, var(--primary-dark, #0A3D62), var(--primary, #145DA0));
+            color: var(--white, #FFFFFF);
+            box-shadow: 0 2px 8px rgba(10, 61, 98, 0.2);
         }
-        .btn-primary:hover { background: var(--primary-dark); }
-
-        .form-actions {
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: flex-end;
+        .apv-action-btn--primary:hover {
+            box-shadow: 0 4px 12px rgba(10, 61, 98, 0.3);
+            transform: translateY(-1px);
+        }
+        .apv-action-btn--secondary {
+            background: var(--gray-50, #F5F7FA);
+            color: var(--text-secondary, #6B7280);
+            border: 1.5px solid var(--border-light, #E5E7EB);
+        }
+        .apv-action-btn--secondary:hover {
+            background: var(--gray-100, #E5E7EB);
         }
 
-        /* === MOBILE RESPONSIVE === */
-        @media (max-width: 640px) {
-            .page-header {
-                flex-direction: column;
+        /* ========================================== */
+        /* RESPONSIVE                                 */
+        /* ========================================== */
+        @media (min-width: 640px) {
+            .apv-action-main {
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: center;
                 gap: 12px;
-                text-align: center;
-            }
-            .page-icon {
-                margin: 0 auto;
-            }
-            .form-layout {
-                padding: 20px;
-            }
-            .form-actions {
-                flex-direction: column-reverse;
-            }
-            .btn-primary {
                 width: 100%;
             }
+            .apv-action-btn {
+                width: auto;
+                flex: 1 1 0;
+                min-width: 0;
+                padding: 12px 24px;
+                font-size: 14px;
+            }
+        }
+        @media (min-width: 768px) {
+            .apv-card { padding: 24px; }
+        }
+        @media (min-width: 1025px) {
+            .apv-action-bar {
+                left: calc(var(--sidebar-width) + 12px);
+                right: 0;
+                bottom: 16px;
+                padding: 0 16px;
+            }
+            .app.sidebar-collapsed .apv-action-bar {
+                left: 0;
+            }
+            .apv-action-dock {
+                border: 1px solid var(--border-light, #E5E7EB);
+                border-radius: 18px;
+                box-shadow: 0 -4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+                padding: 10px;
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+        }
+        @media (max-width: 420px) {
+            .apv-card-header { align-items: flex-start; }
+            .apv-avatar--lg { width: 44px; height: 44px; border-radius: 12px; font-size: 17px; }
+            .apv-employee-name { font-size: 1rem; }
         }
     </style>
 </x-app>

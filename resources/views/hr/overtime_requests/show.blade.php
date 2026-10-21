@@ -1,4 +1,4 @@
-<x-app title="Detail Rekap Lembur (HR)">
+<x-app title="Detail Lembur (HR)">
     <x-slot name="header">
         <div class="section-header-inline">
             <div class="section-icon icon-navy">
@@ -7,7 +7,7 @@
                 </svg>
             </div>
             <div>
-                <h1 class="section-title">Detail Rekap Lembur</h1>
+                <h1 class="section-title">Detail Lembur</h1>
                 <p class="section-subtitle">Informasi lengkap pengajuan lembur karyawan</p>
             </div>
         </div>

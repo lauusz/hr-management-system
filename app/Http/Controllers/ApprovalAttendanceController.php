@@ -6,22 +6,27 @@ use App\Models\AttendanceEvent;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class ApprovalAttendanceController extends Controller
 {
     public function index(Request $request)
     {
+        $this->ensureApprovalSchema();
         $filters = $request->validate([
             'submitted_range' => ['nullable', 'string', 'max:50'],
             'name' => ['nullable', 'string', 'max:100'],
             'event_type' => ['nullable', 'in:CLOCK_IN,CLOCK_OUT'],
+            'tab' => ['nullable', 'in:flexible,remote'],
         ]);
         $name = trim($filters['name'] ?? '');
         $submittedRange = trim($filters['submitted_range'] ?? '');
+        $tab = $filters['tab'] ?? 'flexible';
 
         $pendingAttendances = AttendanceEvent::query()
             ->with(['user', 'location'])
-            ->where('approval_status', 'PENDING')
+            ->pendingApproval()
+            ->where('type', $tab === 'remote' ? 'DINAS_LUAR' : 'WFO')
             ->when($name !== '', fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery->whereNormalizedNameContains($name)))
             ->when($filters['event_type'] ?? null, fn ($query, $eventType) => $query->where('event_type', $eventType))
             ->when($submittedRange !== '', function ($query) use ($submittedRange) {
@@ -38,7 +43,7 @@ class ApprovalAttendanceController extends Controller
             ->latest('occurred_at')
             ->get();
 
-        return view('hr.approval_attendance.index', compact('pendingAttendances', 'filters'));
+        return view('hr.approval_attendance.index', compact('pendingAttendances', 'filters', 'tab'));
     }
 
     public function approve(AttendanceEvent $event)
@@ -58,6 +63,8 @@ class ApprovalAttendanceController extends Controller
             return back()->with('error', 'Anda tidak berhak menyetujui absensi ini.');
         }
 
+        $this->ensureApprovalSchema();
+
         $validated = $request->validate([
             'attendance_ids' => ['required', 'array', 'min:1'],
             'attendance_ids.*' => ['integer', 'distinct', 'exists:attendance_events,id'],
@@ -65,7 +72,7 @@ class ApprovalAttendanceController extends Controller
 
         $updated = AttendanceEvent::query()
             ->whereIn('id', $validated['attendance_ids'])
-            ->where('approval_status', 'PENDING')
+            ->pendingApproval()
             ->update(['approval_status' => 'APPROVED', 'approved_by' => $user->id]);
 
         return $updated > 0
@@ -105,13 +112,24 @@ class ApprovalAttendanceController extends Controller
 
     private function updatePending(AttendanceEvent $event, array $attributes, string $success)
     {
+        $this->ensureApprovalSchema();
         $updated = AttendanceEvent::query()
             ->whereKey($event)
-            ->where('approval_status', 'PENDING')
+            ->pendingApproval()
             ->update($attributes);
 
         return $updated === 1
             ? back()->with('success', $success)
-            : back()->with('error', 'Absensi ini tidak dalam status menunggu.');
+            : back()->with('error', 'Absensi ini tidak tersedia untuk persetujuan.');
+    }
+
+    private function ensureApprovalSchema(): void
+    {
+        abort_unless(
+            Schema::hasColumn('attendance_events', 'is_flexible')
+                && Schema::hasColumn('attendance_events', 'is_outside_reference_location'),
+            503,
+            'Pembaruan absensi belum tersedia. Hubungi HR atau IT.'
+        );
     }
 }

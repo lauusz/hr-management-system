@@ -9,13 +9,44 @@ use Illuminate\Validation\ValidationException;
 
 class ShiftController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $items = Shift::withCount('days')
-            ->orderBy('name')
-            ->paginate(20);
+        $query = Shift::withCount('days')->orderBy('name');
 
-        return view('hr.shifts.index', compact('items'));
+        $status = $request->query('status');
+        if ($status === 'active') {
+            $query->where('is_active', true);
+        } elseif ($status === 'inactive') {
+            $query->where('is_active', false);
+        } else {
+            $status = null;
+        }
+
+        $q = trim((string) $request->query('q', ''));
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('name', 'like', "%{$q}%")
+                    ->orWhere('description', 'like', "%{$q}%");
+            });
+        }
+
+        $totalCount = (clone $query)->count();
+        $activeCount = (clone $query)->where('is_active', true)->count();
+        $inactiveCount = (clone $query)->where('is_active', false)->count();
+
+        $items = $query->paginate(20)->appends(array_filter([
+            'q' => $q !== '' ? $q : null,
+            'status' => $status,
+        ]));
+
+        return view('hr.shifts.index', [
+            'items' => $items,
+            'q' => $q,
+            'status' => $status,
+            'totalCount' => $totalCount,
+            'activeCount' => $activeCount,
+            'inactiveCount' => $inactiveCount,
+        ]);
     }
 
     public function create()

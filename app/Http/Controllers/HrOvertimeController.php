@@ -33,11 +33,9 @@ class HrOvertimeController extends Controller
         }
 
         // Filter: Date Range (overtime_date)
-        // Default: Current Month if not filtered
+        // Default: Hari ini jika belum difilter
         if (! $request->filled('overtime_date_range')) {
-            $startOfMonth = now()->startOfMonth()->format('Y-m-d');
-            $endOfMonth = now()->endOfMonth()->format('Y-m-d');
-            $request->merge(['overtime_date_range' => "$startOfMonth sampai $endOfMonth"]);
+            $request->merge(['overtime_date_range' => now()->toDateString()]);
         }
 
         if ($request->filled('overtime_date_range')) {
@@ -75,7 +73,7 @@ class HrOvertimeController extends Controller
             }
         }
 
-        $overtimes = $query->paginate(20)->withQueryString();
+        $overtimes = $query->paginate(100)->withQueryString();
 
         // Attendance matching untuk halaman yang ditampilkan
         $attendanceMap = $this->buildAttendanceMap($overtimes);

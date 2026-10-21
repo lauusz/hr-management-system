@@ -304,7 +304,7 @@
               </div>
             </div>
             <div class="action-card__body">
-              <span class="action-card__name">Rekap Lembur</span>
+              <span class="action-card__name">Daftar Lembur</span>
               <span class="action-card__desc">Pencocokan absensi lembur</span>
             </div>
           </a>

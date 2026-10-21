@@ -1,4 +1,4 @@
-<x-app :title="$pageTitle ?? 'Rekap Lembur'">
+<x-app :title="$pageTitle ?? 'Daftar Lembur'">
     <x-slot name="header">
         <div class="section-header-inline">
             <div class="section-icon icon-navy">
@@ -7,7 +7,7 @@
                 </svg>
             </div>
             <div>
-                <h1 class="section-title">Rekap Data Lembur</h1>
+                <h1 class="section-title">Daftar Lembur</h1>
                 <p class="section-subtitle">Riwayat pengajuan lembur seluruh karyawan</p>
             </div>
         </div>
@@ -34,7 +34,7 @@
     @endif
 
     @php
-        $defaultDateRange = now()->startOfMonth()->format('Y-m-d').' sampai '.now()->endOfMonth()->format('Y-m-d');
+        $defaultDateRange = now()->toDateString();
         $hasDateFilter = !empty($overtimeDateRange) && $overtimeDateRange !== $defaultDateRange;
         $activeFilterCount = (int) $hasDateFilter + (int) !empty($status);
         $hasAdvancedFilter = $activeFilterCount > 0;
@@ -217,7 +217,7 @@
 
     <dialog id="hom-detail-modal" aria-labelledby="hom-detail-modal-title">
         <div class="hom-detail-modal-header">
-            <h2 id="hom-detail-modal-title">Detail Rekap Lembur</h2>
+            <h2 id="hom-detail-modal-title">Detail Lembur</h2>
             <button type="button" id="hom-detail-modal-close" aria-label="Tutup detail lembur">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>

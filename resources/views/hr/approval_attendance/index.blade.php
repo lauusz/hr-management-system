@@ -4,10 +4,15 @@
     <style>
         /* Card & Layout */
         .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; overflow: hidden; margin-bottom: 20px; }
-        .container-xl { padding-top: 0; max-width: 1200px; margin: 0 auto; }
+        .container-xl { padding-top: 0; max-width: none; margin: 0 auto; }
+        .card[data-approval-attendance-results] { padding: 0; }
         .approval-page-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
         .approval-queue-summary { display: inline-flex; align-items: center; gap: 8px; color: #64748b; font-size: 0.84rem; font-weight: 600; }
         .approval-queue-count { display: inline-flex; min-width: 24px; height: 24px; align-items: center; justify-content: center; padding: 0 7px; border-radius: 999px; background: #eaf2fb; color: #145da0; font-size: 0.75rem; font-weight: 700; }
+        .approval-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+        .approval-tab { padding: 9px 15px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #64748b; font-size: .85rem; font-weight: 600; text-decoration: none; }
+        .approval-tab:hover, .approval-tab:focus-visible { border-color: #145da0; color: #145da0; }
+        .approval-tab[aria-current="page"] { border-color: #145da0; background: #145da0; color: #fff; }
         
         /* Table Styles */
         .table-responsive { width: 100%; overflow: visible; }
@@ -16,13 +21,19 @@
         .table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #1e293b; font-size: 0.85rem; overflow-wrap: anywhere; }
         .table tr:last-child td { border-bottom: none; }
         .table tr:hover td { background: #fcfcfc; }
+        .approval-media-column { text-align: center !important; }
+        .approval-attendance-table th.approval-media-column, .approval-attendance-table td.approval-media-column { padding-left: 6px; padding-right: 6px; }
 
         /* User Info Column */
         .user-name { font-weight: 700; color: #1e293b; font-size: 0.75rem; line-height: 1.3; overflow-wrap: anywhere; }
         .user-schedule { margin-top: 2px; color: #64748b; font-size: 0.7rem; font-weight: 600; }
 
         /* Buttons & Badges */
-        .btn-pill { padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+        .btn-pill { width: 68px; max-width: 100%; padding: 6px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+        .approval-type-chip { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+        .approval-type-chip--in { color: #176b42; background: #e9f8ef; }
+        .approval-type-chip--out { color: #a33f48; background: #fcebed; }
+        .btn-pill:focus-visible, .btn-action:focus-visible, .approval-tab:focus-visible { outline: 2px solid #145da0; outline-offset: 2px; }
         .btn-blue { background: #eef2ff; color: #1e4a8d; border-color: #e0e7ff; }
         .btn-blue:hover { background: #1e4a8d; color: #fff; }
         .btn-sky { background: #f0f9ff; color: #0369a1; border-color: #e0f2fe; }
@@ -105,6 +116,9 @@
             .approval-attendance-table td { display: grid; grid-template-columns: minmax(88px, .7fr) minmax(0, 1fr); gap: 10px; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
             .approval-attendance-table td::before { content: attr(data-label); color: #64748b; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
             .approval-attendance-table td.approval-selection-cell { display: flex; align-items: center; gap: 10px; }
+            .approval-attendance-table td.approval-media-column { text-align: left !important; padding: 10px 12px; }
+            .approval-attendance-table td.approval-media-column .btn-pill { justify-self: start; }
+            .approval-type-chip { justify-self: start; }
             .approval-attendance-table td.approval-user-cell, .approval-attendance-table td.approval-decision-cell { display: block; }
             .approval-attendance-table td.approval-user-cell::before, .approval-attendance-table td.approval-decision-cell::before { display: block; margin-bottom: 6px; }
             .approval-decision-actions { justify-content: stretch; }
@@ -126,11 +140,15 @@
     </style>
 
     <div class="container-xl">
-        
+        <nav class="approval-tabs" aria-label="Kategori persetujuan absensi" data-approval-attendance-tabs>
+            <a class="approval-tab" href="{{ route('hr.approval_attendance.index', array_merge($filters, ['tab' => 'flexible'])) }}" @if($tab === 'flexible') aria-current="page" @endif>Fleksibel</a>
+            <a class="approval-tab" href="{{ route('hr.approval_attendance.index', array_merge($filters, ['tab' => 'remote'])) }}" @if($tab === 'remote') aria-current="page" @endif>Dinas Luar</a>
+        </nav>
+
         <div class="approval-page-toolbar">
             <div class="approval-queue-summary" data-approval-attendance-queue-summary aria-live="polite">
                 <span class="approval-queue-count">{{ $pendingAttendances->count() }}</span>
-                <span>{{ $pendingAttendances->count() }} absensi menunggu pemeriksaan</span>
+                <span>Absensi menunggu pemeriksaan</span>
             </div>
             <div data-approval-attendance-bulk-all>
                 @if($pendingAttendances->isNotEmpty())
@@ -158,6 +176,7 @@
         @endphp
         <div class="aa-filter-card">
             <form method="GET" action="{{ route('hr.approval_attendance.index') }}" id="approvalAttendanceFilterForm">
+                <input type="hidden" name="tab" value="{{ $tab }}">
                 <div class="aa-search-row">
                     <div class="aa-search-input-wrap">
                         <svg class="aa-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
@@ -165,7 +184,7 @@
                     </div>
                     <div class="aa-filter-controls" data-approval-attendance-filter-controls>
                         @if($activeAttendanceFilterCount)
-                            <a href="{{ route('hr.approval_attendance.index') }}" class="aa-btn-reset"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Reset</a>
+                            <a href="{{ route('hr.approval_attendance.index', ['tab' => $tab]) }}" class="aa-btn-reset"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>Reset</a>
                         @endif
                         <button type="button" class="aa-btn-toggle-filter {{ $activeAttendanceFilterCount ? 'active' : '' }}" data-approval-attendance-filter-toggle aria-controls="approval-attendance-filter-panel" aria-expanded="{{ $activeAttendanceFilterCount ? 'true' : 'false' }}" onclick="toggleApprovalAttendanceFilterPanel()"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 00-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>Filter @if($activeAttendanceFilterCount)<span class="aa-filter-badge">{{ $activeAttendanceFilterCount }}</span>@endif</button>
                     </div>
@@ -187,14 +206,14 @@
                     <table class="table approval-attendance-table">
                         <colgroup>
                             <col style="width:4%;">
-                            <col style="width:23%;">
+                            <col style="width:20%;">
                             <col style="width:10%;">
+                            <col style="width:7%;">
                             <col style="width:10%;">
-                            <col style="width:8%;">
-                            <col style="width:8%;">
-                            <col style="width:14%;">
-                            <col style="width:14%;">
+                            <col style="width:19%;">
                             <col style="width:9%;">
+                            <col style="width:9%;">
+                            <col style="width:12%;">
                         </colgroup>
                         <thead>
                             <tr>
@@ -203,8 +222,9 @@
                                 <th>Tipe</th>
                                 <th>Jam</th>
                                 <th>Tanggal</th>
-                                <th>Foto</th>
-                                <th>Lokasi</th>
+                                <th>Alasan</th>
+                                <th class="approval-media-column">Foto</th>
+                                <th class="approval-media-column">Lokasi</th>
                                 <th class="approval-decision-heading">Aksi</th>
                             </tr>
                         </thead>
@@ -212,12 +232,16 @@
                             @foreach($pendingAttendances as $event)
                             <tr class="approval-attendance-row" data-attendance-id="{{ $event->id }}">
                                 <td class="approval-selection-cell" data-label="Pilih"><input type="checkbox" class="bulk-approve-checkbox bulk-approve-checkbox-item" name="attendance_ids[]" value="{{ $event->id }}" data-bulk-approve-name="{{ $event->user->name }}"></td>
-                                <td class="approval-user-cell" data-label="Karyawan"><div class="user-name">{{ $event->user->name }}</div></td>
-                                <td data-label="Tipe">{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}</td>
+                                <td class="approval-user-cell" data-label="Karyawan">
+                                    <div class="user-name">{{ $event->user->name }}</div>
+                                    <div class="user-schedule">{{ $event->type === 'DINAS_LUAR' ? 'Dinas Luar' : 'Fleksibel' }}</div>
+                                </td>
+                                <td data-label="Tipe"><span class="approval-type-chip approval-type-chip--{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'in' : 'out' }}">{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}</span></td>
                                 <td data-label="Jam">{{ $event->occurred_at->format('H:i') }}</td>
                                 <td data-label="Tanggal">{{ $event->occurred_at->format('d/m/y') }}</td>
-                                <td data-label="Foto">@if($event->photo)<button type="button" class="btn-pill btn-blue" data-image-viewer-src="{{ asset('storage/'.$event->photo) }}" data-image-viewer-alt="Foto absensi {{ $event->user->name }}">Foto</button>@else - @endif</td>
-                                <td data-label="Lokasi">@if($event->latitude !== null && $event->longitude !== null)<a class="btn-pill btn-blue" target="_blank" rel="noopener" href="https://www.google.com/maps?q={{ $event->latitude }},{{ $event->longitude }}">Lokasi</a>@else - @endif</td>
+                                <td data-label="Alasan">{{ trim((string) $event->notes) !== '' ? $event->notes : 'Alasan tidak tersedia' }}</td>
+                                <td class="approval-media-column" data-label="Foto">@if($event->photo)<button type="button" class="btn-pill btn-blue" data-image-viewer-src="{{ asset('storage/'.$event->photo) }}" data-image-viewer-alt="Foto absensi {{ $event->user->name }}">Foto</button>@else - @endif</td>
+                                <td class="approval-media-column" data-label="Lokasi">@if($event->latitude !== null && $event->longitude !== null)<button type="button" class="btn-pill btn-blue" data-approval-attendance-location data-approval-attendance-location-label="{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}" data-approval-attendance-location-lat="{{ $event->latitude }}" data-approval-attendance-location-lng="{{ $event->longitude }}">Lokasi</button>@else - @endif</td>
                                 <td class="approval-decision-cell" data-label="Aksi">
                                     <div class="approval-decision-actions">
                                         <form method="POST" action="{{ route('hr.approval_attendance.approve', $event) }}">@csrf<button type="submit" class="btn-action btn-approve" aria-label="Terima absensi {{ $event->user->name }}">✓</button></form>
@@ -242,8 +266,8 @@
                     <div style="background:#f1f5f9; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
                         <svg width="40" height="40" fill="none" stroke="#cbd5e1" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     </div>
-                    <h3 style="margin:0; font-size:1.1rem; color:#475569;">Semua Beres!</h3>
-                    <p style="margin:8px 0 0; font-size:0.95rem;">Tidak ada permintaan persetujuan absensi saat ini.</p>
+                    <h3 style="margin:0; font-size:1.1rem; color:#475569;">Tidak ada absensi</h3>
+                    <p style="margin:8px 0 0; font-size:0.95rem;">Tidak ada absensi {{ $tab === 'remote' ? 'Dinas Luar' : 'Fleksibel' }} yang menunggu sesuai filter saat ini.</p>
                 </div>
             @endif
         </div>
@@ -493,6 +517,7 @@
                     frame.title = `Peta lokasi ${label}`;
                     frame.src = `https://www.google.com/maps?q=${encodeURIComponent(location)}&z=16&output=embed`;
                     document.getElementById('approval-attendance-location-map').style.display = 'flex';
+                    document.body.style.overflow = 'hidden';
                 });
             });
         }
@@ -535,6 +560,7 @@
 
                     const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
                     const selectors = [
+                        '[data-approval-attendance-tabs]',
                         '[data-approval-attendance-queue-summary]',
                         '[data-approval-attendance-bulk-all]',
                         '[data-approval-attendance-filter-controls]',

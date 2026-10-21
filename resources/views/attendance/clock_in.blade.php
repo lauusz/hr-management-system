@@ -8,7 +8,7 @@
         </div>
     </x-slot>
 
-    <div class="capture-shell clock-in-screen">
+    <div class="capture-shell clock-in-screen {{ $isFlexible ? 'clock-in-screen--flexible' : '' }}">
         <a href="{{ url('/attendance') }}" class="attendance-back" aria-label="Kembali ke presensi">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
@@ -60,6 +60,13 @@
         {{-- Bottom controls --}}
         <div class="capture-controls clock-in-controls">
             <p class="capture-hint" id="statusMessage" aria-live="polite">Menyiapkan kamera dan lokasi...</p>
+
+            @if($isFlexible)
+                <label id="attendanceReasonField" class="capture-reason" for="attendanceReason" hidden>
+                    <span>Alasan Clock In di luar lokasi absen <span aria-hidden="true">*</span></span>
+                    <textarea id="attendanceReason" name="notes" rows="2" placeholder="Tuliskan alasan absensi di luar lokasi absen"></textarea>
+                </label>
+            @endif
 
             <input type="hidden" id="lat">
             <input type="hidden" id="lng">
@@ -348,6 +355,10 @@
             gap: 8px;
         }
 
+        .capture-reason { display: flex; flex-direction: column; gap: 4px; color: #334155; font-size: 0.75rem; font-weight: 600; }
+        .capture-reason textarea { width: 100%; min-height: 58px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; font-size: 16px; resize: vertical; }
+        .capture-reason textarea:focus { outline: 2px solid #145da0; outline-offset: 1px; }
+
         .capture-hint {
             text-align: center;
             font-size: 0.75rem;
@@ -441,6 +452,8 @@
                 height: calc(100svh - 80px);
                 overflow: hidden;
             }
+            .clock-in-screen--flexible { overflow-y: auto; }
+            .clock-in-screen--flexible .capture-viewport { min-height: 140px; }
         }
 
         @media (max-width: 359px) {
@@ -814,6 +827,7 @@
 
                         document.getElementById('lat').value = userLat;
                         document.getElementById('lng').value = userLng;
+                        syncFlexibleReason();
 
                         if (acc <= 100) {
                             isLocationValid = true;
@@ -909,10 +923,48 @@
 
         const officeHolidayModal = document.getElementById('attendance-office-holiday-confirmation');
         const confirmOfficeHolidayClockIn = document.getElementById('confirmOfficeHolidayClockIn');
+        const attendanceReasonField = document.getElementById('attendanceReasonField');
+        const attendanceReason = document.getElementById('attendanceReason');
+        const flexibleReferenceLocations = @json($flexibleReferenceLocations ?? []);
+
+        function isWithinReferenceLocation(location) {
+            const earthRadius = 6371000;
+            const latitudeDelta = (location.latitude - userLat) * Math.PI / 180;
+            const longitudeDelta = (location.longitude - userLng) * Math.PI / 180;
+            const latitudeOne = userLat * Math.PI / 180;
+            const latitudeTwo = location.latitude * Math.PI / 180;
+            const angle = 2 * Math.asin(Math.sqrt(
+                Math.sin(latitudeDelta / 2) ** 2
+                + Math.cos(latitudeOne) * Math.cos(latitudeTwo) * Math.sin(longitudeDelta / 2) ** 2
+            ));
+
+            return earthRadius * angle <= location.radius_meters;
+        }
+
+        function syncFlexibleReason() {
+            if (!attendanceReasonField || userLat === null || userLng === null) return;
+
+            const isOutsideReferenceLocation = flexibleReferenceLocations.length > 0
+                && !flexibleReferenceLocations.some(isWithinReferenceLocation);
+
+            attendanceReasonField.hidden = !isOutsideReferenceLocation;
+            attendanceReason.required = isOutsideReferenceLocation;
+
+            if (!isOutsideReferenceLocation) attendanceReason.value = '';
+        }
+
+        function hasValidReason() {
+            if (attendanceReason?.required && !attendanceReason.value.trim()) {
+                window.showToast('Alasan Clock In di luar lokasi absen wajib diisi.', 'error');
+                attendanceReason.focus();
+                return false;
+            }
+            return true;
+        }
 
         // 6. Fungsi Submit (Kirim ke Server)
         async function submitClockIn() {
-            if (!imageBlob || !userLat) return;
+            if (!imageBlob || !userLat || !hasValidReason()) return;
 
             const originalText = btnSubmit.innerHTML;
             btnSubmit.disabled = true;
@@ -929,6 +981,7 @@
             formData.append('lat', userLat);
             formData.append('lng', userLng);
             formData.append('photo', imageBlob, 'clock-in.jpg');
+            if (attendanceReason) formData.append('notes', attendanceReason.value.trim());
 
             function firstErrorMessage(data, fallback) {
                 if (data?.message) return data.message;
@@ -983,7 +1036,7 @@
         }
 
         btnSubmit.addEventListener('click', () => {
-            if (!imageBlob || !userLat) return;
+            if (!imageBlob || !userLat || !hasValidReason()) return;
 
             if (officeHolidayModal) {
                 officeHolidayModal.style.display = 'flex';

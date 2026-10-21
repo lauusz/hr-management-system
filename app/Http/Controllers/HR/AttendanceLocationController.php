@@ -8,11 +8,41 @@ use Illuminate\Http\Request;
 
 class AttendanceLocationController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $items = AttendanceLocation::orderBy('name')->get();
+        $query = AttendanceLocation::orderBy('name');
 
-        return view('hr.locations.index', compact('items'));
+        $status = $request->query('status');
+        if ($status === 'active') {
+            $query->where('is_active', true);
+        } elseif ($status === 'inactive') {
+            $query->where('is_active', false);
+        } else {
+            $status = null;
+        }
+
+        $q = trim((string) $request->query('q', ''));
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('name', 'like', "%{$q}%")
+                    ->orWhere('address', 'like', "%{$q}%");
+            });
+        }
+
+        $items = $query->get();
+
+        $totalCount = $items->count();
+        $activeCount = $items->where('is_active', true)->count();
+        $inactiveCount = $items->where('is_active', false)->count();
+
+        return view('hr.locations.index', [
+            'items' => $items,
+            'q' => $q,
+            'status' => $status,
+            'totalCount' => $totalCount,
+            'activeCount' => $activeCount,
+            'inactiveCount' => $inactiveCount,
+        ]);
     }
 
     public function create()
@@ -23,12 +53,12 @@ class AttendanceLocationController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name'          => ['required', 'string', 'max:255'],
-            'address'       => ['nullable', 'string', 'max:500'],
-            'latitude'      => ['required', 'numeric'],
-            'longitude'     => ['required', 'numeric'],
+            'name' => ['required', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'latitude' => ['required', 'numeric'],
+            'longitude' => ['required', 'numeric'],
             'radius_meters' => ['required', 'integer', 'min:1'],
-            'is_active'     => ['sometimes', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
         ]);
 
         $data['is_active'] = $request->has('is_active');
@@ -48,12 +78,12 @@ class AttendanceLocationController extends Controller
     public function update(Request $request, AttendanceLocation $location)
     {
         $data = $request->validate([
-            'name'          => ['required', 'string', 'max:255'],
-            'address'       => ['nullable', 'string', 'max:500'],
-            'latitude'      => ['required', 'numeric'],
-            'longitude'     => ['required', 'numeric'],
+            'name' => ['required', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'latitude' => ['required', 'numeric'],
+            'longitude' => ['required', 'numeric'],
             'radius_meters' => ['required', 'integer', 'min:1'],
-            'is_active'     => ['sometimes', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
         ]);
 
         $data['is_active'] = $request->has('is_active');

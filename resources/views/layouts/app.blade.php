@@ -1114,6 +1114,10 @@
         $hrPresensiOpen = request()->routeIs('hr.shifts.*','hr.locations.*','hr.schedules.*','hr.office-holidays.*');
         $hrLoanOpen = request()->routeIs('hr.loan_requests.*', 'hr.payroll.*');
         $hrAssetOpen = request()->routeIs('hr.assets.*');
+        $pendingAttendanceApprovalCount = \Illuminate\Support\Facades\Schema::hasColumn('attendance_events', 'is_flexible')
+          && \Illuminate\Support\Facades\Schema::hasColumn('attendance_events', 'is_outside_reference_location')
+          ? \App\Models\AttendanceEvent::query()->pendingApproval()->distinct()->count('user_id')
+          : 0;
         @endphp
 
         <div class="menu-section">
@@ -1145,12 +1149,22 @@
             <span class="menu-text">Master Absensi</span>
           </a>
 
+          <a href="{{ route('hr.approval_attendance.index') }}" class="menu-item {{ request()->routeIs('hr.approval_attendance.*') ? 'active' : '' }}">
+            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="menu-text">Approval Absensi</span>
+            @if($pendingAttendanceApprovalCount > 0)
+            <span class="menu-badge" data-attendance-approval-badge aria-label="{{ $pendingAttendanceApprovalCount }} karyawan menunggu persetujuan absensi">{{ $pendingAttendanceApprovalCount }}</span>
+            @endif
+          </a>
+
           <a href="{{ route('hr.overtime-requests.master') }}" class="menu-item {{ request()->routeIs('hr.overtime-requests.*') ? 'active' : '' }}">
             <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/>
+              <rect x="3" y="5" width="18" height="16" rx="2" stroke-width="2"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3v4m10-4v4M3 10h18m-6 4v3l2 1"/>
             </svg>
-            <span class="menu-text">Rekap Lembur</span>
+            <span class="menu-text">Daftar Lembur</span>
           </a>
 
 

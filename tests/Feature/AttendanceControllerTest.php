@@ -6,19 +6,23 @@ use App\Models\EmployeeShift;
 use App\Models\Shift;
 use App\Models\ShiftDay;
 use App\Models\User;
+use App\Services\Image\ImageCompressor;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\InstallsAttendanceEventSchema;
+use Tests\Support\InstallsFlexibleScheduleSchema;
 
 use function Pest\Laravel\actingAs;
 
 pest()->extend(Tests\TestCase::class)->in('Feature');
 
 uses(InstallsAttendanceEventSchema::class);
+uses(InstallsFlexibleScheduleSchema::class);
 
 beforeEach(function () {
     $this->installAttendanceEventSchema();
+    $this->installFlexibleScheduleSchema();
 });
 
 function createAttendanceEventShift(User $user, AttendanceLocation $location): EmployeeShift
@@ -79,6 +83,7 @@ describe('attendance events', function () {
 
         expect($event->event_type)->toBe(AttendanceEvent::CLOCK_OUT)
             ->and($event->type)->toBe('WFO')
+            ->and($event->is_flexible)->toBeFalse()
             ->and($event->location_id)->toBe($this->location->id)
             ->and($event->occurred_at->format('Y-m-d H:i'))->toBe('2031-04-21 17:15');
     });
@@ -150,6 +155,114 @@ describe('attendance events', function () {
             ->assertJson(['message' => 'Anda harus berada di kantor untuk melakukan presensi keluar (556 m).']);
 
         expect(AttendanceEvent::query()->count())->toBe(0);
+    });
+
+    it('records a flexible Clock In with a reason and preserves its mode after the schedule changes', function () {
+        $schedule = EmployeeShift::query()->where('user_id', $this->user->id)->firstOrFail();
+        $schedule->update(['is_flexible' => true]);
+
+        $this->postJson(route('attendance.clockIn'), [
+            ...eventRequestData(), 'lat' => -7.5, 'notes' => 'Bekerja dari rumah', 'is_flexible' => false,
+        ])->assertOk();
+
+        $event = AttendanceEvent::query()->where('user_id', $this->user->id)->sole();
+        $schedule->update(['is_flexible' => false]);
+
+        expect($event->fresh()->is_flexible)->toBeTrue()
+            ->and($event->fresh()->notes)->toBe('Bekerja dari rumah')
+            ->and($event->fresh()->is_outside_reference_location)->toBeTrue();
+    });
+
+    it('records a flexible Clock In inside a reference location without a reason', function () {
+        EmployeeShift::query()->where('user_id', $this->user->id)->update(['is_flexible' => true]);
+
+        $this->postJson(route('attendance.clockIn'), eventRequestData())
+            ->assertOk();
+
+        $event = AttendanceEvent::query()->where('user_id', $this->user->id)->sole();
+        expect($event->is_flexible)->toBeTrue()
+            ->and($event->is_outside_reference_location)->toBeFalse()
+            ->and($event->location_id)->toBe($this->location->id)
+            ->and($event->notes)->toBeNull();
+    });
+
+    it('rejects a flexible Clock In with an invalid reason', function ($reason) {
+        EmployeeShift::query()->where('user_id', $this->user->id)->update(['is_flexible' => true]);
+
+        $this->postJson(route('attendance.clockIn'), [...eventRequestData(), 'lat' => -7.5, 'notes' => $reason])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('notes');
+
+        expect(AttendanceEvent::query()->where('user_id', $this->user->id)->count())->toBe(0)
+            ->and(Storage::disk('public')->allFiles())->toBeEmpty();
+    })->with([null, '   ', [['bukan teks']]]);
+
+    it('records a flexible Clock Out without a reason', function () {
+        EmployeeShift::query()->where('user_id', $this->user->id)->update(['is_flexible' => true]);
+
+        $this->postJson(route('attendance.clockOut'), eventRequestData())->assertOk();
+
+        $event = AttendanceEvent::query()->where('user_id', $this->user->id)->sole();
+        expect($event->is_flexible)->toBeTrue()
+            ->and($event->is_outside_reference_location)->toBeFalse()
+            ->and($event->notes)->toBeNull();
+    });
+
+    it('rejects a flexible Clock Out outside a location without a reason', function () {
+        EmployeeShift::query()->where('user_id', $this->user->id)->update(['is_flexible' => true]);
+
+        $this->postJson(route('attendance.clockOut'), [...eventRequestData(), 'lat' => -7.5])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('notes');
+
+        expect(AttendanceEvent::query()->where('user_id', $this->user->id)->count())->toBe(0);
+    });
+
+    it('can store an optional reason on a flexible Clock Out event', function () {
+        EmployeeShift::query()->where('user_id', $this->user->id)->update(['is_flexible' => true]);
+
+        $this->postJson(route('attendance.clockOut'), [
+            ...eventRequestData(), 'notes' => 'Catatan tambahan',
+        ])->assertOk();
+
+        expect(AttendanceEvent::query()->where('user_id', $this->user->id)->sole()->notes)->toBe('Catatan tambahan');
+    });
+
+    it('rejects a recording if the schedule mode changes while the photo is prepared', function () {
+        $schedule = EmployeeShift::query()->where('user_id', $this->user->id)->firstOrFail();
+        $schedule->update(['is_flexible' => true]);
+        $compressor = Mockery::mock(ImageCompressor::class);
+        $compressor->shouldReceive('compressAndStore')->once()->andReturnUsing(function () use ($schedule) {
+            $schedule->update(['is_flexible' => false]);
+            Storage::disk('public')->put('attendance_photos/temporary.jpg', 'photo');
+
+            return 'attendance_photos/temporary.jpg';
+        });
+        $this->app->instance(ImageCompressor::class, $compressor);
+
+        $this->postJson(route('attendance.clockIn'), [
+            ...eventRequestData(), 'notes' => 'Bekerja dari rumah',
+        ])->assertStatus(409);
+
+        expect(AttendanceEvent::query()->where('user_id', $this->user->id)->count())->toBe(0)
+            ->and(Storage::disk('public')->exists('attendance_photos/temporary.jpg'))->toBeFalse();
+    });
+
+    it('shows the reason input for flexible Clock In and Clock Out', function () {
+        $this->get(route('attendance.clockIn.form'))->assertOk()->assertDontSee('id="attendanceReason"', false);
+        EmployeeShift::query()->where('user_id', $this->user->id)->update(['is_flexible' => true]);
+        $this->get(route('attendance.clockIn.form'))->assertOk()->assertSee('id="attendanceReason"', false);
+        $this->get(route('attendance.clockOut.form'))->assertOk()->assertSee('id="attendanceReason"', false);
+    });
+
+    it('keeps remote purpose and does not classify a remote event as WFO flexible', function () {
+        EmployeeShift::query()->where('user_id', $this->user->id)->update(['is_flexible' => true]);
+        $this->postJson(route('remote-attendance.clockIn'), [
+            ...eventRequestData(), 'notes' => 'Kunjungan pelanggan',
+        ])->assertOk();
+
+        $event = AttendanceEvent::query()->where('user_id', $this->user->id)->sole();
+        expect($event->is_flexible)->toBeNull()->and($event->notes)->toBe('Kunjungan pelanggan');
     });
 
     it('requires a remote purpose for remote Clock In and stores no event when it is absent', function () {

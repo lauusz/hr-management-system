@@ -20,7 +20,22 @@ it('allows HR to create and transfer employee assets', function () {
         ->get(route('hr.assets.index'))
         ->assertOk()
         ->assertSee('Inventaris Karyawan')
-        ->assertSee('Tambah Asset');
+        ->assertSee('Tambah Asset')
+        ->assertSee('Total Asset')
+        ->assertSee('Sedang Dipakai')
+        ->assertSee('Tersedia')
+        ->assertSee('data-asset-live-search', false);
+
+    actingAs($hr)
+        ->get(route('hr.assets.create'))
+        ->assertOk()
+        ->assertSee('Tambah Inventaris Karyawan')
+        ->assertSee('Data Asset')
+        ->assertSee('Pemegang Awal')
+        ->assertSee('mlc-banner', false)
+        ->assertSee('mlc-step', false)
+        ->assertSee('apv-action-dock', false)
+        ->assertSee('Simpan Asset');
 
     actingAs($hr)
         ->post(route('hr.assets.store'), [

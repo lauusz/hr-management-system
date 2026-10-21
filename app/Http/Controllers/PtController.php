@@ -8,12 +8,36 @@ use Illuminate\Validation\Rule;
 
 class PtController extends Controller
 {
-     public function index()
+    public function index(Request $request)
     {
-        $items = Pt::orderBy('name')->paginate(20);
+        $q = trim((string) $request->input('q', ''));
+        $status = trim((string) $request->input('status', ''));
+
+        $totalCount = Pt::count();
+        $activeCount = Pt::has('profiles')->count();
+        $emptyCount = $totalCount - $activeCount;
+
+        $query = Pt::withCount('profiles')->orderBy('name');
+
+        if ($q !== '') {
+            $query->where('name', 'like', "%{$q}%");
+        }
+
+        if ($status === 'with_employees') {
+            $query->has('profiles');
+        } elseif ($status === 'without_employees') {
+            $query->doesntHave('profiles');
+        }
+
+        $items = $query->paginate(20)->withQueryString();
 
         return view('hr.pts.index', [
             'items' => $items,
+            'q' => $q,
+            'status' => $status,
+            'totalCount' => $totalCount,
+            'activeCount' => $activeCount,
+            'emptyCount' => $emptyCount,
         ]);
     }
 
@@ -39,6 +63,8 @@ class PtController extends Controller
 
     public function edit(Pt $pt)
     {
+        $pt->loadCount('profiles');
+
         return view('hr.pts.edit', [
             'item' => $pt,
         ]);

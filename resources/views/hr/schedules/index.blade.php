@@ -7,7 +7,7 @@
     @endif
 
     @php
-        $activeScheduleFilterCount = collect([$pt ?? null, $positionId ?? null, $shiftId ?? null])
+        $activeScheduleFilterCount = collect([$pt ?? null, $positionId ?? null, $shiftId ?? null, $locationMode ?? null])
             ->filter(fn ($value) => $value !== null && $value !== '')
             ->count();
         $hasActiveScheduleFilters = $activeScheduleFilterCount > 0;
@@ -74,6 +74,19 @@
                                 @foreach($shiftOptions as $shift)
                                 <option value="{{ $shift->id }}" @selected(($shiftId ?? '') == $shift->id)>{{ $shift->name }}</option>
                                 @endforeach
+                            </select>
+                            <svg class="schedule-select-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="schedule-filter-group">
+                        <label class="schedule-filter-label" for="schedule_location_mode">Lokasi</label>
+                        <div class="schedule-select-wrap">
+                            <select name="location_mode" id="schedule_location_mode" class="schedule-select">
+                                <option value="">Semua Lokasi</option>
+                                <option value="selected" @selected(($locationMode ?? '') === 'selected')>Lokasi Terpilih</option>
+                                <option value="all" @selected(($locationMode ?? '') === 'all')>All Locations</option>
+                                <option value="flexible" @selected(($locationMode ?? '') === 'flexible')>Fleksibel</option>
                             </select>
                             <svg class="schedule-select-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </div>
@@ -217,19 +230,20 @@
             @endif
 
             <p class="bulk-schedule-description">
-                Jadwal baru akan diterapkan untuk <strong id="selected-users-modal-label">0</strong> karyawan terpilih, termasuk jadwal yang sudah ada.
+                Perubahan akan diterapkan untuk <strong id="selected-users-modal-label">0</strong> karyawan terpilih, termasuk jadwal yang sudah ada.
             </p>
 
             <div id="selected-user-ids"></div>
 
             <div class="form-group">
-                <label for="bulk_shift_id">Shift Kerja <span class="req">*</span></label>
-                <select name="shift_id" id="bulk_shift_id" class="form-control" required>
-                    <option value="">-- Pilih Shift --</option>
+                <label for="bulk_shift_id">Shift Kerja <span class="text-muted">(opsional)</span></label>
+                <select name="shift_id" id="bulk_shift_id" class="form-control">
+                    <option value="">-- Pertahankan Shift Saat Ini --</option>
                     @foreach($shiftOptions as $shift)
                     <option value="{{ $shift->id }}" @selected(old('shift_id') == $shift->id)>{{ $shift->name }}</option>
                     @endforeach
                 </select>
+                <small class="text-muted">Kosongkan bila hanya ingin mengubah cakupan lokasi presensi.</small>
             </div>
 
             <div class="form-group">
@@ -246,14 +260,18 @@
                     </label>
                     <label class="location-mode-option">
                         <input type="radio" name="location_mode" value="flexible" @checked($bulkLocationMode === 'flexible')>
-                        <span><strong>Fleksibel</strong><small>Presensi dari lokasi mana pun.</small></span>
+                        <span><strong>Fleksibel</strong><small>Di luar lokasi absen wajib menyertakan alasan saat Clock In.</small></span>
                     </label>
                 </div>
             </div>
 
             <div class="form-group" id="bulk-location-options">
-                <label>Lokasi Presensi <span class="req">*</span></label>
+                <label>Lokasi Absen <span class="req">*</span></label>
                 <div class="location-checkbox-list">
+                    <label class="location-checkbox-option">
+                        <input type="checkbox" id="bulk-select-all-locations" aria-label="Pilih semua lokasi absen">
+                        <span>Pilih semua</span>
+                    </label>
                     @foreach($locationOptions as $location)
                     <label class="location-checkbox-option">
                         <input type="checkbox" name="location_ids[]" value="{{ $location->id }}" @checked(in_array($location->id, $selectedLocationIds))>
@@ -551,7 +569,7 @@
             .schedule-btn-toggle-filter { flex-shrink: 0; }
             .schedule-filter-panel { margin: 16px -20px -16px; padding: 16px 20px; }
             .schedule-filter-form { padding: 16px 20px; }
-            .schedule-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 16px; }
+            .schedule-filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: end; gap: 16px; }
             .schedule-filter-actions { grid-column: 1 / -1; justify-content: flex-end; }
             .schedule-btn-apply { width: auto; }
         }
@@ -570,7 +588,8 @@
             const selectedModalLabel = document.getElementById('selected-users-modal-label');
             const locationModes = Array.from(document.querySelectorAll('input[name="location_mode"]'));
             const locationOptionsContainer = document.getElementById('bulk-location-options');
-            const locationOptions = Array.from(document.querySelectorAll('#bulk-location-options input[type="checkbox"]'));
+            const locationOptions = Array.from(document.querySelectorAll('#bulk-location-options input[name="location_ids[]"]'));
+            const selectAllLocations = document.getElementById('bulk-select-all-locations');
             const filterToggle = document.getElementById('schedule-filter-toggle');
             const filterPanel = document.getElementById('schedule-filter-panel');
             const filterForm = document.querySelector('.schedule-filter-form');
@@ -643,13 +662,27 @@
 
             function syncLocationOptions() {
                 const selectedMode = locationModes.find((input) => input.checked)?.value;
+                const isLocationMode = ['selected', 'flexible'].includes(selectedMode);
                 locationOptions.forEach((checkbox) => {
-                    checkbox.disabled = selectedMode !== 'selected';
+                    checkbox.disabled = !isLocationMode;
                 });
-                locationOptionsContainer.hidden = selectedMode !== 'selected';
+                if (selectAllLocations) {
+                    const selectedCount = locationOptions.filter((checkbox) => checkbox.checked).length;
+                    selectAllLocations.checked = locationOptions.length > 0 && selectedCount === locationOptions.length;
+                    selectAllLocations.indeterminate = selectedCount > 0 && selectedCount < locationOptions.length;
+                    selectAllLocations.disabled = !isLocationMode;
+                }
+                locationOptionsContainer.hidden = !isLocationMode;
             }
 
             locationModes.forEach((input) => input.addEventListener('change', syncLocationOptions));
+            selectAllLocations?.addEventListener('change', function () {
+                locationOptions.forEach((checkbox) => {
+                    checkbox.checked = this.checked;
+                });
+                syncLocationOptions();
+            });
+            locationOptions.forEach((checkbox) => checkbox.addEventListener('change', syncLocationOptions));
 
             document.addEventListener('click', function (event) {
                 const modalTarget = event.target.closest('[data-schedule-results] [data-modal-target]');

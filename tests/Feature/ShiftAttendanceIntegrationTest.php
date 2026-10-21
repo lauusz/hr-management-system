@@ -167,12 +167,13 @@ it('allows HR to assign Fleksibel for WFO attendance outside an office radius', 
                 'user_ids' => [$employee->id],
                 'shift_id' => $shift->id,
                 'location_mode' => 'flexible',
+                'location_ids' => [$location->id],
             ])
             ->assertRedirect(route('hr.schedules.index'));
 
         $this->assertDatabaseHas('employee_shifts', [
             'user_id' => $employee->id,
-            'location_id' => null,
+            'location_id' => $location->id,
             'is_all_locations' => false,
             'is_flexible' => true,
         ]);
@@ -182,6 +183,7 @@ it('allows HR to assign Fleksibel for WFO attendance outside an office radius', 
                 'photo' => UploadedFile::fake()->image('all-locations.jpg', 800, 600),
                 'lat' => -6.205000,
                 'lng' => 106.816666,
+                'notes' => 'Bekerja di luar kantor',
             ])
             ->assertOk()
             ->assertJson(['message' => 'Presensi masuk berhasil.']);
@@ -190,6 +192,7 @@ it('allows HR to assign Fleksibel for WFO attendance outside an office radius', 
             'user_id' => $employee->id,
             'type' => 'WFO',
             'location_id' => null,
+            'is_outside_reference_location' => true,
         ]);
     } finally {
         Carbon::setTestNow();
@@ -349,4 +352,82 @@ it('menampilkan semua user dan kontrol penetapan jadwal massal', function () {
         ->assertSee('Z User Terakhir')
         ->assertSee('Atur Jadwal Terpilih')
         ->assertSee('select-all-users', false);
+});
+
+it('menampilkan halaman master shift dengan ringkasan statistik, pencarian, dan filter status', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+
+    $activeShift = Shift::factory()->create([
+        'name' => 'Shift Pagi Reguler',
+        'description' => 'Jam kerja pagi kantor pusat',
+        'is_active' => true,
+    ]);
+    ShiftDay::factory()->create([
+        'shift_id' => $activeShift->id,
+        'day_of_week' => 1,
+        'start_time' => '08:00:00',
+        'end_time' => '17:00:00',
+        'is_holiday' => false,
+    ]);
+
+    Shift::factory()->create([
+        'name' => 'Shift Malam Nonaktif',
+        'description' => 'Shift cadangan lama',
+        'is_active' => false,
+    ]);
+
+    $this->actingAs($hrd, 'web')
+        ->get(route('hr.shifts.index'))
+        ->assertOk()
+        ->assertSee('Master Shift Kerja')
+        ->assertSee('Total Shift')
+        ->assertSee('Shift Pagi Reguler')
+        ->assertSee('Shift Malam Nonaktif')
+        ->assertSee('data-shift-live-search', false);
+
+    $this->actingAs($hrd, 'web')
+        ->get(route('hr.shifts.index', ['status' => 'active']))
+        ->assertOk()
+        ->assertSee('Shift Pagi Reguler')
+        ->assertDontSee('Shift Malam Nonaktif');
+
+    $this->actingAs($hrd, 'web')
+        ->get(route('hr.shifts.index', ['q' => 'Cadangan']))
+        ->assertOk()
+        ->assertSee('Shift Malam Nonaktif')
+        ->assertDontSee('Shift Pagi Reguler');
+});
+
+it('menampilkan halaman edit shift dengan pola kartu detail dan aksi simpan tetap terlihat', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $shift = Shift::factory()->create([
+        'name' => 'Shift Operasional',
+        'description' => 'Jadwal operasional harian',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($hrd, 'web')
+        ->get(route('hr.shifts.edit', $shift))
+        ->assertOk()
+        ->assertSee('Edit Shift Kerja')
+        ->assertSee('Shift Operasional')
+        ->assertSee('schedule-edit-action-bar', false)
+        ->assertSee('Simpan Perubahan');
+});
+
+it('menampilkan halaman tambah shift dengan pola kartu langkah dan bilah aksi bawah yang konsisten', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+
+    $this->actingAs($hrd, 'web')
+        ->get(route('hr.shifts.create'))
+        ->assertOk()
+        ->assertSee('Tambah Shift Kerja')
+        ->assertSee('Identitas Shift Kerja')
+        ->assertSee('Pengaturan Jadwal Harian')
+        ->assertSee('mlc-banner', false)
+        ->assertSee('mlc-step', false)
+        ->assertSee('apv-action-dock', false)
+        ->assertSee('apv-action-btn--secondary', false)
+        ->assertSee('apv-action-btn--primary', false)
+        ->assertSee('Simpan Shift');
 });

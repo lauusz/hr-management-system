@@ -22,6 +22,11 @@ class ScheduleController extends Controller
         $ptFilter = $request->get('pt_id');
         $positionFilter = $request->get('position_id');
         $shiftFilter = $request->get('shift_id');
+        $locationModeFilter = $request->get('location_mode');
+
+        if (! in_array($locationModeFilter, ['selected', 'all', 'flexible'], true)) {
+            $locationModeFilter = null;
+        }
 
         $query = User::query()
             ->leftJoin('employee_profiles', 'employee_profiles.user_id', '=', 'users.id')
@@ -67,6 +72,16 @@ class ScheduleController extends Controller
             $query->where('employee_shifts.shift_id', $shiftFilter);
         }
 
+        if ($locationModeFilter === 'all') {
+            $query->where('employee_shifts.is_all_locations', true);
+        } elseif ($locationModeFilter === 'flexible') {
+            $query->where('employee_shifts.is_flexible', true);
+        } elseif ($locationModeFilter === 'selected') {
+            $query->whereNotNull('employee_shifts.id')
+                ->where(fn ($query) => $query->whereNull('employee_shifts.is_all_locations')->orWhere('employee_shifts.is_all_locations', false))
+                ->where(fn ($query) => $query->whereNull('employee_shifts.is_flexible')->orWhere('employee_shifts.is_flexible', false));
+        }
+
         $items = $query->get();
 
         if ($this->hasLocationAssignmentsTable()) {
@@ -105,15 +120,17 @@ class ScheduleController extends Controller
             'positionOptions' => $positionOptions,
             'shiftId' => $shiftFilter,
             'shiftOptions' => $shiftOptions,
+            'locationMode' => $locationModeFilter,
             'locationOptions' => $locationOptions,
         ]);
     }
 
     public function store(Request $request)
     {
-        $usesLocationAssignments = $this->usesLocationAssignments($request);
         $this->normalizeLocationInput($request);
         $locationMode = $request->input('location_mode');
+        $usesLocationAssignments = $this->usesLocationAssignments($request);
+        $hasShift = $request->filled('shift_id');
 
         $validated = $request->validate([
             'user_ids' => [
@@ -122,9 +139,9 @@ class ScheduleController extends Controller
                 'min:1',
             ],
             'user_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
-            'shift_id' => ['required', 'exists:shifts,id'],
+            'shift_id' => ['nullable', 'exists:shifts,id'],
             'location_mode' => ['required', Rule::in(['selected', 'all', 'flexible'])],
-            'location_ids' => $locationMode === 'selected'
+            'location_ids' => in_array($locationMode, ['selected', 'flexible'], true)
                 ? ['required', 'array', 'min:1']
                 : ['prohibited'],
             'location_ids.*' => ['required', 'integer', 'distinct', Rule::exists('attendance_locations', 'id')->where('is_active', true)],
@@ -136,24 +153,51 @@ class ScheduleController extends Controller
         $isFlexible = $validated['location_mode'] === 'flexible';
         $locationIds = $validated['location_ids'] ?? [];
 
-        DB::transaction(function () use ($validated, $isAllLocations, $isFlexible, $locationIds, $usesLocationAssignments) {
+        $skippedWithoutShift = DB::transaction(function () use ($validated, $hasShift, $isAllLocations, $isFlexible, $locationIds, $usesLocationAssignments) {
+            $skipped = 0;
+
             foreach ($validated['user_ids'] as $userId) {
-                $schedule = EmployeeShift::updateOrCreate(['user_id' => $userId], [
-                    'shift_id' => $validated['shift_id'],
-                    'location_id' => $isAllLocations || $isFlexible ? null : $locationIds[0],
+                $schedule = EmployeeShift::where('user_id', $userId)->first();
+
+                if (! $schedule && ! $hasShift) {
+                    $skipped++;
+                    continue;
+                }
+
+                $attributes = [
+                    'location_id' => $isAllLocations ? null : $locationIds[0],
                     'is_all_locations' => $isAllLocations,
                     'is_flexible' => $isFlexible,
-                ]);
+                ];
+
+                if ($hasShift) {
+                    $attributes['shift_id'] = $validated['shift_id'];
+                }
+
+                if ($schedule) {
+                    $schedule->update($attributes);
+                } else {
+                    $schedule = EmployeeShift::create($attributes + ['user_id' => $userId, 'shift_id' => $validated['shift_id']]);
+                }
 
                 if ($usesLocationAssignments) {
-                    $schedule->locations()->sync($isAllLocations || $isFlexible ? [] : $locationIds);
+                    $schedule->locations()->sync($isAllLocations ? [] : $locationIds);
                 }
             }
+
+            return $skipped;
         });
+
+        $updatedCount = count($validated['user_ids']) - $skippedWithoutShift;
+        $message = 'Jadwal untuk '.$updatedCount.' karyawan berhasil disimpan.';
+
+        if ($skippedWithoutShift > 0) {
+            $message .= ' '.$skippedWithoutShift.' karyawan tanpa shift tidak diubah.';
+        }
 
         return redirect()
             ->route('hr.schedules.index')
-            ->with('success', 'Jadwal untuk '.count($validated['user_ids']).' karyawan berhasil disimpan.');
+            ->with('success', $message);
     }
 
     public function edit(EmployeeShift $schedule)
@@ -176,9 +220,9 @@ class ScheduleController extends Controller
 
     public function update(Request $request, EmployeeShift $schedule)
     {
-        $usesLocationAssignments = $this->usesLocationAssignments($request);
         $this->normalizeLocationInput($request);
         $locationMode = $request->input('location_mode');
+        $usesLocationAssignments = $this->usesLocationAssignments($request);
 
         $validated = $request->validate([
             'user_id' => [
@@ -188,7 +232,7 @@ class ScheduleController extends Controller
             ],
             'shift_id' => ['required', 'exists:shifts,id'],
             'location_mode' => ['required', Rule::in(['selected', 'all', 'flexible'])],
-            'location_ids' => $locationMode === 'selected'
+            'location_ids' => in_array($locationMode, ['selected', 'flexible'], true)
                 ? ['required', 'array', 'min:1']
                 : ['prohibited'],
             'location_ids.*' => ['required', 'integer', 'distinct', Rule::exists('attendance_locations', 'id')->where('is_active', true)],
@@ -205,13 +249,13 @@ class ScheduleController extends Controller
         $schedule->update([
             'user_id' => $validated['user_id'],
             'shift_id' => $validated['shift_id'],
-            'location_id' => $isAllLocations || $isFlexible ? null : $locationIds[0],
+            'location_id' => $isAllLocations ? null : $locationIds[0],
             'is_all_locations' => $isAllLocations,
             'is_flexible' => $isFlexible,
         ]);
 
         if ($usesLocationAssignments) {
-            $schedule->locations()->sync($isAllLocations || $isFlexible ? [] : $locationIds);
+            $schedule->locations()->sync($isAllLocations ? [] : $locationIds);
         }
 
         return redirect()
@@ -230,7 +274,7 @@ class ScheduleController extends Controller
 
     private function usesLocationAssignments(Request $request): bool
     {
-        return $request->has('location_ids') || $request->input('location_mode') === 'selected';
+        return in_array($request->input('location_mode'), ['selected', 'flexible'], true);
     }
 
     private function normalizeLocationInput(Request $request): void
