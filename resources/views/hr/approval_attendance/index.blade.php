@@ -169,7 +169,6 @@
 
         @php
             $activeAttendanceFilterCount = collect([
-                $filters['submitted_range'] ?? null,
                 $filters['name'] ?? null,
                 $filters['event_type'] ?? null,
             ])->filter()->count();
@@ -191,7 +190,6 @@
                 </div>
                 <div class="aa-filter-panel" id="approval-attendance-filter-panel" style="{{ $activeAttendanceFilterCount ? '' : 'display: none;' }}">
                     <div class="aa-filter-grid">
-                        <div class="aa-filter-group"><label class="aa-filter-label" for="attendance-filter-date-range">Tanggal Pengajuan</label><input id="attendance-filter-date-range" type="text" name="submitted_range" value="{{ $filters['submitted_range'] ?? '' }}" placeholder="Pilih rentang tanggal" class="aa-filter-input" autocomplete="off"></div>
                         <div class="aa-filter-group"><label class="aa-filter-label" for="attendance-filter-event-type">Tipe Absensi</label><select id="attendance-filter-event-type" name="event_type" class="aa-filter-input"><option value="">Semua</option><option value="CLOCK_IN" @selected(($filters['event_type'] ?? null) === 'CLOCK_IN')>Clock In</option><option value="CLOCK_OUT" @selected(($filters['event_type'] ?? null) === 'CLOCK_OUT')>Clock Out</option></select></div>
                         <div class="aa-filter-actions"><button type="submit" class="aa-btn-apply">Terapkan Filter</button></div>
                     </div>
@@ -362,9 +360,6 @@
         </div>
     </div>
 
-    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
-    <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
-
     {{-- JAVASCRIPT LOGIC --}}
     <script>
         // --- Logic Approve Modal (X-Modal) ---
@@ -530,13 +525,6 @@
             let request;
 
             initializeApprovalAttendanceInteractions();
-
-            flatpickr('#attendance-filter-date-range', {
-                mode: 'range',
-                dateFormat: 'Y-m-d',
-                allowInput: true,
-                locale: { rangeSeparator: ' sampai ' },
-            });
 
             if (!form || !input || !results) return;
 

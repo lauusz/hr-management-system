@@ -242,20 +242,28 @@
 
                     <div class="mlc-grid-2">
                         <div class="mlc-field">
-                            <label for="current_user_id" class="mlc-label">
+                            <label for="current_user_search" class="mlc-label">
                                 Karyawan
                             </label>
-                            <div class="mlc-select-wrap">
-                                <select class="mlc-select @error('current_user_id') mlc-input--invalid @enderror" id="current_user_id" name="current_user_id">
+                            <div class="asset-user-picker">
+                                <input
+                                    class="mlc-input @error('current_user_id') mlc-input--invalid @enderror"
+                                    id="current_user_search"
+                                    type="search"
+                                    placeholder="Ketik nama karyawan..."
+                                    autocomplete="off"
+                                    aria-controls="current_user_suggestions"
+                                    aria-expanded="false"
+                                    value="{{ old('current_user_id') ? optional($users->firstWhere('id', (int) old('current_user_id')))->name : '' }}">
+                                <div id="current_user_suggestions" class="asset-user-suggestions" role="listbox" aria-label="Saran karyawan" hidden></div>
+                                <select id="current_user_id" name="current_user_id" class="asset-user-select-hidden" tabindex="-1" aria-hidden="true">
                                     <option value="">Belum diserahkan</option>
                                     @foreach($users as $user)
                                         <option value="{{ $user->id }}" @selected((string) old('current_user_id') === (string) $user->id)>{{ $user->name }}</option>
                                     @endforeach
                                 </select>
-                                <svg class="mlc-select__arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                                </svg>
                             </div>
+                            <p class="mlc-helper">Ketik nama, lalu pilih karyawan dari daftar saran.</p>
                         </div>
 
                         <div class="mlc-field">
@@ -282,8 +290,9 @@
                             <input
                                 class="mlc-input @error('movement_date') mlc-input--invalid @enderror"
                                 id="movement_date"
-                                type="date"
+                                type="text"
                                 name="movement_date"
+                                autocomplete="off"
                                 value="{{ old('movement_date', now()->toDateString()) }}">
                         </div>
 
@@ -348,8 +357,17 @@
 
     </div>
 
+    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
+    <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            if (typeof flatpickr === 'function') {
+                flatpickr('#movement_date', {
+                    dateFormat: 'Y-m-d',
+                    allowInput: true,
+                });
+            }
+
             document.querySelectorAll('.js-upload-input').forEach(function(input) {
                 const title = document.getElementById(input.dataset.title);
                 const desc = document.getElementById(input.dataset.desc);
@@ -361,6 +379,79 @@
                     desc.textContent = file ? this.dataset.filledDesc : this.dataset.emptyDesc;
                 });
             });
+
+            const currentUserSelect = document.getElementById('current_user_id');
+            const currentUserSearch = document.getElementById('current_user_search');
+            const currentUserSuggestions = document.getElementById('current_user_suggestions');
+
+            if (currentUserSelect && currentUserSearch && currentUserSuggestions) {
+                const hideSuggestions = function() {
+                    currentUserSuggestions.hidden = true;
+                    currentUserSuggestions.replaceChildren();
+                    currentUserSearch.setAttribute('aria-expanded', 'false');
+                };
+
+                const selectUser = function(value) {
+                    currentUserSelect.value = value;
+                    currentUserSearch.value = currentUserSelect.options[currentUserSelect.selectedIndex]?.textContent.trim() || '';
+                    hideSuggestions();
+                };
+
+                const showSuggestions = function(keyword) {
+                    const query = keyword.trim().toLowerCase();
+                    if (!query) {
+                        hideSuggestions();
+                        return;
+                    }
+
+                    const matches = Array.from(currentUserSelect.options)
+                        .filter(function(option) {
+                            return option.value && option.textContent.toLowerCase().includes(query);
+                        })
+                        .slice(0, 30);
+                    const fragment = document.createDocumentFragment();
+
+                    if (matches.length === 0) {
+                        const empty = document.createElement('div');
+                        empty.className = 'asset-user-suggestion-empty';
+                        empty.textContent = 'Karyawan tidak ditemukan.';
+                        fragment.appendChild(empty);
+                    } else {
+                        matches.forEach(function(option) {
+                            const button = document.createElement('button');
+                            button.type = 'button';
+                            button.className = 'asset-user-suggestion';
+                            button.setAttribute('role', 'option');
+                            button.textContent = option.textContent.trim();
+                            button.addEventListener('click', function() {
+                                selectUser(option.value);
+                            });
+                            fragment.appendChild(button);
+                        });
+                    }
+
+                    currentUserSuggestions.replaceChildren(fragment);
+                    currentUserSuggestions.hidden = false;
+                    currentUserSearch.setAttribute('aria-expanded', 'true');
+                };
+
+                currentUserSearch.addEventListener('input', function() {
+                    currentUserSelect.value = '';
+                    showSuggestions(currentUserSearch.value);
+                });
+
+                currentUserSearch.addEventListener('focus', function() {
+                    showSuggestions(currentUserSearch.value);
+                });
+
+                currentUserSearch.addEventListener('keydown', function(event) {
+                    if (event.key === 'Escape') hideSuggestions();
+                });
+
+                document.addEventListener('click', function(event) {
+                    if (!event.target.closest('.asset-user-picker')) hideSuggestions();
+                });
+            }
         });
     </script>
 
@@ -597,6 +688,59 @@
             transform: translateY(-50%);
             color: var(--text-light, #9CA3AF);
             pointer-events: none;
+        }
+        .mlc-helper {
+            margin: 6px 0 0;
+            font-size: 0.75rem;
+            color: var(--text-muted, #6B7280);
+            line-height: 1.4;
+        }
+        .asset-user-picker { position: relative; }
+        .asset-user-select-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .asset-user-suggestions {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 100;
+            max-height: 280px;
+            overflow-y: auto;
+            padding: 6px;
+            background: var(--white, #fff);
+            border: 1.5px solid var(--border, #E5E7EB);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .asset-user-suggestion {
+            display: block;
+            width: 100%;
+            padding: 11px 12px;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-primary, #111827);
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.9375rem;
+            text-align: left;
+        }
+        .asset-user-suggestion:hover,
+        .asset-user-suggestion:focus {
+            background: var(--gray-50, #F5F7FA);
+            color: var(--primary, #145DA0);
+            outline: none;
+        }
+        .asset-user-suggestion-empty {
+            padding: 12px;
+            color: var(--text-muted, #6B7280);
+            font-size: 0.875rem;
+            text-align: center;
         }
         .mlc-textarea {
             resize: vertical;

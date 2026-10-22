@@ -28,7 +28,7 @@ class ScheduleController extends Controller
             $locationModeFilter = null;
         }
 
-        $query = User::query()
+        $query = User::active()
             ->leftJoin('employee_profiles', 'employee_profiles.user_id', '=', 'users.id')
             ->leftJoin('pts', 'pts.id', '=', 'employee_profiles.pt_id')
             ->leftJoin('positions', 'positions.id', '=', 'users.position_id')
@@ -138,7 +138,7 @@ class ScheduleController extends Controller
                 'array',
                 'min:1',
             ],
-            'user_ids.*' => ['required', 'integer', 'distinct', 'exists:users,id'],
+            'user_ids.*' => ['required', 'integer', 'distinct', Rule::exists('users', 'id')->where('status', User::STATUS_ACTIVE)],
             'shift_id' => ['nullable', 'exists:shifts,id'],
             'location_mode' => ['required', Rule::in(['selected', 'all', 'flexible'])],
             'location_ids' => in_array($locationMode, ['selected', 'flexible'], true)
@@ -202,8 +202,6 @@ class ScheduleController extends Controller
 
     public function edit(EmployeeShift $schedule)
     {
-        $users = User::orderBy('name')->get();
-
         $shifts = Shift::query()
             ->where('is_active', true)
             ->orderBy('name')
@@ -215,7 +213,7 @@ class ScheduleController extends Controller
 
         $selectedLocationIds = $this->selectedLocationIds($schedule);
 
-        return view('hr.schedules.edit', compact('schedule', 'users', 'shifts', 'locations', 'selectedLocationIds'));
+        return view('hr.schedules.edit', compact('schedule', 'shifts', 'locations', 'selectedLocationIds'));
     }
 
     public function update(Request $request, EmployeeShift $schedule)
@@ -227,7 +225,7 @@ class ScheduleController extends Controller
         $validated = $request->validate([
             'user_id' => [
                 'required',
-                'exists:users,id',
+                Rule::exists('users', 'id')->where('status', User::STATUS_ACTIVE),
                 Rule::unique('employee_shifts', 'user_id')->ignore($schedule->id),
             ],
             'shift_id' => ['required', 'exists:shifts,id'],

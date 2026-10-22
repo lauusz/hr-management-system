@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\AttendanceEvent;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -14,13 +13,11 @@ class ApprovalAttendanceController extends Controller
     {
         $this->ensureApprovalSchema();
         $filters = $request->validate([
-            'submitted_range' => ['nullable', 'string', 'max:50'],
             'name' => ['nullable', 'string', 'max:100'],
             'event_type' => ['nullable', 'in:CLOCK_IN,CLOCK_OUT'],
             'tab' => ['nullable', 'in:flexible,remote'],
         ]);
         $name = trim($filters['name'] ?? '');
-        $submittedRange = trim($filters['submitted_range'] ?? '');
         $tab = $filters['tab'] ?? 'flexible';
 
         $pendingAttendances = AttendanceEvent::query()
@@ -29,17 +26,6 @@ class ApprovalAttendanceController extends Controller
             ->where('type', $tab === 'remote' ? 'DINAS_LUAR' : 'WFO')
             ->when($name !== '', fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery->whereNormalizedNameContains($name)))
             ->when($filters['event_type'] ?? null, fn ($query, $eventType) => $query->where('event_type', $eventType))
-            ->when($submittedRange !== '', function ($query) use ($submittedRange) {
-                try {
-                    $dates = preg_split('/\s+(to|sampai)\s+/i', $submittedRange);
-                    $query->whereBetween('occurred_at', [
-                        Carbon::parse(trim($dates[0]))->startOfDay(),
-                        Carbon::parse(trim($dates[1] ?? $dates[0]))->endOfDay(),
-                    ]);
-                } catch (\Throwable) {
-                    // Input manual yang tidak valid diabaikan seperti filter master cuti.
-                }
-            })
             ->latest('occurred_at')
             ->get();
 

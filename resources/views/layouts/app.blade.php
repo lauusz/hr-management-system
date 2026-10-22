@@ -1116,7 +1116,7 @@
         $hrAssetOpen = request()->routeIs('hr.assets.*');
         $pendingAttendanceApprovalCount = \Illuminate\Support\Facades\Schema::hasColumn('attendance_events', 'is_flexible')
           && \Illuminate\Support\Facades\Schema::hasColumn('attendance_events', 'is_outside_reference_location')
-          ? \App\Models\AttendanceEvent::query()->pendingApproval()->distinct()->count('user_id')
+          ? \App\Models\AttendanceEvent::query()->pendingApproval()->where('type', 'WFO')->count()
           : 0;
         @endphp
 
