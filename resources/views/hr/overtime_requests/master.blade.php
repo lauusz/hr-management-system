@@ -39,7 +39,7 @@
         $activeFilterCount = (int) $hasDateFilter + (int) !empty($status);
         $hasAdvancedFilter = $activeFilterCount > 0;
         $statusLabels = [
-            \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR => 'Menunggu SPV dan Manager',
+            \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR => 'Menunggu Persetujuan SPV',
             \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
             \App\Models\OvertimeRequest::STATUS_APPROVED_HRD => 'Disetujui',
             \App\Models\OvertimeRequest::STATUS_REJECTED => 'Ditolak',
@@ -101,7 +101,7 @@
                         <th style="width: 50px;">#</th>
                         <th>Karyawan</th>
                         <th>Tanggal Lembur</th>
-                        <th>Waktu & Durasi</th>
+                        <th>Waktu</th>
                         <th>Status / Supervisor</th>
                         <th>Clock In</th>
                         <th>Clock Out</th>
@@ -154,7 +154,6 @@
                             </td>
                             <td>
                                 <span class="hom-text-date">{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</span>
-                                <div class="hom-text-muted hom-text-xs" style="font-weight: 600;">{{ $overtime->duration_human }}</div>
                             </td>
                             <td>
                                 <span class="hom-badge {{ $badgeClass }}">

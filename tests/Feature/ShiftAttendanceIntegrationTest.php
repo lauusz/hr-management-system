@@ -398,6 +398,31 @@ it('menampilkan halaman master shift dengan ringkasan statistik, pencarian, dan 
         ->assertDontSee('Shift Pagi Reguler');
 });
 
+it('menampilkan pengguna aktif yang memakai shift pada modal daftar pengguna', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $shift = Shift::factory()->create(['name' => 'Shift Pagi']);
+    $otherShift = Shift::factory()->create(['name' => 'Shift Malam']);
+    $firstUser = User::factory()->create(['name' => 'Andi Pagi']);
+    $secondUser = User::factory()->create(['name' => 'Budi Pagi']);
+    $inactiveUser = User::factory()->create(['name' => 'Citra Nonaktif', 'status' => 'INACTIVE']);
+
+    EmployeeShift::create(['user_id' => $firstUser->id, 'shift_id' => $shift->id]);
+    EmployeeShift::create(['user_id' => $secondUser->id, 'shift_id' => $shift->id]);
+    EmployeeShift::create(['user_id' => $inactiveUser->id, 'shift_id' => $shift->id]);
+
+    $response = $this->actingAs($hrd, 'web')->get(route('hr.shifts.index'));
+
+    expect($response->viewData('shiftUsers')->get($shift->id)->pluck('name')->all())
+        ->toBe(['Andi Pagi', 'Budi Pagi']);
+
+    $response
+        ->assertOk()
+        ->assertSee('Andi Pagi')
+        ->assertSee('Budi Pagi')
+        ->assertDontSee('Citra Nonaktif')
+        ->assertSee('Shift Malam');
+});
+
 it('menampilkan halaman edit shift dengan pola kartu detail dan aksi simpan tetap terlihat', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);
     $shift = Shift::factory()->create([

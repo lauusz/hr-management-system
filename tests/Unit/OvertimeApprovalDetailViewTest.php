@@ -97,12 +97,12 @@ it('retains the previously entered rejection reason after validation redirects b
     expect($xpath->query('//textarea[@name="rejection_note"]')->item(0)->textContent)->toBe('Alasan sebelumnya');
 });
 
-it('only offers decision controls to a pending assigned approver with both assignments complete', function () {
+it('only offers decision controls to the pending assigned supervisor', function () {
     $mapping = (object) ['supervisor_id' => 10, 'manager_id' => 20];
-    $incomplete = (object) ['supervisor_id' => 10, 'manager_id' => null];
+    $manager = (object) ['supervisor_id' => 20, 'manager_id' => 10];
     $approved = [(object) ['approval_round' => 1, 'action' => 'APPROVE', 'decision_slot' => 'SUPERVISOR', 'actor_id' => 10]];
 
-    foreach ([renderOvertimeApprovalDetail($incomplete, []), renderOvertimeApprovalDetail($mapping, $approved), renderOvertimeApprovalDetail($mapping, [], 'REJECTED')] as $html) {
+    foreach ([renderOvertimeApprovalDetail($manager, [], role: 'MANAGER'), renderOvertimeApprovalDetail($mapping, $approved), renderOvertimeApprovalDetail($mapping, [], 'REJECTED')] as $html) {
         $xpath = overtimeDetailXPath($html);
         expect($xpath->query('//button[@data-modal-target="overtime-approve" or @data-modal-target="overtime-reject"]')->length)->toBe(0);
     }

@@ -120,3 +120,52 @@ it('keeps supervisor overtime routes closed for employee leave approver without 
         ->get(route('supervisor.overtime-requests.index'))
         ->assertStatus(403);
 });
+
+it('shows overtime detail only to its owner', function () {
+    $owner = User::factory()->create(['role' => \App\Enums\UserRole::EMPLOYEE]);
+    $otherUser = User::factory()->create(['role' => \App\Enums\UserRole::EMPLOYEE]);
+    $overtime = OvertimeRequest::create([
+        'user_id' => $owner->id,
+        'overtime_date' => now()->toDateString(),
+        'start_time' => '17:00',
+        'end_time' => '20:00',
+        'duration_minutes' => 180,
+        'description' => 'Lembur rutin',
+        'status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR,
+    ]);
+
+    actingAs($owner)
+        ->get(route('overtime-requests.show', $overtime))
+        ->assertOk()
+        ->assertSee('Detail Pengajuan Lembur');
+
+    actingAs($otherUser)
+        ->get(route('overtime-requests.show', $overtime))
+        ->assertRedirect(route('overtime-requests.index'))
+        ->assertSessionHas('error', 'Anda tidak berhak melihat data pengajuan ini.');
+});
+
+it('allows editing only while overtime is waiting for supervisor approval', function () {
+    $owner = User::factory()->create(['role' => \App\Enums\UserRole::EMPLOYEE]);
+    $overtime = OvertimeRequest::create([
+        'user_id' => $owner->id,
+        'overtime_date' => now()->toDateString(),
+        'start_time' => '17:00',
+        'end_time' => '20:00',
+        'duration_minutes' => 180,
+        'description' => 'Lembur rutin',
+        'status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR,
+    ]);
+
+    actingAs($owner)
+        ->get(route('overtime-requests.edit', $overtime))
+        ->assertOk()
+        ->assertSee('Ubah Pengajuan Lembur');
+
+    $overtime->update(['status' => OvertimeRequest::STATUS_APPROVED_SUPERVISOR]);
+
+    actingAs($owner)
+        ->get(route('overtime-requests.edit', $overtime))
+        ->assertRedirect(route('overtime-requests.index'))
+        ->assertSessionHas('error', 'Pengajuan sudah diproses SPV, tidak dapat diubah.');
+});

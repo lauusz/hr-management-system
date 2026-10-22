@@ -121,7 +121,7 @@ class OvertimeRequest extends Model
     public function getStatusLabelAttribute()
     {
         return match ($this->status) {
-            self::STATUS_PENDING_SUPERVISOR => 'Menunggu SPV dan Manager',
+            self::STATUS_PENDING_SUPERVISOR => 'Menunggu Persetujuan SPV',
             self::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
             self::STATUS_APPROVED_HRD => 'Disetujui',
             self::STATUS_REJECTED => 'Ditolak',
@@ -136,7 +136,7 @@ class OvertimeRequest extends Model
     public function getHrdStatusLabelAttribute()
     {
         return match ($this->status) {
-            self::STATUS_PENDING_SUPERVISOR => 'Menunggu SPV dan Manager',
+            self::STATUS_PENDING_SUPERVISOR => 'Menunggu Persetujuan SPV',
             self::STATUS_APPROVED_SUPERVISOR => 'Disetujui',
             self::STATUS_APPROVED_HRD => 'Disetujui',
             self::STATUS_REJECTED => 'Ditolak',

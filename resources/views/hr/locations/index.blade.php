@@ -164,7 +164,12 @@
                                     <div class="lm-employee">
                                         <div class="lm-employee-avatar">{{ strtoupper(substr($loc->name, 0, 1)) }}</div>
                                         <div class="lm-employee-info" style="min-width: 0;">
-                                            <span class="lm-employee-name">{{ $loc->name }}</span>
+                                            <button type="button"
+                                                class="lm-location-users-trigger"
+                                                data-modal-target="location-users-{{ $loc->id }}"
+                                                aria-haspopup="dialog">
+                                                {{ $loc->name }}
+                                            </button>
                                             <div class="lm-employee-detail lm-text-truncate" title="{{ $loc->address }}">
                                                 {{ $loc->address ?: 'Alamat belum diisi' }}
                                             </div>
@@ -237,6 +242,25 @@
     {{-- Delete Confirmation Modals --}}
     <div data-location-modals>
         @foreach($items as $loc)
+            @php($usersAtLocation = $locationUsers->get($loc->id, collect()))
+            <x-modal
+                id="location-users-{{ $loc->id }}"
+                title="Pengguna di {{ $loc->name }}"
+                type="info"
+                variant="info"
+                cancelLabel="Tutup">
+                @if($usersAtLocation->isEmpty())
+                    <p class="lm-location-users-empty">Belum ada pengguna yang terdaftar pada lokasi ini.</p>
+                @else
+                    <p class="lm-location-users-count">{{ $usersAtLocation->count() }} pengguna terdaftar pada lokasi ini.</p>
+                    <ul class="lm-location-users-list">
+                        @foreach($usersAtLocation as $user)
+                            <li>{{ $user->name }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+            </x-modal>
+
             <x-modal
                 id="delete-location-{{ $loc->id }}"
                 title="Hapus Lokasi?"
@@ -743,6 +767,42 @@
             font-weight: 600;
             color: var(--text-primary);
             text-decoration: none;
+        }
+        .lm-location-users-trigger {
+            padding: 0;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font: inherit;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+        .lm-location-users-trigger:hover,
+        .lm-location-users-trigger:focus-visible {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+        .lm-location-users-count,
+        .lm-location-users-empty {
+            margin: 0 0 12px;
+            color: var(--text-muted);
+        }
+        .lm-location-users-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .lm-location-users-list li {
+            padding: 9px 12px;
+            border-radius: 8px;
+            background: var(--gray-50);
+            color: var(--text-primary);
+            font-weight: 600;
         }
         .lm-employee-detail {
             font-size: 0.75rem;

@@ -2,8 +2,9 @@
     @php
         $mapping = $overtimeRequest->user->overtimeApproverAssignment;
         $actor = auth()->id();
-        $slot = $mapping && $mapping->supervisor_id == $actor ? 'SUPERVISOR' : ($mapping && $mapping->manager_id == $actor ? 'MANAGER' : null);
-        $canAct = $overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR && $mapping?->supervisor_id && $mapping?->manager_id && $slot && !$overtimeRequest->currentApprovalActions()->contains('decision_slot', $slot) && !$overtimeRequest->currentApprovalActions()->contains('actor_id', $actor);
+        $canAct = $overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR
+            && $mapping?->supervisor_id == $actor
+            && !$overtimeRequest->currentApprovalActions()->contains('decision_slot', 'SUPERVISOR');
         $badgeClass = match ($overtimeRequest->status) {
             \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR => 'ot-badge--warning',
             \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR, \App\Models\OvertimeRequest::STATUS_APPROVED_HRD => 'ot-badge--success',
@@ -84,10 +85,8 @@
         <section class="ot-card">
             <h2 class="ot-section-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Persetujuan Lembur</h2>
             <div class="ot-approval">@include('overtime_requests._approval_status', ['overtime' => $overtimeRequest])</div>
-            @if($overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR && (!$mapping?->supervisor_id || !$mapping?->manager_id))
-                <div class="ot-notice">Menunggu HR melengkapi kedua approver.</div>
-            @elseif($overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR && $slot && !$overtimeRequest->currentApprovalActions()->contains('decision_slot', $slot) && $overtimeRequest->currentApprovalActions()->contains('actor_id', $actor))
-                <div class="ot-notice">Anda sudah memberikan keputusan pada posisi lain. Hubungi HR untuk menetapkan approver yang berbeda.</div>
+            @if($overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR && !$mapping?->supervisor_id)
+                <div class="ot-notice">Menunggu HR menetapkan supervisor lembur.</div>
             @endif
         </section>
 

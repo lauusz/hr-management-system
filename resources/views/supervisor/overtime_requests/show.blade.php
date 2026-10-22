@@ -35,8 +35,9 @@
 
         $mapping = $overtimeRequest->user->overtimeApproverAssignment;
         $actorId = auth()->id();
-        $slot = $mapping && $mapping->supervisor_id == $actorId ? 'SUPERVISOR' : ($mapping && $mapping->manager_id == $actorId ? 'MANAGER' : null);
-        $isPending = $st === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR && $mapping?->supervisor_id && $mapping?->manager_id && $slot && !$overtimeRequest->currentApprovalActions()->contains('decision_slot', $slot) && !$overtimeRequest->currentApprovalActions()->contains('actor_id', $actorId);
+        $isPending = $st === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR
+            && $mapping?->supervisor_id == $actorId
+            && !$overtimeRequest->currentApprovalActions()->contains('decision_slot', 'SUPERVISOR');
     @endphp
 
     <div class="sov-detail-page">

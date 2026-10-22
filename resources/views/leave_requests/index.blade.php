@@ -46,64 +46,85 @@
     {{-- ============================================== --}}
     {{-- FILTER SECTION --}}
     {{-- ============================================== --}}
+    @php
+        $hasActiveFilter = collect([$submittedRange ?? null, $typeFilter ?? null, $statusFilter ?? null])->filter()->isNotEmpty();
+        $activeFilterCount = collect([$submittedRange ?? null, $typeFilter ?? null, $statusFilter ?? null])->filter()->count();
+    @endphp
     <div class="lr-filter">
         <form method="GET" action="{{ route('leave-requests.index') }}">
-            <div class="lr-filter-body">
-                <div class="lr-filter-group">
-                    <label class="lr-filter-label">Tanggal Pengajuan</label>
-                    <input type="text"
-                        id="submitted_range"
-                        name="submitted_range"
-                        value="{{ $submittedRange ?? '' }}"
-                        placeholder="Pilih rentang tanggal"
-                        class="lr-filter-input"
-                        autocomplete="off">
-                </div>
-
-                <div class="lr-filter-group">
-                    <label class="lr-filter-label">Jenis Pengajuan</label>
-                    <select name="type" class="lr-filter-input">
-                        <option value="">Semua Jenis</option>
-                        @foreach($typeOptions as $case)
-                            @php
-                                $val = $case->value;
-                                $lbl = ($val === \App\Enums\LeaveType::CUTI_KHUSUS->value) ? 'Cuti Khusus' : $case->label();
-                            @endphp
-                            <option value="{{ $val }}" @selected($typeFilter === $val)>
-                                {{ $lbl }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="lr-filter-group">
-                    <label class="lr-filter-label">Status</label>
-                    <select name="status" class="lr-filter-input">
-                        <option value="">Semua Status</option>
-                        @foreach($statusOptions as $val => $lbl)
-                            <option value="{{ $val }}" @selected($statusFilter === $val)>
-                                {{ $lbl }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="lr-filter-actions">
-                    <button type="submit" class="lr-btn-filter">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
-                        </svg>
-                        Filter
-                    </button>
-
-                    @if(($submittedRange ?? null) || ($typeFilter ?? null) || ($statusFilter ?? null))
+            <div class="lr-filter-header">
+                <button type="button"
+                    class="lr-btn-toggle-filter {{ $hasActiveFilter ? 'active' : '' }}"
+                    onclick="toggleLeaveFilterPanel()"
+                    aria-controls="leaveFilterPanel"
+                    aria-expanded="{{ $hasActiveFilter ? 'true' : 'false' }}">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                    </svg>
+                    Filter
+                    @if($activeFilterCount)
+                        <span class="lr-filter-badge">{{ $activeFilterCount }}</span>
+                    @endif
+                </button>
+                @if($hasActiveFilter)
                     <a href="{{ route('leave-requests.index') }}" class="lr-btn-reset">
                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                         Reset
                     </a>
-                    @endif
+                @endif
+            </div>
+
+            <div id="leaveFilterPanel" class="lr-filter-panel" style="{{ $hasActiveFilter ? '' : 'display: none;' }}">
+                <div class="lr-filter-body">
+                    <div class="lr-filter-group">
+                        <label class="lr-filter-label">Tanggal Pengajuan</label>
+                        <input type="text"
+                            id="submitted_range"
+                            name="submitted_range"
+                            value="{{ $submittedRange ?? '' }}"
+                            placeholder="Pilih rentang tanggal"
+                            class="lr-filter-input"
+                            autocomplete="off">
+                    </div>
+
+                    <div class="lr-filter-group">
+                        <label class="lr-filter-label">Jenis Pengajuan</label>
+                        <select name="type" class="lr-filter-input">
+                            <option value="">Semua Jenis</option>
+                            @foreach($typeOptions as $case)
+                                @php
+                                    $val = $case->value;
+                                    $lbl = ($val === \App\Enums\LeaveType::CUTI_KHUSUS->value) ? 'Cuti Khusus' : $case->label();
+                                @endphp
+                                <option value="{{ $val }}" @selected($typeFilter === $val)>
+                                    {{ $lbl }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="lr-filter-group">
+                        <label class="lr-filter-label">Status</label>
+                        <select name="status" class="lr-filter-input">
+                            <option value="">Semua Status</option>
+                            @foreach($statusOptions as $val => $lbl)
+                                <option value="{{ $val }}" @selected($statusFilter === $val)>
+                                    {{ $lbl }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="lr-filter-actions">
+                        <button type="submit" class="lr-btn-filter">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                        </svg>
+                        Filter
+                    </button>
+                    </div>
                 </div>
             </div>
         </form>
@@ -363,10 +384,58 @@
         .lr-filter {
             background: var(--white);
             border-radius: 16px;
-            padding: 16px;
             margin-bottom: 16px;
             border: 1px solid var(--border-light);
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            overflow: hidden;
+        }
+        .lr-filter-header {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+        }
+        .lr-btn-toggle-filter {
+            display: inline-flex;
+            flex: 1;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            min-height: 38px;
+            padding: 8px 14px;
+            background: var(--white);
+            color: var(--primary);
+            border: 1.5px solid var(--primary);
+            border-radius: 10px;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .lr-btn-toggle-filter:hover,
+        .lr-btn-toggle-filter.active {
+            background: var(--primary);
+            color: #fff;
+        }
+        .lr-filter-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 9999px;
+            background: var(--primary);
+            color: var(--white);
+            font-size: 0.625rem;
+        }
+        .lr-btn-toggle-filter.active .lr-filter-badge {
+            background: var(--white);
+            color: var(--primary);
+        }
+        .lr-filter-panel {
+            padding: 16px;
+            border-top: 1px solid var(--border-light);
         }
         .lr-filter-body {
             display: flex;
@@ -440,7 +509,7 @@
             font-weight: 500;
             text-decoration: none;
             transition: all 0.2s ease;
-            flex: 1;
+            flex-shrink: 0;
         }
         .lr-btn-reset:hover {
             background: var(--danger-light);
@@ -708,7 +777,14 @@
                 background: var(--border);
                 flex-shrink: 0;
             }
-            .lr-filter {
+            .lr-filter-header {
+                justify-content: flex-end;
+                padding: 14px 20px;
+            }
+            .lr-btn-toggle-filter {
+                flex: none;
+            }
+            .lr-filter-panel {
                 padding: 18px 20px;
             }
             .lr-filter-body {
@@ -733,7 +809,10 @@
             .lr-card {
                 padding: 18px 20px;
             }
-            .lr-filter {
+            .lr-filter-header {
+                padding: 16px 20px;
+            }
+            .lr-filter-panel {
                 padding: 20px;
             }
         }
@@ -753,6 +832,16 @@
     <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
     <script>
+        function toggleLeaveFilterPanel() {
+            const panel = document.getElementById('leaveFilterPanel');
+            const button = document.querySelector('.lr-btn-toggle-filter');
+            const isHidden = panel.style.display === 'none';
+
+            panel.style.display = isHidden ? '' : 'none';
+            button.classList.toggle('active', isHidden);
+            button.setAttribute('aria-expanded', String(isHidden));
+        }
+
         flatpickr("#submitted_range", {
             mode: "range",
             dateFormat: "Y-m-d",

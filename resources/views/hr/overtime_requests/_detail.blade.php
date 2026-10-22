@@ -116,44 +116,7 @@
                     <span class="hov-time-display">{{ $overtimeRequest->start_time->format('H:i') }} - {{ $overtimeRequest->end_time->format('H:i') }}</span>
                 </div>
 
-                <div class="hov-detail-row">
-                    <span class="hov-detail-label">Durasi</span>
-                    <span class="hov-duration-badge">{{ $overtimeRequest->duration_human }}</span>
-                </div>
-
-                @if($overtimeRequest->supervisorApprover)
-                    <div class="hov-detail-row">
-                        <span class="hov-detail-label">Disetujui Supervisor</span>
-                        <div class="hov-approval-inline">
-                            <div class="hov-approval-icon hov-approval-icon--green">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                </svg>
-                            </div>
-                            <div class="hov-approval-info">
-                                <span class="hov-approval-name">{{ $overtimeRequest->supervisorApprover->name }}</span>
-                                <span class="hov-approval-time">{{ $overtimeRequest->approved_by_supervisor_at ? $overtimeRequest->approved_by_supervisor_at->translatedFormat('j F Y, H:i') : '' }}</span>
-                            </div>
-                        </div>
-                    </div>
-                @endif
-
-                @if($overtimeRequest->hrdApprover)
-                    <div class="hov-detail-row">
-                        <span class="hov-detail-label">Disetujui HRD</span>
-                        <div class="hov-approval-inline">
-                            <div class="hov-approval-icon hov-approval-icon--green">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                </svg>
-                            </div>
-                            <div class="hov-approval-info">
-                                <span class="hov-approval-name">{{ $overtimeRequest->hrdApprover->name }}</span>
-                                <span class="hov-approval-time">{{ $overtimeRequest->approved_by_hrd_at ? $overtimeRequest->approved_by_hrd_at->translatedFormat('j F Y, H:i') : '' }}</span>
-                            </div>
-                        </div>
-                    </div>
-                @endif
+                @include('overtime_requests._approval_status', ['overtime' => $overtimeRequest])
             </div>
 
             {{-- Card: Keterangan Pekerjaan --}}
@@ -168,7 +131,6 @@
                     {{ $overtimeRequest->description }}
                 </div>
                 @include('overtime_requests._attachments', ['overtime' => $overtimeRequest])
-                @include('overtime_requests._approval_status', ['overtime' => $overtimeRequest])
                 @if($overtimeRequest->user_id !== auth()->id() && $overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
                     @include('overtime_requests._edit_form', ['overtime' => $overtimeRequest])
                 @endif
@@ -564,17 +526,6 @@
             font-weight: 600;
             color: var(--text-primary, #111827);
         }
-        .hov-duration-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 10px;
-            border-radius: 8px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            background: rgba(34, 197, 94, 0.1);
-            color: #15803d;
-        }
-
         /* ========================================== */
         /* APPROVAL INLINE                            */
         /* ========================================== */

@@ -228,7 +228,7 @@ Route::middleware('auth')->group(function () {
         ->name('overtime-requests.attachments.show');
 
     Route::resource('overtime-requests', OvertimeRequestController::class)
-        ->only(['index', 'create', 'store', 'update', 'destroy']);
+        ->only(['index', 'create', 'store', 'show', 'edit', 'update', 'destroy']);
 
     Route::get('/overtime-approvals', [\App\Http\Controllers\OvertimeApprovalController::class, 'index'])->name('overtime-approvals.index');
     Route::get('/overtime-approvals/{overtimeRequest}', [\App\Http\Controllers\OvertimeApprovalController::class, 'show'])->name('overtime-approvals.show');

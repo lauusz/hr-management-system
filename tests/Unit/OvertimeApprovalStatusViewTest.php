@@ -48,26 +48,26 @@ it('shows a dash for missing approvers in the compact recap', function () {
     $html = renderOvertimeApprovalStatus(fakeOvertimeApproval(), true);
     $text = preg_replace('/\s+/u', ' ', strip_tags($html));
 
-    expect($text)->toContain('Supervisor: -', 'Manager: -')
+    expect($text)->toContain('Disetujui: - — Menunggu', 'Mengetahui: -')
         ->not->toContain('Belum ditentukan', 'Menunggu')
         ->and($html)->toContain('font-size:11px');
 });
 
 it('keeps assigned approvers and recorded decisions in the compact recap', function () {
-    $mapping = (object) ['supervisor' => (object) ['name' => 'Dinda'], 'manager' => null];
+    $mapping = (object) ['supervisor' => (object) ['name' => 'Dinda'], 'manager' => (object) ['name' => 'Bima']];
     $actions = collect([(object) [
-        'decision_slot' => 'MANAGER', 'actor_name' => 'Bima', 'actor_role' => 'Manager',
+        'decision_slot' => 'SUPERVISOR', 'actor_name' => 'Dinda', 'actor_role' => 'Supervisor',
         'action' => 'APPROVE', 'acted_at' => null, 'approval_round' => 1, 'notes' => null,
     ]]);
     $text = preg_replace('/\s+/u', ' ', strip_tags(renderOvertimeApprovalStatus(fakeOvertimeApproval($mapping, $actions), true)));
 
-    expect($text)->toContain('Supervisor: Dinda — Menunggu', 'Manager: Bima — Disetujui', 'Riwayat keputusan');
+    expect($text)->toContain('Disetujui: Dinda — Disetujui', 'Mengetahui: Bima', 'Riwayat keputusan');
 });
 
 it('keeps the existing detailed wording outside the compact recap', function () {
     $html = renderOvertimeApprovalStatus(fakeOvertimeApproval(), false);
     $text = preg_replace('/\s+/u', ' ', strip_tags($html));
 
-    expect($text)->toContain('Supervisor: Belum ditentukan — Menunggu', 'Manager: Belum ditentukan — Menunggu')
+    expect($text)->toContain('Disetujui: Belum ditentukan — Menunggu', 'Mengetahui: Belum ditentukan')
         ->and($html)->toContain('font-size:13px');
 });

@@ -1,6 +1,11 @@
+@php
+    $showAttachmentTitle = $showAttachmentTitle ?? true;
+@endphp
 @if ($overtime->attachments->isNotEmpty())
-    <div style="margin-top: 12px; font-size: 0.875rem;">
-        <strong>Bukti Pendukung</strong>
+    <div style="margin-top: {{ $showAttachmentTitle ? '12px' : '0' }}; font-size: 0.875rem;">
+        @if($showAttachmentTitle)
+            <strong>Bukti Pendukung</strong>
+        @endif
         <ul style="margin: 6px 0 0; padding-left: 20px;">
             @foreach ($overtime->attachments as $attachment)
                 <li style="overflow-wrap: anywhere; margin-top: 4px;">

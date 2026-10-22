@@ -161,7 +161,12 @@
                                     <div class="lm-employee">
                                         <div class="lm-employee-avatar">{{ strtoupper(substr($sh->name, 0, 1)) }}</div>
                                         <div class="lm-employee-info">
-                                            <span class="lm-employee-name">{{ $sh->name }}</span>
+                                            <button type="button"
+                                                class="lm-shift-users-trigger"
+                                                data-modal-target="shift-users-{{ $sh->id }}"
+                                                aria-haspopup="dialog">
+                                                {{ $sh->name }}
+                                            </button>
                                             <div class="lm-employee-detail">{{ $sh->description ?: 'Pola jam kerja harian karyawan' }}</div>
                                         </div>
                                     </div>
@@ -234,6 +239,25 @@
     {{-- Delete Confirmation Modals --}}
     <div data-shift-modals>
         @foreach($items as $sh)
+            @php($usersAtShift = $shiftUsers->get($sh->id, collect()))
+            <x-modal
+                id="shift-users-{{ $sh->id }}"
+                title="Pengguna Shift {{ $sh->name }}"
+                type="info"
+                variant="info"
+                cancelLabel="Tutup">
+                @if($usersAtShift->isEmpty())
+                    <p class="lm-shift-users-empty">Belum ada pengguna aktif yang memakai shift ini.</p>
+                @else
+                    <p class="lm-shift-users-count">{{ $usersAtShift->count() }} pengguna aktif memakai shift ini.</p>
+                    <ul class="lm-shift-users-list">
+                        @foreach($usersAtShift as $user)
+                            <li>{{ $user->name }}</li>
+                        @endforeach
+                    </ul>
+                @endif
+            </x-modal>
+
             <x-modal
                 id="delete-shift-{{ $sh->id }}"
                 title="Hapus Shift?"
@@ -743,6 +767,42 @@
             font-weight: 600;
             color: var(--text-primary);
             text-decoration: none;
+        }
+        .lm-shift-users-trigger {
+            padding: 0;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font: inherit;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+        .lm-shift-users-trigger:hover,
+        .lm-shift-users-trigger:focus-visible {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+        .lm-shift-users-count,
+        .lm-shift-users-empty {
+            margin: 0 0 12px;
+            color: var(--text-muted);
+        }
+        .lm-shift-users-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .lm-shift-users-list li {
+            padding: 9px 12px;
+            border-radius: 8px;
+            background: var(--gray-50);
+            color: var(--text-primary);
+            font-weight: 600;
         }
         .lm-employee-detail {
             font-size: 0.75rem;

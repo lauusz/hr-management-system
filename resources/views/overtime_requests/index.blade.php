@@ -21,6 +21,11 @@
             {{ session('success') }}
         </div>
     @endif
+    @if (session('error'))
+        <div class="ot-alert ot-alert--error">
+            {{ session('error') }}
+        </div>
+    @endif
 
     <div class="ot-cta-bar">
         <a href="{{ route('overtime-requests.create') }}" class="ot-btn-primary">
@@ -83,6 +88,7 @@
             @endphp
 
             <div class="ot-card">
+                <a href="{{ route('overtime-requests.show', $overtime) }}" class="ot-card-main" aria-label="Lihat detail pengajuan lembur {{ $overtime->overtime_date->format('d-m-Y') }}">
                 <div class="ot-card-top">
                     <div class="ot-card-meta-left">
                         <span class="ot-type">
@@ -110,7 +116,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <span>{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</span>
-                    <span class="ot-duration">{{ $overtime->duration_human }}</span>
                 </div>
 
                 @if($overtime->description)
@@ -119,25 +124,8 @@
                     </div>
                 @endif
 
-                @include('overtime_requests._attachments', ['overtime' => $overtime])
-                @include('overtime_requests._approval_status', ['overtime' => $overtime])
-                @if($overtime->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
-                    @unless($overtime->currentApprovalActions()->contains('action', 'APPROVE'))
-                        @include('overtime_requests._edit_form', ['overtime' => $overtime])
-                    @endunless
-                    <form method="POST" action="{{ route('overtime-requests.destroy', $overtime) }}" onsubmit="return confirm('Batalkan pengajuan lembur ini?')">
-                        @csrf @method('DELETE') <button type="submit">Batalkan pengajuan</button>
-                    </form>
-                @endif
-
-                @if($overtime->status === \App\Models\OvertimeRequest::STATUS_REJECTED && $overtime->rejection_note)
-                    <div class="ot-card-rejection">
-                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                        </svg>
-                        {{ $overtime->rejection_note }}
-                    </div>
-                @endif
+                @include('overtime_requests._approval_status', ['overtime' => $overtime, 'compact' => true, 'showHistory' => false, 'showTitle' => false, 'class' => 'ot-approval-summary'])
+                </a>
 
                 <div class="ot-card-footer">
                     <div class="ot-card-meta">
@@ -146,6 +134,7 @@
                         </svg>
                         <span>Diajukan {{ $overtime->created_at->diffForHumans() }}</span>
                     </div>
+                    <a href="{{ route('overtime-requests.show', $overtime) }}" class="ot-detail-link">Lihat detail</a>
                 </div>
             </div>
         @empty
@@ -182,6 +171,11 @@
             background: rgba(34, 197, 94, 0.08);
             border: 1px solid rgba(34, 197, 94, 0.25);
             color: #16a34a;
+        }
+        .ot-alert--error {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            color: #b91c1c;
         }
 
         .section-header-inline {
@@ -300,17 +294,25 @@
             display: block;
             background: var(--white);
             border-radius: 16px;
-            padding: 16px;
             border: 1px solid var(--border-light);
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-            text-decoration: none;
-            color: inherit;
             transition: all 0.2s ease;
         }
         .ot-card:hover {
             border-color: rgba(20, 93, 160, 0.35);
             box-shadow: 0 4px 12px rgba(20, 93, 160, 0.08);
             transform: translateY(-2px);
+        }
+        .ot-card-main {
+            display: block;
+            padding: 16px;
+            color: inherit;
+            text-decoration: none;
+        }
+        .ot-card-main:focus-visible {
+            outline: 3px solid rgba(20, 93, 160, 0.35);
+            outline-offset: 2px;
+            border-radius: 16px;
         }
         .ot-card-top {
             display: flex;
@@ -384,44 +386,17 @@
             color: var(--text-muted);
             flex-shrink: 0;
         }
-        .ot-duration {
-            display: inline-flex;
-            align-items: center;
-            padding: 3px 8px;
-            border-radius: 6px;
-            font-size: 0.6875rem;
-            font-weight: 700;
-            background: rgba(34, 197, 94, 0.1);
-            color: #15803d;
-            margin-left: 4px;
-        }
         .ot-card-note {
             font-size: 0.8125rem;
             color: var(--text-muted);
             line-height: 1.5;
             margin-bottom: 12px;
         }
-        .ot-card-rejection {
-            display: flex;
-            align-items: flex-start;
-            gap: 6px;
-            font-size: 0.75rem;
-            color: #b91c1c;
-            background: rgba(239, 68, 68, 0.06);
-            border: 1px solid rgba(239, 68, 68, 0.15);
-            border-radius: 8px;
-            padding: 8px 10px;
-            margin-bottom: 12px;
-        }
-        .ot-card-rejection svg {
-            flex-shrink: 0;
-            margin-top: 1px;
-        }
         .ot-card-footer {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding-top: 12px;
+            padding: 12px 16px 16px;
             border-top: 1px solid var(--border-light);
             gap: 8px;
         }
@@ -434,6 +409,18 @@
         }
         .ot-card-meta svg {
             flex-shrink: 0;
+        }
+        .ot-detail-link {
+            color: var(--primary);
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .ot-detail-link:hover { text-decoration: underline; }
+        .ot-approval-summary {
+            padding-top: 10px;
+            border-top: 1px solid var(--border-light);
         }
 
         .ot-empty {
@@ -506,9 +493,103 @@
             }
         }
 
+        @media (max-width: 479px) {
+            .ot-cta-bar {
+                margin-bottom: 12px;
+            }
+            .ot-btn-primary {
+                width: 100%;
+                min-height: 48px;
+                font-size: 0.875rem;
+            }
+            .ot-stats {
+                margin-bottom: 12px;
+                border-radius: 14px;
+            }
+            .ot-stat {
+                padding: 11px 2px;
+            }
+            .ot-stat-value {
+                font-size: 1rem;
+            }
+            .ot-stat-label {
+                font-size: 0.5625rem;
+            }
+            .ot-list {
+                gap: 12px;
+            }
+            .ot-card {
+                border-radius: 14px;
+            }
+            .ot-card-main {
+                padding: 14px;
+            }
+            .ot-card-top {
+                margin-bottom: 10px;
+            }
+            .ot-card-meta-left {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 6px;
+            }
+            .ot-type {
+                padding: 4px 8px;
+            }
+            .ot-badge {
+                max-width: 100%;
+                padding: 5px 8px;
+                font-size: 0.625rem;
+                letter-spacing: 0.02em;
+                line-height: 1.25;
+                white-space: normal;
+            }
+            .ot-card-date {
+                margin-bottom: 6px;
+                font-size: 0.8125rem;
+            }
+            .ot-card-time {
+                margin-bottom: 10px;
+            }
+            .ot-card-note {
+                display: -webkit-box;
+                margin-bottom: 10px;
+                overflow: hidden;
+                -webkit-box-orient: vertical;
+                -webkit-line-clamp: 2;
+            }
+            .ot-approval-summary {
+                display: grid;
+                gap: 2px;
+                margin-top: 10px !important;
+                font-size: 0.75rem !important;
+                line-height: 1.45 !important;
+            }
+            .ot-card-footer {
+                padding: 11px 14px 14px;
+            }
+            .ot-card-meta {
+                flex: 1;
+                min-width: 0;
+            }
+            .ot-card-meta span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .ot-detail-link {
+                font-size: 0.8125rem;
+            }
+        }
+
         @media (min-width: 768px) {
             .ot-card {
+                padding: 0;
+            }
+            .ot-card-main {
                 padding: 18px 20px;
+            }
+            .ot-card-footer {
+                padding: 12px 20px 18px;
             }
         }
 

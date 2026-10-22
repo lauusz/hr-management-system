@@ -28,18 +28,17 @@ class OvertimeApprovalService
             if ($locked->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
                 throw new DomainException('Pengajuan sudah diproses atau dibatalkan.');
             }
-            if (! $assignment || ! $assignment->supervisor_id || ! $assignment->manager_id) {
-                throw new DomainException('Supervisor dan manager lembur harus ditetapkan terlebih dahulu.');
+            if (! $assignment || ! $assignment->supervisor_id) {
+                throw new DomainException('Supervisor lembur harus ditetapkan terlebih dahulu.');
             }
-            $assignment->load(['supervisor', 'manager']);
+            $assignment->load('supervisor');
             if (! $assignment->supervisor?->isActive() || $assignment->supervisor->role !== UserRole::SUPERVISOR
-                || ! $assignment->manager?->isActive() || $assignment->manager->role !== UserRole::MANAGER
-                || (int) $locked->user_id === (int) $assignment->supervisor_id || (int) $locked->user_id === (int) $assignment->manager_id) {
-                throw new DomainException('Penugasan approver lembur tidak lengkap atau tidak lagi aktif. Hubungi HR.');
+                || (int) $locked->user_id === (int) $assignment->supervisor_id) {
+                throw new DomainException('Penugasan supervisor lembur tidak lengkap atau tidak lagi aktif. Hubungi HR.');
             }
 
             $actions = $locked->currentApprovalActions();
-            $result = OvertimeApprovalRules::decision((int) $assignment->supervisor_id, (int) $assignment->manager_id, (int) $actor->id,
+            $result = OvertimeApprovalRules::decision((int) $assignment->supervisor_id, (int) $actor->id,
                 $actions->map(fn ($action) => ['slot' => $action->decision_slot, 'actor_id' => $action->actor_id, 'action' => $action->action])->values()->all(), $decision);
             $locked->approvalActions()->create([
                 'approval_round' => $locked->approvalActions->max('approval_round') ?? 1,
@@ -51,6 +50,8 @@ class OvertimeApprovalService
             $changes = ['status' => $result['status']];
             if ($decision === 'REJECT') {
                 $changes += ['rejected_by_id' => $actor->id, 'rejection_note' => $note];
+            } else {
+                $changes += ['approved_by_supervisor_id' => $actor->id, 'approved_by_supervisor_at' => now()];
             }
             $locked->update($changes);
         });

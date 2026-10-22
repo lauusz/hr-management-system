@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Shift;
 use App\Models\ShiftDay;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -39,6 +40,17 @@ class ShiftController extends Controller
             'status' => $status,
         ]));
 
+        $items->getCollection()->load(['schedules.user' => fn ($query) => $query
+            ->select('id', 'name')
+            ->where('status', User::STATUS_ACTIVE)]);
+
+        $shiftUsers = $items->getCollection()->mapWithKeys(fn (Shift $shift) => [$shift->id => $shift->schedules
+            ->pluck('user')
+            ->filter()
+            ->unique('id')
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()]);
+
         return view('hr.shifts.index', [
             'items' => $items,
             'q' => $q,
@@ -46,6 +58,7 @@ class ShiftController extends Controller
             'totalCount' => $totalCount,
             'activeCount' => $activeCount,
             'inactiveCount' => $inactiveCount,
+            'shiftUsers' => $shiftUsers,
         ]);
     }
 

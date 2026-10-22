@@ -31,6 +31,44 @@ class OvertimeRequestController extends Controller
     }
 
     /**
+     * Menampilkan detail pengajuan lembur milik pengguna yang sedang masuk.
+     */
+    public function show(OvertimeRequest $overtimeRequest)
+    {
+        if ((int) $overtimeRequest->user_id !== (int) Auth::id()) {
+            return redirect()->route('overtime-requests.index')
+                ->with('error', 'Anda tidak berhak melihat data pengajuan ini.');
+        }
+
+        $overtimeRequest->load([
+            'attachments',
+            'approvalActions',
+            'user.overtimeApproverAssignment.supervisor',
+            'user.overtimeApproverAssignment.manager',
+        ]);
+
+        return view('overtime_requests.show', ['overtime' => $overtimeRequest]);
+    }
+
+    /**
+     * Form perubahan pengajuan lembur yang masih menunggu persetujuan SPV.
+     */
+    public function edit(OvertimeRequest $overtimeRequest)
+    {
+        if ((int) $overtimeRequest->user_id !== (int) Auth::id()) {
+            return redirect()->route('overtime-requests.index')
+                ->with('error', 'Anda tidak berhak mengubah data pengajuan ini.');
+        }
+
+        if ($overtimeRequest->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
+            return redirect()->route('overtime-requests.index')
+                ->with('error', 'Pengajuan sudah diproses SPV, tidak dapat diubah.');
+        }
+
+        return view('overtime_requests.edit', ['overtime' => $overtimeRequest]);
+    }
+
+    /**
      * Form pengajuan lembur baru.
      */
     public function create()
@@ -184,6 +222,11 @@ class OvertimeRequestController extends Controller
             });
         } catch (\DomainException $exception) {
             return back()->with('error', $exception->getMessage());
+        }
+
+        if ($isOwner) {
+            return redirect()->route('overtime-requests.index')
+                ->with('success', 'Data lembur berhasil diperbarui.');
         }
 
         return back()->with('success', 'Data lembur berhasil diperbarui.');

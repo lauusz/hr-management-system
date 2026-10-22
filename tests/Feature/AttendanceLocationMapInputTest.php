@@ -2,6 +2,8 @@
 
 use App\Enums\UserRole;
 use App\Models\AttendanceLocation;
+use App\Models\EmployeeShift;
+use App\Models\Shift;
 use App\Models\User;
 
 it('uses coordinates only to move the map on the create location form', function () {
@@ -71,6 +73,47 @@ it('lists all attendance locations without pagination', function () {
         ->assertOk()
         ->assertSee('Lokasi 20')
         ->assertDontSee('loc-pagination', false);
+});
+
+it('lists users assigned directly, through multiple locations, and through All Locations', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $location = AttendanceLocation::factory()->create(['name' => 'Kantor Pusat', 'is_active' => true]);
+    $otherLocation = AttendanceLocation::factory()->create(['name' => 'Gudang', 'is_active' => true]);
+    $shift = Shift::factory()->create(['is_active' => true]);
+
+    $directUser = User::factory()->create(['name' => 'Andi Langsung']);
+    $multiLocationUser = User::factory()->create(['name' => 'Budi Multi Lokasi']);
+    $allLocationsUser = User::factory()->create(['name' => 'Citra All Locations']);
+
+    EmployeeShift::create([
+        'user_id' => $directUser->id,
+        'shift_id' => $shift->id,
+        'location_id' => $location->id,
+    ]);
+
+    $multiLocationSchedule = EmployeeShift::create([
+        'user_id' => $multiLocationUser->id,
+        'shift_id' => $shift->id,
+        'location_id' => $otherLocation->id,
+    ]);
+    $multiLocationSchedule->locations()->attach($location->id);
+
+    EmployeeShift::create([
+        'user_id' => $allLocationsUser->id,
+        'shift_id' => $shift->id,
+        'is_all_locations' => true,
+    ]);
+
+    $response = $this->actingAs($hrd, 'web')->get(route('hr.locations.index'));
+
+    expect($response->viewData('locationUsers')->get($location->id)->pluck('name')->all())
+        ->toBe(['Andi Langsung', 'Budi Multi Lokasi', 'Citra All Locations']);
+
+    $response
+        ->assertOk()
+        ->assertSee('Andi Langsung')
+        ->assertSee('Budi Multi Lokasi')
+        ->assertSee('Citra All Locations');
 });
 
 it('displays master location stats, search, and status filter matching leave master layout', function () {

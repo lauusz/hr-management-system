@@ -20,9 +20,9 @@ function overtimeServiceWithoutDatabase(OvertimeRequest $request, ?OvertimeAppro
     };
 }
 
-it('writes a manager decision only after checking the current mapping and keeps the request pending', function () {
+it('writes a supervisor decision and finalizes the request', function () {
     try {
-        $supervisor = (new User)->forceFill(['id' => 10, 'role' => UserRole::SUPERVISOR, 'status' => User::STATUS_ACTIVE]);
+        $supervisor = (new User)->forceFill(['id' => 10, 'name' => 'Supervisor', 'role' => UserRole::SUPERVISOR, 'status' => User::STATUS_ACTIVE]);
         $manager = (new User)->forceFill(['id' => 20, 'name' => 'Manager', 'role' => UserRole::MANAGER, 'status' => User::STATUS_ACTIVE]);
         $assignment = Mockery::mock(OvertimeApproverAssignment::class)->makePartial();
         $assignment->forceFill(['employee_id' => 1, 'supervisor_id' => 10, 'manager_id' => 20]);
@@ -33,17 +33,19 @@ it('writes a manager decision only after checking the current mapping and keeps 
         $request->forceFill(['id' => 7, 'user_id' => 1, 'status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR]);
         $request->setRelation('approvalActions', collect());
         $relation = Mockery::mock();
-        $relation->shouldReceive('create')->once()->with(Mockery::on(fn ($data) => $data['approval_round'] === 1 && $data['decision_slot'] === 'MANAGER' && $data['actor_id'] === 20 && $data['action'] === 'APPROVE'));
+        $relation->shouldReceive('create')->once()->with(Mockery::on(fn ($data) => $data['approval_round'] === 1 && $data['decision_slot'] === 'SUPERVISOR' && $data['actor_id'] === 10 && $data['action'] === 'APPROVE'));
         $request->shouldReceive('approvalActions')->once()->andReturn($relation);
-        $request->shouldReceive('update')->once()->with(['status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR]);
-        overtimeServiceWithoutDatabase($request, $assignment)->decide($request, $manager, 'APPROVE');
+        $request->shouldReceive('update')->once()->with(Mockery::on(fn ($data) => $data['status'] === OvertimeRequest::STATUS_APPROVED_SUPERVISOR
+            && $data['approved_by_supervisor_id'] === 10
+            && $data['approved_by_supervisor_at'] instanceof \DateTimeInterface));
+        overtimeServiceWithoutDatabase($request, $assignment)->decide($request, $supervisor, 'APPROVE');
         expect(true)->toBeTrue();
     } finally {
         Mockery::close();
     }
 });
 
-it('refuses an incomplete mapping and a previous approver attempting a second slot', function () {
+it('refuses a missing supervisor mapping and a manager decision', function () {
     try {
         $request = (new OvertimeRequest)->forceFill(['id' => 7, 'user_id' => 1, 'status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR]);
         $actor = (new User)->forceFill(['id' => 20, 'name' => 'Manager', 'role' => UserRole::MANAGER, 'status' => User::STATUS_ACTIVE]);
@@ -53,7 +55,7 @@ it('refuses an incomplete mapping and a previous approver attempting a second sl
         $assignment->setRelation('supervisor', (new User)->forceFill(['id' => 10, 'role' => UserRole::SUPERVISOR, 'status' => User::STATUS_ACTIVE]));
         $assignment->setRelation('manager', $actor);
         $assignment->shouldReceive('load')->once()->andReturnSelf();
-        $request->setRelation('approvalActions', collect([new OvertimeApprovalAction(['approval_round' => 1, 'decision_slot' => 'SUPERVISOR', 'action' => 'APPROVE', 'actor_id' => 20])]));
+        $request->setRelation('approvalActions', collect());
         expect(fn () => overtimeServiceWithoutDatabase($request, $assignment)->decide($request, $actor, 'APPROVE'))->toThrow(DomainException::class);
     } finally {
         Mockery::close();
