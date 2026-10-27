@@ -5,65 +5,115 @@
         $canAct = $overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR
             && $mapping?->supervisor_id == $actor
             && !$overtimeRequest->currentApprovalActions()->contains('decision_slot', 'SUPERVISOR');
-        $badgeClass = match ($overtimeRequest->status) {
-            \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR => 'ot-badge--warning',
-            \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR, \App\Models\OvertimeRequest::STATUS_APPROVED_HRD => 'ot-badge--success',
-            \App\Models\OvertimeRequest::STATUS_REJECTED => 'ot-badge--danger',
-            default => 'ot-badge--gray',
-        };
+        $status = $overtimeRequest->status;
+        $statusClass = 'lrs-status--neutral';
+        $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>';
+        $statusSub = null;
+
+        if (in_array($status, [\App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR, \App\Models\OvertimeRequest::STATUS_APPROVED_HRD])) {
+            $statusClass = 'lrs-status--success';
+            $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+        } elseif ($status === \App\Models\OvertimeRequest::STATUS_REJECTED) {
+            $statusClass = 'lrs-status--error';
+            $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
+        } elseif ($status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
+            $statusClass = 'lrs-status--warning';
+            $statusIcon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+            $statusSub = $canAct ? 'Menunggu keputusan Anda' : 'Menunggu: '.($mapping?->supervisor?->name ?? 'SPV belum ditentukan');
+        }
+
+        $role = $overtimeRequest->user?->role;
+        $roleLabel = $role instanceof \App\Enums\UserRole ? $role->value : $role;
     @endphp
 
     <x-slot name="header">
-        <div class="ot-detail-header">
-            <div class="ot-detail-icon">
+        <div class="section-header-inline">
+            <div class="section-icon icon-navy">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="8" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 2h4m-2 0v4m0 8 3-3"/></svg>
             </div>
-            <div><h1>Detail Approval Lembur</h1><p>Informasi lengkap pengajuan lembur</p></div>
+            <div><h1 class="section-title">Detail Approval Lembur</h1><p class="section-subtitle">Informasi lengkap pengajuan lembur</p></div>
         </div>
     </x-slot>
 
-    <div class="ot-detail {{ $canAct ? 'ot-detail--has-actions' : '' }}">
-        <a href="{{ route('overtime-approvals.index') }}" class="ot-back" aria-label="Kembali ke daftar approval lembur">
+    <div class="lrs-page ot-detail {{ $canAct ? 'lrs-page--has-actions' : '' }}">
+        <a href="{{ route('overtime-approvals.index') }}" class="back-btn" aria-label="Kembali ke daftar approval lembur">
             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-            Kembali
+            <span class="back-btn-text">Kembali</span>
         </a>
 
-        @if(session('success')) <div class="ot-alert ot-alert--success" role="status">{{ session('success') }}</div> @endif
-        @if(session('error')) <div class="ot-alert ot-alert--error" role="alert">{{ session('error') }}</div> @endif
-        @if($errors->any()) <div class="ot-alert ot-alert--error" role="alert">{{ $errors->first() }}</div> @endif
+        @if(session('success')) <div class="lrs-alert lrs-alert--success" role="status">{{ session('success') }}</div> @endif
+        @if(session('error')) <div class="lrs-alert lrs-alert--error" role="alert">{{ session('error') }}</div> @endif
+        @if($errors->any()) <div class="lrs-alert lrs-alert--error" role="alert">{{ $errors->first() }}</div> @endif
 
-        <section class="ot-card" aria-label="Informasi karyawan">
-            <div class="ot-employee">
-                <div class="ot-avatar" aria-hidden="true">{{ mb_substr($overtimeRequest->user->name, 0, 1) }}</div>
-                <div class="ot-employee-info">
-                    <h2>{{ $overtimeRequest->user->name }}</h2>
-                    <div class="ot-employee-meta"><span class="ot-role">{{ $overtimeRequest->user->role?->label() ?? '-' }}</span><span>•</span><span>{{ $overtimeRequest->user->position?->name ?? '-' }}</span><span>•</span><span>{{ $overtimeRequest->user->division?->name ?? '-' }}</span></div>
+        <div class="lrs-layout">
+            <section class="lrs-section lrs-hero" aria-label="Informasi karyawan">
+                <div class="lrs-employee">
+                    <div class="lrs-avatar" aria-hidden="true">{{ mb_substr($overtimeRequest->user->name, 0, 1) }}</div>
+                    <div class="lrs-employee-info">
+                        <h2 class="lrs-employee-name">{{ $overtimeRequest->user->name }}</h2>
+                        <div class="lrs-employee-meta">
+                            <span class="lrs-role-badge">{{ $roleLabel }}</span>
+                            <span class="lrs-meta-dot">·</span>
+                            <span class="lrs-meta-text">Pengajuan lembur</span>
+                        </div>
+                    </div>
                 </div>
+                <div class="lrs-status-banner {{ $statusClass }}">
+                    <div class="lrs-status-icon"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">{!! $statusIcon !!}</svg></div>
+                    <div class="lrs-status-body">
+                        <span class="lrs-status-label">{{ $overtimeRequest->status_label }}</span>
+                        @if($statusSub)<span class="lrs-status-sub">{{ $statusSub }}</span>@endif
+                    </div>
+                </div>
+            </section>
+
+            <div class="lrs-main-col">
+
+                <section class="lrs-section lrs-summary">
+                    <div class="lrs-card-header"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><h3 class="lrs-card-title">Ringkasan Pengajuan</h3></div>
+                    <div class="lrs-info-grid">
+                        <div class="lrs-info-item">
+                            <span class="lrs-info-label">Tanggal Lembur</span>
+                            <span class="lrs-info-value">{{ $overtimeRequest->overtime_date->translatedFormat('j F Y') }}</span>
+                        </div>
+                        <div class="lrs-info-item">
+                            <span class="lrs-info-label">Jam Lembur</span>
+                            <span class="lrs-info-value">{{ $overtimeRequest->start_time->format('H:i') }} – {{ $overtimeRequest->end_time->format('H:i') }}</span>
+                        </div>
+                        @if((int) ($overtimeRequest->break_minutes ?? 0) > 0)
+                        <div class="lrs-info-item">
+                            <span class="lrs-info-label">Istirahat</span>
+                            <span class="lrs-info-value lrs-duration-badge">{{ $overtimeRequest->break_human }}</span>
+                        </div>
+                        @endif
+                        <div class="lrs-info-item">
+                            <span class="lrs-info-label">Durasi Lembur</span>
+                            <span class="lrs-info-value lrs-duration-badge">{{ $overtimeRequest->duration_human }}</span>
+                        </div>
+                        @if($overtimeRequest->created_at)
+                            <div class="lrs-info-item lrs-info-item--full"><span class="lrs-info-label">Diajukan</span><span class="lrs-info-value">{{ $overtimeRequest->created_at->translatedFormat('j F Y') }} · {{ $overtimeRequest->created_at->format('H:i') }}</span></div>
+                        @endif
+                    </div>
+                </section>
+
+                <section class="lrs-section lrs-reason">
+                    <div class="lrs-card-header"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg><h3 class="lrs-card-title">Keterangan Lembur</h3></div>
+                    <div class="lrs-reason-body">{{ $overtimeRequest->description }}</div>
+                </section>
+
+                @if ($overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_REJECTED && $overtimeRequest->rejection_note)
+                    <section class="lrs-section lrs-note lrs-note--rejection">
+                        <div class="lrs-note-header"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg><span class="lrs-note-title">Alasan Penolakan</span></div>
+                        <p class="lrs-note-text">{{ $overtimeRequest->rejection_note }}</p>
+                    </section>
+                @endif
             </div>
-            <div class="ot-employee-footer">
-                <span class="ot-badge {{ $badgeClass }}">{{ $overtimeRequest->status_label }}</span>
-                @if($overtimeRequest->created_at)<span class="ot-submit-time">Diajukan {{ $overtimeRequest->created_at->translatedFormat('j F Y, H:i') }}</span>@endif
-            </div>
-        </section>
 
-        <section class="ot-card">
-            <h2 class="ot-section-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Informasi Lembur</h2>
-            <dl class="ot-info">
-                <div><dt>Tanggal</dt><dd>{{ $overtimeRequest->overtime_date->translatedFormat('l, j F Y') }}</dd></div>
-                <div><dt>Jam</dt><dd>{{ $overtimeRequest->start_time->format('H:i') }} – {{ $overtimeRequest->end_time->format('H:i') }}</dd></div>
-                <div><dt>Durasi</dt><dd><span class="ot-duration">{{ $overtimeRequest->duration_human }}</span></dd></div>
-            </dl>
-        </section>
-
-        <section class="ot-card">
-            <h2 class="ot-section-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5l6 6v10a2 2 0 01-2 2z"/></svg>Keterangan Pekerjaan</h2>
-            <div class="ot-description">{{ $overtimeRequest->description }}</div>
-        </section>
-
-        @if($overtimeRequest->attachments->isNotEmpty())
-            <section class="ot-card">
-                <h2 class="ot-section-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.6-4.6a2 2 0 012.8 0L16 16m-2-2l1.6-1.6a2 2 0 012.8 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Bukti Pendukung ({{ $overtimeRequest->attachments->count() }} file)</h2>
-                <div class="ot-files">
+            <div class="lrs-side-col">
+                @if($overtimeRequest->attachments->isNotEmpty())
+                    <section class="lrs-section">
+                        <div class="lrs-card-header"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.6-4.6a2 2 0 012.8 0L16 16m-2-2l1.6-1.6a2 2 0 012.8 0L20 14M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg><h3 class="lrs-card-title">Bukti Pendukung</h3></div>
+                        <div class="ot-files">
                     @foreach($overtimeRequest->attachments as $attachment)
                         @php $evidenceUrl = route('overtime-requests.attachments.show', [$overtimeRequest, $attachment]); @endphp
                         <div class="ot-file">
@@ -78,24 +128,26 @@
                             <a href="{{ $evidenceUrl }}" target="_blank" rel="noopener noreferrer">{{ $attachment->original_name }}</a>
                         </div>
                     @endforeach
-                </div>
-            </section>
-        @endif
+                        </div>
+                    </section>
+                @endif
 
-        <section class="ot-card">
-            <h2 class="ot-section-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Persetujuan Lembur</h2>
-            <div class="ot-approval">@include('overtime_requests._approval_status', ['overtime' => $overtimeRequest])</div>
-            @if($overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR && !$mapping?->supervisor_id)
-                <div class="ot-notice">Menunggu HR menetapkan supervisor lembur.</div>
-            @endif
-        </section>
+                <section class="lrs-section">
+                    <div class="lrs-card-header"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><h3 class="lrs-card-title">Persetujuan Lembur</h3></div>
+                    <div class="ot-approval">@include('overtime_requests._approval_status', ['overtime' => $overtimeRequest, 'showTitle' => false])</div>
+                    @if($overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR && !$mapping?->supervisor_id)
+                        <div class="ot-notice">Menunggu HR menetapkan supervisor lembur.</div>
+                    @endif
+                </section>
 
-        @if(auth()->user()->isManager() && $overtimeRequest->user_id !== auth()->id() && $overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
-            <section class="ot-card">
-                <h2 class="ot-section-title"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.4-9.4a2 2 0 012.8 2.8L11.8 15H9v-2.8z"/></svg>Perubahan Pengajuan</h2>
-                @include('overtime_requests._edit_form', ['overtime' => $overtimeRequest])
-            </section>
-        @endif
+                @if(auth()->user()->isManager() && $overtimeRequest->user_id !== auth()->id() && $overtimeRequest->status === \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
+                    <section class="lrs-section">
+                        <div class="lrs-card-header"><svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.4-9.4a2 2 0 012.8 2.8L11.8 15H9v-2.8z"/></svg><h3 class="lrs-card-title">Perubahan Pengajuan</h3></div>
+                        @include('overtime_requests._edit_form', ['overtime' => $overtimeRequest])
+                    </section>
+                @endif
+            </div>
+        </div>
     </div>
 
     @if($canAct)
@@ -129,8 +181,7 @@
         .ot-detail-icon { display:flex; align-items:center; justify-content:center; width:32px; height:32px; flex-shrink:0; border-radius:8px; background:rgba(10,61,98,.08); color:var(--primary-dark,#0A3D62); }
         .ot-detail-header h1 { margin:0; font-size:1rem; font-weight:800; line-height:1.25; color:var(--text-primary,#111827); }
         .ot-detail-header p { margin:0; font-size:.8125rem; font-weight:500; line-height:1.35; color:var(--text-muted,#6B7280); }
-        .ot-detail { display:flex; flex-direction:column; gap:12px; min-width:0; }
-        .ot-detail--has-actions { padding-bottom:calc(130px + env(safe-area-inset-bottom)); }
+        .ot-detail { min-width:0; }
         .ot-back { align-self:flex-start; display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px 0 10px; border:1px solid var(--border,#E5E7EB); border-radius:10px; background:#fff; color:var(--text-muted,#6B7280); text-decoration:none; font-size:.75rem; font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.04); }
         .ot-back:hover { border-color:#145DA0; color:#145DA0; }
         .ot-alert,.ot-notice { border-radius:12px; padding:12px 16px; font-size:.8125rem; line-height:1.5; }
@@ -150,7 +201,6 @@
         .ot-badge--warning { background:#fffbeb; color:#a16207; } .ot-badge--success { background:#f0fdf4; color:#15803d; } .ot-badge--danger { background:#fef2f2; color:#b91c1c; } .ot-badge--gray { background:#f3f4f6; color:#4b5563; }
         .ot-info { margin:0; } .ot-info div { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px 16px; padding:10px 0; border-bottom:1px solid #f3f4f6; } .ot-info div:last-child { border-bottom:0; padding-bottom:0; }
         .ot-info dt { font-size:.6875rem; font-weight:600; text-transform:uppercase; color:#6B7280; } .ot-info dd { margin:0; font-size:.875rem; font-weight:600; overflow-wrap:anywhere; }
-        .ot-duration { display:inline-block; padding:4px 8px; border-radius:8px; background:#ecfdf5; color:#15803d; font-size:.75rem; }
         .ot-description { padding:14px; border-radius:10px; background:#F5F7FA; font-size:.875rem; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
         .ot-files { display:flex; flex-wrap:wrap; gap:16px; } .ot-file { width:160px; max-width:100%; min-width:0; font-size:.75rem; } .ot-file a { display:block; color:#145DA0; margin-top:6px; overflow-wrap:anywhere; }
         .ot-photo,.ot-file-icon { width:100%; height:120px; border:1px solid #e5e7eb; border-radius:10px; background:#f5f7fa; overflow:hidden; } .ot-photo { position:relative; display:block; padding:0; cursor:pointer; } .ot-photo img { width:100%; height:100%; object-fit:cover; } .ot-photo span { position:absolute; bottom:0; left:0; right:0; padding:5px; background:rgba(0,0,0,.6); color:white; font-size:.75rem; } .ot-file-icon { display:flex; align-items:center; justify-content:center; color:#145DA0; }
@@ -162,6 +212,45 @@
         .ot-action-dock { display:flex; gap:10px; max-width:1200px; margin:auto; padding:10px; border:1px solid #e5e7eb; border-radius:16px; background:#fff; box-shadow:0 4px 18px rgba(0,0,0,.1); }
         .ot-action { flex:1; min-height:44px; padding:10px 16px; border-radius:10px; font:inherit; font-size:.875rem; font-weight:700; cursor:pointer; } .ot-action--approve { border:1px solid #145DA0; background:#145DA0; color:#fff; } .ot-action--reject { border:1px solid #ef4444; background:#fff; color:#dc2626; }
         .ot-modal-message { margin:0 0 16px; } .ot-modal-label { display:block; margin-bottom:6px; font-weight:600; } .ot-modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+        .lrs-page { display:flex; flex-direction:column; gap:10px; }
+        .lrs-page--has-actions { padding-bottom:calc(130px + env(safe-area-inset-bottom)); }
+        .section-header-inline { display:flex; align-items:center; gap:10px; }
+        .section-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .icon-navy { background:rgba(10,61,98,.08); color:var(--primary-dark,#0A3D62); }
+        .section-title { margin:0; font-size:1rem; font-weight:800; color:var(--text-primary,#111827); line-height:1.25; }
+        .section-subtitle { margin:0; font-size:.8125rem; color:var(--text-muted,#6B7280); font-weight:500; line-height:1.35; }
+        .back-btn { align-self:flex-start; display:inline-flex; align-items:center; gap:6px; height:36px; padding:0 12px 0 10px; background:#fff; border:1px solid var(--border,#E5E7EB); border-radius:10px; color:var(--text-muted,#6B7280); text-decoration:none; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+        .back-btn:hover { border-color:var(--primary,#145DA0); color:var(--primary,#145DA0); }
+        .back-btn-text { font-size:.75rem; font-weight:600; }
+        .lrs-alert { padding:12px 16px; border-radius:12px; font-size:13px; font-weight:500; }
+        .lrs-alert--success { background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.25); color:#15803d; }
+        .lrs-alert--error { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.25); color:#dc2626; }
+        .lrs-layout { display:grid; grid-template-columns:1fr; gap:12px; }
+        .lrs-main-col, .lrs-side-col { display:contents; }
+        .lrs-section { min-width:0; background:#fff; border:1px solid var(--gray-200,#E5E7EB); border-radius:16px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,.04); }
+        .lrs-card-header { display:flex; align-items:center; gap:10px; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid var(--gray-200,#E5E7EB); color:var(--primary-dark,#0A3D62); }
+        .lrs-card-title { margin:0; font-size:.8125rem; font-weight:700; color:var(--gray-900,#111827); text-transform:uppercase; letter-spacing:.05em; }
+        .lrs-employee { display:flex; align-items:center; gap:14px; margin-bottom:20px; }
+        .lrs-avatar { width:52px; height:52px; background:linear-gradient(135deg,var(--primary-dark,#0A3D62),var(--primary,#145DA0)); color:#fff; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; flex-shrink:0; }
+        .lrs-employee-info { flex:1; min-width:0; }
+        .lrs-employee-name { margin:0 0 4px; font-size:1.125rem; font-weight:700; color:var(--gray-900,#111827); line-height:1.2; overflow-wrap:anywhere; }
+        .lrs-employee-meta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+        .lrs-role-badge { background:rgba(20,93,160,.08); color:var(--primary,#145DA0); padding:2px 8px; border-radius:9999px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+        .lrs-meta-dot { color:var(--gray-400,#9CA3AF); font-size:12px; } .lrs-meta-text { color:var(--gray-500,#6B7280); font-size:13px; font-weight:500; }
+        .lrs-status-banner { display:flex; align-items:center; gap:12px; padding:14px 16px; border-radius:12px; border:1px solid transparent; }
+        .lrs-status-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; background:#fff; }
+        .lrs-status-body { display:flex; flex-direction:column; gap:2px; min-width:0; } .lrs-status-label { font-size:14px; font-weight:700; line-height:1.2; } .lrs-status-sub { font-size:12px; opacity:.85; font-weight:500; }
+        .lrs-status--success { background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.2); } .lrs-status--success .lrs-status-icon { color:#15803d; background:rgba(34,197,94,.12); } .lrs-status--success .lrs-status-label { color:#15803d; }
+        .lrs-status--warning { background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.2); } .lrs-status--warning .lrs-status-icon { color:#a16207; background:rgba(245,158,11,.12); } .lrs-status--warning .lrs-status-label { color:#a16207; }
+        .lrs-status--error { background:rgba(239,68,68,.08); border-color:rgba(239,68,68,.2); } .lrs-status--error .lrs-status-icon { color:#b91c1c; background:rgba(239,68,68,.12); } .lrs-status--error .lrs-status-label { color:#b91c1c; }
+        .lrs-status--neutral { background:var(--gray-100,#F3F4F6); border-color:var(--gray-200,#E5E7EB); } .lrs-status--neutral .lrs-status-icon { color:var(--gray-600,#4B5563); background:var(--gray-200,#E5E7EB); } .lrs-status--neutral .lrs-status-label { color:var(--gray-700,#374151); }
+        .lrs-info-grid { display:grid; grid-template-columns:1fr; gap:16px; }
+        .lrs-info-item { display:flex; flex-direction:column; gap:4px; } .lrs-info-label { font-size:11px; font-weight:700; color:var(--gray-400,#9CA3AF); text-transform:uppercase; letter-spacing:.05em; } .lrs-info-label--secondary { margin-top:8px; } .lrs-info-value { font-size:14px; font-weight:600; color:var(--gray-900,#111827); line-height:1.4; } .lrs-duration-badge { align-self:flex-start; padding:4px 8px; border-radius:8px; background:var(--gray-50,#F5F7FA); color:var(--text-secondary,#374151); font-size:.75rem; }
+        .lrs-reason-body { background:var(--gray-50,#F9FAFB); padding:16px; border-radius:12px; border:1px solid var(--gray-200,#E5E7EB); font-size:14px; line-height:1.7; color:var(--gray-600,#4B5563); white-space:pre-line; overflow-wrap:anywhere; }
+        .lrs-note { padding:14px 16px; border:1px solid transparent; } .lrs-note-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; } .lrs-note-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; } .lrs-note-text { margin:0; font-size:13px; line-height:1.6; white-space:pre-line; } .lrs-note--rejection { background:rgba(239,68,68,.06); border-color:rgba(239,68,68,.15); color:#991b1b; } .lrs-note--rejection .lrs-note-title { color:#b91c1c; }
+        @media (min-width:640px) { .lrs-info-grid { grid-template-columns:1fr 1fr; gap:20px; } .lrs-info-item--full { grid-column:1 / -1; } }
+        @media (min-width:768px) { .lrs-section { padding:24px; } .lrs-avatar { width:60px; height:60px; font-size:24px; border-radius:16px; } .lrs-employee-name { font-size:1.25rem; } .lrs-reason-body { padding:20px; } }
+        @media (min-width:1024px) { .lrs-page { gap:12px; } .lrs-layout { grid-template-columns:minmax(0,1fr) 380px; gap:20px; align-items:start; } .lrs-hero { grid-column:1 / -1; } .lrs-main-col { grid-column:1; display:flex; flex-direction:column; gap:16px; } .lrs-side-col { grid-column:2; display:flex; flex-direction:column; gap:16px; } }
         @media (max-width:480px) { .ot-card { padding:16px; } .ot-info div { align-items:flex-start; flex-direction:column; } .ot-modal-actions { flex-direction:column-reverse; } }
         @media (min-width:1025px) { .ot-action-bar { left:calc(var(--sidebar-width) + 12px); bottom:16px; background:transparent; padding:0 16px; } .app.sidebar-collapsed .ot-action-bar { left:0; } }
     </style>

@@ -580,6 +580,7 @@
         let imageBlob = null;
         let userLat = null;
         let userLng = null;
+        let userAccuracy = null;
         let isLocationValid = false;
         let isSubmitting = false;
 
@@ -587,6 +588,7 @@
             isLocationValid = false;
             userLat = null;
             userLng = null;
+            userAccuracy = null;
             document.getElementById('lat').value = '';
             document.getElementById('lng').value = '';
             btnCapture.disabled = true;
@@ -629,6 +631,7 @@
                         userLat = position.coords.latitude;
                         userLng = position.coords.longitude;
                         const acc = position.coords.accuracy;
+                        userAccuracy = acc;
 
                         document.getElementById('lat').value = userLat;
                         document.getElementById('lng').value = userLng;
@@ -643,13 +646,15 @@
                             gpsCard.className = 'capture-gps-badge gps-ready';
                             gpsPill.className = 'capture-pill capture-pill--ok';
                         } else {
-                            isLocationValid = true;
+                            isLocationValid = false;
                             gpsText.textContent = `Lemah (±${Math.round(acc)}m)`;
                             gpsDot.style.backgroundColor = 'var(--warning, #F59E0B)';
                             gpsOverlayText.textContent = `Lemah (±${Math.round(acc)}m)`;
                             gpsOverlayDot.style.backgroundColor = 'var(--warning, #F59E0B)';
                             gpsCard.className = 'capture-gps-badge gps-weak';
                             gpsPill.className = 'capture-pill capture-pill--warn';
+                            statusMsg.textContent = 'Aktifkan Lokasi Presisi agar akurasi lokasi maksimal ±100 m.';
+                            statusMsg.style.color = 'var(--warning, #F59E0B)';
                         }
                         checkReadiness();
                     },
@@ -775,7 +780,7 @@
 
         // 6. Fungsi Submit (Clock Out)
         btnSubmit.addEventListener('click', async () => {
-            if (!imageBlob || !isLocationValid || userLat === null || userLng === null || !hasValidReason()) return;
+            if (!imageBlob || !isLocationValid || userLat === null || userLng === null || userAccuracy === null || !hasValidReason()) return;
 
             const originalText = btnSubmit.innerHTML;
             isSubmitting = true;
@@ -792,6 +797,7 @@
             formData.append('_token', '{{ csrf_token() }}');
             formData.append('lat', userLat);
             formData.append('lng', userLng);
+            formData.append('accuracy', userAccuracy);
             formData.append('photo', imageBlob, 'clock-out.jpg');
             if (attendanceReason) formData.append('notes', attendanceReason.value.trim());
 

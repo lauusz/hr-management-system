@@ -27,9 +27,17 @@
             </header>
             <div class="attendance-status-panel__body">
                 @forelse($events as $event)
-                    <div class="attendance-event-row">
-                        <strong>{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}</strong>
-                        <span>{{ $event->occurred_at->format('H:i') }} · {{ $event->type === 'DINAS_LUAR' ? 'Dinas Luar' : 'WFO' }}</span>
+                    <div class="attendance-event">
+                        <div class="attendance-event-row">
+                            <strong>{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}</strong>
+                            <span>{{ $event->occurred_at->format('H:i') }} · {{ $event->type === 'DINAS_LUAR' ? 'Dinas Luar' : 'WFO' }}</span>
+                        </div>
+                        @if (filled($event->hrd_note))
+                            <aside class="attendance-hrd-note" aria-label="Catatan dari HR">
+                                <strong>Catatan dari HR</strong>
+                                <p>{{ $event->hrd_note }}</p>
+                            </aside>
+                        @endif
                     </div>
                 @empty
                     <p class="attendance-status-panel__description">Belum ada catatan absensi hari ini.</p>
@@ -64,10 +72,14 @@
         .attendance-status-panel__header h2 { margin:0; font-size:.9375rem; color:var(--text-primary); }
         .attendance-status-badge { padding:6px 10px; border-radius:999px; color:#27704a; background:#eef7f1; font-size:.6875rem; font-weight:700; }
         .attendance-status-panel__body { padding:8px 20px; }
-        .attendance-event-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 0; border-bottom:1px solid var(--border-light); font-size:.875rem; }
-        .attendance-event-row:last-child { border-bottom:0; }
+        .attendance-event { padding:12px 0; border-bottom:1px solid var(--border-light); }
+        .attendance-event:last-child { border-bottom:0; }
+        .attendance-event-row { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:.875rem; }
         .attendance-event-row strong { color:var(--text-primary); }
         .attendance-event-row span, .attendance-status-panel__description { color:var(--text-muted); }
+        .attendance-hrd-note { margin-top:10px; padding:10px 12px; border:1px solid #fde68a; border-left:3px solid #d97706; border-radius:10px; background:#fffbeb; color:#78350f; }
+        .attendance-hrd-note strong { display:block; font-size:.72rem; font-weight:700; }
+        .attendance-hrd-note p { margin:4px 0 0; font-size:.8rem; line-height:1.45; overflow-wrap:anywhere; }
         .attendance-action-dock { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:12px; }
         .attendance-action-dock--sticky { position:fixed; z-index:40; bottom:max(16px, env(safe-area-inset-bottom)); left:calc(50% + (var(--sidebar-width) / 2)); width:min(860px, calc(100vw - var(--sidebar-width) - 48px)); transform:translateX(-50%); border:1px solid rgba(148,163,184,.35); box-shadow:0 12px 30px rgba(15,23,42,.16); }
         .attendance-action { display:flex; align-items:center; justify-content:space-between; min-height:72px; padding:14px 16px; border-radius:14px; color:var(--white); text-decoration:none; }

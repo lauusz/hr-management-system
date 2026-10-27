@@ -118,13 +118,17 @@
                     <span>{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</span>
                 </div>
 
+                @if((int) ($overtime->break_minutes ?? 0) > 0)
+                    <div class="ot-card-break">Istirahat: {{ $overtime->break_human }}</div>
+                @endif
+
                 @if($overtime->description)
                     <div class="ot-card-note">
                         {{ Str::limit($overtime->description, 100) }}
                     </div>
                 @endif
 
-                @include('overtime_requests._approval_status', ['overtime' => $overtime, 'compact' => true, 'showHistory' => false, 'showTitle' => false, 'class' => 'ot-approval-summary'])
+                @include('overtime_requests._approval_status', ['overtime' => $overtime, 'compact' => true, 'showTitle' => false, 'class' => 'ot-approval-summary'])
                 </a>
 
                 <div class="ot-card-footer">
@@ -385,6 +389,12 @@
         .ot-card-time svg {
             color: var(--text-muted);
             flex-shrink: 0;
+        }
+        .ot-card-break {
+            margin: -3px 0 8px 22px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            line-height: 1.4;
         }
         .ot-card-note {
             font-size: 0.8125rem;

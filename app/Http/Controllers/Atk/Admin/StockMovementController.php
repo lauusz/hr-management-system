@@ -22,6 +22,29 @@ class StockMovementController extends Controller
             ->when($selectedModule, fn ($query) => $query->whereHas('item', fn ($itemQuery) => $itemQuery->where('module', $selectedModule)))
             ->when($request->filled('item_id'), fn ($query) => $query->where('atk_item_id', $request->integer('item_id')))
             ->when($request->filled('movement_type'), fn ($query) => $query->where('movement_type', $request->string('movement_type')))
+            ->when($request->filled('q'), function ($query) use ($request, $modules): void {
+                $keyword = '%'.$request->string('q')->toString().'%';
+                $matchingRequestIds = AtkRequest::whereIn('module', $modules)
+                    ->where(function ($reqQuery) use ($keyword): void {
+                        $reqQuery->where('user_name_snapshot', 'like', $keyword)
+                            ->orWhere('pt_name_snapshot', 'like', $keyword)
+                            ->orWhere('request_number', 'like', $keyword);
+                    })
+                    ->pluck('id');
+
+                $query->where(function ($sub) use ($keyword, $matchingRequestIds): void {
+                    $sub->whereHas('item', fn ($itemQuery) => $itemQuery->where('name', 'like', $keyword))
+                        ->orWhereHas('createdBy', fn ($userQuery) => $userQuery->where('name', 'like', $keyword))
+                        ->orWhere('notes', 'like', $keyword);
+
+                    if ($matchingRequestIds->isNotEmpty()) {
+                        $sub->orWhere(function ($reqMoveQuery) use ($matchingRequestIds): void {
+                            $reqMoveQuery->where('source_type', AtkStockMovement::SOURCE_REQUEST)
+                                ->whereIn('source_id', $matchingRequestIds);
+                        });
+                    }
+                });
+            })
             ->latest()
             ->latest('id')
             ->paginate(20)

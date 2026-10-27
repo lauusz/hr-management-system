@@ -30,6 +30,36 @@ it('converts supported images to a resized jpeg', function () {
         ->and($imageInfo['mime'])->toBe('image/jpeg');
 });
 
+it('limits compressed photos to seventy kilobytes', function () {
+    Storage::fake('public');
+
+    $source = tempnam(sys_get_temp_dir(), 'image-compressor-');
+    $image = imagecreatetruecolor(1024, 1024);
+
+    for ($y = 0; $y < 1024; $y += 8) {
+        for ($x = 0; $x < 1024; $x += 8) {
+            $seed = (($x * 1103515245) ^ ($y * 12345)) & 0x00ffffff;
+            imagefilledrectangle($image, $x, $y, $x + 7, $y + 7, $seed);
+        }
+    }
+
+    imagejpeg($image, $source, 100);
+    imagedestroy($image);
+
+    try {
+        $path = app(ImageCompressor::class)->compressAndStore(
+            new UploadedFile($source, 'bukti.jpg', 'image/jpeg', null, true),
+            'photo',
+            'leave_photos',
+            'leave_'
+        );
+
+        expect(Storage::disk('public')->size($path))->toBeLessThanOrEqual(70 * 1024);
+    } finally {
+        @unlink($source);
+    }
+});
+
 it('keeps document files in their original format', function () {
     Storage::fake('public');
 

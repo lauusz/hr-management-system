@@ -295,6 +295,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/employees', [HREmployeeController::class, 'index'])->name('hr.employees.index');
         Route::get('/hr/employees/create', [HREmployeeController::class, 'create'])->name('hr.employees.create');
         Route::post('/hr/employees', [HREmployeeController::class, 'store'])->name('hr.employees.store');
+        Route::get('/hr/employees/{employee}/leave-balance-history', [HREmployeeController::class, 'leaveBalanceHistory'])->name('hr.employees.leave-balance-history');
         Route::get('/hr/approvers', [HRApproverMappingController::class, 'index'])->name('hr.approvers.index');
         Route::get('/hr/approvers/lembur', [\App\Http\Controllers\HROvertimeApproverController::class, 'index'])->name('hr.approvers.overtime.index');
         Route::post('/hr/approvers/lembur', [\App\Http\Controllers\HROvertimeApproverController::class, 'store'])->name('hr.approvers.overtime.store');

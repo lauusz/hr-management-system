@@ -341,6 +341,7 @@
                 @if($hasEvidence)
                 <div class="apv-detail-row apv-detail-row--full">
                     <span class="apv-detail-label">Bukti Pendukung ({{ count($evidenceFiles) }} file)</span>
+                    <div class="apv-evidence-list {{ count($evidenceFiles) > 1 ? 'apv-evidence-list--vertical' : '' }}">
                     @foreach($evidenceFiles as $evidence)
                         @php
                             $evidenceUrl = $evidence['is_legacy']
@@ -377,6 +378,7 @@
                         </a>
                         @endif
                     @endforeach
+                    </div>
                 </div>
                 @endif
 
@@ -869,16 +871,17 @@
                         <span>Lampiran</span>
                     </div>
                     <div class="edit-upload-area">
-                        <input type="file" name="photo" id="edit_photo" class="edit-upload-input" accept="image/*,.pdf" data-max-file-size="8388608" data-max-file-label="8 MB">
+                        <input type="file" name="photos[]" id="edit_photo" class="edit-upload-input" accept="image/*,.pdf" multiple data-max-file-size="8388608" data-max-file-label="8 MB">
                         <label for="edit_photo" class="edit-upload-label">
                             <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                            <span>Klik untuk upload atau drag file ke sini</span>
-                            <small>JPG, PNG, PDF (max 8MB)</small>
+                            <span>Klik untuk upload beberapa file atau drag file ke sini</span>
+                            <small>JPG, PNG, PDF (maks. 3 file, masing-masing max 8MB)</small>
                         </label>
-                        @if($item->photo)
+                        <div id="edit_photo_preview" class="edit-upload-preview" hidden></div>
+                        @if($hasEvidence)
                         <div class="edit-current-file">
                             <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            File saat ini: {{ $item->photo }}
+                            Lampiran tersimpan: {{ count($evidenceFiles) }} file
                         </div>
                         @endif
                     </div>
@@ -1267,14 +1270,38 @@
 
             // Edit modal: file upload preview
             const photoInput = document.getElementById('edit_photo');
+            const photoPreview = document.getElementById('edit_photo_preview');
             if (photoInput) {
                 photoInput.addEventListener('change', function() {
-                    const fileName = this.files[0]?.name || 'Pilih file...';
                     const label = this.nextElementSibling;
                     if (label && label.classList.contains('edit-upload-label')) {
                         const span = label.querySelector('span');
-                        if (span) span.textContent = fileName;
+                        if (span) span.textContent = this.files.length
+                            ? `${this.files.length} file dipilih`
+                            : 'Klik untuk upload beberapa file atau drag file ke sini';
                     }
+
+                    if (!photoPreview) return;
+
+                    photoPreview.innerHTML = '';
+                    Array.from(this.files).forEach((file) => {
+                        const item = document.createElement('div');
+                        item.className = 'edit-upload-preview-item';
+
+                        if (file.type.startsWith('image/')) {
+                            const image = document.createElement('img');
+                            image.src = URL.createObjectURL(file);
+                            image.alt = file.name;
+                            item.appendChild(image);
+                        } else {
+                            const name = document.createElement('span');
+                            name.textContent = file.name;
+                            item.appendChild(name);
+                        }
+
+                        photoPreview.appendChild(item);
+                    });
+                    photoPreview.hidden = this.files.length === 0;
                 });
             }
         });
@@ -1808,6 +1835,19 @@
         }
         .apv-photo-preview:hover .apv-photo-overlay { opacity: 1; }
         .apv-photo-overlay span { color: #fff; font-size: 0.75rem; font-weight: 600; }
+        .apv-evidence-list { display: grid; gap: 8px; }
+        .apv-evidence-list--vertical {
+            max-height: 360px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .apv-evidence-list--vertical .apv-photo-preview { margin-bottom: 0 !important; }
+        .apv-evidence-list--vertical .apv-photo-preview img {
+            height: 112px;
+            max-height: none;
+            object-fit: cover;
+        }
+        .apv-evidence-list--vertical .apv-file-preview { min-height: 112px; }
 
         /* ========================================== */
         /* MAP                                        */
@@ -2357,6 +2397,34 @@
             padding: 18px;
             border-color: #C9D7E4;
             background: #FAFCFE;
+        }
+        #form-edit-hr .edit-upload-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+        #form-edit-hr .edit-upload-preview-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 96px;
+            overflow: hidden;
+            border: 1px solid #D8E0E8;
+            border-radius: 9px;
+            background: #FAFCFE;
+        }
+        #form-edit-hr .edit-upload-preview-item img {
+            width: 100%;
+            height: 96px;
+            object-fit: cover;
+        }
+        #form-edit-hr .edit-upload-preview-item span {
+            padding: 10px;
+            overflow-wrap: anywhere;
+            text-align: center;
+            color: var(--text-secondary, #374151);
+            font-size: 11px;
         }
         #form-edit-hr .edit-upload-input:focus-visible + .edit-upload-label {
             outline: 3px solid rgba(20, 93, 160, 0.4);

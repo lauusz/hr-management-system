@@ -9,6 +9,7 @@ use App\Models\OfficeHoliday;
 use App\Models\User;
 use App\Services\Attendance\AllowedAttendanceLocationResolver;
 use App\Services\Image\ImageCompressor;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Storage;
 class AttendanceController extends Controller
 {
     private const EVENT_COOLDOWN_MINUTES = 15;
+    private const MAX_LOCATION_ACCURACY_METERS = 100;
 
     public function __construct(
         protected ImageCompressor $imageCompressor,
@@ -128,7 +130,11 @@ class AttendanceController extends Controller
             'photo' => ['required', 'image', 'max:8192'],
             'lat' => ['required', 'numeric'],
             'lng' => ['required', 'numeric'],
+            'accuracy' => ['required', 'numeric', 'min:0', 'max:'.self::MAX_LOCATION_ACCURACY_METERS],
             'notes' => $isRemote && $eventType === AttendanceEvent::CLOCK_IN ? ['required', 'string'] : ['nullable', 'string'],
+        ], [
+            'accuracy.required' => 'Aktifkan Lokasi Presisi sebelum melakukan presensi.',
+            'accuracy.max' => 'Akurasi lokasi terlalu lemah. Aktifkan Lokasi Presisi, lalu coba lagi.',
         ]);
 
         $user = Auth::user();
@@ -147,9 +153,18 @@ class AttendanceController extends Controller
                 return response()->json(['message' => 'Jadwal shift belum diatur. Hubungi HR.'], 400);
             }
 
+            foreach (['work_date', 'attendance_shift_id', 'shift_start_time', 'shift_end_time', 'is_overnight', 'attendance_location_scope'] as $column) {
+                if (! Schema::hasColumn('attendance_events', $column)) {
+                    return response()->json(['message' => 'Pembaruan absensi belum tersedia. Hubungi HR atau IT.'], 503);
+                }
+            }
+
             if (! $isRemote && (! Schema::hasColumn('attendance_events', 'is_flexible') || ! Schema::hasColumn('attendance_events', 'is_outside_reference_location'))) {
                 return response()->json(['message' => 'Pembaruan absensi belum tersedia. Hubungi HR atau IT.'], 503);
             }
+
+            $occurredAt = now();
+            $shiftSnapshot = $this->attendanceShiftSnapshot($employeeShift, $occurredAt);
 
             $matchedLocation = null;
             $distance = 0;
@@ -202,11 +217,23 @@ class AttendanceController extends Controller
                 : ($eventType === AttendanceEvent::CLOCK_IN ? 'att_in_' : 'att_out_');
             $photoPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', $folder, $prefix);
 
-            $recordedEvent = DB::transaction(function () use ($user, $eventType, $isRemote, $employeeShift, $matchedLocation, $photoPath, $request, $distance, $isFlexibleEvent, $isOutsideReferenceLocation, $referenceLocationIds) {
+            $recordedEvent = DB::transaction(function () use ($user, $eventType, $isRemote, $employeeShift, $matchedLocation, $photoPath, $request, $distance, $isFlexibleEvent, $isOutsideReferenceLocation, $referenceLocationIds, $occurredAt, $shiftSnapshot) {
                 User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
 
                 if ($cooldownEvent = $this->activeCooldownEvent($user->id)) {
                     return ['event' => $cooldownEvent, 'is_cooldown' => true];
+                }
+
+                if ($eventType === AttendanceEvent::CLOCK_OUT) {
+                    $previousEvent = AttendanceEvent::query()
+                        ->where('user_id', $user->id)
+                        ->latest('occurred_at')
+                        ->latest('id')
+                        ->first();
+
+                    if ($previousEvent?->event_type === AttendanceEvent::CLOCK_IN) {
+                        $shiftSnapshot = $this->clockOutShiftSnapshot($previousEvent, $employeeShift);
+                    }
                 }
 
                 if (! $isRemote) {
@@ -239,7 +266,8 @@ class AttendanceController extends Controller
                         'user_id' => $user->id,
                         'event_type' => $eventType,
                         'type' => $isRemote ? 'DINAS_LUAR' : 'WFO',
-                        'occurred_at' => now(),
+                        'occurred_at' => $occurredAt,
+                        ...$shiftSnapshot,
                         'location_id' => $isRemote ? null : $matchedLocation?->id,
                         'photo' => $photoPath,
                         'latitude' => $request->lat,
@@ -322,7 +350,7 @@ class AttendanceController extends Controller
         $relations = ['location'];
 
         if ($withShift) {
-            $relations[] = 'shift';
+            $relations[] = 'shift.days';
         }
 
         if ($this->hasLocationAssignmentsTable()) {
@@ -330,6 +358,71 @@ class AttendanceController extends Controller
         }
 
         return $relations;
+    }
+
+    /**
+     * @return array{work_date: string, attendance_shift_id: int, shift_start_time: ?string, shift_end_time: ?string, is_overnight: bool, attendance_location_scope: string}
+     */
+    private function attendanceShiftSnapshot(EmployeeShift $employeeShift, Carbon $occurredAt): array
+    {
+        $workDate = $occurredAt->copy()->startOfDay();
+        $shiftDay = $employeeShift->shift?->days
+            ->first(fn ($day) => (int) $day->day_of_week === $workDate->dayOfWeekIso && ! $day->is_holiday);
+        $previousWorkDate = $workDate->copy()->subDay();
+        $previousShiftDay = $employeeShift->shift?->days
+            ->first(fn ($day) => (int) $day->day_of_week === $previousWorkDate->dayOfWeekIso && ! $day->is_holiday);
+
+        if ($previousShiftDay?->is_overnight && $previousShiftDay->end_time
+            && $occurredAt->format('H:i:s') <= $previousShiftDay->end_time) {
+            $workDate = $previousWorkDate;
+            $shiftDay = $previousShiftDay;
+        }
+
+        return [
+            'work_date' => $workDate->toDateString(),
+            'attendance_shift_id' => $employeeShift->shift_id,
+            'shift_start_time' => $shiftDay?->start_time,
+            'shift_end_time' => $shiftDay?->end_time,
+            'is_overnight' => (bool) $shiftDay?->is_overnight,
+            'attendance_location_scope' => $this->attendanceLocationScope($employeeShift),
+        ];
+    }
+
+    /**
+     * Clock Out selalu mengikuti hari kerja Clock In sebelumnya, termasuk bila melewati jam akhir shift.
+     *
+     * @return array{work_date: string, attendance_shift_id: int, shift_start_time: ?string, shift_end_time: ?string, is_overnight: bool, attendance_location_scope: string}
+     */
+    private function clockOutShiftSnapshot(AttendanceEvent $clockIn, EmployeeShift $employeeShift): array
+    {
+        $fallback = $this->attendanceShiftSnapshot($employeeShift, $clockIn->occurred_at);
+
+        return [
+            'work_date' => $clockIn->work_date?->toDateString() ?? $fallback['work_date'],
+            'attendance_shift_id' => $clockIn->attendance_shift_id ?? $fallback['attendance_shift_id'],
+            'shift_start_time' => $clockIn->shift_start_time ?? $fallback['shift_start_time'],
+            'shift_end_time' => $clockIn->shift_end_time ?? $fallback['shift_end_time'],
+            'is_overnight' => $clockIn->is_overnight ?? $fallback['is_overnight'],
+            'attendance_location_scope' => $clockIn->attendance_location_scope ?? $fallback['attendance_location_scope'],
+        ];
+    }
+
+    private function attendanceLocationScope(EmployeeShift $employeeShift): string
+    {
+        if ($employeeShift->is_flexible) {
+            return 'Fleksibel';
+        }
+
+        if ($employeeShift->is_all_locations) {
+            return 'All Locations';
+        }
+
+        $selectedLocations = $this->scheduleLocations($employeeShift)
+            ->pluck('name')
+            ->filter()
+            ->implode(', ');
+
+        return $selectedLocations ?: '-';
     }
 
     /**

@@ -87,6 +87,8 @@ class OvertimeRequestController extends Controller
             'overtime_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|different:start_time',
+            'break_hours' => 'nullable|integer|min:0|max:23',
+            'break_minutes' => 'nullable|integer|min:0|max:59',
             'description' => 'required|string|max:5000',
             'photos' => 'nullable|array|max:3',
             'photos.*' => 'file|mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx|max:8192',
@@ -100,6 +102,8 @@ class OvertimeRequestController extends Controller
         ]);
 
         $durationMinutes = $this->calculateDurationMinutes($validated['start_time'], $validated['end_time']);
+        $breakMinutes = $this->calculateBreakMinutes($validated);
+        $this->validateBreakDuration($breakMinutes, $durationMinutes);
 
         $files = [];
         try {
@@ -107,13 +111,14 @@ class OvertimeRequestController extends Controller
                 $files[] = $evidenceStorage->store($file);
             }
 
-            DB::transaction(function () use ($user, $validated, $durationMinutes, $files) {
+            DB::transaction(function () use ($user, $validated, $durationMinutes, $breakMinutes, $files) {
                 $overtime = OvertimeRequest::create([
                     'user_id' => $user->id,
                     'overtime_date' => $validated['overtime_date'],
                     'start_time' => $validated['start_time'],
                     'end_time' => $validated['end_time'],
                     'duration_minutes' => $durationMinutes,
+                    'break_minutes' => $breakMinutes,
                     'description' => $validated['description'],
                     'status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR,
                 ]);
@@ -190,21 +195,26 @@ class OvertimeRequestController extends Controller
             'overtime_date' => 'required|date',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|different:start_time',
+            'break_hours' => 'nullable|integer|min:0|max:23',
+            'break_minutes' => 'nullable|integer|min:0|max:59',
             'description' => 'required|string|max:5000',
         ], [
             'end_time.different' => 'Jam selesai lembur tidak boleh sama dengan jam mulai.',
         ]);
 
         $durationMinutes = $this->calculateDurationMinutes($validated['start_time'], $validated['end_time']);
+        $breakMinutes = $this->calculateBreakMinutes($validated);
+        $this->validateBreakDuration($breakMinutes, $durationMinutes);
 
         try {
-            $approvalService->locked($overtimeRequest, function ($locked) use ($isOwner, $user, $validated, $durationMinutes, $approvalService) {
+            $approvalService->locked($overtimeRequest, function ($locked) use ($isOwner, $user, $validated, $durationMinutes, $breakMinutes, $approvalService) {
                 if ($isOwner && $locked->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
                     throw new \DomainException('Pengajuan sudah diproses, tidak dapat diubah sendiri.');
                 }
                 $changed = $locked->overtime_date->format('Y-m-d') !== $validated['overtime_date']
                     || $locked->start_time->format('H:i') !== $validated['start_time']
                     || $locked->end_time->format('H:i') !== $validated['end_time']
+                    || (int) ($locked->break_minutes ?? 0) !== $breakMinutes
                     || $locked->description !== $validated['description'];
                 if ($changed && $locked->status === OvertimeRequest::STATUS_PENDING_SUPERVISOR && $locked->currentApprovalActions()->contains('action', 'APPROVE')) {
                     if ($isOwner) {
@@ -217,6 +227,7 @@ class OvertimeRequestController extends Controller
                     'start_time' => $validated['start_time'],
                     'end_time' => $validated['end_time'],
                     'duration_minutes' => $durationMinutes,
+                    'break_minutes' => $breakMinutes,
                     'description' => $validated['description'],
                 ]);
             });
@@ -242,6 +253,20 @@ class OvertimeRequestController extends Controller
         }
 
         return $start->diffInMinutes($end);
+    }
+
+    private function calculateBreakMinutes(array $validated): int
+    {
+        return ((int) ($validated['break_hours'] ?? 0) * 60) + (int) ($validated['break_minutes'] ?? 0);
+    }
+
+    private function validateBreakDuration(int $breakMinutes, int $durationMinutes): void
+    {
+        if ($breakMinutes >= $durationMinutes) {
+            throw ValidationException::withMessages([
+                'break_hours' => 'Istirahat harus lebih singkat dari durasi lembur.',
+            ]);
+        }
     }
 
     public function destroy(OvertimeRequest $overtimeRequest, OvertimeApprovalService $approvalService)

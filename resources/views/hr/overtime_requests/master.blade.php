@@ -102,8 +102,8 @@
                         <th>Karyawan</th>
                         <th>Tanggal Lembur</th>
                         <th>Waktu</th>
+                        <th>Durasi</th>
                         <th>Status / Supervisor</th>
-                        <th>Clock In</th>
                         <th>Clock Out</th>
                         <th style="width: 80px;">Aksi</th>
                     </tr>
@@ -112,6 +112,8 @@
                     @forelse($overtimes as $i => $overtime)
                         @php
                             $recap = $recapData[$overtime->id] ?? null;
+                            $clockInTimes = collect($recap['clock_ins'] ?? [])->map(fn ($time) => $time->format('H:i'))->values();
+                            $clockOutTimes = collect($recap['clock_outs'] ?? [])->map(fn ($time) => $time->format('H:i'))->values();
 
                             $st = $overtime->status;
                             $badgeClass = 'hom-badge--gray';
@@ -144,7 +146,11 @@
                                 <div class="hom-employee">
                                     <div class="hom-employee-avatar">{{ substr($overtime->user->name, 0, 1) }}</div>
                                     <div class="hom-employee-info">
-                                        <span class="hom-employee-name">{{ $overtime->user->name }}</span>
+                                        <button type="button" class="hom-employee-name hom-employee-name--button" data-overtime-attendance
+                                            data-overtime-attendance-name="{{ $overtime->user->name }}"
+                                            data-overtime-attendance-date="{{ $overtime->overtime_date->translatedFormat('j F Y') }}"
+                                            data-overtime-attendance-clock-ins="{{ json_encode($clockInTimes) }}"
+                                            data-overtime-attendance-clock-outs="{{ json_encode($clockOutTimes) }}">{{ $overtime->user->name }}</button>
                                         <span class="hom-employee-role">{{ $overtime->user->division->name ?? '-' }}</span>
                                     </div>
                                 </div>
@@ -154,6 +160,12 @@
                             </td>
                             <td>
                                 <span class="hom-text-date">{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</span>
+                                @if((int) $overtime->break_minutes > 0)
+                                    <span class="hom-break-note">Istirahat: {{ $overtime->break_human }}</span>
+                                @endif
+                            </td>
+                            <td>
+                                <span class="hom-text-date">{{ $overtime->duration_human }}</span>
                             </td>
                             <td>
                                 <span class="hom-badge {{ $badgeClass }}">
@@ -165,13 +177,6 @@
                                     <div class="hom-rejection-mini">
                                         Note: {{ $overtime->rejection_note }}
                                     </div>
-                                @endif
-                            </td>
-                            <td>
-                                @if($recap && $recap['clock_in'])
-                                    <span class="hom-text-date">{{ $recap['clock_in']->format('H:i') }}</span>
-                                @else
-                                    <span class="hom-text-muted">-</span>
                                 @endif
                             </td>
                             <td>
@@ -223,6 +228,23 @@
         </div>
         <iframe id="hom-detail-frame" title="Detail pengajuan lembur"></iframe>
     </dialog>
+
+    <x-modal id="overtime-attendance-modal" title="Absensi Karyawan" type="info" variant="info" cancelLabel="Tutup">
+        <div class="hom-attendance-modal-meta">
+            <strong id="overtime-attendance-name"></strong>
+            <span id="overtime-attendance-date"></span>
+        </div>
+        <div class="hom-attendance-modal-times">
+            <section>
+                <span>Clock In</span>
+                <div id="overtime-attendance-clock-in"></div>
+            </section>
+            <section>
+                <span>Clock Out</span>
+                <div id="overtime-attendance-clock-out"></div>
+            </section>
+        </div>
+    </x-modal>
 
     <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
@@ -277,6 +299,35 @@
                 if (refreshOnClose) window.location.reload();
                 else opener?.focus();
             });
+        })();
+    </script>
+    <script data-overtime-attendance-modal>
+        (() => {
+            const modal = document.getElementById('overtime-attendance-modal');
+            if (!modal) return;
+
+            document.addEventListener('click', (event) => {
+                const trigger = event.target.closest('[data-overtime-attendance]');
+                if (!trigger) return;
+
+                document.getElementById('overtime-attendance-name').textContent = trigger.dataset.overtimeAttendanceName;
+                document.getElementById('overtime-attendance-date').textContent = trigger.dataset.overtimeAttendanceDate;
+                renderOvertimeAttendanceTimes('overtime-attendance-clock-in', JSON.parse(trigger.dataset.overtimeAttendanceClockIns || '[]'));
+                renderOvertimeAttendanceTimes('overtime-attendance-clock-out', JSON.parse(trigger.dataset.overtimeAttendanceClockOuts || '[]'));
+                modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            });
+
+            function renderOvertimeAttendanceTimes(id, times) {
+                const container = document.getElementById(id);
+                container.replaceChildren();
+
+                (times.length ? times : ['-']).forEach((time) => {
+                    const value = document.createElement('strong');
+                    value.textContent = time;
+                    container.append(value);
+                });
+            }
         })();
     </script>
     <script data-overtime-live-search>
@@ -389,6 +440,16 @@
         }
         .hom-detail-modal-header button:hover { background: #f3f4f6; color: #111827; }
         #hom-detail-frame { width: 100%; min-height: 0; flex: 1; border: 0; }
+        .hom-employee-name--button { padding: 0; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+        .hom-employee-name--button:hover, .hom-employee-name--button:focus-visible { color: #145da0; text-decoration: underline; outline: none; }
+        #overtime-attendance-modal .modal-card { max-width: 520px; }
+        .hom-attendance-modal-meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; color: #111827; }
+        .hom-attendance-modal-meta span { padding: 3px 8px; color: #176b42; font-size: 11px; font-weight: 700; background: #e9f8ef; border-radius: 999px; }
+        .hom-attendance-modal-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .hom-attendance-modal-times section { padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+        .hom-attendance-modal-times span { display: block; margin-bottom: 6px; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+        .hom-attendance-modal-times strong { display: block; color: #111827; font-size: 24px; }
+        @media (max-width: 480px) { .hom-attendance-modal-times { grid-template-columns: 1fr; } }
         /* ========================================== */
         /* ALERTS                                     */
         /* ========================================== */
@@ -674,6 +735,7 @@
         .hom-text-right { text-align: right; }
         .hom-text-date { font-weight: 600; color: var(--text-primary, #1f2937); font-size: 13.5px; }
         .hom-text-xs { font-size: 11px; margin-top: 2px; }
+        .hom-break-note { display: block; margin-top: 3px; color: var(--text-muted, #6B7280); font-size: 11px; font-weight: 500; }
 
         /* ========================================== */
         /* RESPONSIVE                                 */
@@ -791,15 +853,15 @@
             .hom-table td:nth-child(2) .hom-employee-name { font-size: 15px; }
 
             /* Status / Supervisor */
-            .hom-table td:nth-child(5) {
+            .hom-table td:nth-child(6) {
                 display: block;
                 margin-bottom: 12px;
             }
 
-            /* Tanggal, Waktu, Clock In, Clock Out */
+            /* Tanggal, Waktu, Durasi, Clock Out */
             .hom-table td:nth-child(3),
             .hom-table td:nth-child(4),
-            .hom-table td:nth-child(6),
+            .hom-table td:nth-child(5),
             .hom-table td:nth-child(7) {
                 display: block;
                 background: var(--gray-50, #F5F7FA);
@@ -812,7 +874,7 @@
 
             .hom-table td:nth-child(3)::before { content: 'Tgl Lembur: '; font-weight: 600; color: var(--text-primary, #374151); }
             .hom-table td:nth-child(4)::before { content: 'Waktu: '; font-weight: 600; color: var(--text-primary, #374151); }
-            .hom-table td:nth-child(6)::before { content: 'Clock In: '; font-weight: 600; color: var(--text-primary, #374151); }
+            .hom-table td:nth-child(5)::before { content: 'Durasi: '; font-weight: 600; color: var(--text-primary, #374151); }
             .hom-table td:nth-child(7)::before { content: 'Clock Out: '; font-weight: 600; color: var(--text-primary, #374151); }
             /* Action */
             .hom-table td:last-child {

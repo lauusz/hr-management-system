@@ -192,6 +192,7 @@
         let photoBlob = null;
         let latitude = null;
         let longitude = null;
+        let accuracy = null;
         let locationReady = false;
         let cameraReady = false;
         let isSubmitting = false;
@@ -200,6 +201,7 @@
             locationReady = false;
             latitude = null;
             longitude = null;
+            accuracy = null;
             captureButton.disabled = true;
             submitButton.disabled = true;
         }
@@ -245,14 +247,19 @@
             watchId = navigator.geolocation.watchPosition((position) => {
                 latitude = position.coords.latitude;
                 longitude = position.coords.longitude;
-                locationReady = true;
-                const accuracy = Math.round(position.coords.accuracy);
-                const label = `${accuracy <= 100 ? 'Akurat' : 'Lemah'} (±${accuracy}m)`;
+                accuracy = position.coords.accuracy;
+                locationReady = accuracy <= 100;
+                const roundedAccuracy = Math.round(accuracy);
+                const label = `${locationReady ? 'Akurat' : 'Lemah'} (±${roundedAccuracy}m)`;
 
-                gpsPill.className = `remote-capture-pill${accuracy <= 100 ? '' : ' is-loading'}`;
+                gpsPill.className = `remote-capture-pill${locationReady ? '' : ' is-loading'}`;
                 gpsText.textContent = label;
                 gpsOverlayText.textContent = `Lokasi ${label.toLowerCase()}`;
-                gpsOverlayDot.style.background = accuracy <= 100 ? 'var(--success)' : 'var(--warning)';
+                gpsOverlayDot.style.background = locationReady ? 'var(--success)' : 'var(--warning)';
+                if (!locationReady) {
+                    statusMessage.textContent = 'Aktifkan Lokasi Presisi agar akurasi lokasi maksimal ±100 m.';
+                    statusMessage.style.color = 'var(--warning)';
+                }
                 checkReady();
             }, () => {
                 invalidateLocationState();
@@ -307,7 +314,7 @@
         });
 
         async function submitRemoteAttendance() {
-            if (!photoBlob || !locationReady || latitude === null || longitude === null) return;
+            if (!photoBlob || !locationReady || latitude === null || longitude === null || accuracy === null) return;
 
             const originalText = submitButton.textContent;
             isSubmitting = true;
@@ -320,6 +327,7 @@
             payload.append('photo', photoBlob, mode === 'in' ? 'remote-in.jpg' : 'remote-out.jpg');
             payload.append('lat', latitude);
             payload.append('lng', longitude);
+            payload.append('accuracy', accuracy);
             if (mode === 'in') payload.append('notes', notes);
 
             try {
@@ -348,7 +356,7 @@
         }
 
         submitButton.addEventListener('click', () => {
-            if (!photoBlob || !locationReady || latitude === null || longitude === null) return;
+            if (!photoBlob || !locationReady || latitude === null || longitude === null || accuracy === null) return;
 
             if (mode === 'in' && officeHolidayModal) {
                 officeHolidayModal.style.display = 'flex';

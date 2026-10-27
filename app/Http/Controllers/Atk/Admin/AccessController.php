@@ -12,7 +12,21 @@ class AccessController extends Controller
 {
     public function index(Request $request)
     {
+        $adminRole = UserRole::ADMIN_ATK->value;
+        $roleFilter = $request->string('role')->toString();
+
+        $isAdminCondition = function ($query) use ($adminRole): void {
+            $query->where('role', $adminRole)
+                ->orWhereHas('accessRoles', fn ($sub) => $sub->where('role', $adminRole));
+        };
+
         $users = User::with(['accessRoles', 'pt'])
+            ->when($roleFilter === 'admin', $isAdminCondition)
+            ->when($roleFilter === 'user', function ($query) use ($adminRole): void {
+                $query->where(function ($sub) use ($adminRole): void {
+                    $sub->whereNull('role')->orWhere('role', '!=', $adminRole);
+                })->whereDoesntHave('accessRoles', fn ($sub) => $sub->where('role', $adminRole));
+            })
             ->when($request->filled('q'), function ($query) use ($request): void {
                 $keyword = '%'.$request->string('q')->toString().'%';
                 $query->where(function ($query) use ($keyword): void {
@@ -24,6 +38,10 @@ class AccessController extends Controller
                         });
                 });
             })
+            ->orderByRaw(
+                'CASE WHEN role = ? OR EXISTS (SELECT 1 FROM user_access_roles WHERE user_access_roles.user_id = users.id AND user_access_roles.role = ?) THEN 0 ELSE 1 END',
+                [$adminRole, $adminRole]
+            )
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();

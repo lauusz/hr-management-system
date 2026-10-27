@@ -589,6 +589,8 @@ class HrLeaveController extends Controller
             return $redirect;
         }
 
+        $availableEvidenceSlots = max(0, LeaveRequest::MAX_EVIDENCE_FILES - $leave->evidenceFileCount());
+
         $validated = $request->validate([
             'type' => ['required', Rule::in(LeaveType::values())],
             'start_date' => ['required', 'date'],
@@ -601,6 +603,8 @@ class HrLeaveController extends Controller
             'substitute_phone' => ['nullable', 'string', 'max:50'],
             'special_leave_detail' => ['nullable', 'string'],
             'photo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
+            'photos' => ['nullable', 'array', 'max:'.$availableEvidenceSlots],
+            'photos.*' => ['file', 'mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx', 'max:8192'],
             'deduction_mode_edit' => ['nullable', Rule::in(['NONE', 'LEAVE_BALANCE', 'LEAVE_BALANCE_HALF_DAY', 'MEAL_ALLOWANCE'])],
             'deduct_um_edit' => ['nullable', 'in:1'],
             'daily_treatments' => ['nullable', 'array'],
@@ -613,6 +617,11 @@ class HrLeaveController extends Controller
         ], [
             'photo.max' => 'Ukuran file bukti pendukung tidak boleh lebih dari 8 MB.',
             'photo.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
+            'photos.max' => $availableEvidenceSlots > 0
+                ? "Maksimal {$availableEvidenceSlots} lampiran tambahan yang dapat diunggah."
+                : 'Lampiran sudah mencapai batas maksimal 3 file.',
+            'photos.*.max' => 'Ukuran setiap file bukti pendukung tidak boleh lebih dari 8 MB.',
+            'photos.*.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
         ]);
 
         $type = $validated['type'];
@@ -670,6 +679,7 @@ class HrLeaveController extends Controller
                 'leave_',
             );
         }
+        $uploadedEvidenceFiles = $this->storeEvidenceFiles($request);
 
         $actor = Auth::user();
         $oldPhoto = $leave->photo;
@@ -688,6 +698,7 @@ class HrLeaveController extends Controller
                     $specialLeaveCategory,
                     $offSpvPeriodId,
                     $uploadedPhotoPath,
+                    $uploadedEvidenceFiles,
                     $actor,
                     $deductionMode,
                     $legacyDeductUm,
@@ -803,6 +814,18 @@ class HrLeaveController extends Controller
                         $updateData['photo'] = basename($uploadedPhotoPath);
                     }
 
+                    if ($uploadedEvidenceFiles !== []) {
+                        $sortOrder = (int) $lockedLeave->attachments()->max('sort_order');
+
+                        foreach ($uploadedEvidenceFiles as $uploadedEvidence) {
+                            $lockedLeave->attachments()->create([
+                                'file_name' => basename($uploadedEvidence['path']),
+                                'original_name' => $uploadedEvidence['original'],
+                                'sort_order' => ++$sortOrder,
+                            ]);
+                        }
+                    }
+
                     return $updateData;
                 }
             );
@@ -811,6 +834,7 @@ class HrLeaveController extends Controller
                 if ($uploadedPhotoPath !== null) {
                     Storage::disk('public')->delete($uploadedPhotoPath);
                 }
+                $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);
 
                 return redirect()
                     ->back()
@@ -820,6 +844,7 @@ class HrLeaveController extends Controller
             if ($uploadedPhotoPath !== null) {
                 Storage::disk('public')->delete($uploadedPhotoPath);
             }
+            $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);
 
             return redirect()
                 ->back()
@@ -829,6 +854,7 @@ class HrLeaveController extends Controller
             if ($uploadedPhotoPath !== null) {
                 Storage::disk('public')->delete($uploadedPhotoPath);
             }
+            $this->deleteEvidenceFilesFromDisk($uploadedEvidenceFiles);
 
             throw $e;
         }
@@ -840,6 +866,37 @@ class HrLeaveController extends Controller
         return redirect()
             ->route('hr.leave.show', $leave->id)
             ->with('success', 'Data pengajuan berhasil diperbarui.');
+    }
+
+    /**
+     * Simpan lampiran tambahan dari modal edit HR.
+     *
+     * @return array<int, array{path: string, original: string}>
+     */
+    private function storeEvidenceFiles(Request $request): array
+    {
+        $stored = [];
+
+        foreach ((array) $request->file('photos', []) as $file) {
+            if (! $file) {
+                continue;
+            }
+
+            $stored[] = [
+                'path' => $this->imageCompressor->compressAndStore($file, 'photo', 'leave_photos', 'leave_'),
+                'original' => $file->getClientOriginalName(),
+            ];
+        }
+
+        return $stored;
+    }
+
+    /** @param array<int, array{path: string, original: string}> $uploadedFiles */
+    private function deleteEvidenceFilesFromDisk(array $uploadedFiles): void
+    {
+        foreach ($uploadedFiles as $uploadedFile) {
+            Storage::disk('public')->delete($uploadedFile['path']);
+        }
     }
 
     public function adjustApprovedDate(Request $request, LeaveRequest $leave)

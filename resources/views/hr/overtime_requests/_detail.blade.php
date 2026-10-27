@@ -116,6 +116,11 @@
                     <span class="hov-time-display">{{ $overtimeRequest->start_time->format('H:i') }} - {{ $overtimeRequest->end_time->format('H:i') }}</span>
                 </div>
 
+                <div class="hov-detail-row">
+                    <span class="hov-detail-label">Durasi</span>
+                    <span class="hov-time-display hov-duration-badge">{{ $overtimeRequest->duration_human }}</span>
+                </div>
+
                 @include('overtime_requests._approval_status', ['overtime' => $overtimeRequest])
             </div>
 
@@ -525,6 +530,13 @@
             font-size: 0.875rem;
             font-weight: 600;
             color: var(--text-primary, #111827);
+        }
+        .hov-duration-badge {
+            padding: 4px 8px;
+            border-radius: 8px;
+            background: var(--gray-50, #F5F7FA);
+            color: var(--text-secondary, #374151);
+            font-size: 0.75rem;
         }
         /* ========================================== */
         /* APPROVAL INLINE                            */

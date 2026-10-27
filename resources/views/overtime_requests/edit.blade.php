@@ -60,6 +60,26 @@
                             value="{{ old('end_time', $overtime->end_time->format('H:i')) }}" required>
                     </div>
                 </div>
+
+                <div class="otc-break-field">
+                    <label class="otc-time-field-label" for="break_hours">Istirahat <span class="otc-optional">(opsional)</span></label>
+                    <div class="otc-break-grid">
+                        <div class="otc-break-control">
+                            <input type="number" name="break_hours" id="break_hours" min="0" max="23" value="{{ old('break_hours', $overtime->break_minutes ? intdiv($overtime->break_minutes, 60) : '') }}" inputmode="numeric" placeholder="0" class="otc-input @error('break_hours') otc-input--error @enderror">
+                            <span class="otc-break-unit">jam</span>
+                        </div>
+                        <div class="otc-break-control">
+                            <input type="number" name="break_minutes" id="break_minutes" min="0" max="59" value="{{ old('break_minutes', $overtime->break_minutes ? $overtime->break_minutes % 60 : '') }}" inputmode="numeric" placeholder="0" class="otc-input @error('break_minutes') otc-input--error @enderror">
+                            <span class="otc-break-unit">menit</span>
+                        </div>
+                    </div>
+                    @error('break_hours')
+                        <div class="otc-error">{{ $message }}</div>
+                    @enderror
+                    @error('break_minutes')
+                        <div class="otc-error">{{ $message }}</div>
+                    @enderror
+                </div>
             </div>
         </div>
 
@@ -109,6 +129,15 @@
         .otc-input:focus, .otc-textarea:focus { border-color:var(--primary); box-shadow:0 0 0 4px rgba(20,93,160,.1); }
         .otc-input--error { border-color:var(--error); }
         .otc-time-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .otc-break-field { margin-top:14px; }
+        .otc-optional { color:var(--text-muted); font-weight:500; }
+        .otc-break-grid { display:flex; align-items:center; gap:14px; }
+        .otc-break-control { display:flex; align-items:center; gap:8px; min-width:0; }
+        .otc-break-control .otc-input { width:92px; appearance:textfield; -moz-appearance:textfield; }
+        .otc-break-control .otc-input::-webkit-inner-spin-button,
+        .otc-break-control .otc-input::-webkit-outer-spin-button { margin:0; -webkit-appearance:none; }
+        .otc-break-unit { color:var(--text-secondary); font-size:.875rem; font-weight:600; }
+        .otc-error { margin-top:6px; color:var(--error); font-size:.75rem; font-weight:500; }
         .otc-submit-wrap { display:flex; gap:10px; margin-top:20px; padding-top:16px; border-top:1px solid var(--border-light); }
         .otc-btn-submit, .otc-btn-secondary { display:inline-flex; flex:1; align-items:center; justify-content:center; border-radius:12px; padding:12px 20px; font:inherit; font-size:.875rem; font-weight:600; text-decoration:none; cursor:pointer; }
         .otc-btn-submit { border:0; background:linear-gradient(135deg,var(--primary-dark),var(--primary)); color:#fff; box-shadow:0 4px 12px rgba(10,61,98,.22); }

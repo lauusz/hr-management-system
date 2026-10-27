@@ -58,13 +58,14 @@ class ReportController extends Controller
                 DB::raw('COUNT(DISTINCT atk_requests.id) as request_count'),
                 DB::raw('COUNT(DISTINCT atk_requests.user_id) as user_count'),
                 DB::raw('COUNT(DISTINCT atk_request_items.item_name_snapshot) as item_count'),
+                DB::raw('COALESCE(SUM(atk_request_items.qty), 0) as total_qty'),
             ])
             ->groupBy('atk_requests.pt_name_snapshot')
             ->orderByDesc('request_count')
             ->orderBy('atk_requests.pt_name_snapshot')
             ->get();
 
-        $ptColors = ['#7C4DDE', '#0F766E', '#2563EB', '#D97706', '#DB2777', '#4F46E5', '#16A34A', '#DC2626'];
+        $ptColors = ['#6D28D9', '#0F766E', '#2563EB', '#D97706', '#DB2777', '#4F46E5', '#16A34A', '#DC2626'];
         $ptRequestTotal = (int) $ptRows->sum('request_count');
         $ptChartPosition = 0.0;
         $ptChartSegments = [];
@@ -80,12 +81,15 @@ class ReportController extends Controller
         $ptChartGradient = $ptChartSegments ? implode(', ', $ptChartSegments) : '#E5E7EB 0% 100%';
 
         $itemRows = $baseQuery()
+            ->leftJoin('atk_items', 'atk_items.id', '=', 'atk_request_items.atk_item_id')
             ->select([
                 'atk_request_items.item_name_snapshot',
                 'atk_request_items.unit_name_snapshot',
                 DB::raw('SUM(atk_request_items.qty) as total_qty'),
                 DB::raw('COUNT(DISTINCT atk_requests.id) as request_count'),
                 DB::raw('COUNT(DISTINCT atk_requests.pt_id) as pt_count'),
+                DB::raw('MAX(atk_items.stock_qty) as current_stock'),
+                DB::raw('MAX(atk_items.minimum_stock) as minimum_stock'),
             ])
             ->groupBy('atk_request_items.item_name_snapshot', 'atk_request_items.unit_name_snapshot')
             ->orderByDesc('total_qty')
@@ -93,7 +97,11 @@ class ReportController extends Controller
             ->get();
 
         $itemQtyTotal = (int) $itemRows->sum('total_qty');
-        $itemChartRows = $itemRows->take(5)->values();
+        foreach ($itemRows as $row) {
+            $row->percentage = $itemQtyTotal > 0 ? round(((int) $row->total_qty / $itemQtyTotal) * 100, 1) : 0.0;
+        }
+
+        $itemChartRows = $itemRows->take(5)->map(fn ($r) => clone $r)->values();
         $otherQty = (int) $itemRows->skip(5)->sum('total_qty');
 
         if ($otherQty > 0) {
@@ -121,6 +129,7 @@ class ReportController extends Controller
                 'atk_requests.user_name_snapshot',
                 'atk_requests.pt_name_snapshot',
                 DB::raw('COUNT(DISTINCT atk_requests.id) as request_count'),
+                DB::raw('COALESCE(SUM(atk_request_items.qty), 0) as total_qty'),
             ])
             ->groupBy('atk_requests.user_name_snapshot', 'atk_requests.pt_name_snapshot')
             ->orderByDesc('request_count')
@@ -141,6 +150,21 @@ class ReportController extends Controller
             ->orderByDesc('atk_requests.id')
             ->get();
 
+        $requesterItemMap = $detailRows
+            ->groupBy(fn ($r) => ($r->user_name_snapshot ?? '').'|'.($r->pt_name_snapshot ?? ''))
+            ->map(function ($rows) {
+                return $rows
+                    ->groupBy(fn ($r) => $r->item_name_snapshot.'|'.$r->unit_name_snapshot)
+                    ->map(fn ($grp) => $grp->first()->item_name_snapshot.' ('.$grp->sum('qty').' '.$grp->first()->unit_name_snapshot.')')
+                    ->values()
+                    ->implode(', ');
+            });
+
+        foreach ($requesterRows as $reqRow) {
+            $key = ($reqRow->user_name_snapshot ?? '').'|'.($reqRow->pt_name_snapshot ?? '');
+            $reqRow->items_summary = $requesterItemMap->get($key, '-');
+        }
+
         $pts = Pt::orderBy('name')->get();
         $selectedPtName = $request->filled('pt_id')
             ? ($pts->firstWhere('id', $request->integer('pt_id'))?->name ?? 'PT tidak ditemukan')
@@ -157,6 +181,7 @@ class ReportController extends Controller
             'ptRows',
             'ptChartGradient',
             'ptRequestTotal',
+            'itemRows',
             'itemChartRows',
             'itemChartGradient',
             'itemQtyTotal',

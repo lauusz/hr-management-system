@@ -569,8 +569,8 @@
             border-radius: 8px;
             font-size: 0.75rem;
             font-weight: 700;
-            background: rgba(34, 197, 94, 0.1);
-            color: #15803d;
+            background: var(--gray-50, #F5F7FA);
+            color: var(--text-secondary, #374151);
         }
 
         /* ========================================== */

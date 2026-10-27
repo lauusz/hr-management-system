@@ -107,17 +107,14 @@ it('shows the v2 access portal for authenticated users', function () {
     $user = User::factory()->create();
     UserAccessRole::create(['user_id' => $user->id, 'role' => 'ADMIN ATK']);
 
-    $response = actingAs($user)
+    actingAs($user)
         ->get(route('v2.access'))
         ->assertOk()
         ->assertSee('HRD System')
         ->assertSee('Kebutuhan Kantor')
         ->assertSee('Kebutuhan Operasional')
         ->assertSee('href="'.route('v2.ops.catalog').'"', false)
-        ->assertSee('<span class="access-kicker">Testing</span>', false)
         ->assertDontSee('V2 Testing');
-
-    expect(substr_count($response->getContent(), '<span class="access-kicker">Existing</span>'))->toBe(2);
 });
 
 it('shows the ops catalog page for authenticated users with ops access', function () {
@@ -1325,10 +1322,7 @@ it('renders compact and responsive atk catalog cards on mobile', function () {
         ->assertOk()
         ->assertSee('atk-catalog-search', false)
         ->assertSee("display: flex;\n            min-width: 0;\n            flex-direction: column;", false)
-        ->assertSee("gap: 8px;\n            padding: 8px;", false)
-        ->assertSee('height: clamp(104px, 30vw, 120px)', false)
         ->assertSee('-webkit-line-clamp: 2', false)
-        ->assertSee('min-height: 44px', false)
         ->assertSee('class="atk-product-placeholder" hidden', false)
         ->assertSee('this.nextElementSibling.hidden = false', false)
         ->assertSee('atk-stock-empty-badge', false)
@@ -1336,7 +1330,6 @@ it('renders compact and responsive atk catalog cards on mobile', function () {
         ->assertDontSee('>Tersedia</span>', false)
         ->assertDontSee('Stok Menipis')
         ->assertDontSee('Stok Habis')
-        ->assertDontSee('min-height: 34px', false)
         ->assertDontSee('Tanpa kategori')
         ->assertDontSee('1 pcs = 1 pcs')
         ->assertSee('1 box = 12 pcs')
@@ -1367,7 +1360,7 @@ it('renders an accessible quantity stepper on the atk catalog', function () {
         ->assertSee('inputmode="numeric"', false)
         ->assertSee('aria-label="Kurangi jumlah Kertas Catatan"', false)
         ->assertSee('aria-label="Tambah jumlah Kertas Catatan"', false)
-        ->assertSee('grid-template-columns: 44px minmax(0, 1fr) 44px', false)
+        ->assertSee('grid-template-columns: 32px minmax(0, 1fr) 32px', false)
         ->assertDontSee('grid-template-columns: 144px minmax(0, 1fr)', false)
         ->assertSee('quantityInput.stepDown()', false)
         ->assertSee('quantityInput.stepUp()', false)

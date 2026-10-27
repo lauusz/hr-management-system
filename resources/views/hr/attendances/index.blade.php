@@ -80,56 +80,83 @@
                 <thead>
                     <tr>
                         <th class="attendance-name-column">Nama Karyawan</th>
-                        <th class="attendance-type-column">Tipe</th>
-                        <th class="attendance-time-column">Jam</th>
-                        <th class="attendance-late-column">Terlambat</th>
                         <th class="attendance-date-column">Tanggal</th>
-                        <th class="attendance-media-column">Foto</th>
-                        <th class="attendance-media-column">Lokasi</th>
+                        <th class="attendance-time-column">Clock In</th>
+                        <th class="attendance-time-column">Clock Out</th>
+                        <th class="attendance-media-column">Bukti Kehadiran</th>
                         <th class="attendance-action-cell">Aksi</th>
                     </tr>
                 </thead>
 
                 <tbody>
-                    @forelse($items as $event)
+                    @forelse($items as $session)
+                    @php
+                        $actionEvents = $session->events;
+                        $hasEvidence = $actionEvents->contains(fn ($event) => $event->photo || ($event->latitude !== null && $event->longitude !== null));
+                        $thumbnailEvent = $actionEvents->first(fn ($event) => $event->photo) ?? $actionEvents->first();
+                        $clockInEvidence = $session->clock_ins->map(fn ($event) => [
+                            'time' => $event->occurred_at->format('H:i'),
+                            'photo' => $event->photo ? asset('storage/'.$event->photo) : '',
+                            'latitude' => $event->latitude ?? '',
+                            'longitude' => $event->longitude ?? '',
+                        ])->values();
+                        $clockOutEvidence = $session->clock_outs->map(fn ($event) => [
+                            'time' => $event->occurred_at->format('H:i'),
+                            'photo' => $event->photo ? asset('storage/'.$event->photo) : '',
+                            'latitude' => $event->latitude ?? '',
+                            'longitude' => $event->longitude ?? '',
+                        ])->values();
+                    @endphp
                     <tr>
                         <td class="attendance-name-column">
                             <div class="user-info">
-                                <span class="fw-bold">{{ $event->user->name }}</span>
-                                <span class="user-work-schedule">{{ $event->work_schedule }}</span>
+                                <span class="fw-bold">{{ $session->user->name }}</span>
+                                <span class="user-attendance-location">{{ $session->attendance_location_scope }}</span>
+                                <span class="user-work-schedule">{{ $session->work_schedule }}</span>
                             </div>
                         </td>
-                        <td class="attendance-type-column">
-                            <span class="attendance-type-chip attendance-type-chip--{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'in' : 'out' }}">
-                                {{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}
-                            </span>
+                        <td class="attendance-date-column">{{ $session->work_date->format('d/m/y') }}</td>
+                        <td class="attendance-time attendance-time-column">
+                            <div class="attendance-time-stack">
+                                @forelse($session->clock_ins as $event)<span>{{ $event->occurred_at->format('H:i') }}</span>@empty<span>-</span>@endforelse
+                            </div>
                         </td>
-                        <td class="attendance-time attendance-time-column">{{ $event->occurred_at->format('H:i') }}</td>
-                        <td class="attendance-late-column {{ $event->late_label !== '-' ? 'attendance-late' : 'text-muted' }}">{{ $event->late_label }}</td>
-                        <td class="attendance-date-column">{{ $event->occurred_at->format('d/m/y') }}</td>
-                        <td class="attendance-media-column">
-                            @if($event->photo)
-                            <button type="button" class="btn-pill btn-blue" data-image-viewer-src="{{ asset('storage/'.$event->photo) }}" data-image-viewer-alt="Foto absensi {{ $event->user->name }}">Foto</button>
-                            @else <span class="text-muted">-</span> @endif
+                        <td class="attendance-time attendance-time-column">
+                            <div class="attendance-time-stack">
+                                @forelse($session->clock_outs as $event)<span>{{ $event->occurred_at->format('H:i') }}</span>@empty<span>-</span>@endforelse
+                            </div>
                         </td>
                         <td class="attendance-media-column">
-                            @if($event->latitude !== null && $event->longitude !== null)
-                            <button type="button" class="btn-pill btn-blue"
-                                data-attendance-location="{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'clock-in' : 'clock-out' }}"
-                                data-attendance-location-lat="{{ $event->latitude }}"
-                                data-attendance-location-lng="{{ $event->longitude }}">Lokasi</button>
+                            @if($hasEvidence)
+                            <button type="button" class="attendance-photo-trigger" data-attendance-evidence
+                                data-attendance-evidence-name="{{ $session->user->name }}"
+                                data-attendance-evidence-date="{{ $session->work_date->format('d/m/y') }}"
+                                data-attendance-evidence-in="{{ json_encode($clockInEvidence) }}"
+                                data-attendance-evidence-out="{{ json_encode($clockOutEvidence) }}"
+                                aria-label="Lihat bukti kehadiran {{ $session->user->name }}">
+                                @if($thumbnailEvent?->photo)
+                                <img src="{{ asset('storage/'.$thumbnailEvent->photo) }}" alt="">
+                                @else
+                                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21s7-5.25 7-11a7 7 0 10-14 0c0 5.75 7 11 7 11z"/><circle cx="12" cy="10" r="2"/></svg>
+                                @endif
+                            </button>
                             @else <span class="text-muted">-</span> @endif
                         </td>
                         <td class="attendance-action-cell">
-                            @if($event->is_flexible === true || $event->approval_status === 'PENDING')
+                            @if($actionEvents->contains(fn ($event) => $event->is_flexible === true || $event->approval_status === 'PENDING'))
                             <details class="clock-side-move">
                                 <summary aria-label="Opsi koreksi tipe event">⋮</summary>
                                 <div class="clock-side-move__menu">
+                                    @foreach($actionEvents as $event)
+                                    @php($eventLabel = $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out')
+                                    @php($destinationLabel = $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock Out' : 'Clock In')
+                                    <div class="clock-side-move__event">
+                                    <span class="clock-side-move__event-label">{{ $eventLabel }} · {{ $event->occurred_at->format('H:i') }}</span>
                                     @if($event->is_flexible === true)
                                     <button type="button" class="clock-side-move__button" data-attendance-detail
                                         data-attendance-detail-event="{{ $event->id }}"
-                                        data-attendance-detail-name="{{ $event->user->name }}"
-                                        data-attendance-detail-type="{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}"
+                                        data-attendance-detail-name="{{ $session->user->name }}"
+                                        data-attendance-detail-type="{{ $eventLabel }}"
                                         data-attendance-detail-time="{{ $event->occurred_at->format('H:i') }}"
                                         data-attendance-detail-date="{{ $event->occurred_at->format('d/m/y') }}"
                                         data-attendance-detail-notes="{{ $event->notes ?? '' }}"
@@ -138,33 +165,44 @@
                                         data-attendance-detail-longitude="{{ $event->longitude ?? '' }}">Detail</button>
                                     @endif
                                     @if($event->approval_status === 'PENDING')
-                                    <form method="POST" action="{{ route('hr.attendances.move_event_type', $event) }}">@csrf
-                                        <button type="submit" class="clock-side-move__button">Pindahkan ke {{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock Out' : 'Clock In' }}</button>
-                                    </form>
+                                    <button type="button" class="clock-side-move__button" data-attendance-move
+                                        data-attendance-move-url="{{ route('hr.attendances.move_event_type', $event) }}"
+                                        data-attendance-move-name="{{ $session->user->name }}"
+                                        data-attendance-move-source="{{ $eventLabel }} pukul {{ $event->occurred_at->format('H:i') }}"
+                                        data-attendance-move-destination="{{ $destinationLabel }}">Pindahkan ke {{ $destinationLabel }}</button>
                                     @endif
+                                    </div>
+                                    @endforeach
                                 </div>
                             </details>
                             @else <span class="text-muted">-</span> @endif
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="8" class="text-center text-muted">Tidak ada event absensi pada periode ini.</td></tr>
+                    <tr><td colspan="6" class="text-center text-muted">Tidak ada event absensi pada periode ini.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 
-    <x-modal id="attendance-location-map" title="Lokasi Presensi" type="info" variant="info" cancelLabel="Tutup">
-        <div class="attendance-location-modal">
-            <p class="attendance-location-modal__label" id="attendance-location-label"></p>
-            <p class="attendance-location-modal__coordinates" id="attendance-location-coordinates"></p>
-            <iframe id="attendance-location-frame" title="Peta lokasi presensi" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <x-modal id="attendance-evidence-modal" title="Bukti Kehadiran" type="info" variant="info" cancelLabel="Tutup">
+        <div class="attendance-evidence-meta">
+            <strong id="attendance-evidence-name"></strong>
+            <span id="attendance-evidence-date"></span>
+        </div>
+        <div class="attendance-evidence-grid">
+            @foreach(['in' => 'Clock In', 'out' => 'Clock Out'] as $side => $label)
+            <section class="attendance-evidence-panel">
+                <h4>{{ $label }}</h4>
+                <div id="attendance-evidence-{{ $side }}-list" class="attendance-evidence-list"></div>
+            </section>
+            @endforeach
         </div>
     </x-modal>
 
     <x-modal id="moveClockSideModal" title="Pindahkan Bukti Absensi?" type="form" variant="warning">
-        <p style="margin:0; color:#64748b;">Bukti absensi <span id="moveClockSideUserName" style="font-weight:700; color:#1e293b;"></span> akan dipindahkan ke <span id="moveClockSideDestination" style="font-weight:700; color:#1e293b;"></span>.</p>
+        <p style="margin:0; color:#64748b;"><span id="moveClockSideSource" style="font-weight:700; color:#1e293b;"></span> milik <span id="moveClockSideUserName" style="font-weight:700; color:#1e293b;"></span> akan dipindahkan ke <span id="moveClockSideDestination" style="font-weight:700; color:#1e293b;"></span>.</p>
         <form id="moveClockSideForm" method="POST" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
             @csrf
             <input id="moveClockSideInput" type="hidden" name="destination">
@@ -180,9 +218,20 @@
             <div><dt>Jam</dt><dd id="attendance-detail-time"></dd></div>
             <div><dt>Tanggal</dt><dd id="attendance-detail-date"></dd></div>
             <div class="attendance-detail-grid__full"><dt>Alasan</dt><dd id="attendance-detail-notes"></dd></div>
-            <div class="attendance-detail-grid__full"><dt>Foto</dt><dd><img id="attendance-detail-photo" alt="Foto absensi" hidden><span id="attendance-detail-photo-empty">Foto tidak tersedia</span></dd></div>
-            <div class="attendance-detail-grid__full"><dt>Lokasi</dt><dd><button type="button" id="attendance-detail-location-button" class="btn-pill btn-blue" hidden>Lihat Lokasi</button><span id="attendance-detail-location-empty">Lokasi tidak tersedia</span></dd></div>
         </dl>
+        <div class="attendance-evidence-grid attendance-detail-evidence-grid">
+            <section class="attendance-evidence-panel">
+                <h4>Foto Kehadiran</h4>
+                <img id="attendance-detail-photo" alt="Foto absensi" hidden>
+                <p id="attendance-detail-photo-empty" class="attendance-evidence-empty">Foto tidak tersedia.</p>
+            </section>
+            <section class="attendance-evidence-panel">
+                <h4>Lokasi Kehadiran</h4>
+                <p id="attendance-detail-coordinates" class="attendance-evidence-coordinates" hidden></p>
+                <iframe id="attendance-detail-map" title="Peta lokasi kehadiran" loading="lazy" referrerpolicy="no-referrer-when-downgrade" hidden></iframe>
+                <p id="attendance-detail-location-empty" class="attendance-evidence-empty">Lokasi tidak tersedia.</p>
+            </section>
+        </div>
     </x-modal>
 
     <style>
@@ -383,7 +432,7 @@
 
         /* --- TABLE --- */
         .table-wrapper { width: 100%; overflow-x: auto; }
-        .custom-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 850px; }
+        .custom-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 760px; }
 
         .custom-table th {
             background: #f9fafb;
@@ -409,18 +458,40 @@
         .custom-table tr:hover td { background: #fdfdfd; }
 
         /* --- CUSTOM COLUMNS --- */
-        .attendance-name-column { width: 28%; }
-        .attendance-type-column { width: 116px; }
-        .attendance-time-column { width: 78px; }
-        .attendance-late-column { width: 88px; }
+        .attendance-name-column { width: 36%; }
+        .attendance-time-column { width: 82px; }
         .attendance-date-column { width: 92px; }
         .attendance-media-column { width: 96px; text-align: center !important; }
+        .attendance-photo-trigger {
+            display: inline-flex;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            overflow: hidden;
+            vertical-align: middle;
+            cursor: pointer;
+            background: #f8fafc;
+            border: 1px solid #dbeafe;
+            border-radius: 10px;
+        }
+        .attendance-photo-trigger img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .attendance-photo-trigger:hover { border-color: #145da0; }
+        .attendance-photo-trigger:focus-visible {
+            outline: 2px solid #145da0;
+            outline-offset: 2px;
+        }
         .user-info { display: flex; flex-direction: column; gap: 3px; min-width: 150px; }
+        .user-attendance-location { color: #64748b; font-size: 11px; font-weight: 600; }
         .user-work-schedule { color: #64748b; font-size: 11px; font-weight: 600; }
         .attendance-type-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 76px; padding: 4px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; white-space: nowrap; }
         .attendance-type-chip--in { color: #176b42; background: #e9f8ef; }
         .attendance-type-chip--out { color: #a33f48; background: #fcebed; }
         .attendance-time { font-weight: 600; white-space: nowrap; }
+        .attendance-time-stack { display: grid; gap: 8px; min-height: 20px; }
         .attendance-late { color: #b45309 !important; font-weight: 700; white-space: nowrap; }
         .attendance-action-cell { width: 54px; text-align: center !important; }
         .time-block { display: flex; flex-direction: column; line-height: 1.2; }
@@ -430,7 +501,10 @@
         .clock-side-move summary { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 6px; color: #64748b; cursor: pointer; font-size: 17px; font-weight: 700; line-height: 1; list-style: none; }
         .clock-side-move summary::-webkit-details-marker { display: none; }
         .clock-side-move summary:hover, .clock-side-move summary:focus-visible { background: #f1f5f9; color: #145da0; outline: none; }
-        .clock-side-move__menu { position: absolute; z-index: 20; top: 50%; right: calc(100% + 6px); left: auto; width: max-content; padding: 4px; transform: translateY(-50%); border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: 0 8px 20px rgba(15, 23, 42, .12); }
+        .clock-side-move__menu { position: absolute; z-index: 20; top: 50%; right: calc(100% + 6px); left: auto; width: 220px; padding: 4px; transform: translateY(-50%); border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: 0 8px 20px rgba(15, 23, 42, .12); }
+        .clock-side-move__event { padding: 6px; border-top: 1px solid #f1f5f9; }
+        .clock-side-move__event:first-child { border-top: 0; }
+        .clock-side-move__event-label { display: block; padding: 2px 4px 5px; color: #64748b; font-size: 11px; font-weight: 700; }
         .clock-side-move__button { border: 0; border-radius: 6px; background: transparent; color: #334155; padding: 8px 10px; font: inherit; font-size: .75rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
         .clock-side-move__button:hover, .clock-side-move__button:focus-visible { background: #eff6ff; color: #145da0; outline: none; }
 
@@ -457,53 +531,30 @@
             border-radius: 4px;
         }
 
-        /* --- PILL BUTTONS (View/Maps) --- */
-        .btn-group-pill {
-            display: flex;
-            justify-content: center;
-            gap: 6px;
-        }
-
-        .btn-pill {
-            width: 74px;
-            min-width: 74px;
-            padding: 6px 8px;
-            border-radius: 6px;
-            font-size: 10px;
-            font-weight: 600;
-            text-decoration: none;
-            cursor: pointer;
-            border: 1px solid transparent;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .btn-blue {
-            background: #eef2ff;
-            color: #1e4a8d;
-            border-color: #e0e7ff;
-        }
-        .btn-blue:hover { background: #1e4a8d; color: #fff; }
-        
-        .btn-sky {
-            background: #f0f9ff;
-            color: #0369a1;
-            border-color: #e0f2fe;
-        }
-        .btn-sky:hover { background: #0369a1; color: #fff; }
-
-        #attendance-location-map .modal-card { max-width: 720px; }
-        .attendance-location-modal__label { margin: 0; font-weight: 700; color: #111827; }
-        .attendance-location-modal__coordinates { margin: 4px 0 14px; color: #4b5563; font-family: monospace; }
-        #attendance-location-frame { display: block; width: 100%; height: min(55vh, 420px); border: 0; border-radius: 10px; background: #f3f4f6; }
-        .attendance-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0; }
+        #attendance-evidence-modal .modal-card { max-width: 1080px; }
+        #attendance-detail-modal .modal-card { max-width: 1080px; }
+        .attendance-evidence-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: #111827; }
+        .attendance-evidence-meta span { padding: 3px 8px; color: #176b42; font-size: 11px; font-weight: 700; background: #e9f8ef; border-radius: 999px; }
+        .attendance-evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        .attendance-evidence-panel { min-width: 0; padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
+        .attendance-evidence-panel h4 { margin: 0 0 10px; color: #334155; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+        .attendance-evidence-list { display: grid; gap: 12px; }
+        .attendance-evidence-entry { padding-top: 12px; border-top: 1px solid #e2e8f0; }
+        .attendance-evidence-entry:first-child { padding-top: 0; border-top: 0; }
+        .attendance-evidence-entry-time { margin: 0 0 8px; color: #176b42; font-size: 12px; font-weight: 700; }
+        .attendance-evidence-photo,
+        #attendance-detail-photo { display: block; width: 100%; height: min(58vh, 520px); object-fit: contain; border-radius: 8px; background: #e2e8f0; }
+        .attendance-evidence-map,
+        #attendance-detail-map { display: block; width: 100%; height: min(58vh, 520px); border: 0; border-radius: 8px; background: #e2e8f0; }
+        .attendance-evidence-coordinates { margin: -2px 0 10px; color: #64748b; font-family: monospace; font-size: 12px; }
+        .attendance-evidence-empty { display: flex; align-items: center; justify-content: center; min-height: 180px; margin: 0; color: #94a3b8; font-size: 13px; font-style: italic; text-align: center; }
+        #attendance-evidence-modal [hidden],
+        #attendance-detail-modal [hidden] { display: none !important; }
+        .attendance-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0 0 16px; }
         .attendance-detail-grid div { min-width: 0; }
         .attendance-detail-grid dt { color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
         .attendance-detail-grid dd { margin: 3px 0 0; color: #1f2937; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; white-space: pre-wrap; }
         .attendance-detail-grid__full { grid-column: 1 / -1; }
-        #attendance-detail-photo { display: block; width: 100%; max-height: 280px; object-fit: contain; border-radius: 10px; background: #f3f4f6; }
 
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
@@ -546,6 +597,14 @@
                 grid-template-columns: repeat(3, 1fr);
             }
         }
+
+        @media (max-width: 767px) {
+            .attendance-evidence-grid { grid-template-columns: 1fr; }
+            #attendance-evidence-photo,
+            #attendance-detail-photo,
+            #attendance-evidence-map,
+            #attendance-detail-map { height: min(48vh, 360px); }
+        }
     </style>
 
     <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
@@ -560,7 +619,7 @@
 
             if (!form || !input || !results) return;
 
-            async function loadAttendanceResults() {
+            window.refreshAttendanceResults = async function() {
                 const url = new URL(form.action, window.location.origin);
                 const params = new URLSearchParams(new FormData(form));
                 params.delete('page');
@@ -584,8 +643,9 @@
                     if (!nextResults) throw new Error('Hasil pencarian tidak lengkap');
                     results.innerHTML = nextResults.innerHTML;
 
-                    initializeAttendanceLocationButtons();
+                    initializeAttendanceEvidenceButtons();
                     initializeAttendanceDetailButtons();
+                    initializeAttendanceMoveButtons();
                     window.history.replaceState(null, '', url);
                 } catch (error) {
                     if (error.name !== 'AbortError') console.error(error);
@@ -595,11 +655,11 @@
                         results.setAttribute('aria-busy', 'false');
                     }
                 }
-            }
+            };
 
             input.addEventListener('input', () => {
                 clearTimeout(timer);
-                timer = setTimeout(loadAttendanceResults, 350);
+                timer = setTimeout(window.refreshAttendanceResults, 350);
             });
         })();
 
@@ -634,34 +694,121 @@
             if (!event.target.closest('details.clock-side-move')) closeOtherAttendanceActionMenus();
         });
 
-        function openMoveClockSideModal(url, name, destination, destinationLabel) {
+        function openMoveClockSideModal(url, name, source, destinationLabel) {
             document.getElementById('moveClockSideForm').action = url;
-            document.getElementById('moveClockSideInput').value = destination;
+            document.getElementById('moveClockSideInput').value = destinationLabel;
             document.getElementById('moveClockSideUserName').innerText = name;
+            document.getElementById('moveClockSideSource').innerText = source;
             document.getElementById('moveClockSideDestination').innerText = destinationLabel;
+            closeOtherAttendanceActionMenus();
             document.getElementById('moveClockSideModal').style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
 
-        function initializeAttendanceLocationButtons() {
-            const locationLabel = document.getElementById('attendance-location-label');
-            const locationCoordinates = document.getElementById('attendance-location-coordinates');
-            const locationFrame = document.getElementById('attendance-location-frame');
+        function initializeAttendanceMoveButtons() {
+            document.querySelectorAll('[data-attendance-move]').forEach(function(button) {
+                if (button.dataset.attendanceMoveInitialized) return;
 
-            document.querySelectorAll('[data-attendance-location]').forEach(function(button) {
-                if (button.dataset.attendanceLocationInitialized) return;
-
-                button.dataset.attendanceLocationInitialized = 'true';
+                button.dataset.attendanceMoveInitialized = 'true';
                 button.addEventListener('click', function() {
-                    const label = this.dataset.attendanceLocation === 'clock-in' ? 'Clock In' : 'Clock Out';
-                    const coordinates = `${this.dataset.attendanceLocationLat}, ${this.dataset.attendanceLocationLng}`;
+                    openMoveClockSideModal(
+                        this.dataset.attendanceMoveUrl,
+                        this.dataset.attendanceMoveName,
+                        this.dataset.attendanceMoveSource,
+                        this.dataset.attendanceMoveDestination,
+                    );
+                });
+            });
+        }
 
-                    locationLabel.textContent = `Lokasi ${label}`;
-                    locationCoordinates.textContent = coordinates;
-                    locationFrame.src = `https://www.google.com/maps?q=${encodeURIComponent(coordinates)}&z=16&output=embed`;
-                    document.getElementById('attendance-location-map').style.display = 'flex';
+        function initializeAttendanceEvidenceButtons() {
+            const modal = document.getElementById('attendance-evidence-modal');
+
+            document.querySelectorAll('[data-attendance-evidence]').forEach(function(button) {
+                if (button.dataset.attendanceEvidenceInitialized) return;
+
+                button.dataset.attendanceEvidenceInitialized = 'true';
+                button.addEventListener('click', function() {
+                    document.getElementById('attendance-evidence-name').textContent = this.dataset.attendanceEvidenceName;
+                    document.getElementById('attendance-evidence-date').textContent = this.dataset.attendanceEvidenceDate;
+
+                    ['in', 'out'].forEach(function(side) {
+                        const key = `attendanceEvidence${side === 'in' ? 'In' : 'Out'}`;
+                        renderAttendanceEvidenceEntries(side, JSON.parse(this.dataset[key] || '[]'));
+                    }, this);
+
+                    closeOtherAttendanceActionMenus();
+                    modal.style.display = 'flex';
                     document.body.style.overflow = 'hidden';
                 });
+            });
+        }
+
+        function renderAttendanceEvidenceEntries(side, entries) {
+            const list = document.getElementById(`attendance-evidence-${side}-list`);
+            list.replaceChildren();
+
+            if (!entries.length) {
+                const empty = document.createElement('p');
+                empty.className = 'attendance-evidence-empty';
+                empty.textContent = 'Belum ada data absensi.';
+                list.append(empty);
+
+                return;
+            }
+
+            entries.forEach(function(entry) {
+                const wrapper = document.createElement('section');
+                wrapper.className = 'attendance-evidence-entry';
+                const time = document.createElement('p');
+                time.className = 'attendance-evidence-entry-time';
+                time.textContent = entry.time;
+                const evidence = document.createElement('div');
+                evidence.className = 'attendance-evidence-grid';
+
+                const photo = document.createElement('section');
+                const photoTitle = document.createElement('h4');
+                photoTitle.textContent = 'Foto';
+                photo.append(photoTitle);
+                if (entry.photo) {
+                    const image = document.createElement('img');
+                    image.className = 'attendance-evidence-photo';
+                    image.src = entry.photo;
+                    image.alt = 'Foto kehadiran';
+                    photo.append(image);
+                } else {
+                    const empty = document.createElement('p');
+                    empty.className = 'attendance-evidence-empty';
+                    empty.textContent = 'Foto tidak tersedia.';
+                    photo.append(empty);
+                }
+
+                const location = document.createElement('section');
+                const locationTitle = document.createElement('h4');
+                locationTitle.textContent = 'Lokasi';
+                location.append(locationTitle);
+                if (entry.latitude && entry.longitude) {
+                    const coordinates = `${entry.latitude}, ${entry.longitude}`;
+                    const label = document.createElement('p');
+                    label.className = 'attendance-evidence-coordinates';
+                    label.textContent = coordinates;
+                    const map = document.createElement('iframe');
+                    map.className = 'attendance-evidence-map';
+                    map.title = 'Peta lokasi kehadiran';
+                    map.loading = 'lazy';
+                    map.referrerPolicy = 'no-referrer-when-downgrade';
+                    map.src = `https://www.google.com/maps?q=${encodeURIComponent(coordinates)}&z=16&output=embed`;
+                    location.append(label, map);
+                } else {
+                    const empty = document.createElement('p');
+                    empty.className = 'attendance-evidence-empty';
+                    empty.textContent = 'Lokasi tidak tersedia.';
+                    location.append(empty);
+                }
+
+                evidence.append(photo, location);
+                wrapper.append(time, evidence);
+                list.append(wrapper);
             });
         }
 
@@ -674,21 +821,11 @@
                 date: document.getElementById('attendance-detail-date'),
                 notes: document.getElementById('attendance-detail-notes'),
                 photo: document.getElementById('attendance-detail-photo'),
-                locationButton: document.getElementById('attendance-detail-location-button'),
+                photoEmpty: document.getElementById('attendance-detail-photo-empty'),
+                coordinates: document.getElementById('attendance-detail-coordinates'),
+                map: document.getElementById('attendance-detail-map'),
                 locationEmpty: document.getElementById('attendance-detail-location-empty'),
             };
-
-            if (!fields.locationButton.dataset.attendanceDetailInitialized) {
-                fields.locationButton.dataset.attendanceDetailInitialized = 'true';
-                fields.locationButton.addEventListener('click', function() {
-                    const coordinates = `${this.dataset.latitude}, ${this.dataset.longitude}`;
-                    document.getElementById('attendance-location-label').textContent = 'Lokasi Absensi Fleksibel';
-                    document.getElementById('attendance-location-coordinates').textContent = coordinates;
-                    document.getElementById('attendance-location-frame').src = `https://www.google.com/maps?q=${encodeURIComponent(coordinates)}&z=16&output=embed`;
-                    modal.style.display = 'none';
-                    document.getElementById('attendance-location-map').style.display = 'flex';
-                });
-            }
 
             document.querySelectorAll('[data-attendance-detail]').forEach(function(button) {
                 if (button.dataset.attendanceDetailInitialized) return;
@@ -704,20 +841,24 @@
                     if (this.dataset.attendanceDetailPhoto) {
                         fields.photo.src = this.dataset.attendanceDetailPhoto;
                         fields.photo.hidden = false;
-                        document.getElementById('attendance-detail-photo-empty').hidden = true;
+                        fields.photoEmpty.hidden = true;
                     } else {
                         fields.photo.removeAttribute('src');
                         fields.photo.hidden = true;
-                        document.getElementById('attendance-detail-photo-empty').hidden = false;
+                        fields.photoEmpty.hidden = false;
                     }
 
                     if (this.dataset.attendanceDetailLatitude && this.dataset.attendanceDetailLongitude) {
-                        fields.locationButton.dataset.latitude = this.dataset.attendanceDetailLatitude;
-                        fields.locationButton.dataset.longitude = this.dataset.attendanceDetailLongitude;
-                        fields.locationButton.hidden = false;
+                        const coordinates = `${this.dataset.attendanceDetailLatitude}, ${this.dataset.attendanceDetailLongitude}`;
+                        fields.coordinates.textContent = coordinates;
+                        fields.coordinates.hidden = false;
+                        fields.map.src = `https://www.google.com/maps?q=${encodeURIComponent(coordinates)}&z=16&output=embed`;
+                        fields.map.hidden = false;
                         fields.locationEmpty.hidden = true;
                     } else {
-                        fields.locationButton.hidden = true;
+                        fields.coordinates.hidden = true;
+                        fields.map.removeAttribute('src');
+                        fields.map.hidden = true;
                         fields.locationEmpty.hidden = false;
                     }
                     closeOtherAttendanceActionMenus();
@@ -750,8 +891,38 @@
                 });
             }
 
-            initializeAttendanceLocationButtons();
+            initializeAttendanceEvidenceButtons();
             initializeAttendanceDetailButtons();
+            initializeAttendanceMoveButtons();
+
+            const moveForm = document.getElementById('moveClockSideForm');
+            moveForm?.addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                const submitButton = moveForm.querySelector('button[type="submit"]');
+                submitButton.disabled = true;
+
+                try {
+                    const response = await fetch(moveForm.action, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: new FormData(moveForm),
+                    });
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.message || 'Perubahan tipe event gagal.');
+
+                    document.getElementById('moveClockSideModal').style.display = 'none';
+                    document.body.style.overflow = '';
+                    await window.refreshAttendanceResults?.();
+                } catch (error) {
+                    window.alert(error.message || 'Perubahan tipe event gagal.');
+                } finally {
+                    submitButton.disabled = false;
+                }
+            });
         });
     </script>
 

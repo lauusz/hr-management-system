@@ -6,6 +6,7 @@ use App\Models\AttendanceEvent;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 class ApprovalAttendanceController extends Controller
 {
@@ -32,14 +33,22 @@ class ApprovalAttendanceController extends Controller
         return view('hr.approval_attendance.index', compact('pendingAttendances', 'filters', 'tab'));
     }
 
-    public function approve(AttendanceEvent $event)
+    public function approve(Request $request, AttendanceEvent $event)
     {
         $user = Auth::user();
         if (! ($user && $user->isHR())) {
             return back()->with('error', 'Anda tidak berhak menyetujui absensi ini.');
         }
 
-        return $this->updatePending($event, ['approval_status' => 'APPROVED', 'approved_by' => $user->id], 'Absensi berhasil disetujui.');
+        $validated = $request->validate([
+            'hrd_note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        return $this->updatePending($event, [
+            'approval_status' => 'APPROVED',
+            'approved_by' => $user->id,
+            'hrd_note' => $validated['hrd_note'] ?? null,
+        ], 'Absensi berhasil disetujui.');
     }
 
     public function bulkApprove(Request $request)
@@ -54,12 +63,22 @@ class ApprovalAttendanceController extends Controller
         $validated = $request->validate([
             'attendance_ids' => ['required', 'array', 'min:1'],
             'attendance_ids.*' => ['integer', 'distinct', 'exists:attendance_events,id'],
+            'hrd_notes' => ['nullable', 'array'],
+            'hrd_notes.*' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $updated = AttendanceEvent::query()
-            ->whereIn('id', $validated['attendance_ids'])
-            ->pendingApproval()
-            ->update(['approval_status' => 'APPROVED', 'approved_by' => $user->id]);
+        $updated = DB::transaction(function () use ($validated, $user) {
+            return collect($validated['attendance_ids'])->sum(function ($attendanceId) use ($validated, $user) {
+                return AttendanceEvent::query()
+                    ->whereKey($attendanceId)
+                    ->pendingApproval()
+                    ->update([
+                        'approval_status' => 'APPROVED',
+                        'approved_by' => $user->id,
+                        'hrd_note' => $validated['hrd_notes'][$attendanceId] ?? null,
+                    ]);
+            });
+        });
 
         return $updated > 0
             ? back()->with('success', $updated.' absensi berhasil disetujui.')
@@ -113,7 +132,8 @@ class ApprovalAttendanceController extends Controller
     {
         abort_unless(
             Schema::hasColumn('attendance_events', 'is_flexible')
-                && Schema::hasColumn('attendance_events', 'is_outside_reference_location'),
+                && Schema::hasColumn('attendance_events', 'is_outside_reference_location')
+                && Schema::hasColumn('attendance_events', 'hrd_note'),
             503,
             'Pembaruan absensi belum tersedia. Hubungi HR atau IT.'
         );

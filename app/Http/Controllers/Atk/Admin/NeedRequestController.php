@@ -8,9 +8,25 @@ use Illuminate\Http\Request;
 
 class NeedRequestController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $needRequests = AtkNeedRequest::with('item')->latest()->paginate(20);
+        $needRequests = AtkNeedRequest::with('item')
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')))
+            ->when($request->filled('module'), fn ($query) => $query->where('module', $request->string('module')))
+            ->when($request->filled('q'), function ($query) use ($request): void {
+                $keyword = '%'.$request->string('q')->toString().'%';
+                $query->where(function ($sub) use ($keyword): void {
+                    $sub->where('requested_item_name', 'like', $keyword)
+                        ->orWhere('user_name_snapshot', 'like', $keyword)
+                        ->orWhere('pt_name_snapshot', 'like', $keyword)
+                        ->orWhere('reason', 'like', $keyword);
+                });
+            })
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [AtkNeedRequest::STATUS_PENDING])
+            ->latest()
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
 
         return view('atk.admin.need_requests.index', compact('needRequests'));
     }

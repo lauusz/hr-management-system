@@ -17,20 +17,25 @@
         /* Table Styles */
         .table-responsive { width: 100%; overflow: visible; }
         .table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .table th { background: #f8fafc; padding: 12px 10px; text-align: left; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
-        .table td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #1e293b; font-size: 0.85rem; overflow-wrap: anywhere; }
+        .table th { background: #f8fafc; padding: 11px 8px; text-align: left; font-size: 0.72rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; overflow-wrap: anywhere; }
+        .table td { padding: 10px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; color: #1e293b; font-size: 0.85rem; overflow-wrap: anywhere; }
+        .approval-attendance-table th:nth-child(n+2):nth-child(-n+6) { font-size: 0.65rem; }
+        .approval-attendance-table td:nth-child(n+4):nth-child(-n+6) { font-size: 0.75rem; }
         .table tr:last-child td { border-bottom: none; }
         .table tr:hover td { background: #fcfcfc; }
         .approval-media-column { text-align: center !important; }
         .approval-attendance-table th.approval-media-column, .approval-attendance-table td.approval-media-column { padding-left: 6px; padding-right: 6px; }
+        .approval-hrd-note-cell { min-width: 0; }
+        .approval-hrd-note-input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 34px; padding: 7px 8px; border: 1px solid #cbd5e1; border-radius: 7px; color: #1e293b; font: inherit; font-size: 0.72rem; }
+        .approval-hrd-note-input:focus { border-color: #145da0; outline: 2px solid rgba(20, 93, 160, .15); outline-offset: 1px; }
 
         /* User Info Column */
-        .user-name { font-weight: 700; color: #1e293b; font-size: 0.75rem; line-height: 1.3; overflow-wrap: anywhere; }
-        .user-schedule { margin-top: 2px; color: #64748b; font-size: 0.7rem; font-weight: 600; }
+        .user-name { font-weight: 700; color: #1e293b; font-size: 0.68rem; line-height: 1.3; overflow-wrap: anywhere; }
+        .user-schedule { margin-top: 2px; color: #64748b; font-size: 0.64rem; font-weight: 600; }
 
         /* Buttons & Badges */
         .btn-pill { width: 68px; max-width: 100%; padding: 6px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
-        .approval-type-chip { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+        .approval-type-chip { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border-radius: 999px; font-size: 0.65rem; font-weight: 700; white-space: nowrap; }
         .approval-type-chip--in { color: #176b42; background: #e9f8ef; }
         .approval-type-chip--out { color: #a33f48; background: #fcebed; }
         .btn-pill:focus-visible, .btn-action:focus-visible, .approval-tab:focus-visible { outline: 2px solid #145da0; outline-offset: 2px; }
@@ -44,8 +49,10 @@
         .btn-approve:hover { background: #bbf7d0; transform: translateY(-1px); }
         .btn-reject { background: #fee2e2; color: #991b1b; }
         .btn-reject:hover { background: #fecaca; transform: translateY(-1px); }
-        .approval-proof-actions, .approval-location-actions { display: flex; flex-wrap: wrap; gap: 4px; }
-        .approval-proof-actions .btn-pill, .approval-location-actions .btn-pill { padding: 5px 8px; font-size: 0.7rem; gap: 4px; }
+        .approval-evidence-trigger { width: 34px; height: 34px; padding: 0; border: 1px solid #dbeafe; border-radius: 8px; background: #eff6ff; color: #1d4ed8; cursor: pointer; overflow: hidden; }
+        .approval-evidence-trigger:hover, .approval-evidence-trigger:focus-visible { border-color: #1d4ed8; background: #dbeafe; outline: none; }
+        .approval-evidence-trigger img { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .approval-evidence-trigger svg { width: 18px; height: 18px; }
         .approval-decision-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; }
         .approval-decision-actions .btn-action { position: relative; width: 30px; height: 30px; justify-content: center; padding: 0; font-size: 0.78rem; }
         .approval-decision-actions .btn-action[data-tooltip]::after { position: absolute; top: 50%; right: calc(100% + 6px); z-index: 30; padding: 5px 7px; border-radius: 6px; background: #1e293b; color: #fff; content: attr(data-tooltip); font-size: 0.68rem; font-weight: 600; line-height: 1; opacity: 0; pointer-events: none; transform: translateY(-50%); transition: opacity .15s ease; white-space: nowrap; }
@@ -117,7 +124,7 @@
             .approval-attendance-table td::before { content: attr(data-label); color: #64748b; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
             .approval-attendance-table td.approval-selection-cell { display: flex; align-items: center; gap: 10px; }
             .approval-attendance-table td.approval-media-column { text-align: left !important; padding: 10px 12px; }
-            .approval-attendance-table td.approval-media-column .btn-pill { justify-self: start; }
+            .approval-attendance-table td.approval-media-column .approval-evidence-trigger { justify-self: start; }
             .approval-type-chip { justify-self: start; }
             .approval-attendance-table td.approval-user-cell, .approval-attendance-table td.approval-decision-cell { display: block; }
             .approval-attendance-table td.approval-user-cell::before, .approval-attendance-table td.approval-decision-cell::before { display: block; margin-bottom: 6px; }
@@ -133,9 +140,17 @@
         
         .form-control { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; margin-bottom: 16px; font-size: 0.9rem; outline: none; transition: border-color 0.2s; }
         .form-control:focus { border-color: #2563eb; }
-        #approval-attendance-location-map .modal-card { max-width: 720px; }
-        .approval-attendance-location-modal__coordinates { margin: 0 0 14px; color: #475569; font-family: monospace; }
-        #approval-attendance-location-frame { display: block; width: 100%; height: min(55vh, 420px); border: 0; border-radius: 10px; background: #f1f5f9; }
+        #approval-attendance-evidence-modal .modal-card { max-width: 1080px !important; }
+        .approval-evidence-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: #111827; }
+        .approval-evidence-meta span { padding: 3px 8px; color: #176b42; font-size: 11px; font-weight: 700; background: #e9f8ef; border-radius: 999px; }
+        .approval-evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        .approval-evidence-panel { min-width: 0; padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
+        .approval-evidence-panel h4 { margin: 0 0 10px; color: #334155; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+        #approval-attendance-evidence-photo { display: block; width: 100%; height: min(58vh, 520px); object-fit: contain; border-radius: 8px; background: #e2e8f0; }
+        #approval-attendance-evidence-map { display: block; width: 100%; height: min(58vh, 520px); border: 0; border-radius: 8px; background: #e2e8f0; }
+        .approval-evidence-coordinates { margin: -2px 0 10px; color: #64748b; font-family: monospace; font-size: 12px; }
+        .approval-evidence-empty { margin: 0; color: #94a3b8; font-size: 13px; }
+        @media (max-width: 700px) { .approval-evidence-grid { grid-template-columns: 1fr; } }
 
     </style>
 
@@ -204,14 +219,14 @@
                     <table class="table approval-attendance-table">
                         <colgroup>
                             <col style="width:4%;">
-                            <col style="width:20%;">
-                            <col style="width:10%;">
+                            <col style="width:18%;">
+                            <col style="width:9%;">
                             <col style="width:7%;">
-                            <col style="width:10%;">
-                            <col style="width:19%;">
                             <col style="width:9%;">
+                            <col style="width:16%;">
+                            <col style="width:11%;">
+                            <col style="width:17%;">
                             <col style="width:9%;">
-                            <col style="width:12%;">
                         </colgroup>
                         <thead>
                             <tr>
@@ -221,8 +236,8 @@
                                 <th>Jam</th>
                                 <th>Tanggal</th>
                                 <th>Alasan</th>
-                                <th class="approval-media-column">Foto</th>
-                                <th class="approval-media-column">Lokasi</th>
+                                <th class="approval-media-column">Bukti Kehadiran</th>
+                                <th>Catatan HR</th>
                                 <th class="approval-decision-heading">Aksi</th>
                             </tr>
                         </thead>
@@ -238,11 +253,38 @@
                                 <td data-label="Jam">{{ $event->occurred_at->format('H:i') }}</td>
                                 <td data-label="Tanggal">{{ $event->occurred_at->format('d/m/y') }}</td>
                                 <td data-label="Alasan">{{ trim((string) $event->notes) !== '' ? $event->notes : 'Alasan tidak tersedia' }}</td>
-                                <td class="approval-media-column" data-label="Foto">@if($event->photo)<button type="button" class="btn-pill btn-blue" data-image-viewer-src="{{ asset('storage/'.$event->photo) }}" data-image-viewer-alt="Foto absensi {{ $event->user->name }}">Foto</button>@else - @endif</td>
-                                <td class="approval-media-column" data-label="Lokasi">@if($event->latitude !== null && $event->longitude !== null)<button type="button" class="btn-pill btn-blue" data-approval-attendance-location data-approval-attendance-location-label="{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}" data-approval-attendance-location-lat="{{ $event->latitude }}" data-approval-attendance-location-lng="{{ $event->longitude }}">Lokasi</button>@else - @endif</td>
+                                <td class="approval-media-column" data-label="Bukti Kehadiran">
+                                    @if($event->photo || ($event->latitude !== null && $event->longitude !== null))
+                                    <button type="button" class="approval-evidence-trigger" data-approval-attendance-evidence
+                                        data-approval-attendance-evidence-name="{{ $event->user->name }}"
+                                        data-approval-attendance-evidence-type="{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}"
+                                        data-approval-attendance-evidence-photo="{{ $event->photo ? asset('storage/'.$event->photo) : '' }}"
+                                        data-approval-attendance-evidence-latitude="{{ $event->latitude ?? '' }}"
+                                        data-approval-attendance-evidence-longitude="{{ $event->longitude ?? '' }}"
+                                        aria-label="Lihat bukti kehadiran {{ $event->user->name }}">
+                                        @if($event->photo)
+                                        <img src="{{ asset('storage/'.$event->photo) }}" alt="">
+                                        @else
+                                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 21s7-5.25 7-11a7 7 0 10-14 0c0 5.75 7 11 7 11z"/><circle cx="12" cy="10" r="2"/></svg>
+                                        @endif
+                                    </button>
+                                    @else - @endif
+                                </td>
+                                <td class="approval-hrd-note-cell" data-label="Catatan HR">
+                                    <input
+                                        type="text"
+                                        class="approval-hrd-note-input"
+                                        name="hrd_note"
+                                        form="approve-attendance-{{ $event->id }}"
+                                        value="{{ old('hrd_note', $event->hrd_note) }}"
+                                        maxlength="255"
+                                        placeholder="Opsional"
+                                        data-hrd-note-event-id="{{ $event->id }}"
+                                        aria-label="Catatan HR untuk {{ $event->user->name }}">
+                                </td>
                                 <td class="approval-decision-cell" data-label="Aksi">
                                     <div class="approval-decision-actions">
-                                        <form method="POST" action="{{ route('hr.approval_attendance.approve', $event) }}">@csrf<button type="submit" class="btn-action btn-approve" aria-label="Terima absensi {{ $event->user->name }}">✓</button></form>
+                                        <form id="approve-attendance-{{ $event->id }}" method="POST" action="{{ route('hr.approval_attendance.approve', $event) }}">@csrf<button type="submit" class="btn-action btn-approve" aria-label="Terima absensi {{ $event->user->name }}">✓</button></form>
                                         <form method="POST" action="{{ route('hr.approval_attendance.move_clock_side', $event) }}">@csrf<button type="submit" class="btn-action" aria-label="Ubah tipe absensi {{ $event->user->name }}">↔</button></form>
                                     </div>
                                 </td>
@@ -271,10 +313,23 @@
         </div>
     </div>
 
-    <x-modal id="approval-attendance-location-map" title="Lokasi Absensi" type="info" variant="info" cancelLabel="Tutup">
-        <div class="approval-attendance-location-modal">
-            <p class="approval-attendance-location-modal__coordinates" id="approval-attendance-location-coordinates"></p>
-            <iframe id="approval-attendance-location-frame" title="Peta lokasi Clock In" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <x-modal id="approval-attendance-evidence-modal" title="Bukti Kehadiran" type="info" variant="info" cancelLabel="Tutup">
+        <div class="approval-evidence-meta">
+            <strong id="approval-attendance-evidence-name"></strong>
+            <span id="approval-attendance-evidence-type"></span>
+        </div>
+        <div class="approval-evidence-grid">
+            <section class="approval-evidence-panel">
+                <h4>Foto Kehadiran</h4>
+                <img id="approval-attendance-evidence-photo" alt="Foto kehadiran" hidden>
+                <p id="approval-attendance-evidence-photo-empty" class="approval-evidence-empty">Foto tidak tersedia.</p>
+            </section>
+            <section class="approval-evidence-panel">
+                <h4>Lokasi Kehadiran</h4>
+                <p id="approval-attendance-evidence-coordinates" class="approval-evidence-coordinates" hidden></p>
+                <iframe id="approval-attendance-evidence-map" title="Peta lokasi kehadiran" loading="lazy" referrerpolicy="no-referrer-when-downgrade" hidden></iframe>
+                <p id="approval-attendance-evidence-location-empty" class="approval-evidence-empty">Lokasi tidak tersedia.</p>
+            </section>
         </div>
     </x-modal>
 
@@ -418,9 +473,16 @@
         }
 
         function initializeApprovalAttendanceInteractions() {
-            const coordinates = document.getElementById('approval-attendance-location-coordinates');
-            const frame = document.getElementById('approval-attendance-location-frame');
-            const locationTitle = document.getElementById('approval-attendance-location-map_title');
+            const evidenceModal = document.getElementById('approval-attendance-evidence-modal');
+            const evidence = {
+                name: document.getElementById('approval-attendance-evidence-name'),
+                type: document.getElementById('approval-attendance-evidence-type'),
+                photo: document.getElementById('approval-attendance-evidence-photo'),
+                photoEmpty: document.getElementById('approval-attendance-evidence-photo-empty'),
+                coordinates: document.getElementById('approval-attendance-evidence-coordinates'),
+                map: document.getElementById('approval-attendance-evidence-map'),
+                locationEmpty: document.getElementById('approval-attendance-evidence-location-empty'),
+            };
             const bulkApproveAll = document.getElementById('bulkApproveAll');
             const bulkApproveAllButton = document.getElementById('bulkApproveAllButton');
             const bulkApproveBar = document.getElementById('bulkApproveBar');
@@ -460,7 +522,7 @@
                 }
 
                 bulkApproveList.replaceChildren();
-                bulkApproveForm.querySelectorAll('input[name="attendance_ids[]"]').forEach(function (input) {
+                bulkApproveForm.querySelectorAll('input[name="attendance_ids[]"], input[data-bulk-approval-note]').forEach(function (input) {
                     input.remove();
                 });
 
@@ -474,6 +536,14 @@
                     input.name = 'attendance_ids[]';
                     input.value = checkbox.value;
                     bulkApproveForm.appendChild(input);
+
+                    const noteInput = document.querySelector(`[data-hrd-note-event-id="${checkbox.value}"]`);
+                    const note = document.createElement('input');
+                    note.type = 'hidden';
+                    note.name = `hrd_notes[${checkbox.value}]`;
+                    note.value = noteInput?.value ?? '';
+                    note.dataset.bulkApprovalNote = 'true';
+                    bulkApproveForm.appendChild(note);
                 });
 
                 bulkApproveModal.style.display = 'flex';
@@ -502,16 +572,41 @@
                 openBulkApproveModal(selectedBulkAttendances());
             });
 
-            document.querySelectorAll('[data-approval-attendance-location]').forEach(function (button) {
-                button.addEventListener('click', function () {
-                    const location = `${this.dataset.approvalAttendanceLocationLat}, ${this.dataset.approvalAttendanceLocationLng}`;
-                    const label = this.dataset.approvalAttendanceLocationLabel || 'Absensi';
+            document.querySelectorAll('[data-approval-attendance-evidence]').forEach(function (button) {
+                if (button.dataset.approvalAttendanceEvidenceInitialized) return;
 
-                    coordinates.textContent = location;
-                    locationTitle.textContent = `Lokasi ${label}`;
-                    frame.title = `Peta lokasi ${label}`;
-                    frame.src = `https://www.google.com/maps?q=${encodeURIComponent(location)}&z=16&output=embed`;
-                    document.getElementById('approval-attendance-location-map').style.display = 'flex';
+                button.dataset.approvalAttendanceEvidenceInitialized = 'true';
+                button.addEventListener('click', function () {
+                    evidence.name.textContent = this.dataset.approvalAttendanceEvidenceName;
+                    evidence.type.textContent = this.dataset.approvalAttendanceEvidenceType;
+
+                    if (this.dataset.approvalAttendanceEvidencePhoto) {
+                        evidence.photo.src = this.dataset.approvalAttendanceEvidencePhoto;
+                        evidence.photo.hidden = false;
+                        evidence.photoEmpty.hidden = true;
+                    } else {
+                        evidence.photo.removeAttribute('src');
+                        evidence.photo.hidden = true;
+                        evidence.photoEmpty.hidden = false;
+                    }
+
+                    const latitude = this.dataset.approvalAttendanceEvidenceLatitude;
+                    const longitude = this.dataset.approvalAttendanceEvidenceLongitude;
+                    if (latitude && longitude) {
+                        const coordinates = `${latitude}, ${longitude}`;
+                        evidence.coordinates.textContent = coordinates;
+                        evidence.coordinates.hidden = false;
+                        evidence.map.src = `https://www.google.com/maps?q=${encodeURIComponent(coordinates)}&z=16&output=embed`;
+                        evidence.map.hidden = false;
+                        evidence.locationEmpty.hidden = true;
+                    } else {
+                        evidence.coordinates.hidden = true;
+                        evidence.map.removeAttribute('src');
+                        evidence.map.hidden = true;
+                        evidence.locationEmpty.hidden = false;
+                    }
+
+                    evidenceModal.style.display = 'flex';
                     document.body.style.overflow = 'hidden';
                 });
             });

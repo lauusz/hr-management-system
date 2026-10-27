@@ -10,7 +10,7 @@ use App\Services\LeaveApprovalAssignmentService;
 pest()->extend(Tests\TestCase::class)
     ->in('Feature');
 
-it('renders live employee search and a three column desktop grid', function () {
+it('renders live employee search and a compact employee table', function () {
     $hrd = User::factory()->create(['role' => UserRole::HRD]);
 
     $this->actingAs($hrd, 'web')
@@ -18,10 +18,62 @@ it('renders live employee search and a three column desktop grid', function () {
         ->assertOk()
         ->assertSee('data-employee-live-search', false)
         ->assertSee('data-employee-results aria-live="polite" aria-busy="false"', false)
-        ->assertSee('data-employee-list', false)
+        ->assertSee('<tbody data-employee-list>', false)
         ->assertSee('data-employee-pagination', false)
-        ->assertSee('grid-template-columns: repeat(3, minmax(0, 1fr))', false)
+        ->assertSee('class="emp-table"', false)
+        ->assertDontSee('emp-shift-select', false)
         ->assertDontSee('emp-btn-search', false);
+});
+
+it('returns the selected employee leave balance history to HRD', function () {
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $employee = User::factory()->create(['leave_balance' => 8.5]);
+    $otherEmployee = User::factory()->create();
+    $leave = LeaveRequest::factory()->forUser($employee)->create([
+        'type' => \App\Enums\LeaveType::CUTI,
+        'start_date' => '2026-10-20',
+        'end_date' => '2026-10-21',
+        'notes_hrd' => 'Disetujui setelah jadwal pengganti dikonfirmasi.',
+    ]);
+
+    LeaveBalanceTransaction::create([
+        'user_id' => $employee->id,
+        'leave_request_id' => $leave->id,
+        'transaction_type' => LeaveBalanceTransaction::DEDUCT,
+        'amount' => 1.5,
+        'balance_before' => 10,
+        'balance_after' => 8.5,
+        'idempotency_key' => 'TEST:DEDUCT:'.$employee->id,
+    ]);
+    LeaveBalanceTransaction::create([
+        'user_id' => $otherEmployee->id,
+        'transaction_type' => LeaveBalanceTransaction::OPENING_BALANCE,
+        'amount' => 12,
+        'balance_before' => 12,
+        'balance_after' => 12,
+        'idempotency_key' => 'TEST:OPENING:'.$otherEmployee->id,
+    ]);
+    LeaveBalanceTransaction::create([
+        'user_id' => $employee->id,
+        'transaction_type' => LeaveBalanceTransaction::ADJUSTMENT,
+        'amount' => 2,
+        'balance_before' => 8.5,
+        'balance_after' => 6.5,
+        'idempotency_key' => 'TEST:ADJUSTMENT:'.$employee->id,
+    ]);
+
+    $this->actingAs($hrd, 'web')
+        ->getJson(route('hr.employees.leave-balance-history', $employee))
+        ->assertOk()
+        ->assertJsonPath('employee.name', $employee->name)
+        ->assertJsonPath('employee.leave_balance', 8.5)
+        ->assertJsonCount(2, 'transactions')
+        ->assertJsonPath('transactions.0.label', 'Saldo dikurangi')
+        ->assertJsonPath('transactions.0.effect', '-')
+        ->assertJsonPath('transactions.0.amount', 2)
+        ->assertJsonPath('transactions.1.label', 'Cuti diambil')
+        ->assertJsonPath('transactions.1.leave_request.label', 'Cuti')
+        ->assertJsonPath('transactions.1.leave_request.hr_note', 'Disetujui setelah jadwal pengganti dikonfirmasi.');
 });
 
 it('employee search ignores dots and spaces in employee names', function () {
@@ -72,6 +124,29 @@ it('renders compact Indonesian dates on employee cards', function () {
         ->assertSee('1 Des 2025')
         ->assertSee('Berakhir: 1 Des 2026')
         ->assertDontSee('1 Desember 2025');
+});
+
+it('renders employee detail summary, viewer buttons, and safe document links', function () {
+    $this->travelTo(\Carbon\Carbon::parse('2026-08-06'));
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $employee = User::factory()->create(['status' => 'ACTIVE', 'leave_balance' => 1.5]);
+    EmployeeProfile::create([
+        'user_id' => $employee->id,
+        'nik' => '24-020010',
+        'kategori' => 'KONTRAK',
+        'tgl_bergabung' => '2024-04-27',
+        'tgl_akhir_percobaan' => '2026-08-20',
+        'path_ktp' => 'employee-documents/ktp.jpg',
+    ]);
+
+    $this->actingAs($hrd, 'web')
+        ->get(route('hr.employees.show', $employee))
+        ->assertOk()
+        ->assertSee('24-020010')
+        ->assertSee('2 thn 3 bln')
+        ->assertSee('Berakhir 20 Agt 2026 (sisa 14 hari)')
+        ->assertSee('data-image-viewer-alt="KTP"', false)
+        ->assertDontSee('tab-btn', false);
 });
 
 it('uses global image viewer for stored employee documents', function () {

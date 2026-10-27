@@ -14,6 +14,18 @@
         </div>
     </x-slot>
 
+    @php
+        $activeFilterCount = collect([
+            $ptId ?? null,
+            $positionId ?? null,
+            $kategori ?? null,
+            ($nearExpiry ?? false) ? 1 : null,
+            ($noLeaveBalance ?? false) ? 1 : null,
+            ($noShift ?? false) ? 1 : null,
+        ])->filter()->count();
+        $hasAnyFilter = $activeFilterCount > 0 || filled($search ?? null);
+    @endphp
+
     @if(session('success'))
     <div class="emp-alert emp-alert--success">
         <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -21,249 +33,118 @@
     </div>
     @endif
 
-    {{-- CTA --}}
-    <div class="emp-cta-bar">
-        <a href="{{ route('hr.employees.create') }}" class="emp-btn-primary">
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Tambah Karyawan
-        </a>
-    </div>
-
-    {{-- SEARCH & FILTERS --}}
-    <div class="emp-filter-card">
-        <form method="GET" action="{{ route('hr.employees.index') }}" class="emp-filter-form" id="filterForm">
-            <div class="emp-search-row">
+    {{-- TOOLBAR: pencarian, filter, tambah --}}
+    <div class="emp-toolbar">
+        <form method="GET" action="{{ route('hr.employees.index') }}" id="filterForm">
+            <div class="emp-toolbar-row">
                 <div class="emp-search-input-wrap">
-                    <svg class="emp-search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <svg class="emp-search-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     <input type="search" name="q" value="{{ $search ?? '' }}" placeholder="Cari nama, username, email, atau telepon..." autocomplete="off" class="emp-search-input" aria-label="Cari karyawan" data-employee-live-search>
                 </div>
-                @if(($search ?? null) || ($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false) || ($noLeaveBalance ?? false) || ($noShift ?? false))
+
+                <button type="button" class="emp-btn-toggle-filter {{ $activeFilterCount ? 'active' : '' }}" onclick="toggleFilterPanel()" aria-controls="filterPanel">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+                    Filter
+                    @if($activeFilterCount)
+                    <span class="emp-filter-badge">{{ $activeFilterCount }}</span>
+                    @endif
+                </button>
+
+                @if($hasAnyFilter)
                 <a href="{{ route('hr.employees.index') }}" class="emp-btn-reset">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     Reset
                 </a>
                 @endif
 
-                <button type="button" class="emp-btn-toggle-filter {{ ($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false) || ($noLeaveBalance ?? false) || ($noShift ?? false) ? 'active' : '' }}" onclick="toggleFilterPanel()">
-                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
-                    Filter
-                    @if(($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false) || ($noLeaveBalance ?? false) || ($noShift ?? false))
-                    <span class="emp-filter-badge">{{ collect([$ptId, $positionId, $kategori, $nearExpiry ? 1 : null, $noLeaveBalance ? 1 : null, $noShift ? 1 : null])->filter()->count() }}</span>
-                    @endif
-                </button>
+                <a href="{{ route('hr.employees.create') }}" class="emp-btn-primary">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Tambah Karyawan
+                </a>
             </div>
 
-            <div class="emp-filter-panel" id="filterPanel" style="{{ ($ptId ?? null) || ($positionId ?? null) || ($kategori ?? null) || ($nearExpiry ?? false) || ($noLeaveBalance ?? false) || ($noShift ?? false) ? '' : 'display: none;' }}">
-                <div class="emp-filter-grid">
-                    <div class="emp-filter-group">
-                        <label class="emp-filter-label">PT</label>
-                        <div class="emp-select-wrap">
-                            <select name="pt_id" class="emp-select">
-                                <option value="">Semua PT</option>
-                                @foreach($ptOptions as $pt)
-                                <option value="{{ $pt->id }}" @selected(($ptId ?? '') == $pt->id)>{{ $pt->name }}</option>
-                                @endforeach
-                            </select>
-                            <svg class="emp-select-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                        </div>
-                    </div>
+            {{-- Filter: dropdown langsung diterapkan saat berubah --}}
+            <div class="emp-filter-panel {{ $activeFilterCount ? 'is-open' : '' }}" id="filterPanel">
+                <div class="emp-select-wrap">
+                    <select name="pt_id" class="emp-select" aria-label="Filter PT" onchange="this.form.submit()">
+                        <option value="">Semua PT</option>
+                        @foreach($ptOptions as $pt)
+                        <option value="{{ $pt->id }}" @selected(($ptId ?? '') == $pt->id)>{{ $pt->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="emp-select-wrap">
+                    <select name="position_id" class="emp-select" aria-label="Filter jabatan" onchange="this.form.submit()">
+                        <option value="">Semua Jabatan</option>
+                        @foreach($positionOptions as $pos)
+                        <option value="{{ $pos->id }}" @selected(($positionId ?? '') == $pos->id)>{{ $pos->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="emp-select-wrap">
+                    <select name="kategori" class="emp-select" aria-label="Filter kategori" onchange="this.form.submit()">
+                        <option value="">Semua Kategori</option>
+                        <option value="TETAP" @selected(($kategori ?? '') == 'TETAP')>Karyawan Tetap</option>
+                        <option value="KONTRAK" @selected(($kategori ?? '') == 'KONTRAK')>Kontrak</option>
+                        <option value="MAGANG" @selected(($kategori ?? '') == 'MAGANG')>Magang</option>
+                    </select>
+                </div>
 
-                    <div class="emp-filter-group">
-                        <label class="emp-filter-label">Jabatan</label>
-                        <div class="emp-select-wrap">
-                            <select name="position_id" class="emp-select">
-                                <option value="">Semua Jabatan</option>
-                                @foreach($positionOptions as $pos)
-                                <option value="{{ $pos->id }}" @selected(($positionId ?? '') == $pos->id)>{{ $pos->name }}</option>
-                                @endforeach
-                            </select>
-                            <svg class="emp-select-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                        </div>
-                    </div>
-
-                    <div class="emp-filter-group">
-                        <label class="emp-filter-label">Kategori</label>
-                        <div class="emp-select-wrap">
-                            <select name="kategori" class="emp-select">
-                                <option value="">Semua</option>
-                                <option value="TETAP" @selected(($kategori ?? '') == 'TETAP')>Karyawan Tetap</option>
-                                <option value="KONTRAK" @selected(($kategori ?? '') == 'KONTRAK')>Kontrak</option>
-                                <option value="MAGANG" @selected(($kategori ?? '') == 'MAGANG')>Magang</option>
-                            </select>
-                            <svg class="emp-select-arrow" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                        </div>
-                    </div>
-
-                    <div class="emp-filter-toggles">
-                        <label class="emp-toggle-chip {{ ($nearExpiry ?? false) ? 'active' : '' }}">
-                            <input type="checkbox" name="near_expiry" value="1" onchange="this.form.submit()" @checked($nearExpiry ?? false) hidden>
-                            <span class="emp-toggle-icon">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </span>
-                            Kontrak Mau Habis
-                        </label>
-
-                        <label class="emp-toggle-chip {{ ($noLeaveBalance ?? false) ? 'active' : '' }}">
-                            <input type="checkbox" name="no_leave_balance" value="1" onchange="this.form.submit()" @checked($noLeaveBalance ?? false) hidden>
-                            <span class="emp-toggle-icon">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                            </span>
-                            Belum Dapat Cuti
-                        </label>
-
-                        <label class="emp-toggle-chip {{ ($noShift ?? false) ? 'active' : '' }}">
-                            <input type="checkbox" name="no_shift" value="1" onchange="this.form.submit()" @checked($noShift ?? false) hidden>
-                            <span class="emp-toggle-icon">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            </span>
-                            Belum Ada Shift
-                        </label>
-                    </div>
-
-                    <div class="emp-filter-actions">
-                        <button type="submit" class="emp-btn-apply">Terapkan Filter</button>
-                    </div>
+                <div class="emp-filter-toggles">
+                    <label class="emp-toggle-chip {{ ($nearExpiry ?? false) ? 'active' : '' }}">
+                        <input type="checkbox" name="near_expiry" value="1" onchange="this.form.submit()" @checked($nearExpiry ?? false) hidden>
+                        Kontrak Mau Habis
+                    </label>
+                    <label class="emp-toggle-chip {{ ($noLeaveBalance ?? false) ? 'active' : '' }}">
+                        <input type="checkbox" name="no_leave_balance" value="1" onchange="this.form.submit()" @checked($noLeaveBalance ?? false) hidden>
+                        Belum Dapat Cuti
+                    </label>
+                    <label class="emp-toggle-chip {{ ($noShift ?? false) ? 'active' : '' }}">
+                        <input type="checkbox" name="no_shift" value="1" onchange="this.form.submit()" @checked($noShift ?? false) hidden>
+                        Belum Ada Shift
+                    </label>
                 </div>
             </div>
         </form>
     </div>
 
     <div data-employee-results aria-live="polite" aria-busy="false">
-        {{-- RESULTS BAR --}}
         <div class="emp-results-bar" data-employee-results-bar>
-            <span>Menampilkan {{ $items->count() }} dari {{ $totalEmployees }} karyawan</span>
+            @if($items->total())
+            <span>Menampilkan <strong>{{ $items->firstItem() }}–{{ $items->lastItem() }}</strong> dari <strong>{{ $items->total() }}</strong> karyawan</span>
+            @else
+            <span>Tidak ada hasil</span>
+            @endif
         </div>
 
-        {{-- EMPLOYEE LIST --}}
-        <div class="emp-list" data-employee-list>
-        @forelse($items as $emp)
-            @php
-                $statusRaw = $emp->status ?? '-';
-                $statusClass = 'emp-badge--success';
-                $statusLabel = 'Aktif';
-
-                if ($statusRaw === 'INACTIVE') {
-                    $labelMap = [
-                        'RESIGN' => 'Resign',
-                        'HABIS_KONTRAK' => 'Habis Kontrak',
-                        'PHK' => 'PHK',
-                        'PENSIUN' => 'Pensiun',
-                        'MENINGGAL' => 'Meninggal',
-                        'LAINNYA' => 'Nonaktif',
-                    ];
-                    $code = $emp->profile?->exit_reason_code;
-                    $statusLabel = $code ? ($labelMap[$code] ?? $code) : 'Nonaktif';
-                    $statusClass = 'emp-badge--error';
-                }
-
-                $joinDate = $emp->profile?->tgl_bergabung;
-                $masaKerja = '-';
-                if ($joinDate) {
-                    $start = \Carbon\Carbon::parse($joinDate)->startOfDay();
-                    $end = \Carbon\Carbon::today();
-                    if ($end->greaterThanOrEqualTo($start)) {
-                        $diff = $start->diff($end);
-                        $parts = [];
-                        if ($diff->y > 0) $parts[] = $diff->y . ' thn';
-                        if ($diff->m > 0) $parts[] = $diff->m . ' bln';
-                        if (empty($parts)) $parts[] = $diff->d . ' hari';
-                        $masaKerja = implode(' ', array_slice($parts, 0, 2));
-                    }
-                }
-
-                $joinDateFormatted = $joinDate ? \Carbon\Carbon::parse($joinDate)->translatedFormat('j M Y') : '-';
-                $probationEnd = $emp->profile?->tgl_akhir_percobaan;
-                $probationEndFormatted = $probationEnd ? \Carbon\Carbon::parse($probationEnd)->translatedFormat('j M Y') : null;
-                $email = $emp->email ?? '-';
-                $phone = $emp->phone ?? '-';
-            @endphp
-
-            <div class="emp-card">
-                <div class="emp-card-main">
-                    <div class="emp-avatar">
-                        {{ substr($emp->name, 0, 1) }}
-                    </div>
-                    <div class="emp-info">
-                        <div class="emp-info-top">
-                            <a href="{{ route('hr.employees.show', $emp->id) }}" class="emp-name">{{ $emp->name }}</a>
-                            <span class="emp-badge {{ $statusClass }}">{{ $statusLabel }}</span>
-                        </div>
-                        <div class="emp-meta">
-                            <span class="emp-meta-item">
-                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
-                                {{ $emp->division?->name ?? '-' }}
-                            </span>
-                            <span class="emp-meta-sep">•</span>
-                            <span class="emp-meta-item">
-                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                {{ $emp->position?->name ?? '-' }}
-                            </span>
-                        </div>
-                        <div class="emp-contact">
-                            <span class="emp-contact-item">
-                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                                {{ $email }}
-                            </span>
-                            @if($phone !== '-')
-                            <span class="emp-contact-sep">|</span>
-                            <span class="emp-contact-item">
-                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-                                {{ $phone }}
-                            </span>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-
-                <div class="emp-card-chips">
-                    <span class="emp-chip emp-chip--pt">{{ $emp->profile?->pt?->name ?? '-' }}</span>
-                    <span class="emp-chip">
-                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        {{ $masaKerja }}
-                    </span>
-                    <span class="emp-chip">
-                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        {{ $joinDateFormatted }}
-                    </span>
-                    @if($nearExpiry && $probationEndFormatted)
-                    <span class="emp-chip emp-chip--warning">
-                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        Berakhir: {{ $probationEndFormatted }}
-                    </span>
-                    @endif
-                    <span class="emp-chip emp-chip--info">
-                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        Cuti: <strong>{{ rtrim(rtrim(sprintf('%.1f', $emp->leave_balance ?? 0), '0'), '.') }}</strong>
-                    </span>
-                </div>
-
-                <div class="emp-card-actions">
-                    <select
-                        class="emp-shift-select @if($emp->employeeShift?->shift_id) has-shift @endif"
-                        data-user-id="{{ $emp->id }}"
-                        data-shift-url="{{ route('hr.employees.shift.inline', $emp->id) }}"
-                        data-previous-value="{{ $emp->employeeShift?->shift_id ?? '' }}"
-                        onchange="updateShift(this)"
-                    >
-                        <option value="">- Shift -</option>
-                        @foreach($shifts as $shift)
-                        <option value="{{ $shift->id }}" @selected($emp->employeeShift?->shift_id == $shift->id)>{{ $shift->name }}</option>
-                        @endforeach
-                    </select>
-                    <a href="{{ route('hr.employees.show', $emp->id) }}" class="emp-btn-detail" aria-label="Detail karyawan">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    </a>
-                </div>
+        <div class="emp-table-card">
+            <div class="emp-table-scroll">
+                <table class="emp-table">
+                    <thead>
+                        <tr>
+                            <th>Karyawan</th>
+                            <th>Jabatan / Divisi</th>
+                            <th>PT</th>
+                            <th>Masa Kerja</th>
+                            <th>Kategori</th>
+                            <th class="emp-th--num">Sisa Cuti</th>
+                            <th><span class="sr-only">Aksi</span></th>
+                        </tr>
+                    </thead>
+                    <tbody data-employee-list>
+                    @forelse($items as $emp)
+                        @include('hr.employees.partials.employee-row', ['emp' => $emp])
+                    @empty
+                        <tr class="emp-row-empty">
+                            <td colspan="7">
+                                <p class="emp-empty-title">Tidak ada karyawan yang ditemukan</p>
+                                <p class="emp-empty-desc">Coba ubah kata kunci pencarian atau filter yang digunakan</p>
+                            </td>
+                        </tr>
+                    @endforelse
+                    </tbody>
+                </table>
             </div>
-        @empty
-            <div class="emp-empty">
-                <div class="emp-empty-icon">
-                    <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                </div>
-                <p class="emp-empty-title">Tidak ada karyawan yang ditemukan</p>
-                <p class="emp-empty-desc">Coba ubah kata kunci pencarian atau filter yang digunakan</p>
-            </div>
-        @endforelse
         </div>
 
         <div class="emp-pagination" data-employee-pagination>
@@ -271,728 +152,257 @@
         </div>
     </div>
 
+    <div class="emp-leave-modal" id="leaveBalanceHistoryModal" hidden>
+        <div class="emp-leave-modal__backdrop" data-leave-history-close></div>
+        <section class="emp-leave-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="leaveBalanceHistoryTitle">
+            <div class="emp-leave-modal__header">
+                <div>
+                    <p class="emp-leave-modal__eyebrow">Riwayat cuti</p>
+                    <h2 id="leaveBalanceHistoryTitle">Memuat riwayat...</h2>
+                </div>
+                <button type="button" class="emp-leave-modal__close" data-leave-history-close aria-label="Tutup riwayat cuti">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-width="2" d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </div>
+            <div class="emp-leave-modal__body" data-leave-history-body></div>
+        </section>
+    </div>
+
     <style>
-        /* ========================================== */
-        /* BASE & RESET                               */
-        /* ========================================== */
-        .emp-alert {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 16px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        .emp-alert--success {
-            background: rgba(34, 197, 94, 0.08);
-            border: 1px solid rgba(34, 197, 94, 0.25);
-            color: #16a34a;
-        }
-
-        /* ========================================== */
-        /* SECTION HEADER (x-slot)                    */
-        /* ========================================== */
-        .section-header-inline {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+        /* ========== HEADER (x-slot) ========== */
+        .section-header-inline { display: flex; align-items: center; gap: 10px; }
         .section-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
+            width: 32px; height: 32px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
         }
-        .section-icon svg {
-            width: 16px;
-            height: 16px;
-        }
+        .section-icon svg { width: 16px; height: 16px; }
         .section-title {
-            margin: 0;
-            font-size: 1rem;
-            font-weight: 800;
-            color: var(--text-primary);
-            letter-spacing: -0.01em;
-            line-height: 1.25;
+            margin: 0; font-size: 1rem; font-weight: 800; color: var(--text-primary);
+            letter-spacing: -0.01em; line-height: 1.25;
         }
-        .section-subtitle {
-            margin: 0;
-            font-size: 0.8125rem;
-            color: var(--text-muted);
-            font-weight: 500;
-            line-height: 1.35;
-        }
-        .icon-navy  { background: rgba(10, 61, 98, 0.08);  color: var(--primary-dark); }
+        .section-subtitle { margin: 0; font-size: 0.8125rem; color: var(--text-muted); font-weight: 500; line-height: 1.35; }
+        .icon-navy { background: rgba(10, 61, 98, 0.08); color: var(--primary-dark); }
 
-        /* ========================================== */
-        /* CTA BAR                                    */
-        /* ========================================== */
-        .emp-cta-bar {
-            display: flex;
-            justify-content: flex-start;
-            margin-bottom: 16px;
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
         }
-        .emp-btn-primary {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 10px 18px;
-            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-            color: #fff;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-            box-shadow: 0 4px 12px rgba(10, 61, 98, 0.22);
-            flex-shrink: 0;
-            width: 100%;
-        }
-        .emp-btn-primary:hover {
-            box-shadow: 0 6px 20px rgba(10, 61, 98, 0.32);
-            transform: translateY(-1px);
-        }
-        .emp-btn-primary svg { flex-shrink: 0; }
 
-        /* ========================================== */
-        /* FILTER CARD                                */
-        /* ========================================== */
-        .emp-filter-card {
-            background: var(--white);
-            border-radius: 16px;
-            border: 1px solid var(--border);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-            margin-bottom: 16px;
-            overflow: hidden;
+        /* ========== ALERT ========== */
+        .emp-alert {
+            display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+            border-radius: 10px; margin-bottom: 12px; font-size: 13px; font-weight: 500;
         }
-        .emp-filter-form {
-            padding: 14px 16px;
+        .emp-alert--success { background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25); color: #16a34a; }
+
+        /* ========== TOOLBAR ========== */
+        .emp-toolbar {
+            background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+            padding: 10px; margin-bottom: 10px; box-sizing: border-box;
         }
-        .emp-search-row {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .emp-search-input-wrap {
-            position: relative;
-            flex: 1;
-        }
+        .emp-toolbar-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .emp-search-input-wrap { position: relative; flex: 1 1 100%; min-width: 0; }
         .emp-search-icon {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-light);
-            pointer-events: none;
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: var(--text-light); pointer-events: none;
         }
         .emp-search-input {
-            width: 100%;
-            padding: 10px 14px 10px 42px;
-            border: 1.5px solid var(--border);
-            border-radius: 12px;
-            font-size: 14px;
-            color: var(--text-primary);
-            background: var(--white);
-            transition: all 0.2s ease;
-            outline: none;
-            font-family: inherit;
+            width: 100%; box-sizing: border-box; height: 38px; padding: 0 12px 0 36px;
+            border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px;
+            color: var(--text-primary); background: var(--white); outline: none; font-family: inherit;
+            transition: border-color .15s ease, box-shadow .15s ease;
         }
-        .emp-search-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
-        }
+        .emp-search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(20, 93, 160, 0.1); }
         .emp-search-input::placeholder { color: var(--text-light); }
 
-        .emp-btn-reset {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 14px;
-            background: var(--white);
-            color: var(--text-muted);
-            border: 1.5px solid var(--border);
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 500;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-            width: 100%;
+        .emp-btn-toggle-filter,
+        .emp-btn-reset,
+        .emp-btn-primary {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            height: 38px; padding: 0 14px; box-sizing: border-box; border-radius: 10px;
+            font-size: 13px; font-weight: 600; white-space: nowrap; text-decoration: none;
+            font-family: inherit; cursor: pointer; flex: 1 1 auto; transition: all .15s ease;
         }
-        .emp-btn-reset:hover {
-            background: var(--danger-light);
-            border-color: #fecaca;
-            color: var(--error);
-        }
-
-        .emp-btn-toggle-filter {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 16px;
-            background: var(--white);
-            color: var(--text-muted);
-            border: 1.5px solid var(--border);
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            white-space: nowrap;
-            position: relative;
-            font-family: inherit;
-            width: 100%;
-        }
-        .emp-btn-toggle-filter:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-        .emp-btn-toggle-filter.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: #fff;
-        }
-        .emp-btn-toggle-filter.active svg { stroke: #fff; }
+        .emp-btn-toggle-filter { background: var(--white); color: var(--text-muted); border: 1.5px solid var(--border); }
+        .emp-btn-toggle-filter:hover { border-color: var(--primary); color: var(--primary); }
+        .emp-btn-toggle-filter.active { background: var(--primary); border-color: var(--primary); color: #fff; }
         .emp-filter-badge {
-            background: var(--error);
-            color: #fff;
-            font-size: 10px;
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 10px;
-            min-width: 18px;
-            text-align: center;
+            background: var(--error); color: #fff; font-size: 10px; font-weight: 700;
+            padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center;
         }
-        .emp-btn-toggle-filter.active .emp-filter-badge {
-            background: rgba(255,255,255,0.3);
+        .emp-btn-toggle-filter.active .emp-filter-badge { background: rgba(255,255,255,0.3); }
+        .emp-btn-reset { background: var(--white); color: var(--text-muted); border: 1.5px solid var(--border); }
+        .emp-btn-reset:hover { background: var(--danger-light); border-color: #fecaca; color: var(--error); }
+        .emp-btn-primary {
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary)); color: #fff; border: none;
+            box-shadow: 0 2px 8px rgba(10, 61, 98, 0.2);
         }
+        .emp-btn-primary:hover { box-shadow: 0 4px 14px rgba(10, 61, 98, 0.3); }
 
-        /* ========================================== */
-        /* FILTER PANEL                               */
-        /* ========================================== */
+        /* ========== FILTER PANEL ========== */
         .emp-filter-panel {
-            background: var(--gray-50);
-            border-top: 1px solid var(--border);
-            margin: 14px -16px -14px;
-            padding: 14px 16px;
-            animation: empSlideDown 0.2s ease;
+            display: none; grid-template-columns: 1fr; gap: 8px;
+            margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light);
         }
-        @keyframes empSlideDown {
-            from { opacity: 0; transform: translateY(-6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .emp-filter-grid {
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-        }
-        .emp-filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .emp-filter-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .emp-select-wrap {
-            position: relative;
-        }
+        .emp-filter-panel.is-open { display: grid; }
         .emp-select {
-            width: 100%;
-            padding: 10px 36px 10px 14px;
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            font-size: 13px;
-            color: var(--text-primary);
-            background: var(--white);
-            cursor: pointer;
-            appearance: none;
-            transition: all 0.2s ease;
-            outline: none;
-            font-family: inherit;
+            width: 100%; box-sizing: border-box; height: 36px; padding: 0 10px;
+            border: 1.5px solid var(--border); border-radius: 10px; font-size: 13px;
+            color: var(--text-primary); background: var(--white); cursor: pointer; outline: none; font-family: inherit;
         }
-        .emp-select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
-        }
-        .emp-select-arrow {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            pointer-events: none;
-            color: var(--text-light);
-        }
-
-        .emp-filter-toggles {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
+        .emp-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(20, 93, 160, 0.1); }
+        .emp-filter-toggles { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
         .emp-toggle-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 14px;
-            background: var(--white);
-            border: 1.5px solid var(--border);
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            user-select: none;
+            display: inline-flex; align-items: center; height: 32px; padding: 0 12px; box-sizing: border-box;
+            background: var(--white); border: 1.5px solid var(--border); border-radius: 9999px;
+            font-size: 12px; font-weight: 500; color: var(--text-muted); cursor: pointer; user-select: none;
+            transition: all .15s ease;
         }
-        .emp-toggle-chip:hover {
-            border-color: var(--primary);
-            color: var(--primary);
-        }
-        .emp-toggle-chip.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: #fff;
-        }
-        .emp-toggle-chip.active .emp-toggle-icon { color: #fff; }
-        .emp-toggle-icon {
-            display: flex;
-            align-items: center;
-            color: var(--text-light);
-        }
+        .emp-toggle-chip:hover { border-color: var(--primary); color: var(--primary); }
+        .emp-toggle-chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
-        .emp-filter-actions {
-            display: flex;
-            justify-content: flex-end;
-        }
-        .emp-btn-apply {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            padding: 10px 20px;
-            background: var(--primary);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-family: inherit;
-        }
-        .emp-btn-apply:hover { background: var(--primary-dark); }
+        /* ========== RESULTS ========== */
+        .emp-results-bar { margin: 4px 2px 8px; font-size: 12px; color: var(--text-muted); }
+        .emp-results-bar strong { color: var(--text-secondary); font-weight: 700; }
+        [data-employee-results] { transition: opacity .15s ease; }
+        [data-employee-results].is-loading { opacity: .55; }
 
-        /* ========================================== */
-        /* RESULTS BAR                                */
-        /* ========================================== */
-        .emp-results-bar {
-            margin-bottom: 12px;
+        /* ========== TABLE (mobile-first: baris sebagai kartu) ========== */
+        .emp-table-card { background: transparent; }
+        .emp-table { width: 100%; border-collapse: collapse; }
+        .emp-table thead { display: none; }
+        .emp-table tbody { display: flex; flex-direction: column; gap: 8px; }
+        .emp-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px;
+            background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+            padding: 12px; box-sizing: border-box;
         }
-        .emp-results-bar span {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-muted);
+        .emp-row.is-inactive { background: var(--gray-100); }
+        .emp-td { display: block; min-width: 0; }
+        .emp-td[data-label]::before {
+            content: attr(data-label); display: block; font-size: 10px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: .04em; color: var(--text-light); margin-bottom: 2px;
         }
-        [data-employee-results] {
-            transition: opacity .15s ease;
-        }
-        [data-employee-results].is-loading {
-            opacity: .55;
-        }
+        .emp-td--name { grid-column: 1 / -1; }
+        .emp-td--action { grid-column: 1 / -1; }
 
-        /* ========================================== */
-        /* EMPLOYEE LIST                              */
-        /* ========================================== */
-        .emp-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        /* ========================================== */
-        /* EMPLOYEE CARD                              */
-        /* ========================================== */
-        .emp-card {
-            background: var(--white);
-            border-radius: 16px;
-            border: 1px solid var(--border);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 14px;
-            transition: all 0.2s ease;
-        }
-        .emp-card:hover {
-            border-color: rgba(20, 93, 160, 0.25);
-            box-shadow: 0 4px 12px rgba(20, 93, 160, 0.06);
-        }
-
-        /* Card Main (Identity) */
-        .emp-card-main {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-        }
-        .emp-avatar {
-            width: 44px;
-            height: 44px;
-            background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-            color: #fff;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            font-weight: 700;
-            flex-shrink: 0;
-        }
-        .emp-info {
-            flex: 1;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .emp-info-top {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
+        .emp-name-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .emp-name {
-            font-size: 15px;
-            font-weight: 700;
-            color: var(--text-primary);
-            text-decoration: none;
-            letter-spacing: -0.01em;
-            line-height: 1.3;
+            font-size: 14px; font-weight: 700; color: var(--text-primary); text-decoration: none; line-height: 1.3;
         }
-        .emp-name:hover { color: var(--primary); }
+        .emp-name:hover { color: var(--primary); text-decoration: underline; }
+        .emp-main-text { font-size: 13px; font-weight: 500; color: var(--text-secondary); line-height: 1.35; overflow-wrap: anywhere; }
+        .emp-sub { font-size: 11.5px; color: var(--text-muted); line-height: 1.35; margin-top: 1px; overflow-wrap: anywhere; }
 
-        /* Badges */
         .emp-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 4px 10px;
-            border-radius: 9999px;
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-            flex-shrink: 0;
+            display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px;
+            font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0;
         }
-        .emp-badge--success {
-            background: rgba(34, 197, 94, 0.1);
-            color: #15803d;
-        }
-        .emp-badge--error {
-            background: rgba(239, 68, 68, 0.1);
-            color: #b91c1c;
-        }
+        .emp-badge--success { background: rgba(34, 197, 94, 0.1); color: #15803d; }
+        .emp-badge--error { background: rgba(239, 68, 68, 0.1); color: #b91c1c; }
 
-        /* Meta */
-        .emp-meta {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-        .emp-meta-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
-        .emp-meta-sep { color: var(--text-light); font-size: 12px; }
+        .emp-contract.is-near { color: #a16207; font-weight: 600; }
+        .emp-contract.is-expired { color: #b91c1c; font-weight: 600; }
 
-        /* Contact */
-        .emp-contact {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
+        .emp-leave {
+            display: inline-block; min-width: 32px; padding: 2px 8px; box-sizing: border-box; text-align: center;
+            border-radius: 6px; font-size: 13px; font-weight: 700;
+            background: rgba(59, 130, 246, 0.08); color: var(--info);
         }
-        .emp-contact-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            color: var(--text-muted);
-        }
-        .emp-contact-sep { color: var(--border); font-size: 11px; }
+        .emp-leave.is-zero { background: var(--gray-50); color: var(--text-light); }
+        .emp-leave--button { border: 0; font-family: inherit; cursor: pointer; }
+        .emp-leave--button:hover { background: rgba(20, 93, 160, 0.16); }
+        .emp-leave--button:focus-visible { outline: 3px solid rgba(20, 93, 160, 0.3); outline-offset: 2px; }
 
-        /* Chips */
-        .emp-card-chips {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-        .emp-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            padding: 5px 10px;
-            background: var(--gray-50);
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: 500;
-            color: var(--text-secondary);
-            border: 1px solid var(--border-light);
-        }
-        .emp-chip--pt {
-            background: var(--gray-100);
-            color: var(--text-muted);
-            border-color: var(--border);
-        }
-        .emp-chip--info {
-            background: rgba(59, 130, 246, 0.08);
-            color: var(--info);
-            border-color: rgba(59, 130, 246, 0.15);
-        }
-        .emp-chip--info strong { font-weight: 700; }
-        .emp-chip--warning {
-            background: rgba(245, 158, 11, 0.08);
-            color: #a16207;
-            border-color: rgba(245, 158, 11, 0.15);
-        }
+        .emp-leave-modal { position: fixed; z-index: 1100; inset: 0; display: grid; place-items: center; padding: 16px; }
+        .emp-leave-modal[hidden] { display: none; }
+        .emp-leave-modal__backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.58); backdrop-filter: brightness(.72); }
+        .emp-leave-modal__dialog { position: relative; width: min(100%, 620px); max-height: min(760px, calc(100vh - 32px)); overflow: hidden; border-radius: 16px; background: var(--white); box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25); }
+        .emp-leave-modal__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border-light); }
+        .emp-leave-modal__eyebrow { margin: 0 0 3px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+        .emp-leave-modal__header h2 { margin: 0; color: var(--text-primary); font-size: 18px; line-height: 1.3; }
+        .emp-leave-modal__close { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: 0 0 auto; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: var(--white); color: var(--text-muted); cursor: pointer; }
+        .emp-leave-modal__close:hover { color: var(--error); border-color: #fecaca; background: var(--danger-light); }
+        .emp-leave-modal__body { max-height: calc(min(760px, 100vh - 32px) - 85px); overflow-y: auto; padding: 16px 20px 20px; }
+        .emp-leave-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding: 12px; border-radius: 10px; background: var(--gray-50); }
+        .emp-leave-summary span { color: var(--text-muted); font-size: 12px; }
+        .emp-leave-summary strong { color: var(--primary); font-size: 17px; }
+        .emp-ledger-list { display: grid; gap: 10px; }
+        .emp-ledger-row { border: 1px solid var(--border-light); border-radius: 10px; padding: 12px; }
+        .emp-ledger-row__top, .emp-ledger-row__bottom { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+        .emp-ledger-row__title { color: var(--text-primary); font-size: 13px; font-weight: 700; }
+        .emp-ledger-row__effect { flex: 0 0 auto; font-size: 13px; font-weight: 700; }
+        .emp-ledger-row__effect.is-minus { color: var(--error); }.emp-ledger-row__effect.is-plus { color: #15803d; }
+        .emp-ledger-row__meta, .emp-ledger-row__note { margin-top: 6px; color: var(--text-muted); font-size: 12px; line-height: 1.45; }
+        .emp-ledger-row__reference { margin-top: 6px; color: var(--primary); font-size: 12px; font-weight: 600; }
+        .emp-leave-empty, .emp-leave-error { margin: 0; padding: 20px 4px; color: var(--text-muted); font-size: 13px; text-align: center; }
+        .emp-leave-error { color: var(--error); }
 
-        /* Actions */
-        .emp-card-actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .emp-shift-select {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            font-size: 13px;
-            color: var(--text-secondary);
-            background: var(--white);
-            cursor: pointer;
-            outline: none;
-            font-family: inherit;
-            transition: all 0.2s ease;
-        }
-        .emp-shift-select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(20, 93, 160, 0.1);
-        }
-        .emp-shift-select.has-shift {
-            background: rgba(59, 130, 246, 0.06);
-            color: var(--primary);
-            border-color: rgba(59, 130, 246, 0.25);
-            font-weight: 600;
-        }
         .emp-btn-detail {
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--white);
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            color: var(--text-muted);
-            text-decoration: none;
-            transition: all 0.2s ease;
-            flex-shrink: 0;
+            display: inline-flex; align-items: center; justify-content: center; width: 100%;
+            height: 34px; padding: 0 12px; box-sizing: border-box; border-radius: 8px;
+            border: 1.5px solid var(--border); background: var(--white); color: var(--text-secondary);
+            font-size: 12.5px; font-weight: 600; text-decoration: none; transition: all .15s ease;
         }
-        .emp-btn-detail:hover {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: #fff;
+        .emp-btn-detail:hover { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+        .emp-row-empty {
+            display: block; background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+        }
+        .emp-row-empty td { display: block; text-align: center; padding: 36px 20px; }
+        .emp-empty-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin: 0 0 4px; }
+        .emp-empty-desc { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+
+        .emp-pagination { margin-top: 16px; }
+
+        /* ========== TABLET (640px+) ========== */
+        @media (min-width: 640px) {
+            .emp-search-input-wrap { flex: 1 1 260px; }
+            .emp-btn-toggle-filter, .emp-btn-reset, .emp-btn-primary { flex: 0 0 auto; }
+            .emp-filter-panel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+            .emp-filter-toggles { grid-column: 1 / -1; }
+            .emp-row { grid-template-columns: repeat(5, minmax(0, 1fr)) auto; align-items: start; }
+            .emp-td--name { grid-column: 1 / -1; }
+            .emp-td--action { grid-column: auto; align-self: center; }
+            .emp-btn-detail { width: auto; }
         }
 
-        /* ========================================== */
-        /* EMPTY STATE                                */
-        /* ========================================== */
-        .emp-empty {
-            text-align: center;
-            padding: 48px 24px;
-            background: var(--white);
-            border-radius: 16px;
-            border: 1px solid var(--border);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        }
-        .emp-empty-icon {
-            width: 72px;
-            height: 72px;
-            margin: 0 auto 16px;
-            background: var(--gray-50);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-light);
-        }
-        .emp-empty-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            margin: 0 0 6px;
-        }
-        .emp-empty-desc {
-            font-size: 13px;
-            color: var(--text-muted);
-            margin: 0 auto;
-            max-width: 280px;
-            line-height: 1.5;
-        }
-
-        /* ========================================== */
-        /* PAGINATION                                 */
-        /* ========================================== */
-        .emp-pagination {
-            margin-top: 24px;
-        }
-
-        /* ========================================== */
-        /* SMALL MOBILE (480px and below)             */
-        /* ========================================== */
-        @media (max-width: 480px) {
-            .emp-contact { display: none; }
-            .emp-name { font-size: 14px; }
-        }
-
-        /* ========================================== */
-        /* TABLET (768px+)                            */
-        /* ========================================== */
-        @media (min-width: 768px) {
-            .emp-btn-primary {
-                justify-content: center;
-                width: auto;
-            }
-
-            .emp-filter-form {
-                padding: 16px 20px;
-            }
-            .emp-search-row {
-                flex-direction: row;
-                align-items: center;
-                flex-wrap: wrap;
-            }
-            .emp-search-input-wrap {
-                min-width: 260px;
-            }
-            .emp-btn-reset,
-            .emp-btn-toggle-filter {
-                flex-shrink: 0;
-                width: auto;
-            }
-
-            .emp-filter-panel {
-                margin: 16px -20px -16px;
-                padding: 16px 20px;
-            }
-            .emp-filter-grid {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 16px;
-                align-items: end;
-            }
-            .emp-filter-toggles {
-                grid-column: 1 / -1;
-            }
-            .emp-filter-actions {
-                grid-column: 1 / -1;
-                justify-content: flex-end;
-            }
-
-            .emp-card {
-                padding: 18px 20px;
-            }
-            .emp-avatar {
-                width: 48px;
-                height: 48px;
-                font-size: 18px;
-            }
-            .emp-info {
-                gap: 5px;
-            }
-        }
-
-        /* ========================================== */
-        /* DESKTOP (1024px+) - 2 COLUMN GRID          */
-        /* ========================================== */
+        /* ========== DESKTOP (1024px+): tabel padat ========== */
         @media (min-width: 1024px) {
-            .emp-list {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
-            }
-            .emp-empty {
-                grid-column: 1 / -1;
-            }
+            .emp-filter-panel { display: grid; grid-template-columns: repeat(3, minmax(0, 200px)) 1fr; align-items: center; }
+            .emp-filter-toggles { grid-column: auto; justify-content: flex-end; }
+            .emp-btn-toggle-filter { display: none; }
 
-            .emp-card {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 14px;
-                padding: 18px;
+            .emp-table-card {
+                background: var(--white); border: 1px solid var(--border); border-radius: 12px;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.03);
             }
-            .emp-card-main {
-                align-items: flex-start;
+            .emp-table-scroll { overflow-x: auto; border-radius: 12px; }
+            .emp-table { display: table; min-width: 980px; }
+            .emp-table thead { display: table-header-group; }
+            .emp-table tbody { display: table-row-group; }
+            .emp-table th {
+                padding: 9px 12px; text-align: left; white-space: nowrap;
+                font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em;
+                color: var(--text-muted); background: var(--gray-50); border-bottom: 1px solid var(--border);
             }
-            .emp-card-chips {
-                flex-direction: row;
-                max-width: none;
+            .emp-th--num { text-align: center !important; }
+            .emp-row {
+                display: table-row; background: transparent; border: none; border-radius: 0; padding: 0;
             }
-            .emp-card-actions {
-                flex-direction: row;
-                align-items: center;
-            }
-            .emp-shift-select {
-                flex: 1;
-                min-width: 0;
-            }
-        }
+            .emp-row:hover { background: rgba(20, 93, 160, 0.03); }
+            .emp-row.is-inactive { background: var(--gray-100); }
+            .emp-row + .emp-row .emp-td { border-top: 1px solid var(--border-light); }
+            .emp-td { display: table-cell; padding: 9px 12px; vertical-align: middle; }
+            .emp-td[data-label]::before { display: none; }
+            .emp-td--name { min-width: 220px; max-width: 300px; }
+            .emp-sub--contact { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+            .emp-td--num { text-align: center; }
+            .emp-td--action { width: 1%; white-space: nowrap; }
+            .emp-btn-detail { width: auto; }
 
-        /* ========================================== */
-        /* WIDE DESKTOP - 3 COLUMN GRID               */
-        /* ========================================== */
-        @media (min-width: 1280px) {
-            .emp-list {
-                grid-template-columns: repeat(3, minmax(0, 1fr));
-                gap: 12px;
-            }
-            .emp-card {
-                min-width: 0;
-                padding: 14px;
-                gap: 12px;
-            }
-            .emp-avatar {
-                width: 40px;
-                height: 40px;
-                font-size: 15px;
-            }
-            .emp-contact-item {
-                min-width: 0;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            .emp-chip {
-                padding: 4px 8px;
-            }
+            .emp-row-empty { display: table-row; border: none; }
+            .emp-row-empty td { display: table-cell; }
         }
     </style>
 
@@ -1056,59 +466,108 @@
         });
     })();
 
+    (function () {
+        const modal = document.getElementById('leaveBalanceHistoryModal');
+        const title = document.getElementById('leaveBalanceHistoryTitle');
+        const body = modal?.querySelector('[data-leave-history-body]');
+        let trigger;
+        let request;
+
+        if (!modal || !title || !body) return;
+
+        const formatDays = (value) => `${Number(value).toLocaleString('id-ID', { maximumFractionDigits: 2 })} hari`;
+
+        function closeModal() {
+            request?.abort();
+            modal.hidden = true;
+            body.replaceChildren();
+            trigger?.focus();
+        }
+
+        function addText(parent, tag, className, value) {
+            const element = document.createElement(tag);
+            element.className = className;
+            element.textContent = value;
+            parent.append(element);
+            return element;
+        }
+
+        function renderHistory(data) {
+            title.textContent = data.employee.name;
+            const summary = document.createElement('div');
+            summary.className = 'emp-leave-summary';
+            addText(summary, 'span', '', 'Sisa cuti');
+            addText(summary, 'strong', '', formatDays(data.employee.leave_balance));
+
+            const list = document.createElement('div');
+            list.className = 'emp-ledger-list';
+            if (!data.transactions.length) {
+                addText(list, 'p', 'emp-leave-empty', 'Belum ada riwayat saldo cuti.');
+            }
+
+            data.transactions.forEach((transaction) => {
+                const row = document.createElement('article');
+                row.className = 'emp-ledger-row';
+                const top = document.createElement('div');
+                top.className = 'emp-ledger-row__top';
+                addText(top, 'span', 'emp-ledger-row__title', transaction.label);
+                addText(top, 'span', `emp-ledger-row__effect ${transaction.effect === '-' ? 'is-minus' : transaction.effect === '+' ? 'is-plus' : ''}`, transaction.effect ? `${transaction.effect} ${formatDays(transaction.amount)}` : formatDays(transaction.amount));
+                row.append(top);
+                addText(row, 'div', 'emp-ledger-row__meta', `${transaction.occurred_at} · Dari ${formatDays(transaction.balance_before)} ke ${formatDays(transaction.balance_after)}`);
+                if (transaction.leave_request) {
+                    addText(row, 'div', 'emp-ledger-row__reference', `${transaction.leave_request.label} · ${transaction.leave_request.period}`);
+                    if (transaction.leave_request.hr_note) {
+                        addText(row, 'div', 'emp-ledger-row__note', `Catatan HRD: ${transaction.leave_request.hr_note}`);
+                    }
+                }
+                list.append(row);
+            });
+
+            body.replaceChildren(summary, list);
+        }
+
+        document.addEventListener('click', async (event) => {
+            const button = event.target.closest('[data-leave-balance-history-url]');
+            if (button) {
+                trigger = button;
+                title.textContent = button.dataset.leaveBalanceEmployee;
+                body.replaceChildren();
+                addText(body, 'p', 'emp-leave-empty', 'Memuat riwayat...');
+                modal.hidden = false;
+                request?.abort();
+                request = new AbortController();
+
+                try {
+                    const response = await fetch(button.dataset.leaveBalanceHistoryUrl, {
+                        headers: { Accept: 'application/json' },
+                        signal: request.signal,
+                    });
+                    if (!response.ok) throw new Error('Riwayat belum bisa dimuat. Coba lagi.');
+                    renderHistory(await response.json());
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        body.replaceChildren();
+                        addText(body, 'p', 'emp-leave-error', error.message);
+                    }
+                }
+                return;
+            }
+
+            if (event.target.closest('[data-leave-history-close]')) closeModal();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !modal.hidden) closeModal();
+        });
+    })();
+
     function toggleFilterPanel() {
         const panel = document.getElementById('filterPanel');
         const btn = document.querySelector('.emp-btn-toggle-filter');
-
-        if (panel.style.display === 'none') {
-            panel.style.display = '';
-            btn.classList.add('active');
-        } else {
-            panel.style.display = 'none';
-            btn.classList.remove('active');
-        }
+        const isOpen = panel.classList.toggle('is-open');
+        btn.classList.toggle('active', isOpen);
     }
 
-    function updateShift(select) {
-        const userId = select.dataset.userId;
-        const shiftId = select.value;
-        const shiftUrl = select.dataset.shiftUrl;
-        const previousValue = select.dataset.previousValue || '';
-
-        select.disabled = true;
-
-        fetch(shiftUrl, {
-            method: 'PATCH',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || document.querySelector('input[name=_token]')?.value,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify({ shift_id: shiftId })
-        })
-        .then(async res => {
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.success) {
-                throw new Error(data.message || 'Gagal menyimpan shift');
-            }
-            return data;
-        })
-        .then(data => {
-            select.dataset.previousValue = shiftId;
-            if (shiftId) {
-                select.classList.add('has-shift');
-            } else {
-                select.classList.remove('has-shift');
-            }
-        })
-        .catch(err => {
-            window.showToast(err.message || 'Gagal menyimpan shift', 'error');
-            select.value = previousValue;
-        })
-        .finally(() => {
-            select.disabled = false;
-        });
-    }
     </script>
 
 </x-app>

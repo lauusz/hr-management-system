@@ -20,6 +20,12 @@ class AttendanceEvent extends Model
         'event_type',
         'type',
         'occurred_at',
+        'work_date',
+        'attendance_shift_id',
+        'shift_start_time',
+        'shift_end_time',
+        'is_overnight',
+        'attendance_location_scope',
         'location_id',
         'photo',
         'photo_deleted_at',
@@ -30,6 +36,7 @@ class AttendanceEvent extends Model
         'rejection_note',
         'approved_by',
         'notes',
+        'hrd_note',
         'is_flexible',
         'is_outside_reference_location',
         'legacy_attendance_id',
@@ -38,7 +45,9 @@ class AttendanceEvent extends Model
 
     protected $casts = [
         'occurred_at' => 'datetime',
+        'work_date' => 'date',
         'photo_deleted_at' => 'datetime',
+        'is_overnight' => 'boolean',
         'is_flexible' => 'boolean',
         'is_outside_reference_location' => 'boolean',
     ];

@@ -1,15 +1,29 @@
 <x-atk-app title="Katalog ATK">
-    <div class="atk-header">
-        <div>
+    <div class="atk-catalog-toolbar">
+        <div class="atk-catalog-heading">
             <h1 class="atk-title">Katalog ATK</h1>
-            <p class="atk-subtitle">Pilih barang tersedia, lalu ajukan melalui keranjang.</p>
+            <span class="atk-catalog-count">{{ $items->total() }} barang</span>
         </div>
-        <a class="atk-btn atk-btn-secondary atk-catalog-cart-link" href="{{ route('v2.atk.cart.show') }}">Keranjang ({{ $cartCount }})</a>
-    </div>
 
-    <form method="GET" id="atkCatalogSearchForm" action="{{ route('v2.atk.catalog') }}" class="atk-card atk-catalog-search">
-        <input class="atk-input" type="search" name="q" value="{{ request('q') }}" placeholder="Cari barang ATK..." autocomplete="off" data-async-search>
-    </form>
+        <div class="atk-catalog-controls">
+            <form method="GET" id="atkCatalogSearchForm" action="{{ route('v2.atk.catalog') }}" class="atk-catalog-search">
+                <svg class="atk-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="m21 21-4.3-4.3"/>
+                </svg>
+                <input class="atk-input atk-search-input" type="search" name="q" value="{{ request('q') }}" placeholder="Cari nama barang ATK..." autocomplete="off" data-async-search>
+            </form>
+
+            <a class="atk-btn {{ $cartCount > 0 ? 'atk-btn-primary' : 'atk-btn-secondary' }} atk-catalog-cart-link" href="{{ route('v2.atk.cart.show') }}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.6L20.5 8H6"/>
+                    <circle cx="10" cy="20" r="1"/>
+                    <circle cx="18" cy="20" r="1"/>
+                </svg>
+                <span>Keranjang ({{ $cartCount }})</span>
+            </a>
+        </div>
+    </div>
 
     <div id="atkCatalogResults">
     @if($items->count())
@@ -17,31 +31,39 @@
             @foreach($items as $item)
                 @php
                     $inCartQty = session('atk_cart', [])[$item->id] ?? null;
+                    $hasUnitConversion = $item->unit_size != 1 || $item->unit_name !== $item->content_unit_name;
                 @endphp
-                <article class="atk-card atk-product">
+                <article class="atk-card atk-product {{ $item->stock_qty <= 0 ? 'is-out' : '' }}">
                     <div class="atk-product-media">
                         @if($item->image_path)
-                            <img src="{{ asset('storage/'.$item->image_path) }}" alt="{{ $item->name }}" onerror="this.hidden = true; this.nextElementSibling.hidden = false;">
+                            <img src="{{ asset('storage/'.$item->image_path) }}" alt="{{ $item->name }}" loading="lazy" onerror="this.hidden = true; this.nextElementSibling.hidden = false;">
                             <span class="atk-product-placeholder" hidden>ATK</span>
                         @else
                             <span class="atk-product-placeholder">ATK</span>
                         @endif
+
+                        @if($inCartQty)
+                            <span class="atk-badge atk-badge-brand atk-in-cart-badge">Di Keranjang: {{ $inCartQty }}</span>
+                        @endif
+
                         @if($item->stock_status === 'OUT')
                             <span class="atk-badge atk-badge-neutral atk-stock-empty-badge">Stok Kosong</span>
                         @endif
                     </div>
+
                     <div class="atk-product-copy">
-                        <h2 class="atk-product-title">{{ $item->name }}</h2>
+                        <h2 class="atk-product-title" title="{{ $item->name }}">{{ $item->name }}</h2>
                     </div>
+
                     <div class="atk-product-stock">
-                        @if($inCartQty)
-                            <span class="atk-badge atk-badge-brand">Di Keranjang: {{ $inCartQty }}</span>
+                        <strong class="atk-stock-pill {{ $item->stock_qty <= 0 ? 'is-zero' : '' }}">
+                            Stok: {{ $item->stock_qty }} {{ $item->unit_name }}
+                        </strong>
+                        @if($hasUnitConversion)
+                            <span class="atk-product-meta atk-product-unit">1 {{ $item->unit_name }} = {{ $item->unit_size }} {{ $item->content_unit_name }}</span>
                         @endif
-                        <strong>{{ $item->stock_qty }} {{ $item->unit_name }}</strong>
                     </div>
-                    @if($item->unit_size != 1 || $item->unit_name !== $item->content_unit_name)
-                        <p class="atk-product-meta atk-product-unit">1 {{ $item->unit_name }} = {{ $item->unit_size }} {{ $item->content_unit_name }}</p>
-                    @endif
+
                     @if($item->stock_qty > 0)
                         <form method="POST" action="{{ route('v2.atk.cart.add') }}" class="atk-qty-form">
                             @csrf
@@ -51,7 +73,7 @@
                                 <input class="atk-stepper-input" type="number" name="qty" min="{{ $item->min_request_qty }}" max="{{ $item->stock_qty }}" value="{{ $item->min_request_qty }}" inputmode="numeric" aria-label="Jumlah {{ $item->name }}" data-stepper-input>
                                 <button class="atk-stepper-btn" type="button" data-stepper-increase aria-label="Tambah jumlah {{ $item->name }}" aria-disabled="{{ $item->min_request_qty >= $item->stock_qty ? 'true' : 'false' }}" @disabled($item->min_request_qty >= $item->stock_qty)>+</button>
                             </div>
-                            <button class="atk-btn atk-btn-primary" type="submit">Tambah</button>
+                            <button class="atk-btn atk-btn-primary atk-add-btn" type="submit">Tambah</button>
                         </form>
                     @else
                         <div class="atk-actions atk-product-actions">
@@ -63,7 +85,7 @@
         </div>
         <x-pagination :items="$items" preserve-query />
     @else
-        <div class="atk-card atk-empty">Belum ada barang ATK yang aktif.</div>
+        <div class="atk-card atk-empty">Belum ada barang ATK yang ditemukan.</div>
     @endif
     </div>
 
@@ -178,41 +200,120 @@
             syncAllSteppers();
         })();
     </script>
+
     <style>
-        /* Hallmark · pre-emit critique: P4 H4 E4 S5 R5 V4 */
-        .atk-catalog-search {
-            margin-bottom: 12px;
-            padding: 8px;
-            border-radius: 14px;
+        /* ========== TOP TOOLBAR ========== */
+        .atk-catalog-toolbar {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 14px;
         }
-        .atk-catalog-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+        .atk-catalog-heading {
+            display: flex;
+            align-items: center;
             gap: 8px;
+        }
+        .atk-catalog-count {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: var(--atk-primary-dark);
+            background: var(--atk-primary-soft);
+            padding: 2px 9px;
+            border-radius: 999px;
+        }
+        .atk-catalog-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .atk-catalog-search {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+        }
+        .atk-search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #9CA3AF;
+            pointer-events: none;
+        }
+        .atk-search-input {
+            padding-left: 36px;
+            height: 38px;
+            min-height: 38px;
+            border-radius: 10px;
         }
         .atk-catalog-cart-link {
             display: none;
+            white-space: nowrap;
+            height: 38px;
+            min-height: 38px;
+            flex-shrink: 0;
+        }
+
+        /* ========== PRODUCT GRID & CARDS ========== */
+        .atk-catalog-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
         }
         .atk-catalog-grid .atk-product {
             display: flex;
             min-width: 0;
             flex-direction: column;
             gap: 8px;
-            padding: 8px;
-            border-radius: 14px;
+            padding: 10px;
+            border-radius: 12px;
+            transition: border-color .15s ease, box-shadow .15s ease;
         }
+        .atk-catalog-grid .atk-product:hover {
+            border-color: #D8B4FE;
+            box-shadow: 0 4px 12px rgba(109, 40, 217, 0.07);
+        }
+        .atk-catalog-grid .atk-product.is-out {
+            background: #FAFAFB;
+        }
+
+        /* Media */
         .atk-catalog-grid .atk-product-media {
             position: relative;
-            border-radius: 12px;
+            border-radius: 9px;
             aspect-ratio: auto;
-            height: clamp(104px, 30vw, 120px);
+            height: clamp(96px, 26vw, 114px);
+            background: #F8F7FC;
+            border: 1px solid var(--atk-border-soft);
+            padding: 6px;
         }
         .atk-catalog-grid .atk-product-media img {
             object-fit: contain;
         }
         .atk-catalog-grid .atk-product-placeholder {
-            font-size: 12px;
+            font-size: 11px;
             letter-spacing: .08em;
+            color: #9CA3AF;
         }
+        .atk-catalog-grid .atk-in-cart-badge {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            padding: 3px 7px;
+            font-size: 10px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+        }
+        .atk-catalog-grid .atk-stock-empty-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            padding: 3px 7px;
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        /* Title */
         .atk-catalog-grid .atk-product-copy {
             min-width: 0;
         }
@@ -221,57 +322,71 @@
             overflow: hidden;
             -webkit-box-orient: vertical;
             -webkit-line-clamp: 2;
-            font-size: clamp(12px, 3.4vw, 14px);
+            font-size: 12.5px;
+            font-weight: 700;
             line-height: 1.35;
-            margin-bottom: 3px;
+            min-height: 2.7em;
+            margin: 0;
+            color: var(--atk-text);
             overflow-wrap: anywhere;
         }
-        .atk-catalog-grid .atk-product-meta {
-            font-size: 12px;
-            line-height: 1.4;
-        }
+
+        /* Stock & Unit Row */
         .atk-catalog-grid .atk-product-stock {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 4px 6px;
+            padding-top: 2px;
         }
-        .atk-catalog-grid .atk-product-stock strong {
-            font-size: 12px;
+        .atk-stock-pill {
+            font-size: 11.5px;
+            font-weight: 700;
+            color: var(--atk-primary-dark);
+            background: var(--atk-primary-softer);
+            border: 1px solid #EDE9FE;
+            padding: 2px 7px;
+            border-radius: 6px;
         }
-        .atk-catalog-grid .atk-badge {
-            padding: 4px 7px;
-            font-size: 10px;
+        .atk-stock-pill.is-zero {
+            color: var(--atk-muted);
+            background: #F3F4F6;
+            border-color: var(--atk-border);
         }
-        .atk-catalog-grid .atk-stock-empty-badge {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            white-space: nowrap;
+        .atk-catalog-grid .atk-product-meta {
+            font-size: 11px;
+            color: var(--atk-muted);
+            line-height: 1.3;
         }
+
+        /* Stepper & Action Row */
         .atk-catalog-grid .atk-qty-form {
+            display: grid;
             grid-template-columns: 1fr;
+            gap: 6px;
             margin-top: auto;
+            padding-top: 2px;
         }
-        /* Hallmark component contract: quantity-stepper / default, hover, focus, active, disabled */
         .atk-stepper {
             display: grid;
-            grid-template-columns: 44px minmax(0, 1fr) 44px;
+            grid-template-columns: 32px minmax(0, 1fr) 32px;
             width: 100%;
             min-width: 0;
-            min-height: 44px;
+            height: 34px;
             border: 1px solid var(--atk-border);
-            border-radius: 11px;
+            border-radius: 8px;
             background: var(--atk-surface);
         }
         .atk-stepper-btn,
         .atk-stepper-input {
             min-width: 0;
-            min-height: 44px;
+            height: 100%;
             border: 0;
             background: transparent;
             color: var(--atk-text);
             font: inherit;
-            font-size: 13px;
+            font-size: 12.5px;
             font-weight: 700;
             text-align: center;
         }
@@ -282,11 +397,11 @@
         }
         .atk-stepper-btn:first-child {
             border-right: 1px solid var(--atk-border-soft);
-            border-radius: 10px 0 0 10px;
+            border-radius: 7px 0 0 7px;
         }
         .atk-stepper-btn:last-child {
             border-left: 1px solid var(--atk-border-soft);
-            border-radius: 0 10px 10px 0;
+            border-radius: 0 7px 7px 0;
         }
         .atk-stepper-input {
             width: 100%;
@@ -305,27 +420,29 @@
             position: relative;
             z-index: 1;
             outline: 2px solid var(--atk-primary);
-            outline-offset: 2px;
+            outline-offset: 1px;
         }
         .atk-stepper-btn:active:not(:disabled) {
             background: var(--atk-primary-soft);
         }
         .atk-stepper-btn:disabled {
-            color: var(--atk-muted);
+            color: #9CA3AF;
             cursor: not-allowed;
             opacity: .5;
         }
         .atk-catalog-grid .atk-product-actions {
             margin-top: auto;
+            padding-top: 2px;
         }
         .atk-catalog-grid .atk-product-actions .atk-btn {
             width: 100%;
         }
         .atk-catalog-grid .atk-btn {
-            min-height: 44px;
-            border-radius: 11px;
+            height: 34px;
+            min-height: 34px;
+            border-radius: 8px;
             font-size: 12px;
-            padding-inline: 8px;
+            padding-inline: 10px;
         }
 
         @media (hover: hover) {
@@ -335,48 +452,37 @@
         }
 
         @media (min-width: 640px) {
+            .atk-catalog-toolbar {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 16px;
+            }
+            .atk-catalog-controls {
+                max-width: 480px;
+                justify-content: flex-end;
+            }
             .atk-catalog-cart-link {
                 display: inline-flex;
             }
             .atk-catalog-grid {
-                grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-                gap: 14px;
+                grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+                gap: 12px;
             }
             .atk-catalog-grid .atk-product {
-                display: grid;
-                gap: 12px;
                 padding: 12px;
-                border-radius: 18px;
+                gap: 8px;
             }
             .atk-catalog-grid .atk-product-media {
-                border-radius: 16px;
-                aspect-ratio: 4 / 3;
-                height: auto;
+                height: 116px;
             }
             .atk-catalog-grid .atk-product-title {
-                font-size: 15px;
-                margin-bottom: 5px;
-            }
-            .atk-catalog-grid .atk-product-meta {
-                font-size: 12px;
-            }
-            .atk-catalog-grid .atk-product-stock {
-                align-items: center;
-                flex-direction: row;
-                gap: 10px;
-            }
-            .atk-catalog-grid .atk-product-stock strong {
-                font-size: inherit;
-            }
-            .atk-catalog-grid .atk-badge {
-                padding: 5px 10px;
-                font-size: 11px;
-            }
-            .atk-catalog-grid .atk-btn {
-                min-height: 44px;
-                border-radius: 14px;
                 font-size: 13px;
-                padding-inline: 14px;
+            }
+            /* Stepper dan tombol Tambah sejajar 1 baris di tablet & desktop */
+            .atk-catalog-grid .atk-qty-form {
+                grid-template-columns: 92px minmax(0, 1fr);
+                align-items: center;
             }
         }
     </style>

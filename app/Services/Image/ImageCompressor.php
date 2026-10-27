@@ -24,6 +24,12 @@ class ImageCompressor
 
     private const JPEG_QUALITY = 75;
 
+    private const MAX_FILE_SIZE_BYTES = 70 * 1024;
+
+    private const JPEG_QUALITIES = [self::JPEG_QUALITY, 65, 55, 45, 35];
+
+    private const MAX_SIDE_CANDIDATES = [1280, 1024, 896, 768, 640, 512, 384, 256, 192, 128];
+
     /**
      * Simpan dokumen secara original atau normalisasi foto menjadi JPEG.
      */
@@ -87,7 +93,6 @@ class ImageCompressor
         }
 
         [$width, $height] = $info;
-        [$newWidth, $newHeight] = $this->calculateDimensions($width, $height);
 
         $sourceImage = match ($extension) {
             'jpg', 'jpeg' => imagecreatefromjpeg($sourcePath),
@@ -102,6 +107,45 @@ class ImageCompressor
             throw new \RuntimeException('Format gambar tidak didukung GD.');
         }
 
+        try {
+            return $this->compressRasterImageToTarget($sourceImage, $width, $height);
+        } finally {
+            imagedestroy($sourceImage);
+        }
+    }
+
+    private function compressRasterImageToTarget($sourceImage, int $width, int $height): string
+    {
+        $lastDimensions = null;
+        $smallestContents = '';
+
+        foreach (self::MAX_SIDE_CANDIDATES as $maxSide) {
+            [$newWidth, $newHeight] = $this->calculateDimensions($width, $height, $maxSide);
+
+            if ($lastDimensions === [$newWidth, $newHeight]) {
+                continue;
+            }
+
+            $lastDimensions = [$newWidth, $newHeight];
+
+            foreach (self::JPEG_QUALITIES as $quality) {
+                $contents = $this->encodeRasterJpeg($sourceImage, $width, $height, $newWidth, $newHeight, $quality);
+
+                if ($smallestContents === '' || strlen($contents) < strlen($smallestContents)) {
+                    $smallestContents = $contents;
+                }
+
+                if (strlen($contents) <= self::MAX_FILE_SIZE_BYTES) {
+                    return $contents;
+                }
+            }
+        }
+
+        return $this->ensureMaximumFileSize($smallestContents);
+    }
+
+    private function encodeRasterJpeg($sourceImage, int $width, int $height, int $newWidth, int $newHeight, int $quality): string
+    {
         $destinationImage = imagecreatetruecolor($newWidth, $newHeight);
         $white = imagecolorallocate($destinationImage, 255, 255, 255);
         imagefilledrectangle($destinationImage, 0, 0, $newWidth, $newHeight, $white);
@@ -120,10 +164,8 @@ class ImageCompressor
         );
 
         ob_start();
-        imagejpeg($destinationImage, null, self::JPEG_QUALITY);
+        imagejpeg($destinationImage, null, $quality);
         $contents = ob_get_clean();
-
-        imagedestroy($sourceImage);
         imagedestroy($destinationImage);
 
         if ($contents === false) {
@@ -152,20 +194,7 @@ class ImageCompressor
                 $image->autoOrientImage();
             }
 
-            [$newWidth, $newHeight] = $this->calculateDimensions(
-                $image->getImageWidth(),
-                $image->getImageHeight()
-            );
-
-            $image->thumbnailImage($newWidth, $newHeight, true);
-            $image->setImageBackgroundColor('white');
-            $image->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
-            $image->stripImage();
-            $image->setImageFormat('jpeg');
-            $image->setImageCompression(\Imagick::COMPRESSION_JPEG);
-            $image->setImageCompressionQuality(self::JPEG_QUALITY);
-
-            $contents = $image->getImageBlob();
+            $contents = $this->compressImagickImageToTarget($image);
             $image->clear();
             $image->destroy();
 
@@ -178,6 +207,57 @@ class ImageCompressor
             $source->clear();
             $source->destroy();
         }
+    }
+
+    private function compressImagickImageToTarget(\Imagick $image): string
+    {
+        $width = $image->getImageWidth();
+        $height = $image->getImageHeight();
+        $lastDimensions = null;
+        $smallestContents = '';
+
+        foreach (self::MAX_SIDE_CANDIDATES as $maxSide) {
+            [$newWidth, $newHeight] = $this->calculateDimensions($width, $height, $maxSide);
+
+            if ($lastDimensions === [$newWidth, $newHeight]) {
+                continue;
+            }
+
+            $lastDimensions = [$newWidth, $newHeight];
+
+            foreach (self::JPEG_QUALITIES as $quality) {
+                $candidate = clone $image;
+                $candidate->thumbnailImage($newWidth, $newHeight, true);
+                $candidate->setImageBackgroundColor('white');
+                $candidate->setImageAlphaChannel(\Imagick::ALPHACHANNEL_REMOVE);
+                $candidate->stripImage();
+                $candidate->setImageFormat('jpeg');
+                $candidate->setImageCompression(\Imagick::COMPRESSION_JPEG);
+                $candidate->setImageCompressionQuality($quality);
+                $contents = $candidate->getImageBlob();
+                $candidate->clear();
+                $candidate->destroy();
+
+                if ($smallestContents === '' || strlen($contents) < strlen($smallestContents)) {
+                    $smallestContents = $contents;
+                }
+
+                if (strlen($contents) <= self::MAX_FILE_SIZE_BYTES) {
+                    return $contents;
+                }
+            }
+        }
+
+        return $this->ensureMaximumFileSize($smallestContents);
+    }
+
+    private function ensureMaximumFileSize(string $contents): string
+    {
+        if ($contents === '' || strlen($contents) > self::MAX_FILE_SIZE_BYTES) {
+            throw new \RuntimeException('Foto tidak dapat dikompres hingga ukuran maksimum 70 KB.');
+        }
+
+        return $contents;
     }
 
     protected function supportsHeicConversion(): bool
@@ -194,15 +274,15 @@ class ImageCompressor
     /**
      * @return array{int, int}
      */
-    private function calculateDimensions(int $width, int $height): array
+    private function calculateDimensions(int $width, int $height, int $maxSide = self::MAX_SIDE): array
     {
-        if ($width <= self::MAX_SIDE && $height <= self::MAX_SIDE) {
+        if ($width <= $maxSide && $height <= $maxSide) {
             return [$width, $height];
         }
 
         $scale = min(
-            self::MAX_SIDE / max($width, 1),
-            self::MAX_SIDE / max($height, 1)
+            $maxSide / max($width, 1),
+            $maxSide / max($height, 1)
         );
 
         return [

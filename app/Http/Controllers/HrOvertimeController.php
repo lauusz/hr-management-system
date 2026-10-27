@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Attendance;
+use App\Models\AttendanceEvent;
 use App\Models\OvertimeRequest;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -81,7 +82,14 @@ class HrOvertimeController extends Controller
         foreach ($overtimes as $overtime) {
             $key = $overtime->user_id . '|' . $overtime->overtime_date->format('Y-m-d');
             $attendance = $attendanceMap[$key] ?? null;
-            $recapData[$overtime->id] = $this->computeRecapData($overtime, $attendance);
+            $recap = $this->computeRecapData($overtime, $attendance);
+            $recap['clock_ins'] = $attendance && isset($attendance->clock_ins)
+                ? $attendance->clock_ins
+                : collect([$recap['clock_in']])->filter()->values();
+            $recap['clock_outs'] = $attendance && isset($attendance->clock_outs)
+                ? $attendance->clock_outs
+                : collect([$recap['clock_out']])->filter()->values();
+            $recapData[$overtime->id] = $recap;
         }
 
         // Data untuk Filter UI
@@ -159,6 +167,61 @@ class HrOvertimeController extends Controller
             $map[$key] = $att;
         }
 
+        $dateLookup = array_fill_keys($dates, true);
+        $events = AttendanceEvent::query()
+            ->whereIn('user_id', $userIds)
+            ->whereBetween('occurred_at', [
+                Carbon::parse(min($dates))->subDay()->startOfDay(),
+                Carbon::parse(max($dates))->addDay()->endOfDay(),
+            ])
+            ->orderBy('user_id')
+            ->orderBy('occurred_at')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('user_id');
+
+        $eventTimes = [];
+        foreach ($events as $userEvents) {
+            $openClockIn = null;
+
+            foreach ($userEvents as $event) {
+                if ($event->event_type === AttendanceEvent::CLOCK_IN) {
+                    $openClockIn = $event;
+                    $workDate = $event->occurred_at->toDateString();
+                    $side = 'clock_ins';
+                } else {
+                    $workDate = ($openClockIn ?? $event)->occurred_at->toDateString();
+                    $side = 'clock_outs';
+                    $openClockIn = null;
+                }
+
+                if (! isset($dateLookup[$workDate])) {
+                    continue;
+                }
+
+                $key = $event->user_id.'|'.$workDate;
+                $eventTimes[$key] ??= ['clock_ins' => collect(), 'clock_outs' => collect()];
+                $eventTimes[$key][$side]->push($event->occurred_at);
+            }
+        }
+
+        foreach ($eventTimes as $key => $times) {
+            $legacyAttendance = $map[$key] ?? null;
+            $clockIns = $times['clock_ins']->isNotEmpty()
+                ? $times['clock_ins']
+                : collect([$legacyAttendance?->clock_in_at])->filter();
+            $clockOuts = $times['clock_outs']->isNotEmpty()
+                ? $times['clock_outs']
+                : collect([$legacyAttendance?->clock_out_at])->filter();
+
+            $map[$key] = (object) [
+                'clock_in_at' => $clockIns->first(),
+                'clock_out_at' => $clockOuts->last(),
+                'clock_ins' => $clockIns,
+                'clock_outs' => $clockOuts,
+            ];
+        }
+
         return $map;
     }
 
@@ -171,7 +234,7 @@ class HrOvertimeController extends Controller
      * 3. Belum clock out       -> attendance ada tapi clock_out_at null
      * 4. Tidak ada absensi     -> attendance tidak ditemukan
      */
-    private function computeRecapData(OvertimeRequest $overtime, ?Attendance $attendance): array
+    private function computeRecapData(OvertimeRequest $overtime, ?object $attendance): array
     {
         $requestedStart = Carbon::parse(
             $overtime->overtime_date->toDateString() . ' ' . $overtime->start_time->format('H:i:s')

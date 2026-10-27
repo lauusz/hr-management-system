@@ -51,6 +51,9 @@
                     <span>{{ $overtime->start_time->format('H:i') }} – {{ $overtime->end_time->format('H:i') }}</span>
                     <span class="apv-duration">{{ $overtime->duration_human }}</span>
                 </div>
+                @if((int) ($overtime->break_minutes ?? 0) > 0)
+                    <div class="apv-card-break">Istirahat: {{ $overtime->break_human }}</div>
+                @endif
 
                 <div class="apv-approval">
                     @include('overtime_requests._approval_status', ['overtime' => $overtime])
@@ -106,7 +109,8 @@
         .apv-card-date, .apv-card-time { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; font-size: .875rem; color: var(--text-primary, #111827); }
         .apv-card-date { font-weight: 600; }
         .apv-card-date svg, .apv-card-time svg { flex-shrink: 0; color: var(--text-muted, #6B7280); }
-        .apv-duration { padding: 3px 8px; border-radius: 6px; font-size: .75rem; background: var(--gray-50, #F5F7FA); color: var(--text-secondary, #374151); }
+        .apv-duration { padding:4px 8px; border-radius:8px; background:var(--gray-50, #F5F7FA); color:var(--text-secondary, #374151); font-size:.75rem; }
+        .apv-card-break { margin: -3px 0 8px 22px; color: var(--text-muted, #6B7280); font-size: .75rem; line-height: 1.4; }
         .apv-approval { color: var(--text-secondary, #374151); overflow-wrap: anywhere; }
         .apv-approval > div > strong, .apv-approval > div > div { font-size: 11px; }
         .apv-approval details { position: relative; z-index: 1; }

@@ -19,6 +19,7 @@ class OvertimeRequest extends Model
         'start_time',
         'end_time',
         'duration_minutes',
+        'break_minutes',
         'description',
         'status',
         'approved_by_supervisor_id',
@@ -105,7 +106,22 @@ class OvertimeRequest extends Model
      */
     public function getDurationHumanAttribute()
     {
-        $minutes = abs($this->duration_minutes); // Ensure absolute value
+        return $this->formatMinutes($this->working_duration_minutes);
+    }
+
+    public function getWorkingDurationMinutesAttribute(): int
+    {
+        return max(0, (int) $this->duration_minutes - (int) ($this->break_minutes ?? 0));
+    }
+
+    public function getBreakHumanAttribute(): string
+    {
+        return $this->formatMinutes((int) ($this->break_minutes ?? 0));
+    }
+
+    private function formatMinutes(int $minutes): string
+    {
+        $minutes = abs($minutes);
         $hours = floor($minutes / 60);
         $min = $minutes % 60;
         

@@ -6,7 +6,7 @@
         'PARTIAL' => 'warning',
     ];
     $itemStatusBadgeMap = [
-        'PENDING' => 'warning',
+        'PENDING' => 'neutral',
         'APPROVED' => 'success',
         'REJECTED' => 'error',
     ];
@@ -17,72 +17,93 @@
     ];
 @endphp
 <x-atk-app title="Detail Pengajuan ATK">
-    <div class="atk-header atk-request-summary">
-        <div>
-            <h1 class="atk-title">{{ $atkRequest->request_number }}</h1>
-            <div class="atk-request-summary-meta">
-                <span>{{ $atkRequest->pt_name_snapshot ?? '-' }}</span>
-                <span>{{ $atkRequest->user_name_snapshot }}</span>
-                <span>{{ $atkRequest->created_at?->format('d/m/Y H:i') }}</span>
-            </div>
-        </div>
-        <span class="atk-badge atk-badge-{{ $statusBadgeMap[$atkRequest->status] ?? 'warning' }}">{{ $atkRequest->status }}</span>
+    <div class="atk-show-topbar">
+        <a class="atk-btn atk-back-link" href="{{ route('v2.atk.requests.index') }}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            <span>Kembali</span>
+        </a>
+
+        @if(auth()->user()->canManageAtk())
+            <a class="atk-btn atk-back-link" href="{{ route('v2.atk.admin.requests.show', $atkRequest) }}">
+                <span>Panel Admin</span>
+            </a>
+        @endif
     </div>
-    @if($atkRequest->status === 'APPROVED')
-        <div class="atk-alert atk-alert-success">Pengajuan disetujui. Silakan ambil barang.</div>
-    @elseif($atkRequest->status === 'PARTIAL')
-        <div class="atk-alert atk-alert-warning">Pengajuan selesai sebagian. Sebagian barang tidak diproses — lihat detail tiap item.</div>
-    @endif
 
-    @if($atkRequest->notes)
-        <div class="atk-card" style="margin-bottom:14px">
-            <div class="atk-product-meta">Catatan Pengaju</div>
-            <div>{{ $atkRequest->notes }}</div>
+    <div class="atk-card atk-request-summary">
+        <div class="atk-summary-row">
+            <div>
+                <h1 class="atk-title">{{ $atkRequest->request_number }}</h1>
+                <div class="atk-request-summary-meta">
+                    <span>{{ $atkRequest->user_name_snapshot }}</span>
+                    <span>{{ $atkRequest->pt_name_snapshot ?? '-' }}</span>
+                    <span>{{ $atkRequest->created_at?->format('d/m/Y H:i') ?? '-' }}</span>
+                </div>
+            </div>
+            <span class="atk-badge atk-badge-{{ $statusBadgeMap[$atkRequest->status] ?? 'neutral' }}">
+                {{ $atkRequest->status }}
+            </span>
         </div>
-    @endif
 
+        @if($atkRequest->notes)
+            <div class="atk-summary-note">
+                <span class="atk-summary-note-label">Catatan Pengaju:</span>
+                <span>{{ $atkRequest->notes }}</span>
+            </div>
+        @endif
+    </div>
+
+    {{-- Mobile List --}}
     <div class="atk-request-item-mobile-list">
         @foreach($atkRequest->items as $item)
             @php($itemStatus = $item->status ?? 'PENDING')
             <article class="atk-request-item-card">
                 <div class="atk-request-item-top">
                     <strong>{{ $item->item_name_snapshot }}</strong>
-                    <span class="atk-badge atk-badge-{{ $itemStatusBadgeMap[$itemStatus] ?? 'neutral' }}">{{ $itemStatusLabel[$itemStatus] ?? $itemStatus }}</span>
+                    <span class="atk-badge atk-badge-{{ $itemStatusBadgeMap[$itemStatus] ?? 'neutral' }}">
+                        {{ $itemStatusLabel[$itemStatus] ?? $itemStatus }}
+                    </span>
                 </div>
-                <dl class="atk-request-item-meta">
-                    <div>
-                        <dt>Jumlah</dt>
-                        <dd>{{ $item->qty }} {{ $item->unit_name_snapshot }}</dd>
-                    </div>
-                    <div>
-                        <dt>Setara</dt>
-                        <dd>{{ $item->qty * $item->unit_size_snapshot }} {{ $item->content_unit_name_snapshot }}</dd>
-                    </div>
-                </dl>
+                <div class="atk-request-item-meta">
+                    <span>Jumlah: <strong>{{ $item->qty }} {{ $item->unit_name_snapshot }}</strong></span>
+                    <span>Setara: <strong>{{ $item->qty * $item->unit_size_snapshot }} {{ $item->content_unit_name_snapshot }}</strong></span>
+                </div>
                 @if($item->admin_note)
-                    <div class="atk-item-note">“{{ $item->admin_note }}”</div>
+                    <div class="atk-item-note">Ket: {{ $item->admin_note }}</div>
                 @endif
             </article>
         @endforeach
     </div>
 
+    {{-- Desktop Table --}}
     <div class="atk-table-wrap atk-request-item-desktop-table">
-        <table class="atk-table">
-            <thead><tr><th>Barang</th><th>Qty</th><th>Setara</th><th>Status</th></tr></thead>
+        <table class="atk-table atk-show-table">
+            <thead>
+                <tr>
+                    <th>Barang</th>
+                    <th>Jumlah</th>
+                    <th>Setara</th>
+                    <th style="width:1%;white-space:nowrap">Status</th>
+                </tr>
+            </thead>
             <tbody>
                 @foreach($atkRequest->items as $item)
                     @php($itemStatus = $item->status ?? 'PENDING')
                     <tr>
                         <td>
-                            <strong>{{ $item->item_name_snapshot }}</strong>
+                            <strong class="atk-item-name">{{ $item->item_name_snapshot }}</strong>
                             @if($item->admin_note)
-                                <div class="atk-item-note">“{{ $item->admin_note }}”</div>
+                                <div class="atk-item-note">Ket: {{ $item->admin_note }}</div>
                             @endif
                         </td>
                         <td>{{ $item->qty }} {{ $item->unit_name_snapshot }}</td>
-                        <td>{{ $item->qty * $item->unit_size_snapshot }} {{ $item->content_unit_name_snapshot }}</td>
+                        <td class="atk-muted-cell">{{ $item->qty * $item->unit_size_snapshot }} {{ $item->content_unit_name_snapshot }}</td>
                         <td>
-                            <span class="atk-badge atk-badge-{{ $itemStatusBadgeMap[$itemStatus] ?? 'neutral' }}">{{ $itemStatusLabel[$itemStatus] ?? $itemStatus }}</span>
+                            <span class="atk-badge atk-badge-{{ $itemStatusBadgeMap[$itemStatus] ?? 'neutral' }}">
+                                {{ $itemStatusLabel[$itemStatus] ?? $itemStatus }}
+                            </span>
                         </td>
                     </tr>
                 @endforeach
@@ -91,101 +112,136 @@
     </div>
 
     <style>
-        .atk-request-summary {
-            padding: 16px;
-            border: 1px solid var(--atk-border);
-            border-radius: 16px;
+        .atk-show-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .atk-back-link {
+            height: 32px;
+            min-height: 32px;
+            padding: 0 11px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 8px;
             background: var(--atk-surface);
-            box-shadow: 0 1px 3px rgba(17, 24, 39, .04);
+            color: var(--atk-text-secondary);
+            border: 1px solid var(--atk-border);
+        }
+        .atk-back-link:hover {
+            background: #F9FAFB;
+            color: var(--atk-text);
+        }
+
+        /* ========== SUMMARY ========== */
+        .atk-request-summary {
+            padding: 12px 16px;
+            margin-bottom: 10px;
+        }
+        .atk-summary-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .atk-request-summary .atk-title {
+            font-size: 16px;
         }
         .atk-request-summary-meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 5px 12px;
-            margin-top: 8px;
+            gap: 4px 8px;
+            margin-top: 2px;
             color: var(--atk-muted);
-            font-size: 11px;
-            font-weight: 600;
+            font-size: 12px;
         }
         .atk-request-summary-meta span + span::before {
-            content: '•';
+            content: '·';
             margin-right: 8px;
             color: #D1D5DB;
         }
+        .atk-summary-note {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--atk-border-soft);
+            font-size: 12.5px;
+            color: var(--atk-text-secondary);
+        }
+        .atk-summary-note-label {
+            color: var(--atk-muted);
+            font-weight: 600;
+            margin-right: 4px;
+        }
+
+        /* ========== ITEMS ========== */
         .atk-request-item-mobile-list {
             display: grid;
-            gap: 12px;
+            gap: 8px;
         }
         .atk-request-item-card {
-            padding: 16px;
+            padding: 12px;
             border: 1px solid var(--atk-border);
-            border-radius: 16px;
+            border-radius: 10px;
             background: var(--atk-surface);
-            box-shadow: 0 1px 3px rgba(17, 24, 39, .04);
         }
         .atk-request-item-top {
             display: flex;
             align-items: flex-start;
             justify-content: space-between;
-            gap: 10px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--atk-border-soft);
+            gap: 8px;
         }
         .atk-request-item-top strong {
-            min-width: 0;
-            font-size: 14px;
-            line-height: 1.45;
-            overflow-wrap: anywhere;
+            font-size: 13px;
+            line-height: 1.35;
         }
         .atk-request-item-meta {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
-            margin: 14px 0 0;
-        }
-        .atk-request-item-meta dt {
+            display: flex;
+            gap: 16px;
+            margin-top: 6px;
+            font-size: 12px;
             color: var(--atk-muted);
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: .04em;
-            text-transform: uppercase;
         }
-        .atk-request-item-meta dd {
-            margin: 4px 0 0;
-            font-size: 13px;
-            font-weight: 800;
+        .atk-request-item-meta strong {
+            color: var(--atk-text);
         }
+
         .atk-request-item-desktop-table {
             display: none;
         }
+        .atk-show-table {
+            min-width: 0;
+        }
+        .atk-show-table th {
+            background: #F9FAFB;
+            padding: 9px 14px;
+        }
+        .atk-show-table td {
+            padding: 10px 14px;
+            vertical-align: middle;
+        }
+        .atk-item-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--atk-text);
+        }
+        .atk-muted-cell {
+            color: var(--atk-muted);
+        }
         .atk-item-note {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--atk-border-soft);
-            font-size: 11px;
-            color: var(--error);
-            font-style: italic;
-            line-height: 1.4;
+            margin-top: 3px;
+            font-size: 11.5px;
+            color: var(--atk-muted);
         }
 
         @media (min-width: 640px) {
-            .atk-request-summary {
-                padding: 0;
-                border: 0;
-                border-radius: 0;
-                background: transparent;
-                box-shadow: none;
-            }
             .atk-request-item-mobile-list {
                 display: none;
             }
             .atk-request-item-desktop-table {
                 display: block;
-            }
-            .atk-request-item-desktop-table .atk-item-note {
-                margin-top: 4px;
-                padding-top: 0;
-                border-top: 0;
             }
         }
     </style>

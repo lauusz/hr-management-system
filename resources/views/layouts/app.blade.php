@@ -94,11 +94,21 @@
     }
 
     /* --- SIDEBAR --- */
+    /* Flat, quiet navigation: one surface, one accent, no gradients or glow. */
     .sidebar {
+      --sb-text: #344054;
+      --sb-text-strong: #101828;
+      --sb-icon: #667085;
+      --sb-label: #98A2B3;
+      --sb-hover: #F2F4F7;
+      --sb-active-bg: #EAF1F8;
+      --sb-active-text: var(--primary-dark);
+      --sb-divider: #EAECF0;
+
       width: var(--sidebar-width);
       flex-shrink: 0;
       background: var(--sidebar-bg);
-      border-right: 1px solid var(--border);
+      border-right: 1px solid var(--sb-divider);
       display: flex;
       flex-direction: column;
       z-index: 1000;
@@ -106,9 +116,9 @@
       top: 0;
       height: 100vh;
       height: 100dvh;
-      transition: transform .35s cubic-bezier(0.4, 0, 0.2, 1),
-                  width .35s cubic-bezier(0.4, 0, 0.2, 1),
-                  margin .35s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+      transition: transform .3s cubic-bezier(0.4, 0, 0.2, 1),
+                  width .3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     /* Brand Header */
@@ -116,21 +126,19 @@
       height: var(--sidebar-header-height);
       display: flex;
       align-items: center;
-      padding: 0 16px;
-      border-bottom: 1px solid var(--border-light);
+      padding: 0 20px;
       flex-shrink: 0;
       gap: 10px;
+      min-width: var(--sidebar-width);
     }
 
     .brand-icon {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      border-radius: 8px;
-      overflow: hidden;
     }
 
     .brand-icon img {
@@ -148,28 +156,36 @@
     .brand-title {
       font-size: 0.875rem;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--sb-text-strong);
       letter-spacing: -0.01em;
       line-height: 1.25;
+      white-space: nowrap;
     }
 
     .brand-subtitle {
       font-size: 0.6875rem;
-      color: var(--text-muted);
+      color: var(--sb-icon);
       font-weight: 500;
+      line-height: 1.3;
     }
 
     /* Scrollable Menu */
     .sidebar-menu {
       flex: 1;
       overflow-y: auto;
-      padding: 8px 8px;
+      overscroll-behavior: contain;
+      padding: 4px 12px 16px;
+      min-width: var(--sidebar-width);
       scrollbar-width: thin;
-      scrollbar-color: #d1d5db transparent;
+      scrollbar-color: transparent transparent;
+    }
+
+    .sidebar-menu:hover {
+      scrollbar-color: #D0D5DD transparent;
     }
 
     .sidebar-menu::-webkit-scrollbar {
-      width: 4px;
+      width: 6px;
     }
 
     .sidebar-menu::-webkit-scrollbar-track {
@@ -177,185 +193,171 @@
     }
 
     .sidebar-menu::-webkit-scrollbar-thumb {
-      background-color: #d1d5db;
-      border-radius: 20px;
+      background-color: transparent;
+      border-radius: 6px;
     }
 
-    /* Section Label */
+    .sidebar-menu:hover::-webkit-scrollbar-thumb {
+      background-color: #D0D5DD;
+    }
+
+    /* Section */
     .menu-section {
-      margin-bottom: 2px;
+      padding-top: 6px;
+    }
+
+    .menu-section + .menu-section {
+      margin-top: 10px;
+      padding-top: 12px;
+      border-top: 1px solid var(--sb-divider);
     }
 
     .menu-section-title {
-      font-size: 0.625rem;
-      font-weight: 700;
-      color: var(--text-light);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin: 20px 14px 8px;
-    }
-
-    .menu-section:first-child .menu-section-title {
-      margin-top: 4px;
-    }
-
-    /* Menu Items */
-    .menu-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      margin: 0 6px 2px;
-      border-radius: 10px;
-      color: var(--text-muted);
-      text-decoration: none;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      transition: all 0.15s ease;
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      width: calc(100% - 12px);
-      text-align: left;
-      position: relative;
-    }
-
-    .menu-item:hover {
-      background: var(--gray-50);
-      color: var(--primary);
-    }
-
-    .menu-item.active {
-      background: rgba(20, 93, 160, 0.08);
-      color: var(--primary-dark);
+      font-size: 0.6875rem;
       font-weight: 600;
-    }
-
-    .menu-item.active::before {
-      content: '';
-      position: absolute;
-      left: -6px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 3px;
-      height: 18px;
-      background: var(--primary-dark);
-      border-radius: 0 3px 3px 0;
-    }
-
-    .menu-item.active .menu-icon {
-      color: var(--primary-dark);
-    }
-
-    .menu-icon {
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-      color: var(--text-light);
-      transition: color 0.15s ease;
-    }
-
-    .menu-item:hover .menu-icon {
-      color: var(--primary);
-    }
-
-    .menu-text {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .menu-badge {
-      background: var(--error);
-      color: #fff;
-      font-size: 0.625rem;
-      font-weight: 700;
-      padding: 2px 7px;
-      border-radius: 9999px;
-      min-width: 18px;
-      text-align: center;
+      color: var(--sb-label);
+      letter-spacing: 0.02em;
+      margin: 0 10px 6px;
       line-height: 1.4;
-      box-shadow: 0 0 0 2px var(--sidebar-bg);
     }
 
-    /* Collapsible Submenu */
+    /* Menu Items (shared by links and group toggles) */
+    .menu-item,
     .menu-group-btn {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      margin: 0 6px 2px;
-      border-radius: 10px;
-      color: var(--text-muted);
+      gap: 12px;
+      width: 100%;
+      min-height: 36px;
+      padding: 7px 10px;
+      margin: 0 0 2px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--sb-text);
+      font-family: inherit;
       font-size: 0.8125rem;
       font-weight: 500;
-      transition: all 0.15s ease;
-      cursor: pointer;
-      border: none;
-      background: transparent;
-      width: calc(100% - 12px);
+      line-height: 1.35;
       text-align: left;
-      position: relative;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color .12s ease, color .12s ease;
     }
 
+    .menu-item:hover,
     .menu-group-btn:hover {
-      background: var(--gray-50);
-      color: var(--primary);
+      background: var(--sb-hover);
+      color: var(--sb-text-strong);
     }
 
-    .menu-group-btn.open {
-      background: rgba(20, 93, 160, 0.06);
-      color: var(--primary-dark);
+    .menu-item:focus-visible,
+    .menu-group-btn:focus-visible,
+    .submenu-item:focus-visible,
+    .footer-action:focus-visible,
+    .btn-logout:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: -2px;
+    }
+
+    .menu-item.active {
+      background: var(--sb-active-bg);
+      color: var(--sb-active-text);
       font-weight: 600;
     }
 
+    .menu-icon,
     .menu-group-icon {
       width: 18px;
       height: 18px;
       flex-shrink: 0;
-      color: var(--text-light);
-      transition: transform 0.2s ease, color 0.15s ease;
+      color: var(--sb-icon);
+      transition: color .12s ease;
     }
 
+    .menu-icon path,
+    .menu-icon rect,
+    .menu-icon circle,
+    .menu-group-icon path {
+      stroke-width: 1.75;
+    }
+
+    .menu-item:hover .menu-icon,
     .menu-group-btn:hover .menu-group-icon {
-      color: var(--primary);
+      color: var(--sb-text-strong);
     }
 
-    .menu-group-btn.open .menu-group-icon:first-child {
-      color: var(--primary-dark);
+    .menu-item.active .menu-icon {
+      color: var(--sb-active-text);
     }
 
-    .menu-group-btn .menu-group-icon:last-child {
-      margin-left: auto;
-      width: 16px;
-      height: 16px;
-    }
-
-    .menu-group-btn.open .menu-group-icon:last-child {
-      transform: rotate(180deg);
-      color: var(--primary-dark);
-    }
-
+    .menu-text,
     .menu-group-label {
       flex: 1;
       min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Count badge: calm tint, tabular digits, no glow ring */
+    .menu-badge {
+      flex-shrink: 0;
+      min-width: 22px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 6px;
+      background: #FEE4E2;
+      color: #B42318;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      line-height: 20px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .menu-item.active .menu-badge {
+      background: #FFFFFF;
+    }
+
+    /* Collapsible Group */
+    .menu-group-btn.has-active {
+      color: var(--sb-active-text);
+      font-weight: 600;
+    }
+
+    .menu-group-btn.has-active .menu-group-icon {
+      color: var(--sb-active-text);
+    }
+
+    .menu-chevron {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      color: var(--sb-label);
+      transition: transform .2s ease;
+    }
+
+    .menu-group-btn.open .menu-chevron {
+      transform: rotate(180deg);
     }
 
     .submenu-panel {
       display: none;
-      padding-left: 40px;
-      margin: 2px 6px 6px;
       position: relative;
+      margin: 0 0 4px;
+      padding-left: 30px;
     }
 
+    /* Guide line sits under the parent icon's centre */
     .submenu-panel::before {
       content: '';
       position: absolute;
       left: 18px;
-      top: 4px;
-      bottom: 8px;
-      width: 1.5px;
-      background: var(--border);
-      border-radius: 1px;
+      top: 2px;
+      bottom: 2px;
+      width: 1px;
+      background: var(--sb-divider);
     }
 
     .submenu-panel.open {
@@ -366,14 +368,16 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px 12px;
+      min-height: 32px;
+      padding: 6px 10px;
       margin-bottom: 1px;
-      border-radius: 8px;
-      color: var(--text-muted);
+      border-radius: 6px;
+      color: var(--sb-text);
       text-decoration: none;
-      font-size: 0.78rem;
+      font-size: 0.8125rem;
       font-weight: 500;
-      transition: all 0.15s ease;
+      line-height: 1.35;
+      transition: background-color .12s ease, color .12s ease;
     }
 
     .submenu-text {
@@ -382,41 +386,38 @@
     }
 
     .submenu-item:hover {
-      background: var(--gray-50);
-      color: var(--primary);
+      background: var(--sb-hover);
+      color: var(--sb-text-strong);
     }
 
     .submenu-item.active {
-      color: var(--primary-dark);
+      background: var(--sb-active-bg);
+      color: var(--sb-active-text);
       font-weight: 600;
-      background: rgba(20, 93, 160, 0.06);
     }
 
     /* Sidebar Footer */
     .sidebar-footer {
       flex-shrink: 0;
-      padding: 12px 16px;
-      border-top: 1px solid var(--border-light);
+      padding: 12px;
+      border-top: 1px solid var(--sb-divider);
       background: var(--sidebar-bg);
+      min-width: var(--sidebar-width);
     }
 
     .sidebar-user {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px;
-      margin-bottom: 10px;
-      border: 1px solid var(--border-light);
-      border-radius: 12px;
-      background: var(--gray-50);
+      padding: 4px 6px 10px;
       min-width: 0;
     }
 
     .sidebar-user-avatar {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      background: var(--primary-dark);
       color: #fff;
       display: flex;
       align-items: center;
@@ -433,52 +434,78 @@
     }
 
     .sidebar-user-name {
-      color: var(--text-primary);
+      color: var(--sb-text-strong);
       font-size: 0.8125rem;
-      font-weight: 700;
-      line-height: 1.25;
+      font-weight: 600;
+      line-height: 1.3;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .sidebar-user-role {
-      color: var(--text-muted);
-      font-size: 0.6875rem;
+      color: var(--sb-icon);
+      font-size: 0.75rem;
       font-weight: 500;
-      line-height: 1.25;
+      line-height: 1.3;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
+    .sidebar-footer-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .footer-action,
     .btn-logout {
-      width: 100%;
-      padding: 8px 12px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--white);
-      color: var(--error);
-      font-weight: 600;
-      font-size: 0.8125rem;
-      cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      transition: all 0.15s ease;
+      gap: 6px;
+      min-height: 34px;
+      padding: 6px 8px;
+      border: 1px solid var(--sb-divider);
+      border-radius: 8px;
+      background: var(--white);
+      color: var(--sb-text);
       font-family: inherit;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+    }
+
+    .footer-action svg,
+    .btn-logout svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    .footer-action:hover {
+      background: var(--sb-hover);
+      color: var(--sb-text-strong);
+    }
+
+    .footer-action.active {
+      background: var(--sb-active-bg);
+      border-color: transparent;
+      color: var(--sb-active-text);
+    }
+
+    .btn-logout {
+      color: #B42318;
     }
 
     .btn-logout:hover {
-      background: var(--danger-light);
-      border-color: #FECACA;
-      color: #B91C1C;
-    }
-
-    .btn-logout svg {
-      width: 18px;
-      height: 18px;
+      background: #FEF3F2;
+      border-color: #FECDCA;
+      color: #912018;
     }
 
     /* Sidebar Toggle Button */
@@ -488,28 +515,24 @@
       justify-content: center;
       width: 36px;
       height: 36px;
-      border-radius: 10px;
+      border-radius: 8px;
       border: 1px solid var(--border);
       background: var(--white);
       color: var(--primary-dark);
       cursor: pointer;
-      transition: all 0.15s ease;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      transition: background-color .12s ease, border-color .12s ease;
       flex-shrink: 0;
     }
 
     .sidebar-toggle:hover {
       background: var(--gray-50);
-      border-color: var(--primary);
-      color: var(--primary);
+      border-color: #D0D5DD;
     }
 
     .sidebar-toggle svg {
       width: 18px;
       height: 18px;
-      transition: transform 0.3s ease;
     }
-
 
 
     /* --- MAIN CONTENT --- */
@@ -644,23 +667,23 @@
         left: 0;
         top: 0;
         transform: translateX(-100%);
-        box-shadow: none;
         height: 100vh;
         height: 100dvh;
-        border-radius: 0 20px 20px 0;
-        border-right: 1px solid var(--border);
-        overflow: hidden;
-        width: min(86vw, 340px);
-        min-width: 260px;
+        width: min(86vw, 320px);
       }
 
       .sidebar.open {
         transform: translateX(0);
-        box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 0 0 1px rgba(16, 24, 40, 0.04), 8px 0 24px rgba(16, 24, 40, 0.12);
+      }
+
+      .sidebar-header,
+      .sidebar-menu,
+      .sidebar-footer {
+        min-width: 0;
       }
 
       .sidebar-header {
-        padding: 0 18px;
         height: 64px;
       }
 
@@ -672,66 +695,48 @@
         font-size: 0.75rem;
       }
 
-      .sidebar-menu {
-        padding: 10px 10px;
-      }
-
       .menu-section-title {
-        font-size: 0.6875rem;
-        margin: 20px 14px 10px;
+        font-size: 0.75rem;
       }
 
+      /* 44px touch targets */
       .menu-item,
       .menu-group-btn {
-        padding: 11px 14px;
-        margin: 0 6px 3px;
-        font-size: 0.9375rem;
         min-height: 44px;
-        width: calc(100% - 12px);
-        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 0.9375rem;
         gap: 12px;
       }
 
       .menu-icon,
-      .menu-group-icon:first-child {
+      .menu-group-icon {
         width: 20px;
         height: 20px;
       }
 
-      .menu-item.active::before {
-        left: -8px;
-        width: 4px;
-        height: 20px;
-        border-radius: 0 4px 4px 0;
-      }
-
       .submenu-panel {
-        padding-left: 44px;
-        margin: 2px 6px 8px;
+        padding-left: 34px;
       }
 
       .submenu-panel::before {
-        left: 20px;
+        left: 22px;
       }
 
       .submenu-item {
+        min-height: 40px;
         padding: 9px 12px;
         font-size: 0.875rem;
-        min-height: 40px;
-        border-radius: 10px;
-        margin-bottom: 2px;
       }
 
       .sidebar-footer {
-        padding: 14px 18px;
-        padding-bottom: max(14px, env(safe-area-inset-bottom));
+        padding: 12px 14px;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
       }
 
+      .footer-action,
       .btn-logout {
-        padding: 11px 14px;
-        font-size: 0.9375rem;
         min-height: 44px;
-        border-radius: 12px;
+        font-size: 0.875rem;
       }
 
       .main-content {
@@ -765,59 +770,11 @@
       }
     }
 
-    /* Desktop: rounded sidebar + collapse support */
+    /* Desktop: collapse support */
     @media (min-width: 1025px) {
-      .sidebar {
-        margin: 12px 0 12px 12px;
-        height: calc(100dvh - 24px);
-        border-radius: 20px;
-        border: 1px solid var(--border);
-        box-shadow:
-          0 4px 6px -1px rgba(0, 0, 0, 0.04),
-          0 2px 4px -2px rgba(0, 0, 0, 0.04),
-          0 10px 20px -4px rgba(0, 0, 0, 0.06);
-        overflow: hidden;
-      }
-
-      .sidebar-header {
-        border-bottom: 1px solid var(--border-light);
-        border-radius: 20px 20px 0 0;
-      }
-
-      .sidebar-footer {
-        border-radius: 0 0 20px 20px;
-      }
-
-      .sidebar-menu {
-        padding: 10px;
-      }
-
-      .menu-item,
-      .menu-group-btn {
-        border-radius: 12px;
-        margin: 0 4px 3px;
-        width: calc(100% - 8px);
-      }
-
-      .menu-item.active::before {
-        left: -4px;
-        border-radius: 0 4px 4px 0;
-      }
-
-      .btn-logout {
-        border-radius: 12px;
-      }
-
-      /* Collapsed state */
       .app.sidebar-collapsed .sidebar {
         width: 0;
-        margin: 12px 0;
-        border: none;
-        box-shadow: none;
-      }
-
-      .app.sidebar-collapsed .main-content {
-        /* content naturally expands via flex:1 */
+        border-right-color: transparent;
       }
 
       .sidebar-toggle {
@@ -891,11 +848,15 @@
     <div class="backdrop" id="backdrop"></div>
 
     <aside class="sidebar" id="sidebar" aria-label="Sidebar">
+      @php
+      $sidebarUser = auth()->user();
+      $formatSidebarBadge = static fn (int $count): string => $count > 99 ? '99+' : (string) $count;
+      @endphp
 
       <!-- Header / Brand -->
       <div class="sidebar-header">
         <div class="brand-icon">
-          <img src="{{ asset('images/logo-triguna-clean.png') }}" alt="Triguna Samudratrans">
+          <img src="{{ asset('images/logo-triguna-clean.png') }}" alt="Triguna Samudratrans" width="30" height="30">
         </div>
         <div class="brand-text">
           <span class="brand-title">Triguna Samudratrans</span>
@@ -904,95 +865,91 @@
       </div>
 
       <!-- Menu Navigation -->
-      <nav class="sidebar-menu" role="navigation">
+      <nav class="sidebar-menu" role="navigation" aria-label="Menu utama">
 
         {{-- ============================================== --}}
-        {{-- GENERAL MENU (All Users) --}}
+        {{-- BERANDA (All Users) --}}
         {{-- ============================================== --}}
         <div class="menu-section">
-          <div class="menu-section-title">Umum</div>
-
           <a href="{{ route('dashboard') }}" class="menu-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
             </svg>
             <span class="menu-text">Dashboard</span>
           </a>
 
           <a href="{{ route('v2.access') }}" class="menu-item {{ request()->routeIs('v2.access') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z"/>
             </svg>
             <span class="menu-text">Pilih Layanan</span>
           </a>
+        </div>
 
-          <a href="{{ route('leave-requests.index') }}" class="menu-item {{ request()->routeIs('leave-requests.*') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-            </svg>
-            <span class="menu-text">Izin & Cuti</span>
-          </a>
+        {{-- ============================================== --}}
+        {{-- AKTIVITAS SAYA (All Users) — urut dari yang paling sering dipakai --}}
+        {{-- ============================================== --}}
+        <div class="menu-section">
+          <div class="menu-section-title">Aktivitas Saya</div>
 
           <a href="{{ route('attendance.dashboard') }}" class="menu-item {{ request()->routeIs('attendance.dashboard') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <span class="menu-text">Absensi</span>
           </a>
 
+          <a href="{{ route('leave-requests.index') }}" class="menu-item {{ request()->routeIs('leave-requests.*') ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <span class="menu-text">Izin &amp; Cuti</span>
+          </a>
+
+          <a href="{{ route('overtime-requests.index') }}" class="menu-item {{ request()->routeIs('overtime-requests.*') ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            <span class="menu-text">Lembur</span>
+          </a>
+
           <a href="{{ route('remote-attendance.index') }}" class="menu-item {{ request()->routeIs('remote-attendance.*') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
             </svg>
             <span class="menu-text">Dinas Luar</span>
           </a>
 
-          <a href="{{ route('overtime-requests.index') }}" class="menu-item {{ request()->routeIs('overtime-requests.*') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v4"/>
-            </svg>
-            <span class="menu-text">Pengajuan Lembur</span>
-          </a>
-
-          @if(auth()->user()->isEligibleForEmployeeLoan())
+          @if($sidebarUser->isEligibleForEmployeeLoan())
           <a href="{{ route('employee.loan_requests.index') }}" class="menu-item {{ request()->routeIs('employee.loan_requests.*') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
             </svg>
             <span class="menu-text">Pengajuan Hutang</span>
           </a>
           @endif
-
-          <a href="{{ route('settings.password') }}" class="menu-item {{ request()->routeIs('settings.password') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
-            <span class="menu-text">Pengaturan Akun</span>
-          </a>
         </div>
 
         {{-- ============================================== --}}
         {{-- APPROVER PANEL --}}
         {{-- ============================================== --}}
-        @if(auth()->user()->isEmployee() && auth()->user()->hasLeaveApprovalAssignments())
+        @if($sidebarUser->isEmployee() && $sidebarUser->hasLeaveApprovalAssignments())
+        @php
+        $pendingLeaveApprovalCount = app(\App\Services\LeaveApprovalAssignmentService::class)
+            ->queryPendingFor($sidebarUser)
+            ->count();
+        @endphp
         <div class="menu-section">
           <div class="menu-section-title">Approver Panel</div>
 
           <a href="{{ route('approval.index') }}" class="menu-item {{ request()->routeIs('approval.index', 'approval.show', 'approval.edit') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <span class="menu-text">Approval Izin/Cuti</span>
-            @php
-            $pendingLeaveApprovalCount = app(\App\Services\LeaveApprovalAssignmentService::class)
-                ->queryPendingFor(auth()->user())
-                ->count();
-            @endphp
             @if($pendingLeaveApprovalCount > 0)
-            <span class="menu-badge">{{ $pendingLeaveApprovalCount }}</span>
+            <span class="menu-badge">{{ $formatSidebarBadge($pendingLeaveApprovalCount) }}</span>
             @endif
           </a>
         </div>
@@ -1001,7 +958,7 @@
         {{-- ============================================== --}}
         {{-- MANAGER AREA --}}
         {{-- ============================================== --}}
-        @if(auth()->user()->isSupervisor() || auth()->user()->isManager())
+        @if($sidebarUser->isSupervisor() || $sidebarUser->isManager())
         @php
         $pendingAssignedOvertimeCount = \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
             ->whereHas('user.overtimeApproverAssignment', function ($q) {
@@ -1010,36 +967,36 @@
             ->count();
         @endphp
         @endif
-        @if(auth()->user()->isManager())
+        @if($sidebarUser->isManager())
         <div class="menu-section">
-          <div class="menu-section-title">Manager</div>
+          <div class="menu-section-title">Persetujuan Manager</div>
 
           <a href="{{ route('approval.index') }}" class="menu-item {{ request()->routeIs('approval.index', 'approval.show') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span class="menu-text">Approval Pengajuan</span>
+            <span class="menu-text">Approval Izin/Cuti</span>
             @if(isset($notifCount) && $notifCount > 0)
-            <span class="menu-badge">{{ $notifCount }}</span>
+            <span class="menu-badge">{{ $formatSidebarBadge((int) $notifCount) }}</span>
             @endif
           </a>
 
           <a href="{{ route('overtime-approvals.index') }}" class="menu-item {{ request()->routeIs('overtime-approvals.*') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="14" r="8" stroke-width="2"/>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 2h4m-2 0v4m0 8 3-3"/>
             </svg>
             <span class="menu-text">Approval Lembur</span>
             @if($pendingAssignedOvertimeCount > 0)
-            <span class="menu-badge" title="Pengajuan ditugaskan yang berstatus menunggu">{{ $pendingAssignedOvertimeCount }}</span>
+            <span class="menu-badge" title="Pengajuan ditugaskan yang berstatus menunggu">{{ $formatSidebarBadge($pendingAssignedOvertimeCount) }}</span>
             @endif
           </a>
 
           <a href="{{ route('supervisor.leave.master') }}" class="menu-item {{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
             </svg>
-            <span class="menu-text">Daftar Pengajuan</span>
+            <span class="menu-text">Rekap Izin/Cuti Tim</span>
           </a>
         </div>
         @endif
@@ -1051,222 +1008,234 @@
         $hasDirectSupervisorOvertimeSubordinates = \App\Models\User::where('direct_supervisor_id', auth()->id())->exists();
         @endphp
 
-        @if(auth()->user()->isSupervisor() || $hasDirectSupervisorOvertimeSubordinates)
+        @if($sidebarUser->isSupervisor() || $hasDirectSupervisorOvertimeSubordinates)
         <div class="menu-section">
-          <div class="menu-section-title">Supervisor</div>
+          <div class="menu-section-title">Persetujuan Supervisor</div>
 
-          @if(auth()->user()->isSupervisor())
+          @if($sidebarUser->isSupervisor())
           <a href="{{ route('approval.index') }}" class="menu-item {{ request()->routeIs('approval.index', 'approval.show') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
-            <span class="menu-text">Approval Pengajuan</span>
+            <span class="menu-text">Approval Izin/Cuti</span>
             @if(isset($notifCount) && $notifCount > 0)
-            <span class="menu-badge">{{ $notifCount }}</span>
+            <span class="menu-badge">{{ $formatSidebarBadge((int) $notifCount) }}</span>
             @endif
           </a>
           @endif
 
-          @if(!auth()->user()->isManager())
-          <a href="{{ route(auth()->user()->isSupervisor() ? 'overtime-approvals.index' : 'supervisor.overtime-requests.index') }}" class="menu-item {{ request()->routeIs('overtime-approvals.*', 'supervisor.overtime-requests.index', 'supervisor.overtime-requests.show') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          @if(!$sidebarUser->isManager())
+          @php
+          $pendingOvertimeCount = $sidebarUser->isSupervisor() ? $pendingAssignedOvertimeCount : \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
+              ->whereHas('user', function ($q) {
+                  $q->where('direct_supervisor_id', auth()->id());
+              })
+              ->count();
+          @endphp
+          <a href="{{ route($sidebarUser->isSupervisor() ? 'overtime-approvals.index' : 'supervisor.overtime-requests.index') }}" class="menu-item {{ request()->routeIs('overtime-approvals.*', 'supervisor.overtime-requests.index', 'supervisor.overtime-requests.show') ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="14" r="8" stroke-width="2"/>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 2h4m-2 0v4m0 8 3-3"/>
             </svg>
             <span class="menu-text">Approval Lembur</span>
-            @php
-            $pendingOvertimeCount = auth()->user()->isSupervisor() ? $pendingAssignedOvertimeCount : \App\Models\OvertimeRequest::where('status', \App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR)
-                ->whereHas('user', function ($q) {
-                    $q->where('direct_supervisor_id', auth()->id());
-                })
-                ->count();
-            @endphp
             @if($pendingOvertimeCount > 0)
-            <span class="menu-badge" title="Pengajuan berstatus menunggu">{{ $pendingOvertimeCount }}</span>
+            <span class="menu-badge" title="Pengajuan berstatus menunggu">{{ $formatSidebarBadge($pendingOvertimeCount) }}</span>
             @endif
           </a>
           @endif
 
-          @if(auth()->user()->isSupervisor())
+          @if($sidebarUser->isSupervisor())
           <a href="{{ route('supervisor.leave.master') }}" class="menu-item {{ request()->routeIs('supervisor.leave.master') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
             </svg>
-            <span class="menu-text">Daftar Pengajuan</span>
+            <span class="menu-text">Rekap Izin/Cuti Tim</span>
           </a>
           @endif
 
           <a href="{{ route('supervisor.overtime-requests.master') }}" class="menu-item {{ request()->routeIs('supervisor.overtime-requests.master') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
-            <span class="menu-text">Daftar Lembur</span>
+            <span class="menu-text">Rekap Lembur Tim</span>
           </a>
         </div>
         @endif
 
         {{-- ============================================== --}}
-        {{-- HRD PANEL --}}
+        {{-- HRD PANEL — dibagi per tugas: persetujuan → rekap → kepegawaian → pengaturan --}}
         {{-- ============================================== --}}
-        @if(auth()->user()->isHR())
+        @if($sidebarUser->isHR())
         @php
         $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.approvers.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
         $hrPresensiOpen = request()->routeIs('hr.shifts.*','hr.locations.*','hr.schedules.*','hr.office-holidays.*');
-        $hrLoanOpen = request()->routeIs('hr.loan_requests.*', 'hr.payroll.*');
         $hrAssetOpen = request()->routeIs('hr.assets.*');
         $pendingAttendanceApprovalCount = \Illuminate\Support\Facades\Schema::hasColumn('attendance_events', 'is_flexible')
           && \Illuminate\Support\Facades\Schema::hasColumn('attendance_events', 'is_outside_reference_location')
           ? \App\Models\AttendanceEvent::query()->pendingApproval()->where('type', 'WFO')->count()
           : 0;
+        $pendingLoanCount = \App\Models\LoanRequest::where('status', 'PENDING_HRD')->count();
         @endphp
 
+        {{-- HRD: Persetujuan (semua item yang butuh tindakan, lengkap dengan badge) --}}
         <div class="menu-section">
-          <div class="menu-section-title">HRD Panel</div>
+          <div class="menu-section-title">Persetujuan HRD</div>
 
           <a href="{{ route('hr.leave.index') }}" class="menu-item {{ request()->routeIs('hr.leave.index','hr.leave.show','hr.leave.approve','hr.leave.reject') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13l2 2 4-4"/>
             </svg>
             <span class="menu-text">Approval Izin/Cuti</span>
             @if(isset($notifCount) && $notifCount > 0)
-            <span class="menu-badge">{{ $notifCount }}</span>
+            <span class="menu-badge">{{ $formatSidebarBadge((int) $notifCount) }}</span>
             @endif
           </a>
 
+          <a href="{{ route('hr.approval_attendance.index') }}" class="menu-item {{ request()->routeIs('hr.approval_attendance.*') ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="menu-text">Approval Absensi</span>
+            @if($pendingAttendanceApprovalCount > 0)
+            <span class="menu-badge" data-attendance-approval-badge aria-label="{{ $pendingAttendanceApprovalCount }} karyawan menunggu persetujuan absensi">{{ $formatSidebarBadge($pendingAttendanceApprovalCount) }}</span>
+            @endif
+          </a>
+
+          <a href="{{ route('hr.loan_requests.index') }}" class="menu-item {{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+            </svg>
+            <span class="menu-text">Approval Hutang</span>
+            @if($pendingLoanCount > 0)
+            <span class="menu-badge" aria-label="{{ $pendingLoanCount }} pengajuan hutang menunggu HRD">{{ $formatSidebarBadge($pendingLoanCount) }}</span>
+            @endif
+          </a>
+        </div>
+
+        {{-- HRD: Master data transaksi --}}
+        <div class="menu-section">
+          <div class="menu-section-title">Master Data</div>
+
+          <a href="{{ route('hr.attendances.index') }}" class="menu-item {{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <span class="menu-text">Master Absensi</span>
+          </a>
+
           <a href="{{ route('hr.leave.master') }}" class="menu-item {{ request()->routeIs('hr.leave.master') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6M9 16h6"/>
             </svg>
             <span class="menu-text">Master Izin/Cuti</span>
           </a>
 
-          <a href="{{ route('hr.attendances.index') }}" class="menu-item {{ request()->routeIs('hr.attendances.*') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <span class="menu-text">Master Absensi</span>
-          </a>
-
-          <a href="{{ route('hr.approval_attendance.index') }}" class="menu-item {{ request()->routeIs('hr.approval_attendance.*') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-            <span class="menu-text">Approval Absensi</span>
-            @if($pendingAttendanceApprovalCount > 0)
-            <span class="menu-badge" data-attendance-approval-badge aria-label="{{ $pendingAttendanceApprovalCount }} karyawan menunggu persetujuan absensi">{{ $pendingAttendanceApprovalCount }}</span>
-            @endif
-          </a>
-
           <a href="{{ route('hr.overtime-requests.master') }}" class="menu-item {{ request()->routeIs('hr.overtime-requests.*') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <rect x="3" y="5" width="18" height="16" rx="2" stroke-width="2"/>
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 3v4m10-4v4M3 10h18m-6 4v3l2 1"/>
             </svg>
-            <span class="menu-text">Daftar Lembur</span>
+            <span class="menu-text">Master Lembur</span>
           </a>
+        </div>
 
+        {{-- HRD: Kepegawaian --}}
+        <div class="menu-section">
+          <div class="menu-section-title">Kepegawaian</div>
 
-          {{-- Karyawan Group --}}
-          <button type="button" class="menu-group-btn {{ $hrEmployeesOpen ? 'open' : '' }}" data-menu-group="employees">
-            <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button type="button" class="menu-group-btn {{ $hrEmployeesOpen ? 'open has-active' : '' }}" data-menu-group="employees" aria-expanded="{{ $hrEmployeesOpen ? 'true' : 'false' }}" aria-controls="menu-panel-employees">
+            <svg class="menu-group-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
             </svg>
             <span class="menu-group-label">Karyawan</span>
-            <svg class="menu-group-icon" style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-chevron" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
-          <div class="submenu-panel {{ $hrEmployeesOpen ? 'open' : '' }}" data-menu-panel="employees">
+          <div class="submenu-panel {{ $hrEmployeesOpen ? 'open' : '' }}" id="menu-panel-employees" data-menu-panel="employees">
             <a href="{{ route('hr.employees.index') }}" class="submenu-item {{ request()->routeIs('hr.employees.*') ? 'active' : '' }}">Daftar Karyawan</a>
             <a href="{{ route('hr.approvers.index') }}" class="submenu-item {{ request()->routeIs('hr.approvers.*') ? 'active' : '' }}">Daftar Approver</a>
-            <a href="{{ route('hr.organization') }}" class="submenu-item {{ request()->routeIs('hr.organization','hr.divisions.*','hr.positions.*') ? 'active' : '' }}">Divisi & Jabatan</a>
-            <a href="{{ route('hr.pts.index') }}" class="submenu-item {{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">Master PT</a>
+            <a href="{{ route('hr.organization') }}" class="submenu-item {{ request()->routeIs('hr.organization','hr.divisions.*','hr.positions.*') ? 'active' : '' }}">Divisi &amp; Jabatan</a>
+            <a href="{{ route('hr.pts.index') }}" class="submenu-item {{ request()->routeIs('hr.pts.*') ? 'active' : '' }}">Daftar PT</a>
           </div>
 
-          <a href="{{ route('hr.assets.index') }}" class="menu-item {{ $hrAssetOpen ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7H4m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0l-2-3H6L4 7m8 4v4"/>
-            </svg>
-            <span class="menu-text">Inventaris Karyawan</span>
-          </a>
-
           <a href="{{ route('hr.supervisors.index') }}" class="menu-item {{ request()->routeIs('hr.supervisors.*') ? 'active' : '' }}">
-            <svg class="menu-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
             </svg>
             <span class="menu-text">Data Supervisor</span>
           </a>
 
-          {{-- Presensi & Shift Group --}}
-          <button type="button" class="menu-group-btn {{ $hrPresensiOpen ? 'open' : '' }}" data-menu-group="presensi">
-            <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <a href="{{ route('hr.assets.index') }}" class="menu-item {{ $hrAssetOpen ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7H4m16 0v10a2 2 0 01-2 2H6a2 2 0 01-2-2V7m16 0l-2-3H6L4 7m8 4v4"/>
             </svg>
-            <span class="menu-group-label">Presensi & Shift</span>
-            <svg class="menu-group-icon" style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <span class="menu-text">Inventaris Karyawan</span>
+          </a>
+        </div>
+
+        {{-- HRD: Pengaturan (jarang diubah, ditaruh paling bawah) --}}
+        <div class="menu-section">
+          <div class="menu-section-title">Pengaturan HRD</div>
+
+          <button type="button" class="menu-group-btn {{ $hrPresensiOpen ? 'open has-active' : '' }}" data-menu-group="presensi" aria-expanded="{{ $hrPresensiOpen ? 'true' : 'false' }}" aria-controls="menu-panel-presensi">
+            <svg class="menu-group-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <span class="menu-group-label">Jadwal &amp; Shift</span>
+            <svg class="menu-chevron" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
             </svg>
           </button>
-          <div class="submenu-panel {{ $hrPresensiOpen ? 'open' : '' }}" data-menu-panel="presensi">
-            <a href="{{ route('hr.shifts.index') }}" class="submenu-item {{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">Master Shift</a>
-            <a href="{{ route('hr.locations.index') }}" class="submenu-item {{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">Lokasi Presensi</a>
+          <div class="submenu-panel {{ $hrPresensiOpen ? 'open' : '' }}" id="menu-panel-presensi" data-menu-panel="presensi">
             <a href="{{ route('hr.schedules.index') }}" class="submenu-item {{ request()->routeIs('hr.schedules.*') ? 'active' : '' }}">Jadwal Karyawan</a>
-            <a href="{{ route('hr.office-holidays.index') }}" class="submenu-item {{ request()->routeIs('hr.office-holidays.*') ? 'active' : '' }}">Kalender Kantor</a>
+            <a href="{{ route('hr.shifts.index') }}" class="submenu-item {{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">Jam Kerja (Shift)</a>
+            <a href="{{ route('hr.locations.index') }}" class="submenu-item {{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">Lokasi Absensi</a>
+            <a href="{{ route('hr.office-holidays.index') }}" class="submenu-item {{ request()->routeIs('hr.office-holidays.*') ? 'active' : '' }}">Hari Libur Kantor</a>
           </div>
 
-          @php
-          $pendingLoanCount = \App\Models\LoanRequest::where('status', 'PENDING_HRD')->count();
-          @endphp
-
-          {{-- Keuangan Group --}}
-          <button type="button" class="menu-group-btn {{ $hrLoanOpen ? 'open' : '' }}" data-menu-group="keuangan">
-            <svg class="menu-group-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+          @can('manage-payroll')
+          <a href="{{ route('hr.payroll.index') }}" class="menu-item {{ request()->routeIs('hr.payroll.*') ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
             </svg>
-            <span class="menu-group-label">Keuangan</span>
-            @if($pendingLoanCount > 0)
-            <span class="menu-badge" data-loan-badge="group">{{ $pendingLoanCount }}</span>
-            @endif
-            <svg class="menu-group-icon" style="width:16px;height:16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
-          </button>
-          <div class="submenu-panel {{ $hrLoanOpen ? 'open' : '' }}" data-menu-panel="keuangan">
-            <a href="{{ route('hr.loan_requests.index') }}" class="submenu-item {{ request()->routeIs('hr.loan_requests.*') ? 'active' : '' }}">
-              <span class="submenu-text">Pengajuan Hutang</span>
-              @if($pendingLoanCount > 0)
-              <span class="menu-badge" data-loan-badge="submenu">{{ $pendingLoanCount }}</span>
-              @endif
-            </a>
-            @can('manage-payroll')
-            <a href="{{ route('hr.payroll.index') }}" class="submenu-item {{ request()->routeIs('hr.payroll.*') ? 'active' : '' }}">Master Gaji Karyawan</a>
-            @endcan
-          </div>
+            <span class="menu-text">Slip Gaji Karyawan</span>
+          </a>
+          @endcan
         </div>
         @endif
 
       </nav>
 
-      <!-- Footer / Logout -->
+      <!-- Footer / Akun -->
       <div class="sidebar-footer">
         <div class="sidebar-user">
-          <div class="sidebar-user-avatar">
-            {{ substr(auth()->user()->name, 0, 1) }}
+          <div class="sidebar-user-avatar" aria-hidden="true">
+            {{ mb_strtoupper(mb_substr($sidebarUser->name, 0, 1)) }}
           </div>
           <div class="sidebar-user-details">
-            <span class="sidebar-user-name">{{ auth()->user()->name }}</span>
-            <span class="sidebar-user-role">{{ auth()->user()->role->label() }}</span>
+            <span class="sidebar-user-name">{{ $sidebarUser->name }}</span>
+            <span class="sidebar-user-role">{{ $sidebarUser->role->label() }}</span>
           </div>
         </div>
 
-        <button class="btn-logout" type="button" data-modal-target="confirm-logout">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-          </svg>
-          Keluar Sistem
-        </button>
+        <div class="sidebar-footer-actions">
+          <a href="{{ route('settings.password') }}" class="footer-action {{ request()->routeIs('settings.password') ? 'active' : '' }}" title="Pengaturan Akun">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+            Pengaturan
+          </a>
+          <button class="btn-logout" type="button" data-modal-target="confirm-logout">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+            </svg>
+            Keluar
+          </button>
+        </div>
       </div>
 
     </aside>
@@ -1402,61 +1371,17 @@
         });
       });
 
-      // Sidebar Accordion Menu
-      const menuGroupBtns = document.querySelectorAll('.menu-group-btn');
-
-      menuGroupBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-          const targetGroup = this.getAttribute('data-menu-group');
-          const targetPanel = document.querySelector(`[data-menu-panel="${targetGroup}"]`);
-          const isOpen = this.classList.contains('open');
-
-          // Close all other panels
-          menuGroupBtns.forEach(otherBtn => {
-            if (otherBtn !== this) {
-              otherBtn.classList.remove('open');
-              const otherGroupAttr = otherBtn.getAttribute('data-menu-group');
-              const otherPanel = document.querySelector(`[data-menu-panel="${otherGroupAttr}"]`);
-              if (otherPanel) otherPanel.classList.remove('open');
-            }
-          });
-
-          // Toggle current panel
-          if (isOpen) {
-            this.classList.remove('open');
-            if (targetPanel) targetPanel.classList.remove('open');
-          } else {
-            this.classList.add('open');
-            if (targetPanel) targetPanel.classList.add('open');
-          }
-
-          // Dynamic loan badge: move between group button and submenu item
-          if (targetGroup === 'keuangan') {
-            const groupBadge = this.querySelector('[data-loan-badge="group"]');
-            const submenuBadge = targetPanel ? targetPanel.querySelector('[data-loan-badge="submenu"]') : null;
-            if (!isOpen) {
-              // Opening: hide group badge, show submenu badge
-              if (groupBadge) groupBadge.style.display = 'none';
-              if (submenuBadge) submenuBadge.style.display = '';
-            } else {
-              // Closing: show group badge, hide submenu badge
-              if (groupBadge) groupBadge.style.display = '';
-              if (submenuBadge) submenuBadge.style.display = 'none';
-            }
-          }
-        });
-      });
-
-      // Init loan badge visibility on page load
-      const keuanganBtn = document.querySelector('[data-menu-group="keuangan"]');
-      if (keuanganBtn) {
-        const isOpen = keuanganBtn.classList.contains('open');
-        const groupBadge = keuanganBtn.querySelector('[data-loan-badge="group"]');
-        const targetPanel = document.querySelector('[data-menu-panel="keuangan"]');
-        const submenuBadge = targetPanel ? targetPanel.querySelector('[data-loan-badge="submenu"]') : null;
-        if (groupBadge) groupBadge.style.display = isOpen ? 'none' : '';
-        if (submenuBadge) submenuBadge.style.display = isOpen ? '' : 'none';
+      // Sidebar collapsible groups (independent; state reflected via aria-expanded)
+      function setMenuGroupOpen(btn, open) {
+        const panel = document.querySelector(`[data-menu-panel="${btn.dataset.menuGroup}"]`);
+        btn.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (panel) panel.classList.toggle('open', open);
       }
+
+      document.querySelectorAll('.menu-group-btn').forEach(btn => {
+        btn.addEventListener('click', () => setMenuGroupOpen(btn, !btn.classList.contains('open')));
+      });
     });
 
     // ================= TOAST NOTIFICATION =================

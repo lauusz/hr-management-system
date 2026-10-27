@@ -90,6 +90,27 @@
                         @enderror
                     </div>
                 </div>
+
+                <div class="otc-break-field">
+                    <label class="otc-time-field-label" for="break_hours">Istirahat <span class="otc-optional">(opsional)</span></label>
+                    <div class="otc-break-grid">
+                        <div class="otc-break-control">
+                            <input type="number" name="break_hours" id="break_hours" min="0" max="23" value="{{ old('break_hours') }}" inputmode="numeric" placeholder="0" class="otc-input @error('break_hours') otc-input--error @enderror">
+                            <span class="otc-break-unit">jam</span>
+                        </div>
+                        <div class="otc-break-control">
+                            <input type="number" name="break_minutes" id="break_minutes" min="0" max="59" value="{{ old('break_minutes') }}" inputmode="numeric" placeholder="0" class="otc-input @error('break_minutes') otc-input--error @enderror">
+                            <span class="otc-break-unit">menit</span>
+                        </div>
+                    </div>
+                    @error('break_hours')
+                        <div class="otc-error">{{ $message }}</div>
+                    @enderror
+                    @error('break_minutes')
+                        <div class="otc-error">{{ $message }}</div>
+                    @enderror
+                </div>
+
             </div>
         </div>
 
@@ -605,6 +626,14 @@
             font-weight: 600;
         }
 
+        .otc-break-field { margin-top: 14px; }
+        .otc-optional { color: var(--text-muted); font-weight: 500; }
+        .otc-break-grid { display: flex; align-items: center; gap: 14px; }
+        .otc-break-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .otc-break-control .otc-input { width: 92px; appearance: textfield; -moz-appearance: textfield; }
+        .otc-break-control .otc-input::-webkit-inner-spin-button,
+        .otc-break-control .otc-input::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
+        .otc-break-unit { color: var(--text-secondary); font-size: .875rem; font-weight: 600; }
         .otc-submit-wrap {
             display: flex;
             gap: 10px;

@@ -20,7 +20,9 @@ class OvertimeApprovalController extends Controller
                         ->whereHas('user.overtimeApproverAssignment', fn ($q) => $q->where('supervisor_id', $id));
                 })->orWhereHas('approvalActions', fn ($q) => $q->where('actor_id', $id)->whereIn('action', ['APPROVE', 'REJECT']));
             })
-            ->orderByDesc('created_at')->paginate(20);
+            ->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [OvertimeRequest::STATUS_PENDING_SUPERVISOR])
+            ->orderByDesc('created_at')
+            ->paginate(20);
 
         return view('overtime_approvals.index', compact('overtimes'));
     }

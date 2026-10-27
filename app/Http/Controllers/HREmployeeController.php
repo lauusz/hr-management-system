@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Division;
 use App\Models\EmployeeDocument;
 use App\Models\EmployeeProfile;
+use App\Models\LeaveBalanceTransaction;
 use App\Models\Position;
 use App\Models\Pt;
 use App\Models\Shift;
@@ -103,7 +104,7 @@ class HREmployeeController extends Controller
         }
 
         $totalEmployees = (clone $query)->count();
-        $items = $query->paginate(20)->withQueryString();
+        $items = $query->paginate(100)->withQueryString();
 
         $items->getCollection()->transform(function ($user) {
             $profile = $user->profile;
@@ -163,6 +164,50 @@ class HREmployeeController extends Controller
             'noLeaveBalance' => $noLeaveBalance,
             'noShift' => $noShift,
             'shifts' => Shift::where('is_active', true)->orderBy('name')->get(),
+        ]);
+    }
+
+    public function leaveBalanceHistory(User $employee)
+    {
+        $transactions = $employee->leaveBalanceTransactions()
+            ->with('leaveRequest:id,type,start_date,end_date,notes_hrd')
+            ->latest('created_at')
+            ->latest('id')
+            ->get()
+            ->map(function (LeaveBalanceTransaction $transaction): array {
+                $balanceBefore = (float) $transaction->balance_before;
+                $balanceAfter = (float) $transaction->balance_after;
+                $balanceChange = round($balanceAfter - $balanceBefore, 2);
+                return [
+                    'occurred_at' => $transaction->created_at?->translatedFormat('d M Y, H:i'),
+                    'label' => match ($transaction->transaction_type) {
+                        LeaveBalanceTransaction::OPENING_BALANCE => 'Saldo awal',
+                        LeaveBalanceTransaction::DEDUCT => 'Cuti diambil',
+                        LeaveBalanceTransaction::REFUND => 'Cuti dikembalikan',
+                        LeaveBalanceTransaction::ADJUSTMENT => $balanceChange < 0 ? 'Saldo dikurangi' : ($balanceChange > 0 ? 'Saldo ditambah' : 'Saldo disesuaikan'),
+                        default => $transaction->transaction_type,
+                    },
+                    'effect' => $balanceChange < 0 ? '-' : ($balanceChange > 0 ? '+' : null),
+                    'amount' => abs($balanceChange) ?: abs((float) $transaction->amount),
+                    'balance_before' => $balanceBefore,
+                    'balance_after' => $balanceAfter,
+                    'leave_request' => $transaction->leaveRequest ? [
+                        'label' => $transaction->leaveRequest->type_label,
+                        'period' => $transaction->leaveRequest->start_date->translatedFormat('d M Y')
+                            .' – '.$transaction->leaveRequest->end_date->translatedFormat('d M Y'),
+                        'hr_note' => filled($transaction->leaveRequest->notes_hrd)
+                            ? $transaction->leaveRequest->notes_hrd
+                            : null,
+                    ] : null,
+                ];
+            });
+
+        return response()->json([
+            'employee' => [
+                'name' => $employee->name,
+                'leave_balance' => (float) $employee->leave_balance,
+            ],
+            'transactions' => $transactions,
         ]);
     }
 
