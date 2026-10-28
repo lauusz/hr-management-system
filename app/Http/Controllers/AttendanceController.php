@@ -31,12 +31,15 @@ class AttendanceController extends Controller
     public function dashboard()
     {
         $events = AttendanceEvent::query()
+            ->with(['attendanceShift', 'user.employeeShift.shift'])
             ->where('user_id', Auth::id())
-            ->whereDate('occurred_at', now()->toDateString())
+            ->whereBetween('occurred_at', [now()->startOfDay()->subHour(), now()->endOfDay()])
             ->latest('occurred_at')
-            ->get();
+            ->get()
+            ->filter(fn (AttendanceEvent $event) => $event->local_occurred_at->toDateString() === now($event->attendanceTimezone())->toDateString());
 
         $latestAttendanceEvent = AttendanceEvent::query()
+            ->with(['attendanceShift', 'user.employeeShift.shift'])
             ->where('user_id', Auth::id())
             ->latest('occurred_at')
             ->first();
@@ -70,6 +73,7 @@ class AttendanceController extends Controller
     public function remoteIndex()
     {
         $events = AttendanceEvent::query()
+            ->with(['attendanceShift', 'user.employeeShift.shift'])
             ->where('user_id', Auth::id())
             ->where('type', 'DINAS_LUAR')
             ->latest('occurred_at')
@@ -153,6 +157,11 @@ class AttendanceController extends Controller
                 return response()->json(['message' => 'Jadwal shift belum diatur. Hubungi HR.'], 400);
             }
 
+            $hasTimezoneSnapshot = Schema::hasColumn('attendance_events', 'is_wita');
+            if ($employeeShift->shift->is_wita && ! $hasTimezoneSnapshot) {
+                return response()->json(['message' => 'Pembaruan absensi belum tersedia. Hubungi HR atau IT.'], 503);
+            }
+
             foreach (['work_date', 'attendance_shift_id', 'shift_start_time', 'shift_end_time', 'is_overnight', 'attendance_location_scope'] as $column) {
                 if (! Schema::hasColumn('attendance_events', $column)) {
                     return response()->json(['message' => 'Pembaruan absensi belum tersedia. Hubungi HR atau IT.'], 503);
@@ -217,7 +226,7 @@ class AttendanceController extends Controller
                 : ($eventType === AttendanceEvent::CLOCK_IN ? 'att_in_' : 'att_out_');
             $photoPath = $this->imageCompressor->compressAndStore($request->file('photo'), 'photo', $folder, $prefix);
 
-            $recordedEvent = DB::transaction(function () use ($user, $eventType, $isRemote, $employeeShift, $matchedLocation, $photoPath, $request, $distance, $isFlexibleEvent, $isOutsideReferenceLocation, $referenceLocationIds, $occurredAt, $shiftSnapshot) {
+            $recordedEvent = DB::transaction(function () use ($user, $eventType, $isRemote, $employeeShift, $matchedLocation, $photoPath, $request, $distance, $isFlexibleEvent, $isOutsideReferenceLocation, $referenceLocationIds, $occurredAt, $shiftSnapshot, $hasTimezoneSnapshot) {
                 User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
 
                 if ($cooldownEvent = $this->activeCooldownEvent($user->id)) {
@@ -241,7 +250,7 @@ class AttendanceController extends Controller
                         ->where('user_id', $user->id)
                         ->lockForUpdate()
                         ->first();
-                    if (! $currentShift || $currentShift->id !== $employeeShift->id || $currentShift->is_flexible !== $employeeShift->is_flexible) {
+                    if (! $currentShift || $currentShift->id !== $employeeShift->id || $currentShift->is_flexible !== $employeeShift->is_flexible || (bool) $currentShift->shift?->is_wita !== (bool) $employeeShift->shift->is_wita) {
                         return ['is_cooldown' => false, 'is_schedule_changed' => true];
                     }
 
@@ -267,6 +276,7 @@ class AttendanceController extends Controller
                         'event_type' => $eventType,
                         'type' => $isRemote ? 'DINAS_LUAR' : 'WFO',
                         'occurred_at' => $occurredAt,
+                        ...($hasTimezoneSnapshot ? ['is_wita' => (bool) $employeeShift->shift->is_wita] : []),
                         ...$shiftSnapshot,
                         'location_id' => $isRemote ? null : $matchedLocation?->id,
                         'photo' => $photoPath,
@@ -317,8 +327,10 @@ class AttendanceController extends Controller
 
     private function activeOfficeHoliday(): ?OfficeHoliday
     {
+        $timezone = Auth::user()?->employeeShift?->shift?->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta';
+
         return OfficeHoliday::query()
-            ->whereDate('holiday_date', now()->toDateString())
+            ->whereDate('holiday_date', now($timezone)->toDateString())
             ->where('is_active', true)
             ->first();
     }
@@ -338,7 +350,7 @@ class AttendanceController extends Controller
 
         return response()->json([
             'code' => 'attendance_cooldown',
-            'message' => "Anda sudah {$label} pada pukul {$event->occurred_at->format('H:i')}.",
+            'message' => "Anda sudah {$label} pada pukul {$event->local_occurred_at->format('H:i')}.",
         ], 429);
     }
 
@@ -365,6 +377,7 @@ class AttendanceController extends Controller
      */
     private function attendanceShiftSnapshot(EmployeeShift $employeeShift, Carbon $occurredAt): array
     {
+        $occurredAt = $occurredAt->copy()->timezone($employeeShift->shift?->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta');
         $workDate = $occurredAt->copy()->startOfDay();
         $shiftDay = $employeeShift->shift?->days
             ->first(fn ($day) => (int) $day->day_of_week === $workDate->dayOfWeekIso && ! $day->is_holiday);

@@ -16,11 +16,11 @@
       ];
       $latestAttendanceEvent = $latestAttendanceEvent ?? null;
       $todayAttendanceEvents = $todayAttendanceEvents ?? collect();
-      $clockInAt = $todayAttendanceEvents->firstWhere('event_type', App\Models\AttendanceEvent::CLOCK_IN)?->occurred_at;
-      $clockOutAt = $todayAttendanceEvents->firstWhere('event_type', App\Models\AttendanceEvent::CLOCK_OUT)?->occurred_at;
+      $clockInAt = $todayAttendanceEvents->firstWhere('event_type', App\Models\AttendanceEvent::CLOCK_IN)?->local_occurred_at;
+      $clockOutAt = $todayAttendanceEvents->firstWhere('event_type', App\Models\AttendanceEvent::CLOCK_OUT)?->local_occurred_at;
       $isAttendanceCooldownActive = $latestAttendanceEvent?->occurred_at->gt(now()->subMinutes(15));
       $cooldownLabel = $latestAttendanceEvent?->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out';
-      $cooldownMessage = $latestAttendanceEvent ? "Anda sudah {$cooldownLabel} pada pukul {$latestAttendanceEvent->occurred_at->format('H:i')}." : null;
+      $cooldownMessage = $latestAttendanceEvent ? "Anda sudah {$cooldownLabel} pada pukul {$latestAttendanceEvent->local_occurred_at->format('H:i')}." : null;
     @endphp
 
     {{-- ============================================ --}}

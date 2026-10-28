@@ -70,6 +70,80 @@
                 if (Number(quantityInput.value) > max) quantityInput.value = max;
                 syncStepper(quantityInput.closest('[data-ops-stepper]'));
             });
+            document.addEventListener('submit', event => {
+                const qtyForm = event.target.closest('.ops-qty-form');
+                if (!qtyForm) return;
+                event.preventDefault();
+                if (qtyForm.dataset.submitting === '1') return;
+                qtyForm.dataset.submitting = '1';
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const submitBtn = qtyForm.querySelector('button[type="submit"]');
+                if (submitBtn) submitBtn.disabled = true;
+
+                fetch(qtyForm.getAttribute('action'), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: new FormData(qtyForm),
+                    credentials: 'same-origin'
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data || typeof data.success !== 'boolean') return;
+                        if (typeof data.cartCount === 'number') {
+                            const navLink = document.querySelector('.ops-nav a[href*="/cart"]');
+                            if (navLink) {
+                                let navBadge = navLink.querySelector('.ops-cart-nav-badge');
+                                if (data.cartCount > 0) {
+                                    if (!navBadge) {
+                                        navBadge = document.createElement('span');
+                                        navBadge.className = 'ops-nav-badge ops-cart-nav-badge';
+                                        navLink.appendChild(navBadge);
+                                    }
+                                    navBadge.textContent = data.cartCount > 99 ? '99+' : String(data.cartCount);
+                                } else if (navBadge) {
+                                    navBadge.remove();
+                                }
+                            }
+                            const topCart = document.querySelector('.ops-cart-link');
+                            if (topCart) {
+                                let topBadge = topCart.querySelector('.ops-cart-count');
+                                if (data.cartCount > 0) {
+                                    if (!topBadge) {
+                                        topBadge = document.createElement('span');
+                                        topBadge.className = 'ops-cart-count';
+                                        topCart.appendChild(topBadge);
+                                    }
+                                    topBadge.textContent = data.cartCount > 99 ? '99+' : String(data.cartCount);
+                                } else if (topBadge) {
+                                    topBadge.remove();
+                                }
+                            }
+                        }
+                        if (data.success) {
+                            const quantityInput = qtyForm.querySelector('[data-ops-stepper-input]');
+                            if (quantityInput) {
+                                quantityInput.value = quantityInput.min || 1;
+                                syncStepper(qtyForm.querySelector('[data-ops-stepper]'));
+                            }
+                        }
+                        const contentEl = qtyForm.closest('.ops-content');
+                        if (contentEl && data.message) {
+                            contentEl.querySelectorAll(':scope > .ops-alert').forEach(el => el.remove());
+                            const alertEl = document.createElement('div');
+                            alertEl.className = 'ops-alert ' + (data.success ? 'ops-alert-success' : 'ops-alert-warning');
+                            alertEl.textContent = data.message;
+                            contentEl.insertBefore(alertEl, contentEl.firstElementChild);
+                        }
+                    })
+                    .finally(() => {
+                        delete qtyForm.dataset.submitting;
+                        if (submitBtn && submitBtn.isConnected) submitBtn.disabled = false;
+                    });
+            });
             syncAllSteppers();
         })();
     </script>

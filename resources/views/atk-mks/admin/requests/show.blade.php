@@ -8,6 +8,7 @@
     $isPending = $atkRequest->status === 'PENDING';
 @endphp
 <x-atk-mks-app title="Periksa Pengajuan ATK MKS">
+    <div id="atkMksAdminReviewRoot" data-ajax-review>
     <div class="atk-mks-header atk-mks-admin-review-header">
         <div>
             <h1 class="atk-mks-title">{{ $atkRequest->request_number }}</h1>
@@ -103,6 +104,67 @@
     @if($atkRequest->admin_note && !$isPending)
         <div class="atk-mks-card atk-mks-admin-note"><strong>Catatan Admin</strong><p>{{ $atkRequest->admin_note }}</p></div>
     @endif
+    </div>
+
+    <script>
+        (function () {
+            var reviewRoot = document.getElementById('atkMksAdminReviewRoot');
+            if (!reviewRoot) return;
+            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+            var isSubmitting = false;
+
+            reviewRoot.addEventListener('submit', function (event) {
+                var form = event.target.closest('form');
+                if (!form || !reviewRoot.contains(form)) return;
+                event.preventDefault();
+                if (isSubmitting) return;
+
+                var noteInput = form.querySelector('input[name="admin_note"][required]');
+                if (noteInput && noteInput.value.trim() === '') {
+                    noteInput.value = '';
+                    if (typeof form.reportValidity === 'function') form.reportValidity();
+                    noteInput.focus();
+                    return;
+                }
+
+                isSubmitting = true;
+                reviewRoot.style.opacity = '0.6';
+                reviewRoot.style.pointerEvents = 'none';
+
+                fetch(form.getAttribute('action'), {
+                    method: (form.getAttribute('method') || 'POST').toUpperCase(),
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html, application/xhtml+xml'
+                    },
+                    body: new FormData(form),
+                    credentials: 'same-origin'
+                })
+                    .then(function (res) { return res.text(); })
+                    .then(function (html) {
+                        var doc = new DOMParser().parseFromString(html, 'text/html');
+                        var nextRoot = doc.getElementById('atkMksAdminReviewRoot');
+                        if (!nextRoot) return;
+                        reviewRoot.innerHTML = nextRoot.innerHTML;
+                        var contentEl = reviewRoot.closest('.atk-mks-content');
+                        var nextContentEl = doc.querySelector('.atk-mks-content');
+                        if (contentEl && nextContentEl) {
+                            contentEl.querySelectorAll(':scope > .atk-mks-alert').forEach(function (el) { el.remove(); });
+                            nextContentEl.querySelectorAll(':scope > .atk-mks-alert').forEach(function (el) {
+                                contentEl.insertBefore(el.cloneNode(true), reviewRoot);
+                            });
+                        }
+                    })
+                    .finally(function () {
+                        isSubmitting = false;
+                        reviewRoot.style.opacity = '';
+                        reviewRoot.style.pointerEvents = '';
+                    });
+            });
+        })();
+    </script>
 
     <style>
         .atk-mks-admin-review-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }

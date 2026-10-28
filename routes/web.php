@@ -192,15 +192,18 @@ Route::middleware('auth')->group(function () {
             ->get();
 
         $latestAttendanceEvent = AttendanceEvent::query()
+            ->with(['attendanceShift', 'user.employeeShift.shift'])
             ->where('user_id', auth()->id())
             ->latest('occurred_at')
             ->first();
 
         $todayAttendanceEvents = AttendanceEvent::query()
+            ->with(['attendanceShift', 'user.employeeShift.shift'])
             ->where('user_id', auth()->id())
-            ->whereDate('occurred_at', now()->toDateString())
+            ->whereBetween('occurred_at', [now()->startOfDay()->subHour(), now()->endOfDay()])
             ->latest('occurred_at')
-            ->get();
+            ->get()
+            ->filter(fn (AttendanceEvent $event) => $event->local_occurred_at->toDateString() === now($event->attendanceTimezone())->toDateString());
 
         return view('dashboard', compact('receivedAssets', 'latestAttendanceEvent', 'todayAttendanceEvents'));
     })->name('dashboard');

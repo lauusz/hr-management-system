@@ -95,13 +95,13 @@
                         $hasEvidence = $actionEvents->contains(fn ($event) => $event->photo || ($event->latitude !== null && $event->longitude !== null));
                         $thumbnailEvent = $actionEvents->first(fn ($event) => $event->photo) ?? $actionEvents->first();
                         $clockInEvidence = $session->clock_ins->map(fn ($event) => [
-                            'time' => $event->occurred_at->format('H:i'),
+                            'time' => $event->local_occurred_at->format('H:i'),
                             'photo' => $event->photo ? asset('storage/'.$event->photo) : '',
                             'latitude' => $event->latitude ?? '',
                             'longitude' => $event->longitude ?? '',
                         ])->values();
                         $clockOutEvidence = $session->clock_outs->map(fn ($event) => [
-                            'time' => $event->occurred_at->format('H:i'),
+                            'time' => $event->local_occurred_at->format('H:i'),
                             'photo' => $event->photo ? asset('storage/'.$event->photo) : '',
                             'latitude' => $event->latitude ?? '',
                             'longitude' => $event->longitude ?? '',
@@ -118,12 +118,12 @@
                         <td class="attendance-date-column">{{ $session->work_date->format('d/m/y') }}</td>
                         <td class="attendance-time attendance-time-column">
                             <div class="attendance-time-stack">
-                                @forelse($session->clock_ins as $event)<span>{{ $event->occurred_at->format('H:i') }}</span>@empty<span>-</span>@endforelse
+                                @forelse($session->clock_ins as $event)<span>{{ $event->local_occurred_at->format('H:i') }}</span>@empty<span>-</span>@endforelse
                             </div>
                         </td>
                         <td class="attendance-time attendance-time-column">
                             <div class="attendance-time-stack">
-                                @forelse($session->clock_outs as $event)<span>{{ $event->occurred_at->format('H:i') }}</span>@empty<span>-</span>@endforelse
+                                @forelse($session->clock_outs as $event)<span>{{ $event->local_occurred_at->format('H:i') }}</span>@empty<span>-</span>@endforelse
                             </div>
                         </td>
                         <td class="attendance-media-column">
@@ -151,14 +151,14 @@
                                     @php($eventLabel = $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out')
                                     @php($destinationLabel = $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock Out' : 'Clock In')
                                     <div class="clock-side-move__event">
-                                    <span class="clock-side-move__event-label">{{ $eventLabel }} · {{ $event->occurred_at->format('H:i') }}</span>
+                                    <span class="clock-side-move__event-label">{{ $eventLabel }} · {{ $event->local_occurred_at->format('H:i') }}</span>
                                     @if($event->is_flexible === true)
                                     <button type="button" class="clock-side-move__button" data-attendance-detail
                                         data-attendance-detail-event="{{ $event->id }}"
                                         data-attendance-detail-name="{{ $session->user->name }}"
                                         data-attendance-detail-type="{{ $eventLabel }}"
-                                        data-attendance-detail-time="{{ $event->occurred_at->format('H:i') }}"
-                                        data-attendance-detail-date="{{ $event->occurred_at->format('d/m/y') }}"
+                                        data-attendance-detail-time="{{ $event->local_occurred_at->format('H:i') }}"
+                                        data-attendance-detail-date="{{ $event->local_occurred_at->format('d/m/y') }}"
                                         data-attendance-detail-notes="{{ $event->notes ?? '' }}"
                                         data-attendance-detail-photo="{{ $event->photo ? asset('storage/'.$event->photo) : '' }}"
                                         data-attendance-detail-latitude="{{ $event->latitude ?? '' }}"
@@ -168,7 +168,7 @@
                                     <button type="button" class="clock-side-move__button" data-attendance-move
                                         data-attendance-move-url="{{ route('hr.attendances.move_event_type', $event) }}"
                                         data-attendance-move-name="{{ $session->user->name }}"
-                                        data-attendance-move-source="{{ $eventLabel }} pukul {{ $event->occurred_at->format('H:i') }}"
+                                        data-attendance-move-source="{{ $eventLabel }} pukul {{ $event->local_occurred_at->format('H:i') }}"
                                         data-attendance-move-destination="{{ $destinationLabel }}">Pindahkan ke {{ $destinationLabel }}</button>
                                     @endif
                                     </div>

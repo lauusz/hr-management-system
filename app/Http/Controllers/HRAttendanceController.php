@@ -20,7 +20,7 @@ class HRAttendanceController extends Controller
 
         $q = trim((string) $request->query('q'));
         $events = AttendanceEvent::query()
-            ->with(['user.employeeShift.shift.days', 'user.employeeShift.location', 'user.employeeShift.locations'])
+            ->with(['attendanceShift', 'user.employeeShift.shift.days', 'user.employeeShift.location', 'user.employeeShift.locations'])
             ->whereBetween('occurred_at', [$rangeStart->copy()->subDay(), $rangeEnd->copy()->addDay()])
             ->whereHas('user', function ($userQuery) use ($q) {
                 $userQuery->active();

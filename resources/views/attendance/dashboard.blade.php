@@ -16,7 +16,7 @@
         $latestAttendanceEvent = $latestAttendanceEvent ?? null;
         $isAttendanceCooldownActive = $latestAttendanceEvent?->occurred_at->gt(now()->subMinutes(15));
         $cooldownLabel = $latestAttendanceEvent?->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out';
-        $cooldownMessage = $latestAttendanceEvent ? "Anda sudah {$cooldownLabel} pada pukul {$latestAttendanceEvent->occurred_at->format('H:i')}." : null;
+        $cooldownMessage = $latestAttendanceEvent ? "Anda sudah {$cooldownLabel} pada pukul {$latestAttendanceEvent->local_occurred_at->format('H:i')}." : null;
     @endphp
 
     <div class="attendance-page">
@@ -30,7 +30,7 @@
                     <div class="attendance-event">
                         <div class="attendance-event-row">
                             <strong>{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}</strong>
-                            <span>{{ $event->occurred_at->format('H:i') }} · {{ $event->type === 'DINAS_LUAR' ? 'Dinas Luar' : 'WFO' }}</span>
+                            <span>{{ $event->local_occurred_at->format('H:i') }} · {{ $event->type === 'DINAS_LUAR' ? 'Dinas Luar' : 'WFO' }}</span>
                         </div>
                         @if (filled($event->hrd_note))
                             <aside class="attendance-hrd-note" aria-label="Catatan dari HR">
@@ -47,11 +47,11 @@
 
         <nav class="attendance-action-dock attendance-action-dock--sticky" aria-label="Aksi presensi">
             <a href="{{ route('attendance.clockIn.form') }}" class="attendance-action attendance-action--clock-in" @if($isAttendanceCooldownActive) data-attendance-cooldown data-attendance-cooldown-until="{{ $latestAttendanceEvent->occurred_at->copy()->addMinutes(15)->toIso8601String() }}" data-attendance-cooldown-message="{{ $cooldownMessage }}" @endif>
-                <span><strong>Clock In</strong><small>{{ $clockInEvents->isNotEmpty() ? 'Terakhir '.$clockInEvents->first()->occurred_at->format('H:i') : 'Catat jam masuk kerja' }}</small></span>
+                <span><strong>Clock In</strong><small>{{ $clockInEvents->isNotEmpty() ? 'Terakhir '.$clockInEvents->first()->local_occurred_at->format('H:i') : 'Catat jam masuk kerja' }}</small></span>
                 <span aria-hidden="true">›</span>
             </a>
             <a href="{{ route('attendance.clockOut.form') }}" class="attendance-action attendance-action--clock-out" @if($isAttendanceCooldownActive) data-attendance-cooldown data-attendance-cooldown-until="{{ $latestAttendanceEvent->occurred_at->copy()->addMinutes(15)->toIso8601String() }}" data-attendance-cooldown-message="{{ $cooldownMessage }}" @endif>
-                <span><strong>Clock Out</strong><small>{{ $clockOutEvents->isNotEmpty() ? 'Terakhir '.$clockOutEvents->first()->occurred_at->format('H:i') : 'Catat jam pulang kerja' }}</small></span>
+                <span><strong>Clock Out</strong><small>{{ $clockOutEvents->isNotEmpty() ? 'Terakhir '.$clockOutEvents->first()->local_occurred_at->format('H:i') : 'Catat jam pulang kerja' }}</small></span>
                 <span aria-hidden="true">›</span>
             </a>
         </nav>

@@ -15,7 +15,7 @@
                 @forelse($events as $event)
                     <div class="remote-event-row">
                         <strong>{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}</strong>
-                        <span>{{ $event->occurred_at->translatedFormat('d M Y · H:i') }}</span>
+                        <span>{{ $event->local_occurred_at->translatedFormat('d M Y · H:i') }}</span>
                     </div>
                 @empty
                     <p>Belum ada catatan dinas luar.</p>

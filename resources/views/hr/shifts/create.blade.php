@@ -132,6 +132,15 @@
                         </div>
                     </div>
 
+                    <div class="mlc-field">
+                        <input type="hidden" name="is_wita" value="0">
+                        <label class="mlc-radio-card mlc-checkbox-card">
+                            <input type="checkbox" name="is_wita" value="1" @checked(old('is_wita', false))>
+                            <span class="mlc-radio-card__label">WITA (selisih 1 jam dari WIB)</span>
+                        </label>
+                        <p class="mlc-helper">Berlaku untuk semua karyawan yang menggunakan shift ini. Jika tidak dicentang, waktu mengikuti WIB.</p>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="shift-table">
                             <thead>

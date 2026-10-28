@@ -253,6 +253,12 @@
             font-size: 12.5px;
             border-radius: 7px;
         }
+        #atkAdminReviewRoot.is-submitting,
+        .atk-admin-review-item.is-submitting {
+            opacity: .6;
+            pointer-events: none;
+            transition: opacity .15s ease;
+        }
 
         @media (max-width: 639px) {
             .atk-review-meta-strip {
@@ -345,6 +351,7 @@
         }
     </style>
 
+    <div id="atkAdminReviewRoot" data-ajax-review>
     <div class="atk-admin-review-header">
         <div class="atk-admin-review-head-left">
             <a class="atk-back-btn" href="{{ route('v2.atk.admin.requests.index') }}">
@@ -492,4 +499,162 @@
             @endif
         </div>
     </div>
+    </div>
+
+    <script>
+        (function () {
+            var reviewRoot = document.getElementById('atkAdminReviewRoot');
+            if (!reviewRoot) return;
+
+            var csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            var csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+            var isSubmitting = false;
+
+            function syncAlertsFromDoc(doc) {
+                var contentEl = reviewRoot.closest('.atk-content');
+                var nextContentEl = doc ? doc.querySelector('.atk-content') : null;
+                if (!contentEl) return;
+
+                contentEl.querySelectorAll(':scope > .atk-alert').forEach(function (alertEl) {
+                    alertEl.remove();
+                });
+
+                if (!nextContentEl) return;
+
+                nextContentEl.querySelectorAll(':scope > .atk-alert').forEach(function (nextAlert) {
+                    contentEl.insertBefore(nextAlert.cloneNode(true), reviewRoot);
+                });
+            }
+
+            function showInlineWarning(message) {
+                var contentEl = reviewRoot.closest('.atk-content');
+                if (!contentEl) return;
+                contentEl.querySelectorAll(':scope > .atk-alert').forEach(function (alertEl) {
+                    alertEl.remove();
+                });
+                var alertDiv = document.createElement('div');
+                alertDiv.className = 'atk-alert atk-alert-warning';
+                alertDiv.textContent = message;
+                contentEl.insertBefore(alertDiv, reviewRoot);
+            }
+
+            function syncSidebarFromDoc(doc) {
+                if (!doc) return;
+                var currentSidebar = document.getElementById('atkSidebar');
+                var nextSidebar = doc.getElementById('atkSidebar');
+                if (!currentSidebar || !nextSidebar) return;
+
+                var currentMenu = currentSidebar.querySelector('.atk-menu');
+                var nextMenu = nextSidebar.querySelector('.atk-menu');
+                if (currentMenu && nextMenu) {
+                    currentMenu.innerHTML = nextMenu.innerHTML;
+                }
+            }
+
+            reviewRoot.addEventListener('submit', function (event) {
+                var form = event.target.closest('form');
+                if (!form || !reviewRoot.contains(form)) return;
+
+                event.preventDefault();
+                if (isSubmitting) return;
+
+                var noteInput = form.querySelector('input[name="admin_note"][required]');
+                if (noteInput && noteInput.value.trim() === '') {
+                    noteInput.value = '';
+                    if (typeof form.reportValidity === 'function') {
+                        form.reportValidity();
+                    }
+                    noteInput.focus();
+                    return;
+                }
+
+                var draftNotes = {};
+                reviewRoot.querySelectorAll('form').forEach(function (otherForm) {
+                    if (otherForm === form) return;
+                    var otherInput = otherForm.querySelector('input[name="admin_note"]');
+                    var statusField = otherForm.querySelector('input[name="status"]');
+                    var key = otherForm.getAttribute('action') + '|' + (statusField ? statusField.value : '');
+                    if (otherInput && otherInput.value) {
+                        draftNotes[key] = otherInput.value;
+                    }
+                });
+
+                isSubmitting = true;
+                var rowEl = form.closest('.atk-admin-review-item');
+                if (rowEl) {
+                    rowEl.classList.add('is-submitting');
+                } else {
+                    reviewRoot.classList.add('is-submitting');
+                }
+
+                var buttons = reviewRoot.querySelectorAll('button[type="submit"]');
+                var disabledStates = new Map();
+                buttons.forEach(function (btn) {
+                    disabledStates.set(btn, btn.disabled);
+                    btn.disabled = true;
+                });
+
+                var mainEl = document.querySelector('.atk-main');
+                var prevMainScroll = mainEl ? mainEl.scrollTop : 0;
+                var prevWindowScroll = window.scrollY;
+
+                fetch(form.getAttribute('action'), {
+                    method: (form.getAttribute('method') || 'POST').toUpperCase(),
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html, application/xhtml+xml'
+                    },
+                    body: new FormData(form),
+                    credentials: 'same-origin'
+                })
+                    .then(function (response) {
+                        if (!response.ok && response.status >= 500) {
+                            throw new Error('Server error');
+                        }
+                        return response.text();
+                    })
+                    .then(function (html) {
+                        var doc = new DOMParser().parseFromString(html, 'text/html');
+                        var nextRoot = doc.getElementById('atkAdminReviewRoot');
+                        if (!nextRoot) {
+                            throw new Error('Invalid response');
+                        }
+
+                        reviewRoot.innerHTML = nextRoot.innerHTML;
+                        syncAlertsFromDoc(doc);
+                        syncSidebarFromDoc(doc);
+
+                        reviewRoot.querySelectorAll('form').forEach(function (restoredForm) {
+                            var statusField = restoredForm.querySelector('input[name="status"]');
+                            var key = restoredForm.getAttribute('action') + '|' + (statusField ? statusField.value : '');
+                            var restoredInput = restoredForm.querySelector('input[name="admin_note"]');
+                            if (restoredInput && Object.prototype.hasOwnProperty.call(draftNotes, key)) {
+                                restoredInput.value = draftNotes[key];
+                            }
+                        });
+
+                        if (mainEl) {
+                            mainEl.scrollTop = prevMainScroll;
+                        }
+                        window.scrollTo(0, prevWindowScroll);
+                    })
+                    .catch(function () {
+                        disabledStates.forEach(function (wasDisabled, btn) {
+                            if (btn && btn.isConnected) {
+                                btn.disabled = wasDisabled;
+                            }
+                        });
+                        showInlineWarning('Gagal memproses pemeriksaan. Silakan coba lagi.');
+                    })
+                    .finally(function () {
+                        isSubmitting = false;
+                        reviewRoot.classList.remove('is-submitting');
+                        if (rowEl && rowEl.isConnected) {
+                            rowEl.classList.remove('is-submitting');
+                        }
+                    });
+            });
+        })();
+    </script>
 </x-atk-app>

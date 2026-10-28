@@ -37,7 +37,7 @@ class CatalogController extends Controller
         $item = AtkItem::forModule(AtkItem::MODULE_ATK)->available()->findOrFail($validated['atk_item_id']);
 
         if ($item->stock_qty <= 0) {
-            return back()->with('warning', 'Stok barang habis. Silakan ajukan penambahan stok.');
+            return $this->respondAddToCart($request, 'Stok barang habis. Silakan ajukan penambahan stok.', null, $item->id, 0);
         }
 
         $cart = session('atk_cart', []);
@@ -45,12 +45,33 @@ class CatalogController extends Controller
         $nextQty = ($cart[$item->id] ?? 0) + $qty;
 
         if ($nextQty > $item->stock_qty) {
-            return back()->with('warning', 'Jumlah melebihi stok tersedia.');
+            return $this->respondAddToCart($request, 'Jumlah melebihi stok tersedia.', null, $item->id, (int) ($cart[$item->id] ?? 0));
         }
 
         $cart[$item->id] = $nextQty;
         session(['atk_cart' => $cart]);
 
-        return back()->with('success', 'Barang ditambahkan ke keranjang.');
+        return $this->respondAddToCart($request, null, 'Barang ditambahkan ke keranjang.', $item->id, $nextQty);
+    }
+
+    private function respondAddToCart(Request $request, ?string $warning, ?string $success, int $itemId, int $inCartQty)
+    {
+        $cartCount = array_sum(session('atk_cart', []));
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => $success !== null,
+                'message' => $warning ?? $success,
+                'itemId' => $itemId,
+                'inCartQty' => $inCartQty,
+                'cartCount' => $cartCount,
+            ]);
+        }
+
+        if ($warning !== null) {
+            return back()->with('warning', $warning);
+        }
+
+        return back()->with('success', $success);
     }
 }

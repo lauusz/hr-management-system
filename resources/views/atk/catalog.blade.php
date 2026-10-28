@@ -94,9 +94,96 @@
             const form = document.getElementById('atkCatalogSearchForm');
             const input = form ? form.querySelector('[data-async-search]') : null;
             const results = document.getElementById('atkCatalogResults');
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
             if (!form || !input || !results) return;
 
             let timer;
+            let toastTimer;
+
+            function updateCartBadges(cartCount) {
+                if (typeof cartCount !== 'number') return;
+
+                const catalogCartLink = document.querySelector('.atk-catalog-cart-link');
+                if (catalogCartLink) {
+                    const textSpan = catalogCartLink.querySelector('span');
+                    if (textSpan) {
+                        textSpan.textContent = 'Keranjang (' + cartCount + ')';
+                    }
+                    catalogCartLink.classList.toggle('atk-btn-primary', cartCount > 0);
+                    catalogCartLink.classList.toggle('atk-btn-secondary', cartCount <= 0);
+                }
+
+                const topbarShortcut = document.querySelector('.atk-cart-shortcut');
+                if (topbarShortcut) {
+                    topbarShortcut.setAttribute('aria-label', 'Buka keranjang, ' + cartCount + ' item');
+                    let badge = topbarShortcut.querySelector('.atk-cart-badge');
+                    if (cartCount > 0) {
+                        if (!badge) {
+                            badge = document.createElement('span');
+                            badge.className = 'atk-cart-badge';
+                            badge.setAttribute('aria-hidden', 'true');
+                            topbarShortcut.appendChild(badge);
+                        }
+                        badge.textContent = cartCount > 99 ? '99+' : String(cartCount);
+                        badge.style.display = '';
+                    } else if (badge) {
+                        badge.style.display = 'none';
+                    }
+                }
+            }
+
+            function updateProductInCartBadge(card, inCartQty) {
+                if (!card || typeof inCartQty !== 'number') return;
+                const media = card.querySelector('.atk-product-media');
+                if (!media) return;
+
+                let badge = media.querySelector('.atk-in-cart-badge');
+                if (inCartQty > 0) {
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'atk-badge atk-badge-brand atk-in-cart-badge';
+                        media.appendChild(badge);
+                    }
+                    badge.textContent = 'Di ' + 'Keranjang: ' + inCartQty;
+                } else if (badge) {
+                    badge.remove();
+                }
+            }
+
+            function showCatalogFeedback(message, isSuccess) {
+                if (!message) return;
+
+                const contentEl = results.closest('.atk-content');
+                if (contentEl) {
+                    contentEl.querySelectorAll(':scope > .atk-alert').forEach(function (el) {
+                        el.remove();
+                    });
+                    const alertEl = document.createElement('div');
+                    alertEl.className = 'atk-alert ' + (isSuccess ? 'atk-alert-success' : 'atk-alert-warning');
+                    alertEl.textContent = message;
+                    contentEl.insertBefore(alertEl, contentEl.firstElementChild);
+                }
+
+                let toast = document.getElementById('atkCatalogToast');
+                if (toast) toast.remove();
+                clearTimeout(toastTimer);
+
+                toast = document.createElement('div');
+                toast.id = 'atkCatalogToast';
+                toast.className = 'atk-catalog-toast ' + (isSuccess ? 'is-success' : 'is-warning');
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                requestAnimationFrame(function () {
+                    toast.classList.add('show');
+                });
+                toastTimer = setTimeout(function () {
+                    toast.classList.remove('show');
+                    setTimeout(function () {
+                        if (toast && toast.parentNode) toast.remove();
+                    }, 200);
+                }, 2200);
+            }
 
             function syncStepper(stepper) {
                 const quantityInput = stepper.querySelector('[data-stepper-input]');
@@ -195,6 +282,73 @@
                 if (!Number.isFinite(value) || value < min) quantityInput.value = min;
                 if (Number(quantityInput.value) > max) quantityInput.value = max;
                 syncStepper(quantityInput.closest('[data-stepper]'));
+            });
+
+            results.addEventListener('submit', function (event) {
+                const qtyForm = event.target.closest('.atk-qty-form');
+                if (!qtyForm || !results.contains(qtyForm)) return;
+
+                event.preventDefault();
+                if (qtyForm.dataset.submitting === '1') return;
+
+                const quantityInput = qtyForm.querySelector('[data-stepper-input]');
+                if (quantityInput) {
+                    const value = Number(quantityInput.value);
+                    const min = Number(quantityInput.min) || 1;
+                    const max = Number(quantityInput.max) || 9999;
+                    if (!Number.isFinite(value) || value < min) quantityInput.value = min;
+                    if (Number(quantityInput.value) > max) quantityInput.value = max;
+                }
+
+                qtyForm.dataset.submitting = '1';
+                const submitBtn = qtyForm.querySelector('.atk-add-btn, button[type="submit"]');
+                const originalLabel = submitBtn ? submitBtn.textContent : 'Tambah';
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                }
+
+                fetch(qtyForm.getAttribute('action'), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: new FormData(qtyForm),
+                    credentials: 'same-origin'
+                })
+                    .then(function (response) {
+                        return response.json();
+                    })
+                    .then(function (data) {
+                        if (!data || typeof data.success !== 'boolean') {
+                            throw new Error('Invalid response');
+                        }
+
+                        updateCartBadges(data.cartCount);
+                        const card = qtyForm.closest('.atk-product');
+                        if (typeof data.inCartQty === 'number') {
+                            updateProductInCartBadge(card, data.inCartQty);
+                        }
+
+                        if (data.success && quantityInput) {
+                            quantityInput.value = quantityInput.min || 1;
+                            const stepper = qtyForm.querySelector('[data-stepper]');
+                            if (stepper) syncStepper(stepper);
+                        }
+
+                        showCatalogFeedback(data.message, data.success);
+                    })
+                    .catch(function () {
+                        showCatalogFeedback('Gagal menambahkan barang ke keranjang. Silakan coba lagi.', false);
+                    })
+                    .finally(function () {
+                        delete qtyForm.dataset.submitting;
+                        if (submitBtn && submitBtn.isConnected) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = originalLabel;
+                        }
+                    });
             });
 
             syncAllSteppers();
@@ -443,6 +597,39 @@
             border-radius: 8px;
             font-size: 12px;
             padding-inline: 10px;
+        }
+
+        .atk-catalog-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translate(-50%, 16px);
+            max-width: calc(100vw - 32px);
+            padding: 11px 16px;
+            border-radius: 10px;
+            color: #FFFFFF;
+            font-family: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.35;
+            opacity: 0;
+            transition: opacity .2s ease, transform .2s ease;
+            z-index: 1500;
+            pointer-events: none;
+        }
+        .atk-catalog-toast.is-success {
+            background: #5B21B6;
+            border: 1px solid #4C1D95;
+            box-shadow: 0 10px 25px rgba(91, 33, 182, 0.35);
+        }
+        .atk-catalog-toast.is-warning {
+            background: #D97706;
+            border: 1px solid #B45309;
+            box-shadow: 0 10px 25px rgba(217, 119, 6, 0.35);
+        }
+        .atk-catalog-toast.show {
+            opacity: 1;
+            transform: translate(-50%, 0);
         }
 
         @media (hover: hover) {

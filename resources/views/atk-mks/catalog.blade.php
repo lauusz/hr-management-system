@@ -70,6 +70,80 @@
                 if (Number(quantityInput.value) > max) quantityInput.value = max;
                 syncStepper(quantityInput.closest('[data-atk-mks-stepper]'));
             });
+            document.addEventListener('submit', event => {
+                const qtyForm = event.target.closest('.atk-mks-qty-form');
+                if (!qtyForm) return;
+                event.preventDefault();
+                if (qtyForm.dataset.submitting === '1') return;
+                qtyForm.dataset.submitting = '1';
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const submitBtn = qtyForm.querySelector('button[type="submit"]');
+                if (submitBtn) submitBtn.disabled = true;
+
+                fetch(qtyForm.getAttribute('action'), {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    },
+                    body: new FormData(qtyForm),
+                    credentials: 'same-origin'
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data || typeof data.success !== 'boolean') return;
+                        if (typeof data.cartCount === 'number') {
+                            const navLink = document.querySelector('.atk-mks-nav a[href*="/cart"]');
+                            if (navLink) {
+                                let navBadge = navLink.querySelector('.atk-mks-cart-nav-badge');
+                                if (data.cartCount > 0) {
+                                    if (!navBadge) {
+                                        navBadge = document.createElement('span');
+                                    navBadge.className = 'atk-mks-nav-badge atk-mks-cart-nav-badge';
+                                        navLink.appendChild(navBadge);
+                                    }
+                                    navBadge.textContent = data.cartCount > 99 ? '99+' : String(data.cartCount);
+                                } else if (navBadge) {
+                                    navBadge.remove();
+                                }
+                            }
+                            const topCart = document.querySelector('.atk-mks-cart-link');
+                            if (topCart) {
+                                let topBadge = topCart.querySelector('.atk-mks-cart-count');
+                                if (data.cartCount > 0) {
+                                    if (!topBadge) {
+                                        topBadge = document.createElement('span');
+                                        topBadge.className = 'atk-mks-cart-count';
+                                        topCart.appendChild(topBadge);
+                                    }
+                                    topBadge.textContent = data.cartCount > 99 ? '99+' : String(data.cartCount);
+                                } else if (topBadge) {
+                                    topBadge.remove();
+                                }
+                            }
+                        }
+                        if (data.success) {
+                            const quantityInput = qtyForm.querySelector('[data-atk-mks-stepper-input]');
+                            if (quantityInput) {
+                                quantityInput.value = quantityInput.min || 1;
+                                syncStepper(qtyForm.querySelector('[data-atk-mks-stepper]'));
+                            }
+                        }
+                        const contentEl = qtyForm.closest('.atk-mks-content');
+                        if (contentEl && data.message) {
+                            contentEl.querySelectorAll(':scope > .atk-mks-alert').forEach(el => el.remove());
+                            const alertEl = document.createElement('div');
+                            alertEl.className = 'atk-mks-alert ' + (data.success ? 'atk-mks-alert-success' : 'atk-mks-alert-warning');
+                            alertEl.textContent = data.message;
+                            contentEl.insertBefore(alertEl, contentEl.firstElementChild);
+                        }
+                    })
+                    .finally(() => {
+                        delete qtyForm.dataset.submitting;
+                        if (submitBtn && submitBtn.isConnected) submitBtn.disabled = false;
+                    });
+            });
             syncAllSteppers();
         })();
     </script>

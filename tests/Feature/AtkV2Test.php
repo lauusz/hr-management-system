@@ -714,6 +714,8 @@ it('renders a responsive admin review detail with mobile item cards', function (
     actingAs($admin)
         ->get(route('v2.atk.admin.requests.show', $atkRequest))
         ->assertOk()
+        ->assertSee('id="atkAdminReviewRoot"', false)
+        ->assertSee('data-ajax-review', false)
         ->assertSee('atk-admin-review-header')
         ->assertSee('atk-admin-review-table')
         ->assertSee('atk-admin-review-item')
@@ -2092,6 +2094,35 @@ it('shows an in-cart badge on the catalog when an item is already in the cart', 
         ->get(route('v2.atk.catalog'))
         ->assertOk()
         ->assertSee('Di Keranjang: 3');
+});
+
+it('adds item to cart via AJAX on catalog and returns JSON without reload', function () {
+    $user = User::factory()->create();
+    $item = AtkItem::create([
+        'name' => 'Pulpen AJAX Katalog',
+        'unit_name' => 'pcs',
+        'stock_qty' => 5,
+        'minimum_stock' => 0,
+        'min_request_qty' => 1,
+        'is_active' => true,
+    ]);
+
+    actingAs($user)
+        ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+        ->post(route('v2.atk.cart.add'), ['atk_item_id' => $item->id, 'qty' => 2])
+        ->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('itemId', $item->id)
+        ->assertJsonPath('inCartQty', 2)
+        ->assertJsonPath('cartCount', 2);
+
+    actingAs($user)
+        ->withHeaders(['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json'])
+        ->post(route('v2.atk.cart.add'), ['atk_item_id' => $item->id, 'qty' => 4])
+        ->assertOk()
+        ->assertJsonPath('success', false)
+        ->assertJsonPath('inCartQty', 2)
+        ->assertJsonPath('cartCount', 2);
 });
 
 // =============================================================================

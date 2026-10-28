@@ -22,7 +22,7 @@ class ApprovalAttendanceController extends Controller
         $tab = $filters['tab'] ?? 'flexible';
 
         $pendingAttendances = AttendanceEvent::query()
-            ->with(['user', 'location'])
+            ->with(['user.employeeShift.shift', 'attendanceShift', 'location'])
             ->pendingApproval()
             ->where('type', $tab === 'remote' ? 'DINAS_LUAR' : 'WFO')
             ->when($name !== '', fn ($query) => $query->whereHas('user', fn ($userQuery) => $userQuery->whereNormalizedNameContains($name)))

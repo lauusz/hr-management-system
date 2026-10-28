@@ -112,6 +112,17 @@
                     </div>
                 </div>
 
+                <div class="schedule-edit-location-modes" style="margin-bottom: 18px;">
+                    <input type="hidden" name="is_wita" value="0">
+                    <label class="schedule-edit-location-mode">
+                        <input type="checkbox" name="is_wita" value="1" @checked(old('is_wita', $shift->is_wita))>
+                        <span class="schedule-edit-location-mode-copy">
+                            <strong>WITA (selisih 1 jam dari WIB)</strong>
+                            <small>Berlaku untuk semua karyawan yang menggunakan shift ini. Jika tidak dicentang, waktu mengikuti WIB.</small>
+                        </span>
+                    </label>
+                </div>
+
                 @php
                     $days = [
                         1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu',

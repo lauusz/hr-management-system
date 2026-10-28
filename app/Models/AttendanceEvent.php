@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Carbon\Carbon;
 
 class AttendanceEvent extends Model
 {
@@ -20,6 +21,7 @@ class AttendanceEvent extends Model
         'event_type',
         'type',
         'occurred_at',
+        'is_wita',
         'work_date',
         'attendance_shift_id',
         'shift_start_time',
@@ -45,6 +47,7 @@ class AttendanceEvent extends Model
 
     protected $casts = [
         'occurred_at' => 'datetime',
+        'is_wita' => 'boolean',
         'work_date' => 'date',
         'photo_deleted_at' => 'datetime',
         'is_overnight' => 'boolean',
@@ -71,6 +74,29 @@ class AttendanceEvent extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function attendanceShift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class, 'attendance_shift_id');
+    }
+
+    public function attendanceTimezone(): string
+    {
+        if ($this->is_wita !== null) {
+            $isWita = $this->is_wita;
+        } elseif ($this->attendance_shift_id !== null) {
+            $isWita = $this->attendanceShift?->is_wita;
+        } else {
+            $isWita = $this->user?->employeeShift?->shift?->is_wita;
+        }
+
+        return $isWita ? 'Asia/Makassar' : 'Asia/Jakarta';
+    }
+
+    public function getLocalOccurredAtAttribute(): ?Carbon
+    {
+        return $this->occurred_at?->copy()->timezone($this->attendanceTimezone());
     }
 
     public function location(): BelongsTo

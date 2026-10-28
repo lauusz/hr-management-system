@@ -250,8 +250,8 @@
                                     <div class="user-schedule">{{ $event->type === 'DINAS_LUAR' ? 'Dinas Luar' : 'Fleksibel' }}</div>
                                 </td>
                                 <td data-label="Tipe"><span class="approval-type-chip approval-type-chip--{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'in' : 'out' }}">{{ $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out' }}</span></td>
-                                <td data-label="Jam">{{ $event->occurred_at->format('H:i') }}</td>
-                                <td data-label="Tanggal">{{ $event->occurred_at->format('d/m/y') }}</td>
+                                <td data-label="Jam">{{ $event->local_occurred_at->format('H:i') }}</td>
+                                <td data-label="Tanggal">{{ $event->local_occurred_at->format('d/m/y') }}</td>
                                 <td data-label="Alasan">{{ trim((string) $event->notes) !== '' ? $event->notes : 'Alasan tidak tersedia' }}</td>
                                 <td class="approval-media-column" data-label="Bukti Kehadiran">
                                     @if($event->photo || ($event->latitude !== null && $event->longitude !== null))

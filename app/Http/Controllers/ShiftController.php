@@ -6,6 +6,7 @@ use App\Models\Shift;
 use App\Models\ShiftDay;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class ShiftController extends Controller
@@ -73,6 +74,7 @@ class ShiftController extends Controller
             'name' => 'required|string|max:100',
             'description' => 'nullable|string',
             'is_active' => 'nullable|boolean',
+            'is_wita' => 'nullable|boolean',
             'days' => 'required|array',
             'days.*.is_holiday' => 'nullable|boolean',
             'days.*.is_overnight' => 'nullable|boolean',
@@ -82,11 +84,16 @@ class ShiftController extends Controller
         ]);
 
         $days = $this->normalizeDays($validated['days']);
+        $hasWitaColumn = Schema::hasColumn('shifts', 'is_wita');
+        if (! $hasWitaColumn && $request->boolean('is_wita')) {
+            throw ValidationException::withMessages(['is_wita' => 'Pengaturan WITA belum tersedia. Hubungi HR atau IT.']);
+        }
 
         $shift = Shift::create([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'is_active' => $request->boolean('is_active'),
+            ...($hasWitaColumn ? ['is_wita' => $request->boolean('is_wita')] : []),
         ]);
 
         $this->storeDays($shift, $days);
@@ -109,6 +116,7 @@ class ShiftController extends Controller
             'name' => 'required|string|max:100',
             'description' => 'nullable|string',
             'is_active' => 'nullable|boolean',
+            'is_wita' => 'nullable|boolean',
             'days' => 'required|array',
             'days.*.is_holiday' => 'nullable|boolean',
             'days.*.is_overnight' => 'nullable|boolean',
@@ -118,11 +126,16 @@ class ShiftController extends Controller
         ]);
 
         $days = $this->normalizeDays($validated['days']);
+        $hasWitaColumn = Schema::hasColumn('shifts', 'is_wita');
+        if (! $hasWitaColumn && $request->boolean('is_wita')) {
+            throw ValidationException::withMessages(['is_wita' => 'Pengaturan WITA belum tersedia. Hubungi HR atau IT.']);
+        }
 
         $shift->update([
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'is_active' => $request->boolean('is_active'),
+            ...($hasWitaColumn ? ['is_wita' => $request->boolean('is_wita')] : []),
         ]);
 
         $shift->days()->delete();

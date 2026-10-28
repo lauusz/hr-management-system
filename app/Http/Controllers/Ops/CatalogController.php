@@ -38,11 +38,31 @@ class CatalogController extends Controller
         $nextQty = ($cart[$item->id] ?? 0) + (int) $validated['qty'];
 
         if ($item->stock_qty <= 0 || $nextQty > $item->stock_qty) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Jumlah melebihi stok tersedia.',
+                    'itemId' => $item->id,
+                    'inCartQty' => (int) ($cart[$item->id] ?? 0),
+                    'cartCount' => array_sum($cart),
+                ]);
+            }
+
             return back()->with('warning', 'Jumlah melebihi stok tersedia.');
         }
 
         $cart[$item->id] = $nextQty;
         session(['ops_cart' => $cart]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Barang ditambahkan.',
+                'itemId' => $item->id,
+                'inCartQty' => $nextQty,
+                'cartCount' => array_sum($cart),
+            ]);
+        }
 
         return back()->with('success', 'Barang ditambahkan.');
     }

@@ -10,6 +10,7 @@ use App\Models\AtkStockMovement;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class RequestApprovalController extends Controller
@@ -110,7 +111,9 @@ class RequestApprovalController extends Controller
         // Guard UX cepat: jika sudah tidak pending, arahkan ke halaman dengan warning.
         // Cek otoritatif tetap di dalam transaksi dengan lock (cegah double-approve konkuren).
         if ($atkRequest->status !== AtkRequest::STATUS_PENDING) {
-            return back()->with('warning', 'Pengajuan ini sudah diproses.');
+            return redirect()
+                ->route('v2.atk.admin.requests.show', $atkRequest)
+                ->with('warning', 'Pengajuan ini sudah diproses.');
         }
 
         $autoRejectedMessage = null;
@@ -251,12 +254,23 @@ class RequestApprovalController extends Controller
         $this->ensureAtkRequest($atkRequest);
 
         if ($atkRequest->status !== AtkRequest::STATUS_PENDING) {
-            return back()->with('warning', 'Pengajuan ini sudah diproses.');
+            return redirect()
+                ->route('v2.atk.admin.requests.show', $atkRequest)
+                ->with('warning', 'Pengajuan ini sudah diproses.');
         }
 
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             'admin_note' => ['required', 'string', 'max:1000'],
         ]);
+
+        if ($validator->fails()) {
+            return redirect()
+                ->route('v2.atk.admin.requests.show', $atkRequest)
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
 
         try {
             DB::transaction(function () use ($validated, $request, $atkRequest): void {
@@ -302,21 +316,35 @@ class RequestApprovalController extends Controller
         $this->ensureAtkRequest($atkRequest);
 
         if ((int) $requestItem->atk_request_id !== (int) $atkRequest->id) {
-            return back()->with('warning', 'Item tidak termasuk dalam pengajuan ini.');
+            return redirect()
+                ->route('v2.atk.admin.requests.show', $atkRequest)
+                ->with('warning', 'Item tidak termasuk dalam pengajuan ini.');
         }
 
         if ($atkRequest->status !== AtkRequest::STATUS_PENDING) {
-            return back()->with('warning', 'Pengajuan ini sudah difinalisasi.');
+            return redirect()
+                ->route('v2.atk.admin.requests.show', $atkRequest)
+                ->with('warning', 'Pengajuan ini sudah difinalisasi.');
         }
 
-        $validated = $request->validate([
+        $validator = Validator::make($request->all(), [
             'status' => ['required', 'in:'.implode(',', [AtkRequestItem::STATUS_APPROVED, AtkRequestItem::STATUS_REJECTED])],
             'admin_note' => ['nullable', 'string', 'max:1000'],
         ]);
 
+        if ($validator->fails()) {
+            return redirect()
+                ->route('v2.atk.admin.requests.show', $atkRequest)
+                ->withErrors($validator)
+                ->withInput();
+        }
+
+        $validated = $validator->validated();
+
         // Catatan wajib saat item ditolak / tidak diproses.
-        if ($validated['status'] === AtkRequestItem::STATUS_REJECTED && trim((string) $validated['admin_note']) === '') {
-            return back()
+        if ($validated['status'] === AtkRequestItem::STATUS_REJECTED && trim((string) ($validated['admin_note'] ?? '')) === '') {
+            return redirect()
+                ->route('v2.atk.admin.requests.show', $atkRequest)
                 ->withErrors(['admin_note' => 'Alasan wajib diisi untuk item yang tidak diproses.'])
                 ->withInput();
         }
@@ -331,7 +359,9 @@ class RequestApprovalController extends Controller
                 $availableStock = $item?->stock_qty ?? 0;
                 $itemName = $item?->name ?? $requestItem->item_name_snapshot;
 
-                return back()->with('warning', 'Stok '.$itemName.' tidak cukup ('.$availableStock.' tersedia, '.$requestItem->qty.' diminta). Tandai barang ini sebagai Tidak diproses atau tunggu penambahan stok.');
+                return redirect()
+                    ->route('v2.atk.admin.requests.show', $atkRequest)
+                    ->with('warning', 'Stok '.$itemName.' tidak cukup ('.$availableStock.' tersedia, '.$requestItem->qty.' diminta). Tandai barang ini sebagai Tidak diproses atau tunggu penambahan stok.');
             }
         }
 
@@ -358,7 +388,9 @@ class RequestApprovalController extends Controller
         $this->ensureAtkRequest($atkRequest);
 
         if ($atkRequest->status !== AtkRequest::STATUS_PENDING) {
-            return back()->with('warning', 'Pengajuan ini sudah difinalisasi.');
+            return redirect()
+                ->route('v2.atk.admin.requests.show', $atkRequest)
+                ->with('warning', 'Pengajuan ini sudah difinalisasi.');
         }
 
         try {

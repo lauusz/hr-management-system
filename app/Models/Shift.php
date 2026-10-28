@@ -13,10 +13,12 @@ class Shift extends Model
         'name',
         'description',
         'is_active',
+        'is_wita',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_wita' => 'boolean',
     ];
 
     public function days()
