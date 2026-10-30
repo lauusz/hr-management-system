@@ -269,7 +269,7 @@ class OvertimeRequestController extends Controller
         }
     }
 
-    public function destroy(OvertimeRequest $overtimeRequest, OvertimeApprovalService $approvalService)
+    public function destroy(Request $request, OvertimeRequest $overtimeRequest, OvertimeApprovalService $approvalService)
     {
         $user = Auth::user();
         $isOwner = (int) $user->id === (int) $overtimeRequest->user_id;
@@ -277,26 +277,39 @@ class OvertimeRequestController extends Controller
         $isHRD = in_array($roleStr, ['HRD', 'HR STAFF', 'MANAGER']);
 
         if (!$isOwner && !$isHRD) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Anda tidak berhak membatalkan pengajuan ini.'], 403);
+            }
             return redirect()->back()->with('error', 'Anda tidak berhak menghapus data ini.');
         }
 
         // Owner hanya bisa hapus jika status masih pending supervisor
         if ($isOwner) {
              if ($overtimeRequest->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => 'Hanya pengajuan yang belum diproses atasan yang bisa dibatalkan.'], 422);
+                }
                 return back()->with('error', 'Hanya pengajuan yang belum diproses atasan yang bisa dibatalkan.');
             }
         }
         
         // Update status to CANCELLED instead of deleting
         try {
-            $approvalService->locked($overtimeRequest, function ($locked) use ($isOwner) {
+            $approvalService->locked($overtimeRequest, function ($locked) use ($isOwner, $approvalService, $user) {
                 if ($isOwner && $locked->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
                     throw new \DomainException('Hanya pengajuan yang masih menunggu yang dapat dibatalkan.');
                 }
-                $locked->update(['status' => OvertimeRequest::STATUS_CANCELLED]);
+                $approvalService->cancelLocked($locked, $user);
             });
         } catch (\DomainException $exception) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $exception->getMessage()], 422);
+            }
             return back()->with('error', $exception->getMessage());
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Pengajuan lembur berhasil dibatalkan.']);
         }
 
         if ($isHRD && !$isOwner) return redirect()->route('hr.overtime-requests.master')->with('success', 'Pengajuan lembur berhasil dibatalkan oleh HRD.');

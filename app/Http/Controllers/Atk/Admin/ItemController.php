@@ -33,7 +33,9 @@ class ItemController extends Controller
 
     public function create()
     {
-        return view('atk.admin.items.create');
+        return view('atk.admin.items.create', [
+            'unitOptions' => AtkItem::availableUnitOptions(),
+        ]);
     }
 
     public function store(Request $request)
@@ -55,6 +57,8 @@ class ItemController extends Controller
         }
 
         unset($validated['image']);
+        $validated['unit_name'] = trim($validated['unit_name']);
+        $validated['content_unit_name'] = trim($validated['content_unit_name']);
         $validated['minimum_stock'] = $validated['minimum_stock'] ?? 0;
         $validated['min_request_qty'] = $validated['min_request_qty'] ?? 1;
 
@@ -90,6 +94,7 @@ class ItemController extends Controller
 
         return view('atk.admin.items.edit', [
             'item' => $item,
+            'unitOptions' => AtkItem::availableUnitOptions(),
         ]);
     }
 
@@ -114,6 +119,8 @@ class ItemController extends Controller
         }
 
         unset($validated['image']);
+        $validated['unit_name'] = trim($validated['unit_name']);
+        $validated['content_unit_name'] = trim($validated['content_unit_name']);
         $validated['minimum_stock'] = $validated['minimum_stock'] ?? 0;
         $validated['min_request_qty'] = $validated['min_request_qty'] ?? 1;
         $validated['is_active'] = $request->boolean('is_active');

@@ -194,6 +194,7 @@
             </div>
             @endif
 
+            @include('overtime_requests._system_note', ['overtime' => $overtimeRequest])
         </div>
     </div>
 
@@ -229,9 +230,24 @@
                         </a>
                     </div>
                 @endif
+                @if(in_array($st, [\App\Models\OvertimeRequest::STATUS_PENDING_SUPERVISOR, \App\Models\OvertimeRequest::STATUS_APPROVED_SUPERVISOR, \App\Models\OvertimeRequest::STATUS_APPROVED_HRD], true))
+                    <button type="button" data-modal-target="modal-cancel" class="sov-action-btn sov-action-btn--outline-danger">Batalkan Lembur</button>
+                @endif
             </div>
         </div>
     </div>
+
+    <x-modal
+        id="modal-cancel"
+        title="Batalkan Pengajuan Lembur?"
+        type="confirm"
+        variant="danger"
+        confirmLabel="Ya, Batalkan"
+        cancelLabel="Kembali"
+        :confirmFormAction="route('supervisor.overtime-requests.destroy', $overtimeRequest)"
+        confirmFormMethod="DELETE">
+        <p>Batalkan pengajuan lembur <strong>{{ $overtimeRequest->user->name }}</strong>?</p>
+    </x-modal>
 
     {{-- MODAL APPROVE --}}
     <x-modal

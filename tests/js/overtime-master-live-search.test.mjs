@@ -34,6 +34,8 @@ function setup() {
         'hom-search-reset': reset, 'hom-search-error': error, 'hom-filter-badge': badge,
     };
     const document = {
+        listeners: {},
+        addEventListener(name, listener) { this.listeners[name] = listener; },
         getElementById(id) { return elements[id]; },
         querySelector(selector) { return selector === '[data-overtime-results]' ? results : null; },
     };
@@ -44,14 +46,25 @@ function setup() {
         document, URL, URLSearchParams, AbortController,
         FormData: class { constructor() { return [['q', input.value], ['status', status.value], ['overtime_date_range', date.value], ['page', '3']]; } },
         DOMParser: class { parseFromString(html) { return { querySelector() { return { innerHTML: html }; } }; } },
-        window: { location: { origin: 'https://example.test' }, history: { replaceState(_state, _title, url) { lastUrl = String(url); } } },
+        window: { location: { origin: 'https://example.test', href: 'https://example.test/hr/overtime-requests/master?status=PENDING_SUPERVISOR&page=3' }, history: { replaceState(_state, _title, url) { lastUrl = String(url); } } },
         setTimeout(fn) { scheduled = fn; return 1; },
         clearTimeout() { scheduled = null; },
         fetch(url, options) { return new Promise(resolve => pending.push({ url, options, resolve })); },
     };
     vm.runInNewContext(script, context);
-    return { input, status, date, results, reset, panel, toggle, error, pending, runTimer: () => scheduled(), lastUrl: () => lastUrl };
+    return { document, input, status, date, results, reset, panel, toggle, error, pending, runTimer: () => scheduled(), lastUrl: () => lastUrl };
 }
+
+test('pembaruan setelah pembatalan mempertahankan filter dan halaman aktif', async () => {
+    const ui = setup();
+    ui.document.listeners['overtime-refresh-results']();
+    const request = ui.pending[0];
+    assert.equal(request.url.searchParams.get('status'), 'PENDING_SUPERVISOR');
+    assert.equal(request.url.searchParams.get('page'), '3');
+    request.resolve({ ok: true, text: async () => 'tabel terbaru' });
+    await finish();
+    assert.equal(ui.results.innerHTML, 'tabel terbaru');
+});
 
 const finish = () => new Promise(resolve => setImmediate(resolve));
 

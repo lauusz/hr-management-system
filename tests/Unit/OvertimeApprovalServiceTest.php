@@ -61,3 +61,18 @@ it('refuses a missing supervisor mapping and a manager decision', function () {
         Mockery::close();
     }
 });
+
+it('records the cancellation actor and time while retaining previous notes', function () {
+    try {
+        $actor = (new User)->forceFill(['id' => 10, 'name' => 'Sinta', 'role' => UserRole::SUPERVISOR]);
+        $request = Mockery::mock(OvertimeRequest::class)->makePartial();
+        $request->forceFill(['status' => OvertimeRequest::STATUS_APPROVED_SUPERVISOR, 'system_note' => 'Catatan sebelumnya']);
+        $request->shouldReceive('update')->once()->with(Mockery::on(fn ($data) => $data['status'] === OvertimeRequest::STATUS_CANCELLED
+            && str_starts_with($data['system_note'], "Catatan sebelumnya\n[System] Dibatalkan oleh Supervisor/Atasan (Sinta) pada ")
+            && preg_match('/\d{2} [A-Za-z]{3} \d{4} \d{2}:\d{2}$/', $data['system_note'])));
+
+        (new OvertimeApprovalService)->cancelLocked($request, $actor);
+    } finally {
+        Mockery::close();
+    }
+});

@@ -33,6 +33,8 @@
         </div>
     @endif
 
+    <div id="hom-cancel-success" class="hom-alert hom-alert--success" role="status" hidden></div>
+
     @php
         $defaultDateRange = now()->toDateString();
         $hasDateFilter = !empty($overtimeDateRange) && $overtimeDateRange !== $defaultDateRange;
@@ -221,9 +223,19 @@
 
     <dialog id="hom-detail-modal" aria-labelledby="hom-detail-modal-title">
         <div class="hom-detail-modal-header">
-            <h2 id="hom-detail-modal-title">Detail Lembur</h2>
+            <div class="hom-detail-modal-brand">
+                <div class="hom-detail-modal-icon" aria-hidden="true">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h2 id="hom-detail-modal-title">Detail Pengajuan Lembur</h2>
+                    <p class="hom-detail-modal-subtitle">Informasi jadwal, pekerjaan, dan persetujuan lembur</p>
+                </div>
+            </div>
             <button type="button" id="hom-detail-modal-close" aria-label="Tutup detail lembur">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
         </div>
         <iframe id="hom-detail-frame" title="Detail pengajuan lembur"></iframe>
@@ -289,6 +301,41 @@
                     if (content.querySelector('.hov-alert--success')) refreshOnClose = true;
                     content.addEventListener('keydown', (event) => {
                         if (event.key === 'Escape') dialog.close();
+                    });
+                    content.addEventListener('submit', async (event) => {
+                        const form = event.target.closest('form[data-overtime-cancel]');
+                        if (!form || event.defaultPrevented) return;
+                        event.preventDefault();
+                        const button = form.querySelector('button[type="submit"]');
+                        if (button.disabled) return;
+                        button.disabled = true;
+                        try {
+                            const response = await fetch(form.action, {
+                                method: 'POST',
+                                body: new FormData(form),
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            });
+                            const data = await response.json().catch(() => ({}));
+                            if (!response.ok) throw new Error(data.message || 'Pembatalan lembur gagal.');
+                            if (!data.message) throw new Error('Respons pembatalan tidak valid. Silakan periksa status pengajuan.');
+                            const success = document.getElementById('hom-cancel-success');
+                            success.textContent = data.message;
+                            success.hidden = false;
+                            refreshOnClose = false;
+                            if (dialog.open && frame.contentDocument === content) dialog.close();
+                            document.dispatchEvent(new Event('overtime-refresh-results'));
+                        } catch (error) {
+                            let alert = content.querySelector('[data-overtime-cancel-error]');
+                            if (!alert) {
+                                alert = content.createElement('div');
+                                alert.className = 'hov-alert hov-alert--error';
+                                alert.setAttribute('data-overtime-cancel-error', '');
+                                alert.setAttribute('role', 'alert');
+                                form.before(alert);
+                            }
+                            alert.textContent = error.message || 'Pembatalan lembur gagal. Silakan coba lagi.';
+                            button.disabled = false;
+                        }
                     });
                 } catch (error) {
                     // Dokumen dari luar origin aplikasi tidak dapat dibaca.
@@ -363,11 +410,13 @@
             form.elements.overtime_date_range.addEventListener('change', onFilterChange);
             form.addEventListener('submit', () => { clearTimeout(timer); request?.abort(); });
 
-            async function loadResults() {
-                const url = new URL(form.action, window.location.origin);
-                const params = new URLSearchParams(new FormData(form));
-                params.delete('page');
-                url.search = params.toString();
+            async function loadResults(url = null) {
+                if (!url) {
+                    url = new URL(form.action, window.location.origin);
+                    const params = new URLSearchParams(new FormData(form));
+                    params.delete('page');
+                    url.search = params.toString();
+                }
                 const currentRequest = new AbortController();
                 request = currentRequest;
                 results.classList.add('is-loading');
@@ -403,43 +452,95 @@
                 syncReset();
                 timer = setTimeout(loadResults, 350);
             });
+            document.addEventListener('overtime-refresh-results', () => {
+                clearTimeout(timer);
+                request?.abort();
+                errorMessage.hidden = true;
+                loadResults(new URL(window.location.href));
+            });
         })();
     </script>
 
     <style>
         #hom-detail-modal {
-            width: min(960px, calc(100% - 32px));
+            width: min(680px, calc(100% - 28px));
             max-width: none;
-            height: min(820px, 90vh);
-            max-height: calc(100% - 32px);
+            height: min(650px, 88vh);
+            max-height: calc(100% - 28px);
             padding: 0;
-            border: 0;
-            border-radius: 16px;
-            background: #fff;
-            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 20px;
+            background: #f8fafc;
+            box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.28), 0 0 0 1px rgba(15, 23, 42, 0.04);
+            overflow: hidden;
         }
         #hom-detail-modal[open] { display: flex; flex-direction: column; }
-        #hom-detail-modal::backdrop { background: rgba(0, 0, 0, 0.4); }
+        #hom-detail-modal::backdrop {
+            background: rgba(15, 23, 42, 0.48);
+            backdrop-filter: blur(3px);
+        }
         .hom-detail-modal-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
             padding: 14px 20px;
-            border-bottom: 1px solid #e5e7eb;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
         }
-        .hom-detail-modal-header h2 { margin: 0; font-size: 1rem; color: #111827; }
-        .hom-detail-modal-header button {
+        .hom-detail-modal-brand {
             display: flex;
-            padding: 8px;
-            border: 0;
-            border-radius: 8px;
-            background: transparent;
-            color: #6b7280;
-            cursor: pointer;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
         }
-        .hom-detail-modal-header button:hover { background: #f3f4f6; color: #111827; }
-        #hom-detail-frame { width: 100%; min-height: 0; flex: 1; border: 0; }
+        .hom-detail-modal-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(10, 61, 98, 0.1), rgba(20, 93, 160, 0.14));
+            color: #0a3d62;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .hom-detail-modal-header h2 {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+            line-height: 1.25;
+        }
+        .hom-detail-modal-subtitle {
+            margin: 2px 0 0;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #64748b;
+            line-height: 1.3;
+        }
+        .hom-detail-modal-header button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            background: #f8fafc;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+        }
+        .hom-detail-modal-header button:hover {
+            background: #fee2e2;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+        #hom-detail-frame { width: 100%; min-height: 0; flex: 1; border: 0; background: #f8fafc; }
         .hom-employee-name--button { padding: 0; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
         .hom-employee-name--button:hover, .hom-employee-name--button:focus-visible { color: #145da0; text-decoration: underline; outline: none; }
         #overtime-attendance-modal .modal-card { max-width: 520px; }
@@ -537,7 +638,7 @@
         .hom-filter-actions { display: flex; justify-content: flex-end; }
         .hom-btn-apply { padding: 10px 20px; cursor: pointer; border: 1px solid #145da0; border-radius: 10px; font-weight: 600; }
         .hom-btn-apply:hover { background: #0d4a83; }
-        .hom-btn-reset[hidden], .hom-filter-panel[hidden], .hom-filter-badge[hidden], #hom-search-error[hidden] { display: none; }
+        .hom-btn-reset[hidden], .hom-filter-panel[hidden], .hom-filter-badge[hidden], #hom-search-error[hidden], #hom-cancel-success[hidden] { display: none; }
         [data-overtime-results].is-loading { opacity: 0.55; pointer-events: none; }
         @media (min-width: 600px) {
             .hom-search-row { flex-direction: row; align-items: center; flex-wrap: wrap; padding: 16px 20px; }

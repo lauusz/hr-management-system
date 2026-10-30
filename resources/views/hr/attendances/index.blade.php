@@ -1,4 +1,10 @@
-<x-app title="Master Absensi">
+<x-app :title="auth()->user()->isHR() ? 'Master Absensi' : 'Absensi Tim'">
+
+    @if(auth()->user()->isHR())
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+            <a href="{{ route('hr.attendance-access.index') }}" class="attendance-access-link">Atur Akses Absensi</a>
+        </div>
+    @endif
 
     @php
         $hasDateFilter = request()->filled('date_start') || request()->filled('date_end');
@@ -92,16 +98,22 @@
                     @forelse($items as $session)
                     @php
                         $actionEvents = $session->events;
-                        $hasEvidence = $actionEvents->contains(fn ($event) => $event->photo || ($event->latitude !== null && $event->longitude !== null));
+                        $hasEvidence = $actionEvents->contains(fn ($event) => $event->is_flexible === true || $event->photo || ($event->latitude !== null && $event->longitude !== null));
                         $thumbnailEvent = $actionEvents->first(fn ($event) => $event->photo) ?? $actionEvents->first();
                         $clockInEvidence = $session->clock_ins->map(fn ($event) => [
                             'time' => $event->local_occurred_at->format('H:i'),
+                            'date' => $event->local_occurred_at->format('d/m/y'),
+                            'is_flexible' => $event->is_flexible === true,
+                            'notes' => $event->notes ?? '',
                             'photo' => $event->photo ? asset('storage/'.$event->photo) : '',
                             'latitude' => $event->latitude ?? '',
                             'longitude' => $event->longitude ?? '',
                         ])->values();
                         $clockOutEvidence = $session->clock_outs->map(fn ($event) => [
                             'time' => $event->local_occurred_at->format('H:i'),
+                            'date' => $event->local_occurred_at->format('d/m/y'),
+                            'is_flexible' => $event->is_flexible === true,
+                            'notes' => $event->notes ?? '',
                             'photo' => $event->photo ? asset('storage/'.$event->photo) : '',
                             'latitude' => $event->latitude ?? '',
                             'longitude' => $event->longitude ?? '',
@@ -143,28 +155,16 @@
                             @else <span class="text-muted">-</span> @endif
                         </td>
                         <td class="attendance-action-cell">
-                            @if($actionEvents->contains(fn ($event) => $event->is_flexible === true || $event->approval_status === 'PENDING'))
+                            @if($actionEvents->contains(fn ($event) => auth()->user()->isHR() && $event->approval_status === 'PENDING'))
                             <details class="clock-side-move">
                                 <summary aria-label="Opsi koreksi tipe event">⋮</summary>
                                 <div class="clock-side-move__menu">
-                                    @foreach($actionEvents as $event)
+                                    @foreach($actionEvents->where('approval_status', 'PENDING') as $event)
                                     @php($eventLabel = $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out')
                                     @php($destinationLabel = $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock Out' : 'Clock In')
                                     <div class="clock-side-move__event">
                                     <span class="clock-side-move__event-label">{{ $eventLabel }} · {{ $event->local_occurred_at->format('H:i') }}</span>
-                                    @if($event->is_flexible === true)
-                                    <button type="button" class="clock-side-move__button" data-attendance-detail
-                                        data-attendance-detail-event="{{ $event->id }}"
-                                        data-attendance-detail-name="{{ $session->user->name }}"
-                                        data-attendance-detail-type="{{ $eventLabel }}"
-                                        data-attendance-detail-time="{{ $event->local_occurred_at->format('H:i') }}"
-                                        data-attendance-detail-date="{{ $event->local_occurred_at->format('d/m/y') }}"
-                                        data-attendance-detail-notes="{{ $event->notes ?? '' }}"
-                                        data-attendance-detail-photo="{{ $event->photo ? asset('storage/'.$event->photo) : '' }}"
-                                        data-attendance-detail-latitude="{{ $event->latitude ?? '' }}"
-                                        data-attendance-detail-longitude="{{ $event->longitude ?? '' }}">Detail</button>
-                                    @endif
-                                    @if($event->approval_status === 'PENDING')
+                                    @if(auth()->user()->isHR() && $event->approval_status === 'PENDING')
                                     <button type="button" class="clock-side-move__button" data-attendance-move
                                         data-attendance-move-url="{{ route('hr.attendances.move_event_type', $event) }}"
                                         data-attendance-move-name="{{ $session->user->name }}"
@@ -211,30 +211,9 @@
         </form>
     </x-modal>
 
-    <x-modal id="attendance-detail-modal" title="Detail Absensi Fleksibel" type="info" variant="info" cancelLabel="Tutup">
-        <dl class="attendance-detail-grid">
-            <div><dt>Karyawan</dt><dd id="attendance-detail-name"></dd></div>
-            <div><dt>Tipe</dt><dd id="attendance-detail-type"></dd></div>
-            <div><dt>Jam</dt><dd id="attendance-detail-time"></dd></div>
-            <div><dt>Tanggal</dt><dd id="attendance-detail-date"></dd></div>
-            <div class="attendance-detail-grid__full"><dt>Alasan</dt><dd id="attendance-detail-notes"></dd></div>
-        </dl>
-        <div class="attendance-evidence-grid attendance-detail-evidence-grid">
-            <section class="attendance-evidence-panel">
-                <h4>Foto Kehadiran</h4>
-                <img id="attendance-detail-photo" alt="Foto absensi" hidden>
-                <p id="attendance-detail-photo-empty" class="attendance-evidence-empty">Foto tidak tersedia.</p>
-            </section>
-            <section class="attendance-evidence-panel">
-                <h4>Lokasi Kehadiran</h4>
-                <p id="attendance-detail-coordinates" class="attendance-evidence-coordinates" hidden></p>
-                <iframe id="attendance-detail-map" title="Peta lokasi kehadiran" loading="lazy" referrerpolicy="no-referrer-when-downgrade" hidden></iframe>
-                <p id="attendance-detail-location-empty" class="attendance-evidence-empty">Lokasi tidak tersedia.</p>
-            </section>
-        </div>
-    </x-modal>
-
     <style>
+        .attendance-access-link { display:inline-flex; padding:10px 14px; border:1px solid #bfdbfe; border-radius:10px; background:#fff; color:#145da0; font-size:13px; font-weight:600; text-decoration:none; }
+        .attendance-access-link:hover { background:#eff6ff; }
         /* --- UTILITY --- */
         .mb-4 { margin-bottom: 16px; }
         .text-center { text-align: center; }
@@ -532,7 +511,6 @@
         }
 
         #attendance-evidence-modal .modal-card { max-width: 1080px; }
-        #attendance-detail-modal .modal-card { max-width: 1080px; }
         .attendance-evidence-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: #111827; }
         .attendance-evidence-meta span { padding: 3px 8px; color: #176b42; font-size: 11px; font-weight: 700; background: #e9f8ef; border-radius: 999px; }
         .attendance-evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
@@ -542,19 +520,12 @@
         .attendance-evidence-entry { padding-top: 12px; border-top: 1px solid #e2e8f0; }
         .attendance-evidence-entry:first-child { padding-top: 0; border-top: 0; }
         .attendance-evidence-entry-time { margin: 0 0 8px; color: #176b42; font-size: 12px; font-weight: 700; }
-        .attendance-evidence-photo,
-        #attendance-detail-photo { display: block; width: 100%; height: min(58vh, 520px); object-fit: contain; border-radius: 8px; background: #e2e8f0; }
-        .attendance-evidence-map,
-        #attendance-detail-map { display: block; width: 100%; height: min(58vh, 520px); border: 0; border-radius: 8px; background: #e2e8f0; }
+        .attendance-evidence-photo { display: block; width: 100%; height: min(30vh, 240px); object-fit: contain; border-radius: 8px; background: #e2e8f0; }
+        .attendance-evidence-map { display: block; width: 100%; height: min(30vh, 240px); border: 0; border-radius: 8px; background: #e2e8f0; }
         .attendance-evidence-coordinates { margin: -2px 0 10px; color: #64748b; font-family: monospace; font-size: 12px; }
+        .attendance-evidence-photo-spacer { visibility: hidden; }
         .attendance-evidence-empty { display: flex; align-items: center; justify-content: center; min-height: 180px; margin: 0; color: #94a3b8; font-size: 13px; font-style: italic; text-align: center; }
-        #attendance-evidence-modal [hidden],
-        #attendance-detail-modal [hidden] { display: none !important; }
-        .attendance-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0 0 16px; }
-        .attendance-detail-grid div { min-width: 0; }
-        .attendance-detail-grid dt { color: #64748b; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
-        .attendance-detail-grid dd { margin: 3px 0 0; color: #1f2937; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; white-space: pre-wrap; }
-        .attendance-detail-grid__full { grid-column: 1 / -1; }
+        .attendance-evidence-notes { margin: 0 0 10px; color: #334155; font-size: 12px; overflow-wrap: anywhere; white-space: pre-wrap; }
 
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
@@ -600,10 +571,9 @@
 
         @media (max-width: 767px) {
             .attendance-evidence-grid { grid-template-columns: 1fr; }
-            #attendance-evidence-photo,
-            #attendance-detail-photo,
-            #attendance-evidence-map,
-            #attendance-detail-map { height: min(48vh, 360px); }
+            .attendance-evidence-photo-spacer { display: none; }
+            .attendance-evidence-photo,
+            .attendance-evidence-map { height: min(30vh, 240px); }
         }
     </style>
 
@@ -644,7 +614,6 @@
                     results.innerHTML = nextResults.innerHTML;
 
                     initializeAttendanceEvidenceButtons();
-                    initializeAttendanceDetailButtons();
                     initializeAttendanceMoveButtons();
                     window.history.replaceState(null, '', url);
                 } catch (error) {
@@ -762,7 +731,7 @@
                 wrapper.className = 'attendance-evidence-entry';
                 const time = document.createElement('p');
                 time.className = 'attendance-evidence-entry-time';
-                time.textContent = entry.time;
+                time.textContent = `${entry.time} · ${entry.date}${entry.is_flexible ? ' · Fleksibel' : ''}`;
                 const evidence = document.createElement('div');
                 evidence.className = 'attendance-evidence-grid';
 
@@ -792,6 +761,10 @@
                     const label = document.createElement('p');
                     label.className = 'attendance-evidence-coordinates';
                     label.textContent = coordinates;
+                    const spacer = label.cloneNode(true);
+                    spacer.classList.add('attendance-evidence-photo-spacer');
+                    spacer.setAttribute('aria-hidden', 'true');
+                    photoTitle.after(spacer);
                     const map = document.createElement('iframe');
                     map.className = 'attendance-evidence-map';
                     map.title = 'Peta lokasi kehadiran';
@@ -807,64 +780,15 @@
                 }
 
                 evidence.append(photo, location);
-                wrapper.append(time, evidence);
+                wrapper.append(time);
+                if (entry.is_flexible) {
+                    const notes = document.createElement('p');
+                    notes.className = 'attendance-evidence-notes';
+                    notes.textContent = `Alasan: ${entry.notes || '-'}`;
+                    wrapper.append(notes);
+                }
+                wrapper.append(evidence);
                 list.append(wrapper);
-            });
-        }
-
-        function initializeAttendanceDetailButtons() {
-            const modal = document.getElementById('attendance-detail-modal');
-            const fields = {
-                name: document.getElementById('attendance-detail-name'),
-                type: document.getElementById('attendance-detail-type'),
-                time: document.getElementById('attendance-detail-time'),
-                date: document.getElementById('attendance-detail-date'),
-                notes: document.getElementById('attendance-detail-notes'),
-                photo: document.getElementById('attendance-detail-photo'),
-                photoEmpty: document.getElementById('attendance-detail-photo-empty'),
-                coordinates: document.getElementById('attendance-detail-coordinates'),
-                map: document.getElementById('attendance-detail-map'),
-                locationEmpty: document.getElementById('attendance-detail-location-empty'),
-            };
-
-            document.querySelectorAll('[data-attendance-detail]').forEach(function(button) {
-                if (button.dataset.attendanceDetailInitialized) return;
-
-                button.dataset.attendanceDetailInitialized = 'true';
-                button.addEventListener('click', function() {
-                    fields.name.textContent = this.dataset.attendanceDetailName;
-                    fields.type.textContent = this.dataset.attendanceDetailType;
-                    fields.time.textContent = this.dataset.attendanceDetailTime;
-                    fields.date.textContent = this.dataset.attendanceDetailDate;
-                    fields.notes.textContent = this.dataset.attendanceDetailNotes || 'Alasan tidak tersedia';
-
-                    if (this.dataset.attendanceDetailPhoto) {
-                        fields.photo.src = this.dataset.attendanceDetailPhoto;
-                        fields.photo.hidden = false;
-                        fields.photoEmpty.hidden = true;
-                    } else {
-                        fields.photo.removeAttribute('src');
-                        fields.photo.hidden = true;
-                        fields.photoEmpty.hidden = false;
-                    }
-
-                    if (this.dataset.attendanceDetailLatitude && this.dataset.attendanceDetailLongitude) {
-                        const coordinates = `${this.dataset.attendanceDetailLatitude}, ${this.dataset.attendanceDetailLongitude}`;
-                        fields.coordinates.textContent = coordinates;
-                        fields.coordinates.hidden = false;
-                        fields.map.src = `https://www.google.com/maps?q=${encodeURIComponent(coordinates)}&z=16&output=embed`;
-                        fields.map.hidden = false;
-                        fields.locationEmpty.hidden = true;
-                    } else {
-                        fields.coordinates.hidden = true;
-                        fields.map.removeAttribute('src');
-                        fields.map.hidden = true;
-                        fields.locationEmpty.hidden = false;
-                    }
-                    closeOtherAttendanceActionMenus();
-                    modal.style.display = 'flex';
-                    document.body.style.overflow = 'hidden';
-                });
             });
         }
 
@@ -892,7 +816,6 @@
             }
 
             initializeAttendanceEvidenceButtons();
-            initializeAttendanceDetailButtons();
             initializeAttendanceMoveButtons();
 
             const moveForm = document.getElementById('moveClockSideForm');

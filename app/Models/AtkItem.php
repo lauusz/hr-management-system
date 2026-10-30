@@ -28,6 +28,53 @@ class AtkItem extends Model
         'set',
     ];
 
+    /**
+     * Gabungan pilihan satuan bawaan (UNIT_OPTIONS) dengan satuan unik
+     * yang sudah pernah disimpan di tabel atk_items (unit_name & content_unit_name).
+     *
+     * @return list<string>
+     */
+    public static function availableUnitOptions(): array
+    {
+        $seen = [];
+        $options = [];
+
+        foreach (self::UNIT_OPTIONS as $unit) {
+            $trimmed = trim($unit);
+            $normalized = mb_strtolower($trimmed);
+            if ($trimmed !== '' && ! isset($seen[$normalized])) {
+                $seen[$normalized] = true;
+                $options[] = $trimmed;
+            }
+        }
+
+        $customUnits = static::query()
+            ->whereNotNull('unit_name')
+            ->distinct()
+            ->pluck('unit_name')
+            ->merge(
+                static::query()
+                    ->whereNotNull('content_unit_name')
+                    ->distinct()
+                    ->pluck('content_unit_name')
+            )
+            ->filter(fn ($value) => is_string($value) && trim($value) !== '')
+            ->map(fn (string $value) => trim($value))
+            ->unique()
+            ->sort(fn (string $a, string $b) => strcasecmp($a, $b))
+            ->values();
+
+        foreach ($customUnits as $unit) {
+            $normalized = mb_strtolower($unit);
+            if (! isset($seen[$normalized])) {
+                $seen[$normalized] = true;
+                $options[] = $unit;
+            }
+        }
+
+        return $options;
+    }
+
     protected $fillable = [
         'module',
         'atk_category_id',

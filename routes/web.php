@@ -265,6 +265,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/password', [AuthController::class, 'showChangePasswordForm'])->name('settings.password');
     Route::put('/settings/password', [AuthController::class, 'updatePassword'])->name('settings.password.update');
 
+    Route::get('/supervisor/attendances', [HRAttendanceController::class, 'team'])->name('supervisor.attendances.index');
+
     // --- ROUTE HRD & HR STAFF ---
     Route::middleware('role:HRD,HR STAFF')->group(function () {
 
@@ -287,6 +289,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/shifts/{shift}/edit', [ShiftController::class, 'edit'])->name('hr.shifts.edit');
         Route::put('/hr/shifts/{shift}', [ShiftController::class, 'update'])->name('hr.shifts.update');
         Route::delete('/hr/shifts/{shift}', [ShiftController::class, 'destroy'])->name('hr.shifts.destroy');
+
+        Route::get('/hr/shift-rotations', [\App\Http\Controllers\HR\ShiftRotationController::class, 'index'])->name('hr.shift-rotations.index');
+        Route::post('/hr/shift-rotations', [\App\Http\Controllers\HR\ShiftRotationController::class, 'store'])->name('hr.shift-rotations.store');
+        Route::post('/hr/shift-rotations/{rotation}/stop', [\App\Http\Controllers\HR\ShiftRotationController::class, 'stop'])->name('hr.shift-rotations.stop');
 
         Route::get('/hr/office-holidays', [OfficeHolidayController::class, 'index'])->name('hr.office-holidays.index');
         Route::post('/hr/office-holidays', [OfficeHolidayController::class, 'store'])->name('hr.office-holidays.store');
@@ -363,6 +369,8 @@ Route::middleware('auth')->group(function () {
 
         // [UBAH DISINI] MASTER ATTENDANCE (Hanya List)
         Route::get('/hr/attendances', [HRAttendanceController::class, 'index'])->name('hr.attendances.index');
+        Route::get('/hr/attendance-access', [\App\Http\Controllers\HRAttendanceAccessController::class, 'index'])->name('hr.attendance-access.index');
+        Route::post('/hr/attendance-access/{viewer}', [\App\Http\Controllers\HRAttendanceAccessController::class, 'update'])->name('hr.attendance-access.update');
         Route::post('/hr/attendances/{event}/move-event-type', [HRAttendanceController::class, 'moveEventType'])->name('hr.attendances.move_event_type');
 
         // APPROVAL ATTENDANCE (WFO dan Dinas Luar)
@@ -434,6 +442,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/overtime-requests/master', [SupervisorOvertimeController::class, 'master'])->name('overtime-requests.master');
         Route::get('/overtime-requests', [SupervisorOvertimeController::class, 'index'])->name('overtime-requests.index');
         Route::get('/overtime-requests/{overtimeRequest}', [SupervisorOvertimeController::class, 'show'])->name('overtime-requests.show');
+        Route::delete('/overtime-requests/{overtimeRequest}', [SupervisorOvertimeController::class, 'destroy'])->name('overtime-requests.destroy');
         Route::post('/overtime-requests/{overtimeRequest}/approve', [\App\Http\Controllers\OvertimeApprovalController::class, 'approve'])->name('overtime-requests.approve');
         Route::post('/overtime-requests/{overtimeRequest}/reject', [\App\Http\Controllers\OvertimeApprovalController::class, 'reject'])->name('overtime-requests.reject');
     });

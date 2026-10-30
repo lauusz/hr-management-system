@@ -6,6 +6,7 @@ use App\Models\Shift;
 use App\Models\User;
 use App\Models\EmployeeShift;
 use App\Models\AttendanceLocation;
+use App\Services\ShiftRotationService;
 use Illuminate\Http\Request;
 
 class EmployeeShiftController extends Controller
@@ -39,6 +40,11 @@ class EmployeeShiftController extends Controller
             'shift_id'    => ['nullable', 'exists:shifts,id'],
             'location_id' => ['nullable', 'exists:attendance_locations,id'],
         ]);
+
+        $currentShiftId = EmployeeShift::where('user_id', $user->id)->value('shift_id');
+        if ((int) $currentShiftId !== (int) ($data['shift_id'] ?? null)) {
+            app(ShiftRotationService::class)->ensureNotRotating([$user->id]);
+        }
 
         if (empty($data['shift_id'])) {
             EmployeeShift::where('user_id', $user->id)->delete();
@@ -82,6 +88,9 @@ class EmployeeShiftController extends Controller
 
         $shiftId = $validated['shift_id'] ?? null;
         $existing = EmployeeShift::where('user_id', $user->id)->first();
+        if ((int) $existing?->shift_id !== (int) $shiftId) {
+            app(ShiftRotationService::class)->ensureNotRotating([$user->id]);
+        }
 
         if (empty($shiftId)) {
             if ($existing) {

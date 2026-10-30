@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\ProcessPayrollDeductionLoanRepaymentsJob;
+use App\Jobs\ProcessShiftRotationsJob;
 use App\Models\User;
 use App\Services\Attendance\MissedClockOutService;
 use App\Services\LeaveBalanceService;
@@ -187,6 +188,8 @@ Artisan::command('loan:auto-repay-payroll-deduction {date?} {--sync}', function 
 // =================================================================
 // JADWAL GLOBAL (SCHEDULER)
 // =================================================================
+
+Schedule::job(new ProcessShiftRotationsJob)->everyMinute()->timezone('Asia/Jakarta');
 
 // 1. Robot Cuti: cek anniversary setiap hari dan reset tahunan pada 1 Januari.
 Schedule::command('leave:update-balances')

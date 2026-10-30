@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable
 {
@@ -122,6 +123,16 @@ class User extends Authenticatable
             UserRole::HRD,
             UserRole::HR_STAFF,
         ]);
+    }
+
+    public function attendanceVisibleEmployees()
+    {
+        return $this->belongsToMany(User::class, 'attendance_view_access', 'viewer_id', 'employee_id');
+    }
+
+    public function canViewTeamAttendance(): bool
+    {
+        return Schema::hasTable('attendance_view_access') && $this->attendanceVisibleEmployees()->exists();
     }
 
     public function isManager(): bool

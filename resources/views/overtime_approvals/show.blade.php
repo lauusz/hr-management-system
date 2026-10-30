@@ -107,6 +107,7 @@
                         <p class="lrs-note-text">{{ $overtimeRequest->rejection_note }}</p>
                     </section>
                 @endif
+                @include('overtime_requests._system_note', ['overtime' => $overtimeRequest])
             </div>
 
             <div class="lrs-side-col">

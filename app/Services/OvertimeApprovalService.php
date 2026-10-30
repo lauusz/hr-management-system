@@ -11,6 +11,26 @@ use Illuminate\Support\Facades\DB;
 
 class OvertimeApprovalService
 {
+    public function cancelLocked(OvertimeRequest $overtime, User $actor): void
+    {
+        if ($overtime->status === OvertimeRequest::STATUS_CANCELLED) {
+            return;
+        }
+
+        $role = $actor->role instanceof UserRole ? $actor->role->value : (string) $actor->role;
+        $actorLabel = match (strtoupper($role)) {
+            'HRD', 'HR STAFF' => 'HR',
+            'SUPERVISOR', 'MANAGER' => 'Supervisor/Atasan',
+            default => 'Pemohon',
+        };
+        $note = '[System] Dibatalkan oleh '.$actorLabel.' ('.$actor->name.') pada '.now()->format('d M Y H:i');
+
+        $overtime->update([
+            'status' => OvertimeRequest::STATUS_CANCELLED,
+            'system_note' => $overtime->system_note ? $overtime->system_note."\n".$note : $note,
+        ]);
+    }
+
     public function locked(OvertimeRequest $overtime, callable $callback): mixed
     {
         return DB::transaction(function () use ($overtime, $callback) {

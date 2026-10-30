@@ -60,11 +60,12 @@
         {{-- Bottom controls --}}
         <div class="capture-controls clock-in-controls">
             <p class="capture-hint" id="statusMessage" aria-live="polite">Menyiapkan kamera dan lokasi...</p>
+            <button type="button" id="btnRetryLocation" class="capture-retry" hidden>Coba Lagi</button>
 
             @if($isFlexible)
                 <label id="attendanceReasonField" class="capture-reason" for="attendanceReason" hidden>
-                    <span>Alasan Clock In di luar lokasi absen <span aria-hidden="true">*</span></span>
-                    <textarea id="attendanceReason" name="notes" rows="2" placeholder="Tuliskan alasan absensi di luar lokasi absen"></textarea>
+                    <span>Keterangan Absen</span>
+                    <textarea id="attendanceReason" name="notes" rows="2" placeholder="Tuliskan keterangan absen"></textarea>
                 </label>
             @endif
 
@@ -369,6 +370,18 @@
             line-height: 1.4;
         }
 
+        .capture-retry {
+            align-self: center;
+            padding: 8px 18px;
+            border: 1px solid var(--primary, #145DA0);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--primary, #145DA0);
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
         /* ============================================= */
         /* BUTTONS                                       */
         /* ============================================= */
@@ -479,27 +492,105 @@
         /* ============================================= */
         @media (min-width: 768px) {
             .capture-shell {
-                max-width: 480px;
+                display: grid;
+                grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+                grid-template-areas: "back back" "status status" "camera controls";
+                max-width: 1000px;
                 margin: 0 auto;
                 gap: 12px;
-                padding: 16px;
-                min-height: 600px;
-                max-height: 90vh;
+                padding: 0;
             }
 
             .attendance-back {
+                grid-area: back;
+                justify-self: start;
                 height: 40px;
                 padding: 0 14px 0 12px;
                 font-size: 0.8125rem;
             }
 
             .capture-viewport {
-                min-height: 320px;
+                grid-area: camera;
+                height: clamp(200px, calc(100dvh - 235px), 520px);
+                min-height: 0;
             }
+
+            .capture-strip { grid-area: status; }
+            .capture-controls { grid-area: controls; align-self: start; }
 
             .capture-btn {
                 padding: 14px;
                 font-size: 0.9375rem;
+            }
+        }
+
+        @media (min-width: 1025px) {
+            .capture-shell {
+                max-width: none;
+                grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+                grid-template-areas: "back status" "camera controls";
+                align-items: start;
+                gap: 20px;
+                padding: 24px;
+                background: var(--white, #fff);
+                border: 1px solid var(--border, #E5E7EB);
+                border-radius: 20px;
+            }
+
+            .capture-strip {
+                align-self: center;
+                justify-content: flex-end;
+            }
+
+            .capture-pill {
+                min-height: 30px;
+                padding: 6px 10px;
+                font-size: 0.75rem;
+            }
+
+            .capture-viewport {
+                height: auto;
+                min-height: 300px;
+                aspect-ratio: 4 / 3;
+            }
+
+            .capture-controls {
+                align-self: stretch;
+                min-width: 0;
+                gap: 16px;
+                padding: 20px;
+                background: var(--gray-50, #F5F7FA);
+                border: 1px solid var(--border, #E5E7EB);
+                border-radius: 16px;
+            }
+
+            .capture-hint {
+                text-align: left;
+                font-size: 0.8125rem;
+                line-height: 1.6;
+            }
+
+            .capture-retry {
+                align-self: flex-start;
+                font-size: 0.8125rem;
+            }
+
+            .capture-reason {
+                gap: 8px;
+                font-size: 0.8125rem;
+            }
+
+            .capture-reason textarea {
+                min-height: 104px;
+                padding: 12px;
+                font-size: 0.875rem;
+                font-weight: 400;
+                line-height: 1.5;
+            }
+
+            #btnGroupCapture,
+            #btnGroupAction {
+                margin-top: auto;
             }
         }
 
@@ -603,17 +694,16 @@
             }
 
             .clock-in-status {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 10px;
+                display: flex;
+                gap: 6px;
             }
 
             .clock-in-status .capture-pill {
-                min-height: 40px;
+                min-height: 28px;
                 justify-content: center;
-                padding: 8px 10px;
-                border-radius: 14px;
-                font-size: .75rem;
+                padding: 4px 8px;
+                border-radius: 999px;
+                font-size: .6875rem;
             }
 
             .clock-in-status .capture-dot {
@@ -622,6 +712,8 @@
 
             .capture-pill__icon {
                 flex: 0 0 auto;
+                width: 14px;
+                height: 14px;
             }
 
             .clock-in-camera {
@@ -685,8 +777,8 @@
             }
 
             .clock-in-status .capture-pill {
-                min-height: 34px;
-                padding: 5px 8px;
+                min-height: 28px;
+                padding: 4px 8px;
                 font-size: .625rem;
             }
 
@@ -709,6 +801,7 @@
         const imgPreview = document.getElementById('capturePreview');
         const flashOverlay = document.getElementById('flashOverlay');
         const statusMsg = document.getElementById('statusMessage');
+        const btnRetryLocation = document.getElementById('btnRetryLocation');
         const gpsText = document.getElementById('gpsText');
         const gpsDot = document.getElementById('gpsIndicator');
         const gpsPill = document.getElementById('gpsPill');
@@ -758,6 +851,7 @@
 
         function showGpsError(label, message) {
             isLocationValid = false;
+            btnRetryLocation.hidden = false;
             gpsText.textContent = label;
             gpsDot.style.backgroundColor = 'var(--error, #EF4444)';
             gpsOverlayText.textContent = label;
@@ -811,6 +905,21 @@
             }
         }
 
+        btnRetryLocation.addEventListener('click', () => {
+            if (!window.isSecureContext || !navigator.geolocation) {
+                window.location.reload();
+                return;
+            }
+
+            btnRetryLocation.disabled = true;
+            btnRetryLocation.textContent = 'Mencari lokasi...';
+            navigator.geolocation.getCurrentPosition(
+                () => window.location.reload(),
+                () => window.location.reload(),
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
+        });
+
         // 2. Logic GPS (High Accuracy)
         function initGPS() {
             if (!window.isSecureContext) {
@@ -833,6 +942,7 @@
 
                         if (acc <= 100) {
                             isLocationValid = true;
+                            btnRetryLocation.hidden = true;
                             gpsText.textContent = `Akurat (±${Math.round(acc)}m)`;
                             gpsDot.style.backgroundColor = 'var(--success, #22C55E)';
                             gpsOverlayText.textContent = `Akurat (±${Math.round(acc)}m)`;
@@ -841,13 +951,14 @@
                             gpsPill.className = 'capture-pill capture-pill--ok';
                         } else {
                             isLocationValid = false;
+                            btnRetryLocation.hidden = false;
                             gpsText.textContent = `Lemah (±${Math.round(acc)}m)`;
                             gpsDot.style.backgroundColor = 'var(--warning, #F59E0B)';
                             gpsOverlayText.textContent = `Lemah (±${Math.round(acc)}m)`;
                             gpsOverlayDot.style.backgroundColor = 'var(--warning, #F59E0B)';
                             gpsCard.className = 'capture-gps-badge gps-weak';
                             gpsPill.className = 'capture-pill capture-pill--warn';
-                            statusMsg.textContent = 'Aktifkan Lokasi Presisi agar akurasi lokasi maksimal ±100 m.';
+                            statusMsg.textContent = 'Aktifkan Lokasi Presisi agar akurasi lokasi maksimal ±100 m, lalu tekan Coba Lagi.';
                             statusMsg.style.color = 'var(--warning, #F59E0B)';
                         }
                         checkReadiness();

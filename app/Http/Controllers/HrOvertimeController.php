@@ -24,7 +24,7 @@ class HrOvertimeController extends Controller
         // Filter: Search User Name
         if ($request->filled('q')) {
             $query->whereHas('user', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->q . '%');
+                $q->where('name', 'like', '%'.$request->q.'%');
             });
         }
 
@@ -63,7 +63,7 @@ class HrOvertimeController extends Controller
                     if ($startObj->format('Y-m') === $endObj->format('Y-m')) {
                         $periodLabel = $startObj->translatedFormat('F Y');
                     } else {
-                        $periodLabel = $startObj->translatedFormat('d M') . ' - ' . $endObj->translatedFormat('d M Y');
+                        $periodLabel = $startObj->translatedFormat('d M').' - '.$endObj->translatedFormat('d M Y');
                     }
                 } catch (\Exception $e) {
                     $periodLabel = 'Periode Tertentu';
@@ -80,7 +80,7 @@ class HrOvertimeController extends Controller
         $attendanceMap = $this->buildAttendanceMap($overtimes);
         $recapData = [];
         foreach ($overtimes as $overtime) {
-            $key = $overtime->user_id . '|' . $overtime->overtime_date->format('Y-m-d');
+            $key = $overtime->user_id.'|'.$overtime->overtime_date->format('Y-m-d');
             $attendance = $attendanceMap[$key] ?? null;
             $recap = $this->computeRecapData($overtime, $attendance);
             $recap['clock_ins'] = $attendance && isset($attendance->clock_ins)
@@ -118,16 +118,18 @@ class HrOvertimeController extends Controller
 
     public function show(Request $request, OvertimeRequest $overtimeRequest)
     {
-        $overtimeRequest->load(['user.overtimeApproverAssignment.supervisor', 'user.overtimeApproverAssignment.manager', 'approvalActions']);
-        $attendance = Attendance::where('user_id', $overtimeRequest->user_id)
-            ->whereDate('date', $overtimeRequest->overtime_date)
-            ->first();
-
-        $recap = $this->computeRecapData($overtimeRequest, $attendance);
+        $overtimeRequest->load([
+            'user.position',
+            'user.division',
+            'user.overtimeApproverAssignment.supervisor',
+            'user.overtimeApproverAssignment.manager',
+            'approvalActions',
+            'attachments',
+        ]);
 
         $view = $request->boolean('modal') ? 'hr.overtime_requests.detail-modal' : 'hr.overtime_requests.show';
 
-        return view($view, compact('overtimeRequest', 'attendance', 'recap'));
+        return view($view, compact('overtimeRequest'));
     }
 
     public function approve(Request $request, OvertimeRequest $overtimeRequest)
@@ -163,7 +165,7 @@ class HrOvertimeController extends Controller
 
         $map = [];
         foreach ($attendances as $att) {
-            $key = $att->user_id . '|' . $att->date->format('Y-m-d');
+            $key = $att->user_id.'|'.$att->date->format('Y-m-d');
             $map[$key] = $att;
         }
 
@@ -237,10 +239,10 @@ class HrOvertimeController extends Controller
     private function computeRecapData(OvertimeRequest $overtime, ?object $attendance): array
     {
         $requestedStart = Carbon::parse(
-            $overtime->overtime_date->toDateString() . ' ' . $overtime->start_time->format('H:i:s')
+            $overtime->overtime_date->toDateString().' '.$overtime->start_time->format('H:i:s')
         );
         $requestedEnd = Carbon::parse(
-            $overtime->overtime_date->toDateString() . ' ' . $overtime->end_time->format('H:i:s')
+            $overtime->overtime_date->toDateString().' '.$overtime->end_time->format('H:i:s')
         );
 
         if ($requestedEnd->lt($requestedStart)) {

@@ -8,6 +8,7 @@ use App\Models\EmployeeShift;
 use App\Models\Position;
 use App\Models\Shift;
 use App\Models\User;
+use App\Services\ShiftRotationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -147,6 +148,10 @@ class ScheduleController extends Controller
             'location_ids.*' => ['required', 'integer', 'distinct', Rule::exists('attendance_locations', 'id')->where('is_active', true)],
         ]);
 
+        if ($hasShift) {
+            app(ShiftRotationService::class)->ensureNotRotating($validated['user_ids']);
+        }
+
         $this->ensureLocationAssignmentsReady($usesLocationAssignments);
 
         $isAllLocations = $validated['location_mode'] === 'all';
@@ -238,6 +243,10 @@ class ScheduleController extends Controller
             'user_id.unique' => 'Karyawan ini sudah memiliki jadwal shift.',
         ]);
 
+        if ((int) $schedule->shift_id !== (int) $validated['shift_id'] || (int) $schedule->user_id !== (int) $validated['user_id']) {
+            app(ShiftRotationService::class)->ensureNotRotating([$schedule->user_id, $validated['user_id']]);
+        }
+
         $this->ensureLocationAssignmentsReady($usesLocationAssignments);
 
         $isAllLocations = $validated['location_mode'] === 'all';
@@ -263,6 +272,7 @@ class ScheduleController extends Controller
 
     public function destroy(EmployeeShift $schedule)
     {
+        app(ShiftRotationService::class)->ensureNotRotating([$schedule->user_id]);
         $schedule->delete();
 
         return redirect()

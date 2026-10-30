@@ -37,41 +37,132 @@
     <form class="atk-card" method="POST" action="{{ route('v2.atk.admin.items.update', $item) }}" enctype="multipart/form-data">
         @csrf
         @method('PUT')
+        @php
+            $availableUnits = $unitOptions ?? App\Models\AtkItem::availableUnitOptions();
+            $currentUnit = old('unit_name', $item->unit_name);
+            $currentContentUnit = old('content_unit_name', $item->content_unit_name);
+            if ($currentUnit !== '' && ! in_array($currentUnit, $availableUnits, true)) {
+                $availableUnits[] = $currentUnit;
+            }
+            if ($currentContentUnit !== '' && ! in_array($currentContentUnit, $availableUnits, true)) {
+                $availableUnits[] = $currentContentUnit;
+            }
+        @endphp
         <div class="atk-form-grid">
             <div>
                 <label class="atk-label">Nama Barang</label>
                 <input class="atk-input" name="name" value="{{ old('name', $item->name) }}" required>
             </div>
             <div>
-                <label class="atk-label">Satuan Ambil</label>
-                @php($currentUnit = old('unit_name', $item->unit_name))
-                <select class="atk-select" id="unit_name" name="unit_name" required>
-                    @foreach(App\Models\AtkItem::UNIT_OPTIONS as $option)
-                        <option value="{{ $option }}" @selected($option === $currentUnit)>{{ $option }}</option>
-                    @endforeach
-                    @if(! in_array($currentUnit, App\Models\AtkItem::UNIT_OPTIONS))
-                        <option value="{{ $currentUnit }}" selected>{{ $currentUnit }} (di luar daftar)</option>
-                    @endif
-                </select>
-                <p class="atk-form-helper">Satuan yang dipakai user saat meminta barang.</p>
+                <label class="atk-label" for="unit_name">Satuan Ambil</label>
+                <div class="atk-unit-combobox" data-unit-combobox>
+                    <div class="atk-unit-combobox-control">
+                        <input
+                            class="atk-input atk-unit-combobox-input"
+                            id="unit_name"
+                            name="unit_name"
+                            type="text"
+                            value="{{ $currentUnit }}"
+                            maxlength="30"
+                            placeholder="Pilih / ketik satuan..."
+                            autocomplete="off"
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded="false"
+                            aria-controls="edit_unit_name_listbox"
+                            required
+                            data-unit-input
+                        >
+                        <button
+                            class="atk-unit-combobox-toggle"
+                            type="button"
+                            tabindex="-1"
+                            aria-label="Tampilkan daftar satuan ambil"
+                            data-unit-toggle
+                        >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                    </div>
+                    <div class="atk-unit-combobox-menu" id="edit_unit_name_listbox" role="listbox" hidden data-unit-menu>
+                        <div class="atk-unit-combobox-list" data-unit-list>
+                            @foreach($availableUnits as $option)
+                                <button
+                                    type="button"
+                                    role="option"
+                                    class="atk-unit-combobox-option"
+                                    data-unit-option="{{ $option }}"
+                                    aria-selected="{{ $option === $currentUnit ? 'true' : 'false' }}"
+                                >
+                                    <span>{{ $option }}</span>
+                                    <svg class="atk-unit-combobox-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                                </button>
+                            @endforeach
+                        </div>
+                        <button type="button" class="atk-unit-combobox-create" hidden data-unit-create>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>Tambah satuan baru: "<strong data-unit-create-label></strong>"</span>
+                        </button>
+                    </div>
+                </div>
+                <p class="atk-form-helper">Satuan yang dipakai user saat meminta barang. Bisa pilih atau ketik baru.</p>
             </div>
             <div>
-                <label class="atk-label">Isi per Satuan</label>
+                <label class="atk-label" for="unit_size">Isi per Satuan</label>
                 <input class="atk-input" id="unit_size" type="number" min="1" name="unit_size" value="{{ old('unit_size', $item->unit_size) }}" required>
                 <p class="atk-form-helper">Jumlah satuan isi dalam satu satuan ambil. Contoh: 1 box berisi <strong>20</strong> pcs.</p>
             </div>
             <div>
-                <label class="atk-label">Satuan Isi</label>
-                @php($currentContentUnit = old('content_unit_name', $item->content_unit_name))
-                <select class="atk-select" id="content_unit_name" name="content_unit_name" required>
-                    @foreach(App\Models\AtkItem::UNIT_OPTIONS as $option)
-                        <option value="{{ $option }}" @selected($option === $currentContentUnit)>{{ $option }}</option>
-                    @endforeach
-                    @if(! in_array($currentContentUnit, App\Models\AtkItem::UNIT_OPTIONS))
-                        <option value="{{ $currentContentUnit }}" selected>{{ $currentContentUnit }} (di luar daftar)</option>
-                    @endif
-                </select>
-                <p class="atk-form-helper">Satuan terkecil yang menyusun isi. Biasanya <strong>pcs</strong> atau <strong>lembar</strong>.</p>
+                <label class="atk-label" for="content_unit_name">Satuan Isi</label>
+                <div class="atk-unit-combobox" data-unit-combobox>
+                    <div class="atk-unit-combobox-control">
+                        <input
+                            class="atk-input atk-unit-combobox-input"
+                            id="content_unit_name"
+                            name="content_unit_name"
+                            type="text"
+                            value="{{ $currentContentUnit }}"
+                            maxlength="30"
+                            placeholder="Pilih / ketik satuan..."
+                            autocomplete="off"
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded="false"
+                            aria-controls="edit_content_unit_name_listbox"
+                            required
+                            data-unit-input
+                        >
+                        <button
+                            class="atk-unit-combobox-toggle"
+                            type="button"
+                            tabindex="-1"
+                            aria-label="Tampilkan daftar satuan isi"
+                            data-unit-toggle
+                        >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                        </button>
+                    </div>
+                    <div class="atk-unit-combobox-menu" id="edit_content_unit_name_listbox" role="listbox" hidden data-unit-menu>
+                        <div class="atk-unit-combobox-list" data-unit-list>
+                            @foreach($availableUnits as $option)
+                                <button
+                                    type="button"
+                                    role="option"
+                                    class="atk-unit-combobox-option"
+                                    data-unit-option="{{ $option }}"
+                                    aria-selected="{{ $option === $currentContentUnit ? 'true' : 'false' }}"
+                                >
+                                    <span>{{ $option }}</span>
+                                    <svg class="atk-unit-combobox-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                                </button>
+                            @endforeach
+                        </div>
+                        <button type="button" class="atk-unit-combobox-create" hidden data-unit-create>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span>Tambah satuan baru: "<strong data-unit-create-label></strong>"</span>
+                        </button>
+                    </div>
+                </div>
+                <p class="atk-form-helper">Satuan terkecil yang menyusun isi. Bisa pilih atau ketik manual.</p>
             </div>
         </div>
         <div class="atk-unit-preview atk-card atk-card-soft" id="unitPreview" role="status" aria-live="polite">
@@ -204,6 +295,115 @@
                 grid-template-columns: minmax(160px, .45fr) minmax(0, 1fr);
             }
         }
+        .atk-unit-combobox {
+            position: relative;
+            width: 100%;
+        }
+        .atk-unit-combobox-control {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .atk-unit-combobox-input {
+            padding-right: 34px;
+        }
+        .atk-unit-combobox-toggle {
+            position: absolute;
+            right: 4px;
+            width: 28px;
+            height: 28px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: #64748B;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: color .14s ease, background-color .14s ease;
+        }
+        .atk-unit-combobox-toggle:hover {
+            color: var(--atk-text);
+            background: #F1F5F9;
+        }
+        .atk-unit-combobox-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            right: 0;
+            z-index: 40;
+            background: #FFFFFF;
+            border: 1px solid var(--atk-line);
+            border-radius: 9px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10);
+            padding: 4px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        .atk-unit-combobox-list {
+            display: grid;
+            gap: 2px;
+        }
+        .atk-unit-combobox-option {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 7px 10px;
+            border: 0;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--atk-text);
+            font: inherit;
+            font-size: 12.5px;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+        }
+        .atk-unit-combobox-option:hover,
+        .atk-unit-combobox-option.is-focused {
+            background: #F1F5F9;
+        }
+        .atk-unit-combobox-option[aria-selected="true"] {
+            background: var(--atk-primary-soft);
+            color: var(--atk-primary-dark);
+            font-weight: 600;
+        }
+        .atk-unit-combobox-check {
+            opacity: 0;
+            color: var(--atk-primary);
+            flex-shrink: 0;
+        }
+        .atk-unit-combobox-option[aria-selected="true"] .atk-unit-combobox-check {
+            opacity: 1;
+        }
+        .atk-unit-combobox-create {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 2px;
+            padding: 7px 10px;
+            border: 1px dashed #C4B5FD;
+            border-radius: 6px;
+            background: var(--atk-primary-softer);
+            color: var(--atk-primary-dark);
+            font: inherit;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+        .atk-unit-combobox-create:hover,
+        .atk-unit-combobox-create.is-focused {
+            background: var(--atk-primary-soft);
+        }
+        .atk-unit-combobox-menu[hidden],
+        .atk-unit-combobox-option[hidden],
+        .atk-unit-combobox-create[hidden] {
+            display: none !important;
+        }
     </style>
     <script>
         (function () {
@@ -229,6 +429,178 @@
 
             [nameEl, sizeEl, contentEl].forEach(function (el) {
                 el.addEventListener('input', update);
+                el.addEventListener('change', update);
+            });
+
+            var comboboxes = Array.prototype.slice.call(document.querySelectorAll('[data-unit-combobox]'));
+
+            function addOptionToAllComboboxes(newUnit) {
+                var clean = String(newUnit || '').trim();
+                if (!clean) return;
+                comboboxes.forEach(function (box) {
+                    var listEl = box.querySelector('[data-unit-list]');
+                    if (!listEl) return;
+                    var exists = Array.prototype.some.call(listEl.querySelectorAll('[data-unit-option]'), function (btn) {
+                        return (btn.getAttribute('data-unit-option') || '').toLowerCase() === clean.toLowerCase();
+                    });
+                    if (!exists) {
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.setAttribute('role', 'option');
+                        btn.className = 'atk-unit-combobox-option';
+                        btn.setAttribute('data-unit-option', clean);
+                        btn.setAttribute('aria-selected', 'false');
+                        var span = document.createElement('span');
+                        span.textContent = clean;
+                        btn.appendChild(span);
+                        btn.insertAdjacentHTML('beforeend', '<svg class="atk-unit-combobox-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>');
+                        listEl.appendChild(btn);
+                    }
+                });
+            }
+
+            comboboxes.forEach(function (box) {
+                var input = box.querySelector('[data-unit-input]');
+                var toggle = box.querySelector('[data-unit-toggle]');
+                var menu = box.querySelector('[data-unit-menu]');
+                var listEl = box.querySelector('[data-unit-list]');
+                var createBtn = box.querySelector('[data-unit-create]');
+                var createLabel = box.querySelector('[data-unit-create-label]');
+                if (!input || !menu || !listEl || !createBtn || !createLabel) return;
+
+                function syncSelectedState() {
+                    var current = input.value.trim().toLowerCase();
+                    Array.prototype.forEach.call(listEl.querySelectorAll('[data-unit-option]'), function (btn) {
+                        var val = (btn.getAttribute('data-unit-option') || '').toLowerCase();
+                        btn.setAttribute('aria-selected', val === current ? 'true' : 'false');
+                    });
+                }
+
+                function filterOptions(filterText) {
+                    var query = String(filterText || '').trim();
+                    var lowerQuery = query.toLowerCase();
+                    var hasExactMatch = false;
+
+                    Array.prototype.forEach.call(listEl.querySelectorAll('[data-unit-option]'), function (btn) {
+                        var val = btn.getAttribute('data-unit-option') || '';
+                        var lowerVal = val.toLowerCase();
+                        if (lowerVal === lowerQuery) {
+                            hasExactMatch = true;
+                        }
+                        btn.hidden = lowerQuery !== '' && lowerVal.indexOf(lowerQuery) === -1;
+                    });
+
+                    if (query !== '' && !hasExactMatch) {
+                        createLabel.textContent = query;
+                        createBtn.hidden = false;
+                    } else {
+                        createBtn.hidden = true;
+                    }
+                    syncSelectedState();
+                }
+
+                function openMenu(filterText) {
+                    comboboxes.forEach(function (other) {
+                        if (other !== box) {
+                            var otherMenu = other.querySelector('[data-unit-menu]');
+                            var otherInput = other.querySelector('[data-unit-input]');
+                            if (otherMenu) otherMenu.hidden = true;
+                            if (otherInput) otherInput.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+                    filterOptions(filterText);
+                    menu.hidden = false;
+                    input.setAttribute('aria-expanded', 'true');
+                }
+
+                function closeMenu() {
+                    menu.hidden = true;
+                    input.setAttribute('aria-expanded', 'false');
+                }
+
+                function selectUnit(val) {
+                    var clean = String(val || '').trim();
+                    if (!clean) return;
+                    addOptionToAllComboboxes(clean);
+                    input.value = clean;
+                    syncSelectedState();
+                    closeMenu();
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                input.addEventListener('focus', function () {
+                    openMenu('');
+                });
+
+                input.addEventListener('click', function () {
+                    if (menu.hidden) {
+                        openMenu('');
+                    }
+                });
+
+                input.addEventListener('input', function () {
+                    openMenu(input.value);
+                });
+
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Escape') {
+                        closeMenu();
+                    } else if (e.key === 'Enter' && !menu.hidden) {
+                        e.preventDefault();
+                        var typed = input.value.trim();
+                        if (typed) {
+                            selectUnit(typed);
+                        }
+                    }
+                });
+
+                input.addEventListener('blur', function () {
+                    setTimeout(function () {
+                        if (!box.contains(document.activeElement)) {
+                            var typed = input.value.trim();
+                            if (typed) {
+                                addOptionToAllComboboxes(typed);
+                                syncSelectedState();
+                            }
+                            closeMenu();
+                        }
+                    }, 150);
+                });
+
+                if (toggle) {
+                    toggle.addEventListener('click', function () {
+                        if (menu.hidden) {
+                            input.focus();
+                            openMenu('');
+                        } else {
+                            closeMenu();
+                        }
+                    });
+                }
+
+                listEl.addEventListener('mousedown', function (e) {
+                    var optionBtn = e.target.closest('[data-unit-option]');
+                    if (!optionBtn) return;
+                    e.preventDefault();
+                    selectUnit(optionBtn.getAttribute('data-unit-option'));
+                });
+
+                createBtn.addEventListener('mousedown', function (e) {
+                    e.preventDefault();
+                    selectUnit(input.value.trim());
+                });
+            });
+
+            document.addEventListener('click', function (e) {
+                comboboxes.forEach(function (box) {
+                    if (!box.contains(e.target)) {
+                        var menu = box.querySelector('[data-unit-menu]');
+                        var input = box.querySelector('[data-unit-input]');
+                        if (menu) menu.hidden = true;
+                        if (input) input.setAttribute('aria-expanded', 'false');
+                    }
+                });
             });
         })();
     </script>

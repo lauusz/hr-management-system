@@ -6,6 +6,7 @@ use App\Models\Shift;
 use App\Models\ShiftDay;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
@@ -131,16 +132,21 @@ class ShiftController extends Controller
             throw ValidationException::withMessages(['is_wita' => 'Pengaturan WITA belum tersedia. Hubungi HR atau IT.']);
         }
 
-        $shift->update([
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-            'is_active' => $request->boolean('is_active'),
-            ...($hasWitaColumn ? ['is_wita' => $request->boolean('is_wita')] : []),
-        ]);
+        DB::transaction(function () use ($request, $shift, $validated, $hasWitaColumn, $days) {
+            $shift = Shift::whereKey($shift->id)->lockForUpdate()->firstOrFail();
+            if (! $request->boolean('is_active') || ($hasWitaColumn && (bool) $shift->is_wita !== $request->boolean('is_wita'))) {
+                app(\App\Services\ShiftRotationService::class)->ensureShiftNotInUse($shift->id);
+            }
 
-        $shift->days()->delete();
-
-        $this->storeDays($shift, $days);
+            $shift->update([
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
+                'is_active' => $request->boolean('is_active'),
+                ...($hasWitaColumn ? ['is_wita' => $request->boolean('is_wita')] : []),
+            ]);
+            $shift->days()->delete();
+            $this->storeDays($shift, $days);
+        });
 
         return redirect()
             ->route('hr.shifts.index')
@@ -149,7 +155,11 @@ class ShiftController extends Controller
 
     public function destroy(Shift $shift)
     {
-        $shift->delete();
+        DB::transaction(function () use ($shift) {
+            $shift = Shift::whereKey($shift->id)->lockForUpdate()->firstOrFail();
+            app(\App\Services\ShiftRotationService::class)->ensureShiftNotInUse($shift->id, true);
+            $shift->delete();
+        });
 
         return redirect()
             ->route('hr.shifts.index')

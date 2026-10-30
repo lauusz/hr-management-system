@@ -67,8 +67,8 @@
 
             @if($isFlexible)
                 <label id="attendanceReasonField" class="capture-reason" for="attendanceReason" hidden>
-                    <span>Alasan Clock Out di luar lokasi absen <span aria-hidden="true">*</span></span>
-                    <textarea id="attendanceReason" name="notes" rows="2" placeholder="Tuliskan alasan absensi di luar lokasi absen"></textarea>
+                    <span>Keterangan Absen</span>
+                    <textarea id="attendanceReason" name="notes" rows="2" placeholder="Tuliskan keterangan absen"></textarea>
                 </label>
             @endif
 
@@ -497,6 +497,8 @@
             .clock-out-screen--flexible .capture-viewport {
                 min-height: 140px;
             }
+            .capture-strip { gap: 6px; }
+            .capture-pill { min-height: 28px; padding: 4px 8px; }
         }
 
         @media (max-width: 359px) {
@@ -522,27 +524,104 @@
         /* ============================================= */
         @media (min-width: 768px) {
             .capture-shell {
-                max-width: 480px;
+                display: grid;
+                grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+                grid-template-areas: "back back" "banner banner" "status status" "camera controls";
+                max-width: 1000px;
                 margin: 0 auto;
                 gap: 12px;
-                padding: 16px;
-                min-height: 600px;
-                max-height: 90vh;
+                padding: 0;
             }
 
             .attendance-back {
+                grid-area: back;
+                justify-self: start;
                 height: 40px;
                 padding: 0 14px 0 12px;
                 font-size: 0.8125rem;
             }
 
             .capture-viewport {
-                min-height: 320px;
+                grid-area: camera;
+                height: clamp(200px, calc(100dvh - 235px), 520px);
+                min-height: 0;
             }
+
+            .cross-day-banner { grid-area: banner; }
+            .capture-strip { grid-area: status; }
+            .capture-controls { grid-area: controls; align-self: start; }
 
             .capture-btn {
                 padding: 14px;
                 font-size: 0.9375rem;
+            }
+        }
+        @media (min-width: 1025px) {
+            .capture-shell {
+                max-width: none;
+                grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+                grid-template-areas: "back status" "camera controls";
+                align-items: start;
+                gap: 20px;
+                padding: 24px;
+                background: var(--white, #fff);
+                border: 1px solid var(--border, #E5E7EB);
+                border-radius: 20px;
+            }
+
+            .capture-shell:has(.cross-day-banner) {
+                grid-template-areas: "back status" "banner banner" "camera controls";
+            }
+
+            .capture-strip {
+                align-self: center;
+                justify-content: flex-end;
+            }
+
+            .capture-pill {
+                min-height: 30px;
+                padding: 6px 10px;
+                font-size: 0.75rem;
+            }
+
+            .capture-viewport {
+                height: auto;
+                min-height: 300px;
+                aspect-ratio: 4 / 3;
+            }
+
+            .capture-controls {
+                align-self: stretch;
+                min-width: 0;
+                gap: 16px;
+                padding: 20px;
+                background: var(--gray-50, #F5F7FA);
+                border: 1px solid var(--border, #E5E7EB);
+                border-radius: 16px;
+            }
+
+            .capture-hint {
+                text-align: left;
+                font-size: 0.8125rem;
+                line-height: 1.6;
+            }
+
+            .capture-reason {
+                gap: 8px;
+                font-size: 0.8125rem;
+            }
+
+            .capture-reason textarea {
+                min-height: 104px;
+                padding: 12px;
+                font-size: 0.875rem;
+                font-weight: 400;
+                line-height: 1.5;
+            }
+
+            #btnGroupCapture,
+            #btnGroupAction {
+                margin-top: auto;
             }
         }
     </style>

@@ -2453,3 +2453,48 @@ it('keeps rejected item in request history without hard delete', function () {
     // Row item tetap ada di database — bukan hard delete.
     expect(DB::table('atk_request_items')->where('id', $items[0]['requestItem']->id)->exists())->toBeTrue();
 });
+
+it('allows manual custom unit input and dynamically adds saved units to the option list', function () {
+    $admin = createAtkAdmin();
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.items.create'))
+        ->assertOk()
+        ->assertSee('data-unit-combobox', false)
+        ->assertSee('data-unit-input', false)
+        ->assertSee('data-unit-create', false)
+        ->assertSee('data-unit-option="pcs"', false)
+        ->assertDontSee('data-unit-option="botol"', false)
+        ->assertDontSee('data-unit-option="karton"', false);
+
+    actingAs($admin)
+        ->post(route('v2.atk.admin.items.store'), [
+            'name' => 'Tinta Isi Ulang Khusus',
+            'unit_name' => '  karton  ',
+            'unit_size' => 24,
+            'content_unit_name' => '  botol  ',
+            'stock_qty' => 3,
+            'minimum_stock' => 1,
+            'min_request_qty' => 1,
+        ])
+        ->assertRedirect(route('v2.atk.admin.items.index'));
+
+    $item = AtkItem::where('name', 'Tinta Isi Ulang Khusus')->firstOrFail();
+
+    expect($item->unit_name)->toBe('karton')
+        ->and($item->content_unit_name)->toBe('botol')
+        ->and(AtkItem::availableUnitOptions())->toContain('karton', 'botol');
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.items.create'))
+        ->assertOk()
+        ->assertSee('data-unit-option="karton"', false)
+        ->assertSee('data-unit-option="botol"', false);
+
+    actingAs($admin)
+        ->get(route('v2.atk.admin.items.edit', $item))
+        ->assertOk()
+        ->assertSee('data-unit-combobox', false)
+        ->assertSee('data-unit-option="karton"', false)
+        ->assertSee('data-unit-option="botol"', false);
+});

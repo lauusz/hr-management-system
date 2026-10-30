@@ -17,16 +17,21 @@ function setup() {
     const frame = element();
     frame.getAttribute = () => frame.src;
     const closeButton = element();
+    const success = { hidden: true, textContent: '' };
     const document = element();
+    document.dispatchEvent = event => { document.dispatched = event.type; };
     document.getElementById = id => ({
         'hom-detail-modal': dialog,
         'hom-detail-frame': frame,
         'hom-detail-modal-close': closeButton,
+        'hom-cancel-success': success,
     })[id];
     let reloaded = false;
     const window = { location: { origin: 'https://example.test', reload() { reloaded = true; } } };
-    vm.runInNewContext(script, { document, window, URL });
-    return { document, dialog, frame, closeButton, reloaded: () => reloaded };
+    const requests = [];
+    const fetch = (url, options) => new Promise(resolve => requests.push({ url, options, resolve }));
+    vm.runInNewContext(script, { document, window, URL, fetch, FormData: class {}, Event: class { constructor(type) { this.type = type; } } });
+    return { document, dialog, frame, closeButton, success, requests, reloaded: () => reloaded };
 }
 
 function clickLink(ui, options = {}) {
@@ -75,6 +80,26 @@ test('kesalahan penyimpanan tidak memuat ulang rekap', () => {
     ui.frame.contentDocument = elementDocument(false);
     ui.frame.listeners.load();
     ui.closeButton.listeners.click();
+    assert.equal(ui.reloaded(), false);
+});
+
+test('pembatalan memperbarui daftar tanpa memuat ulang halaman', async () => {
+    const ui = setup();
+    clickLink(ui);
+    const frameDocument = elementDocument(false);
+    ui.frame.contentDocument = frameDocument;
+    ui.frame.listeners.load();
+    const button = { disabled: false };
+    const form = { action: 'https://example.test/overtime-requests/2', querySelector: () => button };
+    let prevented = false;
+    const pending = frameDocument.listeners.submit({ target: { closest: () => form }, preventDefault() { prevented = true; } });
+    assert.equal(prevented, true);
+    assert.equal(button.disabled, true);
+    ui.requests[0].resolve({ ok: true, json: async () => ({ message: 'Pengajuan lembur berhasil dibatalkan.' }) });
+    await pending;
+    assert.equal(ui.dialog.open, false);
+    assert.equal(ui.document.dispatched, 'overtime-refresh-results');
+    assert.equal(ui.success.hidden, false);
     assert.equal(ui.reloaded(), false);
 });
 

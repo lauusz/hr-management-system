@@ -244,7 +244,7 @@
                             required
                         >
                         <datalist id="atkNeedUnitOptions">
-                            @foreach(App\Models\AtkItem::UNIT_OPTIONS as $option)
+                            @foreach(App\Models\AtkItem::availableUnitOptions() as $option)
                                 <option value="{{ $option }}"></option>
                             @endforeach
                         </datalist>

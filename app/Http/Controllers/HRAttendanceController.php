@@ -11,6 +11,23 @@ class HRAttendanceController extends Controller
 {
     public function index(Request $request)
     {
+        abort_unless($request->user()->isHR(), 403);
+
+        return $this->attendanceIndex($request, false);
+    }
+
+    public function team(Request $request)
+    {
+        $viewer = $request->user();
+        abort_unless(! $viewer->isHR() && $viewer->canViewTeamAttendance(), 403);
+
+        return $this->attendanceIndex($request, true);
+    }
+
+    private function attendanceIndex(Request $request, bool $team)
+    {
+        $viewer = $request->user();
+
         $rangeStart = Carbon::parse($request->query('date_start') ?: $request->query('date_end') ?: now())->startOfDay();
         $rangeEnd = Carbon::parse($request->query('date_end') ?: $request->query('date_start') ?: now())->endOfDay();
 
@@ -22,6 +39,7 @@ class HRAttendanceController extends Controller
         $events = AttendanceEvent::query()
             ->with(['attendanceShift', 'user.employeeShift.shift.days', 'user.employeeShift.location', 'user.employeeShift.locations'])
             ->whereBetween('occurred_at', [$rangeStart->copy()->subDay(), $rangeEnd->copy()->addDay()])
+            ->when($team, fn ($query) => $query->whereIn('user_id', $viewer->attendanceVisibleEmployees()->select('users.id')))
             ->whereHas('user', function ($userQuery) use ($q) {
                 $userQuery->active();
 
@@ -39,7 +57,7 @@ class HRAttendanceController extends Controller
             ->sortByDesc('latest_occurred_at')
             ->values();
 
-        return view('hr.attendances.index', [
+        return view($team ? 'supervisor.attendances.index' : 'hr.attendances.index', [
             'items' => $items,
             'date_start' => $rangeStart->toDateString(),
             'date_end' => $rangeEnd->toDateString(),

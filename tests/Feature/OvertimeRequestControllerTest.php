@@ -169,3 +169,31 @@ it('allows editing only while overtime is waiting for supervisor approval', func
         ->assertRedirect(route('overtime-requests.index'))
         ->assertSessionHas('error', 'Pengajuan sudah diproses SPV, tidak dapat diubah.');
 });
+
+it('allows only the direct supervisor to cancel pending or approved subordinate overtime', function () {
+    $employee = User::factory()->create(['direct_supervisor_id' => $this->supervisor->id]);
+    $otherSupervisor = User::factory()->supervisor()->create();
+    User::factory()->create(['direct_supervisor_id' => $otherSupervisor->id]);
+    $overtime = OvertimeRequest::create([
+        'user_id' => $employee->id,
+        'overtime_date' => now()->toDateString(),
+        'start_time' => '17:00',
+        'end_time' => '20:00',
+        'duration_minutes' => 180,
+        'description' => 'Lembur rutin',
+        'status' => OvertimeRequest::STATUS_PENDING_SUPERVISOR,
+    ]);
+
+    actingAs($otherSupervisor)->delete(route('supervisor.overtime-requests.destroy', $overtime))->assertForbidden();
+    expect($overtime->fresh()->status)->toBe(OvertimeRequest::STATUS_PENDING_SUPERVISOR);
+
+    foreach ([OvertimeRequest::STATUS_PENDING_SUPERVISOR, OvertimeRequest::STATUS_APPROVED_SUPERVISOR] as $status) {
+        $overtime->update(['status' => $status]);
+        actingAs($this->supervisor)->delete(route('supervisor.overtime-requests.destroy', $overtime))->assertSessionHas('success');
+        expect($overtime->fresh()->status)->toBe(OvertimeRequest::STATUS_CANCELLED);
+    }
+
+    $overtime->update(['status' => OvertimeRequest::STATUS_REJECTED]);
+    actingAs($this->supervisor)->delete(route('supervisor.overtime-requests.destroy', $overtime))->assertSessionHas('error');
+    expect($overtime->fresh()->status)->toBe(OvertimeRequest::STATUS_REJECTED);
+});

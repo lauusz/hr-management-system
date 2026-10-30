@@ -124,6 +124,7 @@
                         </div>
                     </section>
                 @endif
+                @include('overtime_requests._system_note', ['overtime' => $overtime])
             </div>
 
             <div class="lrs-side-col">

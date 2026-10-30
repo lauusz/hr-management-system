@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\OvertimeRequest;
+use App\Services\OvertimeApprovalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -89,6 +90,25 @@ class SupervisorOvertimeController extends Controller
             return $redirect;
         }
         return view('supervisor.overtime_requests.show', compact('overtimeRequest'));
+    }
+
+    public function destroy(OvertimeRequest $overtimeRequest, OvertimeApprovalService $service)
+    {
+        try {
+            $service->locked($overtimeRequest, function ($locked) use ($service) {
+                abort_unless((int) $locked->user->direct_supervisor_id === (int) Auth::id(), 403);
+
+                if (! in_array($locked->status, [OvertimeRequest::STATUS_PENDING_SUPERVISOR, OvertimeRequest::STATUS_APPROVED_SUPERVISOR, OvertimeRequest::STATUS_APPROVED_HRD], true)) {
+                    throw new \DomainException('Pengajuan yang ditolak atau dibatalkan tidak dapat dibatalkan lagi.');
+                }
+
+                $service->cancelLocked($locked, Auth::user());
+            });
+        } catch (\DomainException $exception) {
+            return back()->with('error', $exception->getMessage());
+        }
+
+        return back()->with('success', 'Pengajuan lembur berhasil dibatalkan.');
     }
 
     /**
