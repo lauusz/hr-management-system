@@ -492,7 +492,7 @@
                                                     <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                                     </svg>
-                                                    Riwayat Jadwal (200 Terbaru)
+                                                    Riwayat Jadwal
                                                 </span>
                                                 <span class="sr-detail-sub">{{ $rotationSnapshots->count() }} catatan</span>
                                             </div>

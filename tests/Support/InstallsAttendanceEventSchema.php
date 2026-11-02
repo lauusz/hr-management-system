@@ -22,6 +22,18 @@ trait InstallsAttendanceEventSchema
                 });
             }
 
+            if (! Schema::hasColumn('attendance_events', 'work_date')) {
+                Schema::table('attendance_events', function (Blueprint $table): void {
+                    $table->date('work_date')->nullable();
+                    $table->unsignedBigInteger('attendance_shift_id')->nullable();
+                    $table->time('shift_start_time')->nullable();
+                    $table->time('shift_end_time')->nullable();
+                    $table->boolean('is_overnight')->nullable();
+                    $table->string('attendance_location_scope')->nullable();
+                    $table->text('hrd_note')->nullable();
+                });
+            }
+
             return;
         }
 
@@ -31,6 +43,12 @@ trait InstallsAttendanceEventSchema
             $table->string('event_type', 20);
             $table->string('type', 50)->default('WFO');
             $table->dateTime('occurred_at');
+            $table->date('work_date')->nullable();
+            $table->unsignedBigInteger('attendance_shift_id')->nullable();
+            $table->time('shift_start_time')->nullable();
+            $table->time('shift_end_time')->nullable();
+            $table->boolean('is_overnight')->nullable();
+            $table->string('attendance_location_scope')->nullable();
             $table->foreignId('location_id')->nullable()->constrained('attendance_locations')->nullOnDelete();
             $table->string('photo')->nullable();
             $table->timestamp('photo_deleted_at')->nullable();
@@ -41,6 +59,7 @@ trait InstallsAttendanceEventSchema
             $table->text('rejection_note')->nullable();
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();
+            $table->text('hrd_note')->nullable();
             $table->boolean('is_flexible')->nullable();
             $table->boolean('is_outside_reference_location')->nullable();
             $table->unsignedBigInteger('legacy_attendance_id')->nullable();

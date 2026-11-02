@@ -52,6 +52,7 @@ function eventRequestData(string $photo = 'event.jpg'): array
         'photo' => UploadedFile::fake()->image($photo, 800, 600),
         'lat' => -6.200000,
         'lng' => 106.816666,
+        'accuracy' => 10,
     ];
 }
 
@@ -145,6 +146,24 @@ describe('attendance events', function () {
 
         expect($previous->fresh()->occurred_at->format('Y-m-d H:i'))->toBe('2031-04-20 02:00')
             ->and(AttendanceEvent::query()->where('user_id', $this->user->id)->count())->toBe(2);
+    });
+
+    it('does not inherit previous-day work_date when non-overnight clock out occurs on the next day', function () {
+        AttendanceEvent::factory()->forUser($this->user)->create([
+            'event_type' => AttendanceEvent::CLOCK_IN,
+            'occurred_at' => Carbon::parse('2031-04-20 08:00:00', 'Asia/Jakarta'),
+            'work_date' => Carbon::parse('2031-04-20'),
+            'is_overnight' => false,
+        ]);
+
+        $this->post(route('attendance.clockOut'), eventRequestData('clock-out-next-day.jpg'))->assertOk();
+
+        $clockOut = AttendanceEvent::query()
+            ->where('user_id', $this->user->id)
+            ->where('event_type', AttendanceEvent::CLOCK_OUT)
+            ->sole();
+
+        expect($clockOut->work_date->toDateString())->toBe('2031-04-21');
     });
 
     it('preserves WFO radius validation and does not store an invalid event', function () {

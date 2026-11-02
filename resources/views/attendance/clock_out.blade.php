@@ -758,6 +758,7 @@
             } else {
                 invalidateLocationState();
                 statusMsg.textContent = 'Browser tidak support GPS.';
+                window.logAttendanceMessage?.('Browser tidak support GPS.');
                 gpsPill.className = 'capture-pill capture-pill--error';
                 gpsText.textContent = 'GPS Error';
             }

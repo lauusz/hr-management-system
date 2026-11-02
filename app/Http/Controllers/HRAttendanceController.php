@@ -89,7 +89,7 @@ class HRAttendanceController extends Controller
     }
 
     /**
-     * @param Collection<int, AttendanceEvent> $events
+     * @param  Collection<int, AttendanceEvent>  $events
      * @return Collection<int, object>
      */
     private function buildAttendanceSessions(Collection $events): Collection
@@ -98,20 +98,10 @@ class HRAttendanceController extends Controller
 
         $events->groupBy('user_id')
             ->each(function (Collection $group) use ($sessions): void {
-                $openClockIn = null;
                 $eventsByWorkDate = [];
 
                 foreach ($group as $event) {
-                    if ($event->event_type === AttendanceEvent::CLOCK_IN) {
-                        $openClockIn = $event;
-                        $workDate = $this->workDateForEvent($event);
-                    } else {
-                        $workDate = $openClockIn === null
-                            ? $this->workDateForEvent($event)
-                            : $this->workDateForEvent($openClockIn);
-                        $openClockIn = null;
-                    }
-
+                    $workDate = $this->workDateForEvent($event);
                     $key = $workDate->toDateString();
                     $eventsByWorkDate[$key] ??= ['work_date' => $workDate, 'events' => collect()];
                     $eventsByWorkDate[$key]['events']->push($event);
@@ -126,7 +116,7 @@ class HRAttendanceController extends Controller
     }
 
     /**
-     * @param Collection<int, AttendanceEvent> $events
+     * @param  Collection<int, AttendanceEvent>  $events
      */
     private function attendanceSession(Collection $events, Carbon $workDate): object
     {
@@ -162,12 +152,17 @@ class HRAttendanceController extends Controller
 
     private function workDateForEvent(AttendanceEvent $event): Carbon
     {
+        $isOvernight = (bool) ($event->is_overnight ?? $event->attendanceShift?->is_overnight);
+
+        if (! $isOvernight) {
+            return $event->local_occurred_at->copy()->startOfDay();
+        }
+
         if ($event->work_date !== null) {
             return $event->work_date->copy()->startOfDay();
         }
 
-        // shortcut: data lama belum menyimpan snapshot shift; akurasi historis penuh perlu backfill dari sumber jadwal historis.
-        $workDate = $event->occurred_at->copy()->startOfDay();
+        $workDate = $event->local_occurred_at->copy()->startOfDay();
         $previousWorkDate = $workDate->copy()->subDay();
         $previousShiftDay = $event->user?->employeeShift?->shift?->days
             ->first(fn ($day) => (int) $day->day_of_week === $previousWorkDate->dayOfWeekIso && ! $day->is_holiday);

@@ -103,6 +103,7 @@
             if (!notes) {
                 notesInput.setAttribute('aria-invalid', 'true');
                 notesError.hidden = false;
+                window.logAttendanceMessage?.('Keterangan wajib diisi.', 'warning');
                 notesInput.focus();
                 return;
             }

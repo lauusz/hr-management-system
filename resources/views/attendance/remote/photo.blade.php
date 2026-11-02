@@ -241,6 +241,7 @@
                 invalidateLocationState();
                 gpsPill.className = 'remote-capture-pill is-error';
                 gpsText.textContent = 'GPS tidak tersedia';
+                window.logAttendanceMessage?.('GPS tidak tersedia');
                 return;
             }
 

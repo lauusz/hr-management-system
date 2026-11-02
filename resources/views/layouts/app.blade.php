@@ -899,6 +899,13 @@
             <span class="menu-text">Absensi</span>
           </a>
 
+          <a href="{{ route('attendance.history') }}" class="menu-item {{ request()->routeIs('attendance.history') ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+            <span class="menu-text">Riwayat Absensi</span>
+          </a>
+
           <a href="{{ route('leave-requests.index') }}" class="menu-item {{ request()->routeIs('leave-requests.*') ? 'active' : '' }}">
             <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -1403,8 +1410,43 @@
       info: '<svg class="toast-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
     };
 
+    @if(request()->routeIs('attendance.*', 'remote-attendance.*', 'hr.attendances.*', 'hr.attendance-access.*', 'hr.approval_attendance.*', 'supervisor.attendances.*'))
+    window.logAttendanceMessage = function(message, type = 'error') {
+      if (typeof message !== 'string' || !message.trim()) return;
+
+      try {
+        fetch(@json(route('attendance.messages')), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+          },
+          body: JSON.stringify({ page: @json(request()->route()->getName()), type, message }),
+          keepalive: true
+        }).catch(() => {});
+      } catch (_) {}
+    };
+
+    const attendanceStatus = document.getElementById('statusMessage');
+    if (attendanceStatus && window.MutationObserver) {
+      let lastAttendanceStatus = '';
+      new MutationObserver(() => {
+        const color = attendanceStatus.style.color;
+        const isError = color.includes('--error');
+        const isWarning = color.includes('--warning');
+        const message = attendanceStatus.textContent.trim();
+        if ((isError || isWarning) && message && message !== lastAttendanceStatus) {
+          window.logAttendanceMessage(message, isError ? 'error' : 'warning');
+        }
+        lastAttendanceStatus = isError || isWarning ? message : '';
+      }).observe(attendanceStatus, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+    }
+    @endif
+
     function showToast(message, type = 'info', duration = 4000) {
       if (!toastContainer) return;
+      if (type === 'error' || type === 'warning') window.logAttendanceMessage?.(message, type);
       const toast = document.createElement('div');
       toast.className = 'toast toast-' + type;
       toast.innerHTML = toastIcons[type] + '<span style="flex:1">' + escapeHtml(message) + '</span>' +

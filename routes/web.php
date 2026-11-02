@@ -23,6 +23,7 @@ use App\Http\Controllers\AtkMks\CartController as AtkMksCartController;
 use App\Http\Controllers\AtkMks\CatalogController as AtkMksCatalogController;
 use App\Http\Controllers\AtkMks\RequestController as AtkMksRequestController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AttendanceMessageController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\EmployeeDocumentController;
 use App\Http\Controllers\EmployeeLoanRequestController;
@@ -239,6 +240,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/overtime-approvals/{overtimeRequest}/reject', [\App\Http\Controllers\OvertimeApprovalController::class, 'reject'])->name('overtime-approvals.reject');
 
     Route::get('/attendance', [AttendanceController::class, 'dashboard'])->name('attendance.dashboard');
+    Route::post('/attendance/messages', [AttendanceMessageController::class, 'store'])->middleware('throttle:60,1')->name('attendance.messages');
+    Route::get('/attendance/history', [AttendanceController::class, 'history'])->name('attendance.history');
     Route::get('/attendance/clock-in', [AttendanceController::class, 'showClockInForm'])->name('attendance.clockIn.form');
     Route::post('/attendance/clock-in', [AttendanceController::class, 'clockIn'])->name('attendance.clockIn');
     Route::get('/attendance/clock-out', [AttendanceController::class, 'showClockOutForm'])->name('attendance.clockOut.form');
@@ -364,6 +367,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/schedules', [ScheduleController::class, 'index'])->name('hr.schedules.index');
         Route::post('/hr/schedules', [ScheduleController::class, 'store'])->name('hr.schedules.store');
         Route::get('/hr/schedules/{schedule}/edit', [ScheduleController::class, 'edit'])->name('hr.schedules.edit');
+        Route::patch('/hr/schedules/{schedule}/shift', [ScheduleController::class, 'updateShift'])->name('hr.schedules.shift');
         Route::put('/hr/schedules/{schedule}', [ScheduleController::class, 'update'])->name('hr.schedules.update');
         Route::delete('/hr/schedules/{schedule}', [ScheduleController::class, 'destroy'])->name('hr.schedules.destroy');
 

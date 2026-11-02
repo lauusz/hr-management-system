@@ -98,23 +98,27 @@
                     @forelse($items as $session)
                     @php
                         $actionEvents = $session->events;
-                        $hasEvidence = $actionEvents->contains(fn ($event) => $event->is_flexible === true || $event->photo || ($event->latitude !== null && $event->longitude !== null));
-                        $thumbnailEvent = $actionEvents->first(fn ($event) => $event->photo) ?? $actionEvents->first();
+                        $hasEvidence = $actionEvents->contains(fn ($event) => $event->is_flexible === true || $event->notes || $event->hrd_note || ($event->photo && ! $event->photo_deleted_at) || ($event->latitude !== null && $event->longitude !== null));
+                        $thumbnailEvent = $actionEvents->first(fn ($event) => $event->photo && ! $event->photo_deleted_at);
                         $clockInEvidence = $session->clock_ins->map(fn ($event) => [
                             'time' => $event->local_occurred_at->format('H:i'),
                             'date' => $event->local_occurred_at->format('d/m/y'),
+                            'type' => $event->type,
                             'is_flexible' => $event->is_flexible === true,
                             'notes' => $event->notes ?? '',
-                            'photo' => $event->photo ? asset('storage/'.$event->photo) : '',
+                            'hrd_note' => $event->hrd_note ?? '',
+                            'photo' => $event->photo && ! $event->photo_deleted_at ? asset('storage/'.$event->photo) : '',
                             'latitude' => $event->latitude ?? '',
                             'longitude' => $event->longitude ?? '',
                         ])->values();
                         $clockOutEvidence = $session->clock_outs->map(fn ($event) => [
                             'time' => $event->local_occurred_at->format('H:i'),
                             'date' => $event->local_occurred_at->format('d/m/y'),
+                            'type' => $event->type,
                             'is_flexible' => $event->is_flexible === true,
                             'notes' => $event->notes ?? '',
-                            'photo' => $event->photo ? asset('storage/'.$event->photo) : '',
+                            'hrd_note' => $event->hrd_note ?? '',
+                            'photo' => $event->photo && ! $event->photo_deleted_at ? asset('storage/'.$event->photo) : '',
                             'latitude' => $event->latitude ?? '',
                             'longitude' => $event->longitude ?? '',
                         ])->values();
@@ -510,22 +514,29 @@
             border-radius: 4px;
         }
 
-        #attendance-evidence-modal .modal-card { max-width: 1080px; }
+        #attendance-evidence-modal .modal-card { max-width: 1040px; width: 100%; }
         .attendance-evidence-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: #111827; }
-        .attendance-evidence-meta span { padding: 3px 8px; color: #176b42; font-size: 11px; font-weight: 700; background: #e9f8ef; border-radius: 999px; }
+        .attendance-evidence-meta strong { font-size: 1rem; font-weight: 800; color: #111827; }
+        .attendance-evidence-meta span { padding: 3px 10px; color: #176b42; font-size: 11px; font-weight: 700; background: #e9f8ef; border-radius: 999px; }
         .attendance-evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
         .attendance-evidence-panel { min-width: 0; padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
         .attendance-evidence-panel h4 { margin: 0 0 10px; color: #334155; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
-        .attendance-evidence-list { display: grid; gap: 12px; }
-        .attendance-evidence-entry { padding-top: 12px; border-top: 1px solid #e2e8f0; }
+        .attendance-evidence-list { display: grid; gap: 14px; }
+        .attendance-evidence-entry { padding-top: 14px; border-top: 1px solid #e2e8f0; }
         .attendance-evidence-entry:first-child { padding-top: 0; border-top: 0; }
         .attendance-evidence-entry-time { margin: 0 0 8px; color: #176b42; font-size: 12px; font-weight: 700; }
-        .attendance-evidence-photo { display: block; width: 100%; height: min(30vh, 240px); object-fit: contain; border-radius: 8px; background: #e2e8f0; }
-        .attendance-evidence-map { display: block; width: 100%; height: min(30vh, 240px); border: 0; border-radius: 8px; background: #e2e8f0; }
-        .attendance-evidence-coordinates { margin: -2px 0 10px; color: #64748b; font-family: monospace; font-size: 12px; }
+        .attendance-evidence-subgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .attendance-evidence-block h5 { margin: 0 0 6px; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.03em; }
+        .attendance-evidence-photo-btn { display: block; position: relative; width: 100%; padding: 0; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #e2e8f0; cursor: pointer; text-align: left; }
+        .attendance-evidence-photo-btn:focus-visible { outline: 2px solid #145da0; outline-offset: 2px; }
+        .attendance-evidence-photo { display: block; width: 100%; height: min(30vh, 220px); object-fit: cover; }
+        .attendance-evidence-photo-hint { position: absolute; bottom: 6px; right: 6px; background: rgba(15, 23, 42, 0.78); color: #fff; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; pointer-events: none; }
+        .attendance-evidence-map { display: block; width: 100%; height: min(30vh, 220px); border: 0; border-radius: 8px; background: #e2e8f0; }
+        .attendance-evidence-coordinates { margin: -2px 0 6px; color: #64748b; font-family: monospace; font-size: 11px; word-break: break-all; }
         .attendance-evidence-photo-spacer { visibility: hidden; }
-        .attendance-evidence-empty { display: flex; align-items: center; justify-content: center; min-height: 180px; margin: 0; color: #94a3b8; font-size: 13px; font-style: italic; text-align: center; }
-        .attendance-evidence-notes { margin: 0 0 10px; color: #334155; font-size: 12px; overflow-wrap: anywhere; white-space: pre-wrap; }
+        .attendance-evidence-empty { display: flex; align-items: center; justify-content: center; min-height: 120px; margin: 0; color: #94a3b8; font-size: 13px; font-style: italic; text-align: center; }
+        .attendance-evidence-notes { margin: 0 0 10px; color: #334155; font-size: 12px; overflow-wrap: anywhere; white-space: pre-wrap; background: #fff; padding: 8px 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        .attendance-evidence-notes--hrd { background: #fffbeb; border-color: #fde68a; color: #78350f; border-left: 3px solid #d97706; }
 
         .empty-state { padding: 40px; text-align: center; color: #9ca3af; font-style: italic; }
 
@@ -570,10 +581,11 @@
         }
 
         @media (max-width: 767px) {
-            .attendance-evidence-grid { grid-template-columns: 1fr; }
+            .attendance-evidence-grid { grid-template-columns: 1fr; gap: 14px; }
+            .attendance-evidence-subgrid { grid-template-columns: 1fr; gap: 10px; }
             .attendance-evidence-photo-spacer { display: none; }
             .attendance-evidence-photo,
-            .attendance-evidence-map { height: min(30vh, 240px); }
+            .attendance-evidence-map { height: 180px; }
         }
     </style>
 
@@ -617,7 +629,10 @@
                     initializeAttendanceMoveButtons();
                     window.history.replaceState(null, '', url);
                 } catch (error) {
-                    if (error.name !== 'AbortError') console.error(error);
+                    if (error.name !== 'AbortError') {
+                        console.error(error);
+                        window.logAttendanceMessage?.(error.message || 'Pencarian absensi gagal');
+                    }
                 } finally {
                     if (request === currentRequest) {
                         results.classList.remove('is-loading');
@@ -731,20 +746,33 @@
                 wrapper.className = 'attendance-evidence-entry';
                 const time = document.createElement('p');
                 time.className = 'attendance-evidence-entry-time';
-                time.textContent = `${entry.time} · ${entry.date}${entry.is_flexible ? ' · Fleksibel' : ''}`;
+                const type = entry.type === 'DINAS_LUAR' ? 'Dinas Luar' : (entry.is_flexible ? 'Fleksibel' : '');
+                time.textContent = `${entry.time} · ${entry.date}${type ? ` · ${type}` : ''}`;
                 const evidence = document.createElement('div');
-                evidence.className = 'attendance-evidence-grid';
+                evidence.className = 'attendance-evidence-subgrid';
 
                 const photo = document.createElement('section');
-                const photoTitle = document.createElement('h4');
+                photo.className = 'attendance-evidence-block';
+                const photoTitle = document.createElement('h5');
                 photoTitle.textContent = 'Foto';
                 photo.append(photoTitle);
                 if (entry.photo) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'attendance-evidence-photo-btn';
+                    button.dataset.imageViewerSrc = entry.photo;
+                    button.dataset.imageViewerAlt = `Foto ${side === 'in' ? 'Clock In' : 'Clock Out'} ${entry.date} ${entry.time}`;
+                    button.setAttribute('aria-label', 'Perbesar foto kehadiran');
                     const image = document.createElement('img');
                     image.className = 'attendance-evidence-photo';
                     image.src = entry.photo;
                     image.alt = 'Foto kehadiran';
-                    photo.append(image);
+                    button.append(image);
+                    const hint = document.createElement('span');
+                    hint.className = 'attendance-evidence-photo-hint';
+                    hint.textContent = 'Ketuk untuk perbesar';
+                    button.append(hint);
+                    photo.append(button);
                 } else {
                     const empty = document.createElement('p');
                     empty.className = 'attendance-evidence-empty';
@@ -753,10 +781,11 @@
                 }
 
                 const location = document.createElement('section');
-                const locationTitle = document.createElement('h4');
+                location.className = 'attendance-evidence-block';
+                const locationTitle = document.createElement('h5');
                 locationTitle.textContent = 'Lokasi';
                 location.append(locationTitle);
-                if (entry.latitude && entry.longitude) {
+                if (entry.latitude !== '' && entry.longitude !== '') {
                     const coordinates = `${entry.latitude}, ${entry.longitude}`;
                     const label = document.createElement('p');
                     label.className = 'attendance-evidence-coordinates';
@@ -781,10 +810,16 @@
 
                 evidence.append(photo, location);
                 wrapper.append(time);
-                if (entry.is_flexible) {
+                if (entry.is_flexible || entry.notes) {
                     const notes = document.createElement('p');
                     notes.className = 'attendance-evidence-notes';
                     notes.textContent = `Alasan: ${entry.notes || '-'}`;
+                    wrapper.append(notes);
+                }
+                if (entry.hrd_note) {
+                    const notes = document.createElement('p');
+                    notes.className = 'attendance-evidence-notes attendance-evidence-notes--hrd';
+                    notes.textContent = `Catatan HRD: ${entry.hrd_note}`;
                     wrapper.append(notes);
                 }
                 wrapper.append(evidence);
@@ -841,6 +876,7 @@
                     document.body.style.overflow = '';
                     await window.refreshAttendanceResults?.();
                 } catch (error) {
+                    window.logAttendanceMessage?.(error.message || 'Perubahan tipe event gagal.');
                     window.alert(error.message || 'Perubahan tipe event gagal.');
                 } finally {
                     submitButton.disabled = false;

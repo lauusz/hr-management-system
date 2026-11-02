@@ -79,6 +79,7 @@
         let panStartX = 0;
         let panStartY = 0;
         let lastTrigger = null;
+        let previousOverflow = '';
 
         function updateTransform() {
             image.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom}) rotate(${rotation}deg)`;
@@ -116,6 +117,7 @@
             image.alt = trigger.getAttribute('data-image-viewer-alt') || 'Preview gambar';
             image.src = src;
             viewer.hidden = false;
+            previousOverflow = document.body.style.overflow;
             document.body.style.overflow = 'hidden';
             closeButton.focus();
         }
@@ -126,7 +128,7 @@
             image.src = '';
             image.alt = '';
             error.hidden = true;
-            document.body.style.overflow = '';
+            document.body.style.overflow = previousOverflow;
             reset();
             if (lastTrigger) lastTrigger.focus();
             lastTrigger = null;

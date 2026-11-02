@@ -270,6 +270,24 @@ class ScheduleController extends Controller
             ->with('success', 'Jadwal karyawan berhasil diperbarui.');
     }
 
+    public function updateShift(Request $request, EmployeeShift $schedule)
+    {
+        $validated = $request->validate([
+            'shift_id' => ['required', Rule::exists('shifts', 'id')->where('is_active', true)],
+        ]);
+
+        if (! User::active()->whereKey($schedule->user_id)->exists()) {
+            throw ValidationException::withMessages(['shift_id' => 'Karyawan tidak aktif atau tidak ditemukan.']);
+        }
+
+        if ((int) $schedule->shift_id !== (int) $validated['shift_id']) {
+            app(ShiftRotationService::class)->ensureNotRotating([$schedule->user_id]);
+            $schedule->update(['shift_id' => $validated['shift_id']]);
+        }
+
+        return response()->json(['message' => 'Shift berhasil diperbarui.']);
+    }
+
     public function destroy(EmployeeShift $schedule)
     {
         app(ShiftRotationService::class)->ensureNotRotating([$schedule->user_id]);

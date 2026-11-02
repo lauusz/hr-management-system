@@ -151,8 +151,16 @@
                         </td>
 
                         <td>
-                            @if($item->shift_id)
-                                <span class="badge-shift">{{ $item->shift_name }}</span>
+                            @if($item->schedule_id)
+                                <select class="schedule-row-shift" aria-label="Shift {{ $item->name }}" data-url="{{ route('hr.schedules.shift', $item->schedule_id) }}" data-saved-shift="{{ $item->shift_id }}">
+                                    @if(! $shiftOptions->contains('id', $item->shift_id))
+                                        <option value="{{ $item->shift_id }}" selected>{{ $item->shift_name ?? '-' }} (tidak aktif)</option>
+                                    @endif
+                                    @foreach($shiftOptions as $shift)
+                                        <option value="{{ $shift->id }}" @selected($item->shift_id == $shift->id)>{{ $shift->name }}</option>
+                                    @endforeach
+                                </select>
+                                <div class="schedule-shift-status" role="status" aria-live="polite"></div>
                             @else
                                 <span class="text-muted" style="font-size:12px; font-style:italic;">-</span>
                             @endif
@@ -518,6 +526,8 @@
             font-size: 10px;
             font-weight: 600;
         }
+        .schedule-row-shift { max-width: 220px; width: 100%; padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #1f2937; font-size: 12px; }
+        .schedule-shift-status { margin-top: 4px; font-size: 11px; color: #4b5563; }
 
         /* --- ACTION BUTTONS --- */
         .action-buttons {
@@ -657,6 +667,36 @@
                         selectedUserIds.delete(event.target.value);
                     }
                     syncSelection();
+                }
+            });
+
+            results?.addEventListener('change', async function (event) {
+                const shift = event.target.closest('.schedule-row-shift');
+                if (!shift) return;
+
+                const status = shift.nextElementSibling;
+                shift.disabled = true;
+                status.textContent = 'Menyimpan...';
+                try {
+                    const response = await fetch(shift.dataset.url, {
+                        method: 'PATCH',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': @json(csrf_token()),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ shift_id: shift.value }),
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(Object.values(data.errors || {})[0]?.[0] || data.message || 'Shift gagal disimpan.');
+                    shift.dataset.savedShift = shift.value;
+                    status.textContent = data.message;
+                } catch (error) {
+                    shift.value = shift.dataset.savedShift;
+                    status.textContent = error.message || 'Shift gagal disimpan.';
+                } finally {
+                    shift.disabled = false;
                 }
             });
 

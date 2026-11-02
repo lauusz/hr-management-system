@@ -8,6 +8,7 @@ use App\Models\EmployeeShift;
 use App\Models\OfficeHoliday;
 use App\Models\User;
 use App\Services\Attendance\AllowedAttendanceLocationResolver;
+use App\Services\Attendance\AttendanceHistoryService;
 use App\Services\Image\ImageCompressor;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -21,11 +22,13 @@ use Illuminate\Support\Facades\Storage;
 class AttendanceController extends Controller
 {
     private const EVENT_COOLDOWN_MINUTES = 15;
+
     private const MAX_LOCATION_ACCURACY_METERS = 100;
 
     public function __construct(
         protected ImageCompressor $imageCompressor,
         protected AllowedAttendanceLocationResolver $allowedAttendanceLocationResolver,
+        protected AttendanceHistoryService $attendanceHistoryService,
     ) {}
 
     public function dashboard()
@@ -51,6 +54,29 @@ class AttendanceController extends Controller
             'activeAttendance' => null,
             'activeAttendanceEndAt' => null,
             'previousIncompleteAttendance' => null,
+        ]);
+    }
+
+    public function history(Request $request)
+    {
+        $userId = Auth::id();
+        $dateStart = $request->query('date_start')
+            ? Carbon::parse($request->query('date_start'))->startOfDay()
+            : now()->startOfMonth()->startOfDay();
+        $dateEnd = $request->query('date_end')
+            ? Carbon::parse($request->query('date_end'))->endOfDay()
+            : now()->endOfDay();
+
+        if ($dateStart->gt($dateEnd)) {
+            [$dateStart, $dateEnd] = [$dateEnd->copy()->startOfDay(), $dateStart->copy()->endOfDay()];
+        }
+
+        $sessions = $this->attendanceHistoryService->getHistory($userId, $dateStart, $dateEnd);
+
+        return view('attendance.history', [
+            'sessions' => $sessions,
+            'date_start' => $dateStart->toDateString(),
+            'date_end' => $dateEnd->toDateString(),
         ]);
     }
 
@@ -247,7 +273,8 @@ class AttendanceController extends Controller
                         ->latest('id')
                         ->first();
 
-                    if ($previousEvent?->event_type === AttendanceEvent::CLOCK_IN) {
+                    if ($previousEvent?->event_type === AttendanceEvent::CLOCK_IN
+                        && $this->canPairWithClockIn($previousEvent, $occurredAt, $employeeShift)) {
                         $shiftSnapshot = $this->clockOutShiftSnapshot($previousEvent, $employeeShift);
                         $eventIsWita = $previousEvent->is_wita ?? $eventIsWita;
                     }
@@ -461,6 +488,22 @@ class AttendanceController extends Controller
             'is_overnight' => (bool) $shiftDay?->is_overnight,
             'attendance_location_scope' => $this->attendanceLocationScope($employeeShift),
         ];
+    }
+
+    private function canPairWithClockIn(AttendanceEvent $clockIn, Carbon $occurredAt, EmployeeShift $employeeShift): bool
+    {
+        $timezone = $employeeShift->shift?->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta';
+        $localClockIn = $clockIn->occurred_at->copy()->timezone($timezone);
+        $localOccurredAt = $occurredAt->copy()->timezone($timezone);
+        $isOvernight = (bool) ($clockIn->is_overnight ?? $employeeShift->shift?->is_overnight);
+
+        if (! $isOvernight) {
+            return $localClockIn->isSameDay($localOccurredAt);
+        }
+
+        $diffHours = $localClockIn->diffInHours($localOccurredAt, false);
+
+        return $diffHours >= 0 && $diffHours <= 24;
     }
 
     /**

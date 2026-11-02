@@ -1196,7 +1196,10 @@
                     initializeAttendanceDetailButtons();
                     window.history.replaceState(null, '', url);
                 } catch (error) {
-                    if (error.name !== 'AbortError') console.error(error);
+                    if (error.name !== 'AbortError') {
+                        console.error(error);
+                        window.logAttendanceMessage?.(error.message || 'Pencarian absensi gagal');
+                    }
                 } finally {
                     if (request === currentRequest) {
                         results.classList.remove('is-loading');

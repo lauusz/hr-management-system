@@ -156,14 +156,14 @@
                             <td class="actions-cell">
                                 @if($spv->isSupervisor())
                                 <a href="{{ route('hr.supervisors.show', $spv) }}" class="action-btn" title="Detail OFF SPV">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/></svg>
+                                    Detail
                                 </a>
                                 @endif
                                 <a href="{{ route('hr.supervisors.edit', $spv->id) }}" class="action-btn" title="Edit Level">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    Edit
                                 </a>
                                 <button type="button" class="action-btn action-btn-warning" title="Demote" data-modal-open="modal-demote-{{ $spv->id }}">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a6 6 0 0 1-6 6v0a6 6 0 0 1-6-6V8z"/></svg>
+                                    Demote
                                 </button>
                             </td>
                         </tr>
@@ -212,16 +212,13 @@
                     <div class="spv-mobile-card__actions">
                         @if($spv->isSupervisor())
                             <a href="{{ route('hr.supervisors.show', $spv) }}" class="spv-mobile-action">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/></svg>
-                                Detail OFF SPV
+                                Detail
                             </a>
                         @endif
                         <a href="{{ route('hr.supervisors.edit', $spv->id) }}" class="spv-mobile-action">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                            Edit Level
+                            Edit
                         </a>
                         <button type="button" class="spv-mobile-action spv-mobile-action--warning" data-modal-open="modal-demote-{{ $spv->id }}">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a6 6 0 0 1-6 6v0a6 6 0 0 1-6-6V8z"/></svg>
                             Demote
                         </button>
                     </div>
@@ -581,23 +578,25 @@
         .data-table th.actions-heading { text-align: center; }
         .actions-cell { text-align: right; white-space: nowrap; }
         .action-btn {
-            width: 32px;
-            height: 32px;
+            min-height: 32px;
+            padding: 4px 6px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             border-radius: 8px;
-            border: none;
+            border: 1px solid transparent;
             background: transparent;
             color: var(--text-muted);
+            font: inherit;
+            font-size: 0.6875rem;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
             vertical-align: middle;
             text-decoration: none;
         }
-        .action-btn:hover { background: var(--gray-50); color: var(--primary); }
-        .action-btn-warning:hover { background: rgba(245, 158, 11, 0.1); color: #a16207; }
-        .action-btn svg { width: 16px; height: 16px; }
+        .action-btn:hover, .action-btn:focus-visible { border-color: var(--primary); background: var(--gray-50); color: var(--primary); }
+        .action-btn-warning:hover, .action-btn-warning:focus-visible { border-color: #a16207; background: rgba(245, 158, 11, 0.1); color: #a16207; }
 
         /* === MOBILE CARDS === */
         .spv-mobile-list { display: none; }
@@ -670,7 +669,7 @@
             background: var(--white);
             color: var(--text-primary);
             font: inherit;
-            font-size: 0.72rem;
+            font-size: 0.6875rem;
             font-weight: 700;
             text-align: center;
             text-decoration: none;
@@ -678,7 +677,6 @@
             transition: all 0.2s ease;
         }
         .spv-mobile-action:hover { border-color: var(--primary); color: var(--primary); }
-        .spv-mobile-action svg { width: 15px; height: 15px; flex-shrink: 0; }
         .spv-mobile-action--warning { color: #a16207; }
         .spv-mobile-action--warning:hover { border-color: var(--warning); color: #a16207; }
 
