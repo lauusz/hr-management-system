@@ -7,6 +7,7 @@ use App\Models\AttendanceLocation;
 use App\Models\EmployeeShift;
 use App\Models\OfficeHoliday;
 use App\Models\User;
+use App\Models\WorkSchedule;
 use App\Services\Attendance\AllowedAttendanceLocationResolver;
 use App\Services\Attendance\AttendanceHistoryService;
 use App\Services\Image\ImageCompressor;
@@ -200,9 +201,6 @@ class AttendanceController extends Controller
 
             $occurredAt = now();
             $shiftSnapshot = $this->attendanceShiftSnapshot($employeeShift, $occurredAt);
-            if (! $this->rotationReady($user->id, $occurredAt, $eventType)) {
-                return response()->json(['message' => 'Jadwal rotasi hari ini belum diproses. Hubungi HR atau IT.'], 503);
-            }
 
             $matchedLocation = null;
             $distance = 0;
@@ -257,13 +255,10 @@ class AttendanceController extends Controller
 
             $recordedEvent = DB::transaction(function () use ($user, $eventType, $isRemote, $employeeShift, $matchedLocation, $photoPath, $request, $distance, $isFlexibleEvent, $isOutsideReferenceLocation, $referenceLocationIds, $occurredAt, $shiftSnapshot, $hasTimezoneSnapshot) {
                 User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
-                $eventIsWita = (bool) $employeeShift->shift->is_wita;
+                $eventIsWita = (bool) ($shiftSnapshot['schedule_is_wita'] ?? $employeeShift->shift->is_wita);
 
                 if ($cooldownEvent = $this->activeCooldownEvent($user->id)) {
                     return ['event' => $cooldownEvent, 'is_cooldown' => true];
-                }
-                if (! $this->rotationReady($user->id, $occurredAt, $eventType)) {
-                    return ['is_cooldown' => false, 'is_rotation_pending' => true];
                 }
 
                 if ($eventType === AttendanceEvent::CLOCK_OUT) {
@@ -289,7 +284,15 @@ class AttendanceController extends Controller
                 }
                 if ($eventType === AttendanceEvent::CLOCK_IN) {
                     $shiftSnapshot = $this->attendanceShiftSnapshot($currentShift, $occurredAt);
+                    $eventIsWita = (bool) ($shiftSnapshot['schedule_is_wita'] ?? $currentShift->shift->is_wita);
                 }
+                if ($shiftSnapshot['schedule_incomplete'] ?? false) {
+                    return ['is_cooldown' => false, 'is_schedule_incomplete' => true];
+                }
+                if ($eventIsWita && ! $hasTimezoneSnapshot) {
+                    return ['is_cooldown' => false, 'is_schedule_changed' => true];
+                }
+                unset($shiftSnapshot['schedule_is_wita']);
 
                 if (! $isRemote) {
                     if ($isFlexibleEvent) {
@@ -344,10 +347,10 @@ class AttendanceController extends Controller
                 return response()->json(['message' => 'Jadwal presensi berubah. Muat ulang halaman dan coba lagi.'], 409);
             }
 
-            if ($recordedEvent['is_rotation_pending'] ?? false) {
+            if ($recordedEvent['is_schedule_incomplete'] ?? false) {
                 Storage::disk('public')->delete($photoPath);
 
-                return response()->json(['message' => 'Jadwal rotasi hari ini belum diproses. Hubungi HR atau IT.'], 503);
+                return response()->json(['message' => 'Pembaruan jadwal presensi belum lengkap. Hubungi HR atau IT.'], 503);
             }
 
             $event = $recordedEvent['event'];
@@ -369,33 +372,11 @@ class AttendanceController extends Controller
         }
     }
 
-    private function rotationReady(int $userId, Carbon $occurredAt, string $eventType): bool
-    {
-        if (! Schema::hasTable('shift_rotation_members') || ! Schema::hasTable('shift_rotations')) {
-            return true;
-        }
-
-        $rotation = DB::table('shift_rotation_members')->join('shift_rotations', 'shift_rotations.id', '=', 'shift_rotation_members.shift_rotation_id')
-            ->where('shift_rotation_members.user_id', $userId)->where('shift_rotations.is_active', true)
-            ->first(['shift_rotations.id', 'shift_rotations.start_date']);
-        if (! $rotation) {
-            return true;
-        }
-
-        $rotationDate = $occurredAt->copy()->timezone('Asia/Jakarta')->toDateString();
-        if ($rotation->start_date > $rotationDate) {
-            return true;
-        }
-        if (Schema::hasTable('shift_rotation_snapshots') && DB::table('shift_rotation_snapshots')->where('shift_rotation_id', $rotation->id)->where('user_id', $userId)->whereDate('work_date', $rotationDate)->exists()) {
-            return true;
-        }
-
-        return $eventType === AttendanceEvent::CLOCK_OUT && AttendanceEvent::query()->where('user_id', $userId)->latest('occurred_at')->latest('id')->value('event_type') === AttendanceEvent::CLOCK_IN;
-    }
-
     private function activeOfficeHoliday(): ?OfficeHoliday
     {
-        $timezone = Auth::user()?->employeeShift?->shift?->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta';
+        $employeeShift = EmployeeShift::with($this->employeeShiftRelations(true))->where('user_id', Auth::id())->first();
+        $snapshot = $employeeShift?->shift ? $this->attendanceShiftSnapshot($employeeShift, now()) : [];
+        $timezone = ($snapshot['schedule_is_wita'] ?? $employeeShift?->shift?->is_wita) ? 'Asia/Makassar' : 'Asia/Jakarta';
 
         return OfficeHoliday::query()
             ->whereDate('holiday_date', now($timezone)->toDateString())
@@ -445,42 +426,61 @@ class AttendanceController extends Controller
      */
     private function attendanceShiftSnapshot(EmployeeShift $employeeShift, Carbon $occurredAt): array
     {
-        $occurredAt = $occurredAt->copy()->timezone($employeeShift->shift?->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta');
-        $workDate = $occurredAt->copy()->startOfDay();
-        if (Schema::hasTable('shift_rotation_members') && Schema::hasTable('shift_rotation_snapshots')) {
-            $member = DB::table('shift_rotation_members')->where('user_id', $employeeShift->user_id)->first();
-            if ($member) {
-                $rotationDate = $occurredAt->copy()->timezone('Asia/Jakarta')->startOfDay();
-                $snapshot = DB::table('shift_rotation_snapshots')->where('shift_rotation_id', $member->shift_rotation_id)->where('user_id', $employeeShift->user_id)->whereDate('work_date', $rotationDate->toDateString())->first();
-                $previous = DB::table('shift_rotation_snapshots')->where('shift_rotation_id', $member->shift_rotation_id)->where('user_id', $employeeShift->user_id)->whereDate('work_date', $rotationDate->copy()->subDay()->toDateString())->first();
-                if ($previous && $previous->is_overnight && $previous->end_time && $occurredAt->format('H:i:s') <= $previous->end_time) {
-                    $snapshot = $previous;
+        $specialPrevious = false;
+        $incompleteForUser = Schema::hasTable('employee_work_schedules') && ! WorkSchedule::scheduleReadable()
+            && Schema::hasColumn('employee_work_schedules', 'user_id')
+            && WorkSchedule::where('user_id', $employeeShift->user_id)->exists();
+        if (WorkSchedule::scheduleReadable()) {
+            $dates = collect(['Asia/Jakarta', 'Asia/Makassar'])->map(fn ($zone) => $occurredAt->copy()->timezone($zone)->toDateString())->unique();
+            $previousDates = $dates->map(fn ($date) => Carbon::parse($date)->subDay()->toDateString());
+            $schedules = WorkSchedule::where('user_id', $employeeShift->user_id)->whereIn('work_date', $dates->concat($previousDates)->unique())->get();
+            $previous = $schedules->first(function ($item) use ($occurredAt) {
+                $local = $occurredAt->copy()->timezone($item->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta');
+                return $item->work_date->toDateString() === $local->copy()->subDay()->toDateString();
+            });
+            $specialPrevious = $previous !== null;
+            $regularLocal = $occurredAt->copy()->timezone($employeeShift->shift?->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta');
+            $regularPreviousDay = $employeeShift->shift?->days->first(fn ($day) => (int) $day->day_of_week === $regularLocal->copy()->subDay()->dayOfWeekIso && ! $day->is_holiday);
+            $regularPreviousActive = ! $specialPrevious && $regularPreviousDay?->is_overnight && $regularPreviousDay->end_time && $regularLocal->format('H:i:s') <= $regularPreviousDay->end_time;
+            $schedule = $previous && ! $previous->is_holiday && $previous->is_overnight && $previous->end_time
+                && $occurredAt->copy()->timezone($previous->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta')->format('H:i:s') <= $previous->end_time
+                ? $previous
+                : ($regularPreviousActive ? null : $schedules->first(fn ($item) => $item->work_date->toDateString() === $occurredAt->copy()->timezone($item->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta')->toDateString()));
+            if ($schedule) {
+                $snapshot = [
+                    'work_date' => $schedule->work_date->toDateString(),
+                    'attendance_shift_id' => $schedule->shift_id,
+                    'shift_start_time' => $schedule->start_time,
+                    'shift_end_time' => $schedule->end_time,
+                    'is_overnight' => $schedule->is_overnight,
+                    'schedule_is_wita' => $schedule->is_wita,
+                    'attendance_location_scope' => $this->attendanceLocationScope($employeeShift),
+                ];
+                if (! Schema::hasColumns('attendance_events', ['shift_name_snapshot', 'schedule_is_holiday', 'is_wita'])) {
+                    $snapshot['schedule_incomplete'] = true;
+                } else {
+                    $snapshot['shift_name_snapshot'] = $schedule->shift_name;
+                    $snapshot['schedule_is_holiday'] = $schedule->is_holiday;
                 }
-                if ($snapshot) {
-                    return [
-                        'work_date' => $snapshot->work_date,
-                        'attendance_shift_id' => $snapshot->shift_id,
-                        'shift_start_time' => $snapshot->is_holiday ? null : $snapshot->start_time,
-                        'shift_end_time' => $snapshot->is_holiday ? null : $snapshot->end_time,
-                        'is_overnight' => (bool) $snapshot->is_overnight,
-                        'attendance_location_scope' => $this->attendanceLocationScope($employeeShift),
-                    ];
-                }
+
+                return $snapshot;
             }
         }
+        $occurredAt = $occurredAt->copy()->timezone($employeeShift->shift?->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta');
+        $workDate = $occurredAt->copy()->startOfDay();
         $shiftDay = $employeeShift->shift?->days
             ->first(fn ($day) => (int) $day->day_of_week === $workDate->dayOfWeekIso && ! $day->is_holiday);
         $previousWorkDate = $workDate->copy()->subDay();
         $previousShiftDay = $employeeShift->shift?->days
             ->first(fn ($day) => (int) $day->day_of_week === $previousWorkDate->dayOfWeekIso && ! $day->is_holiday);
 
-        if ($previousShiftDay?->is_overnight && $previousShiftDay->end_time
+        if (! $specialPrevious && $previousShiftDay?->is_overnight && $previousShiftDay->end_time
             && $occurredAt->format('H:i:s') <= $previousShiftDay->end_time) {
             $workDate = $previousWorkDate;
             $shiftDay = $previousShiftDay;
         }
 
-        return [
+        $snapshot = [
             'work_date' => $workDate->toDateString(),
             'attendance_shift_id' => $employeeShift->shift_id,
             'shift_start_time' => $shiftDay?->start_time,
@@ -488,11 +488,16 @@ class AttendanceController extends Controller
             'is_overnight' => (bool) $shiftDay?->is_overnight,
             'attendance_location_scope' => $this->attendanceLocationScope($employeeShift),
         ];
+        if ($incompleteForUser) {
+            $snapshot['schedule_incomplete'] = true;
+        }
+
+        return $snapshot;
     }
 
     private function canPairWithClockIn(AttendanceEvent $clockIn, Carbon $occurredAt, EmployeeShift $employeeShift): bool
     {
-        $timezone = $employeeShift->shift?->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta';
+        $timezone = $clockIn->attendanceTimezone();
         $localClockIn = $clockIn->occurred_at->copy()->timezone($timezone);
         $localOccurredAt = $occurredAt->copy()->timezone($timezone);
         $isOvernight = (bool) ($clockIn->is_overnight ?? $employeeShift->shift?->is_overnight);
@@ -515,7 +520,7 @@ class AttendanceController extends Controller
     {
         $fallback = $this->attendanceShiftSnapshot($employeeShift, $clockIn->occurred_at);
 
-        return [
+        $snapshot = [
             'work_date' => $clockIn->work_date?->toDateString() ?? $fallback['work_date'],
             'attendance_shift_id' => $clockIn->attendance_shift_id ?? $fallback['attendance_shift_id'],
             'shift_start_time' => $clockIn->shift_start_time ?? $fallback['shift_start_time'],
@@ -523,6 +528,15 @@ class AttendanceController extends Controller
             'is_overnight' => $clockIn->is_overnight ?? $fallback['is_overnight'],
             'attendance_location_scope' => $clockIn->attendance_location_scope ?? $fallback['attendance_location_scope'],
         ];
+        if ($clockIn->schedule_is_holiday !== null) {
+            $snapshot['shift_name_snapshot'] = $clockIn->shift_name_snapshot;
+            $snapshot['schedule_is_holiday'] = $clockIn->schedule_is_holiday;
+            $snapshot['shift_start_time'] = $clockIn->shift_start_time;
+            $snapshot['shift_end_time'] = $clockIn->shift_end_time;
+            $snapshot['attendance_shift_id'] = $clockIn->attendance_shift_id;
+        }
+
+        return $snapshot;
     }
 
     private function attendanceLocationScope(EmployeeShift $employeeShift): string

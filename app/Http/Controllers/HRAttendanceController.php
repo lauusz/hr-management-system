@@ -127,8 +127,8 @@ class HRAttendanceController extends Controller
         $scheduleEvent = $clockIns->first() ?? $clockOuts->first();
         $shiftDay = $employeeShift?->shift?->days
             ->first(fn ($day) => (int) $day->day_of_week === $workDate->dayOfWeekIso && ! $day->is_holiday);
-        $startTime = $scheduleEvent->shift_start_time ?? $shiftDay?->start_time;
-        $endTime = $scheduleEvent->shift_end_time ?? $shiftDay?->end_time;
+        $startTime = $scheduleEvent->schedule_is_holiday ? null : ($scheduleEvent->shift_start_time ?? $shiftDay?->start_time);
+        $endTime = $scheduleEvent->schedule_is_holiday ? null : ($scheduleEvent->shift_end_time ?? $shiftDay?->end_time);
         $isOvernight = $scheduleEvent->is_overnight ?? $shiftDay?->is_overnight;
         $selectedLocations = $employeeShift?->locations->pluck('name')->filter()->implode(', ') ?? '';
 
@@ -144,9 +144,9 @@ class HRAttendanceController extends Controller
                 $employeeShift?->is_all_locations === true => 'All Locations',
                 default => $selectedLocations ?: ($employeeShift?->location?->name ?? '-'),
             },
-            'work_schedule' => $startTime && $endTime
+            'work_schedule' => $scheduleEvent->schedule_is_holiday ? 'Libur' : ($startTime && $endTime
                 ? substr($startTime, 0, 5).'–'.substr($endTime, 0, 5).($isOvernight ? ' (lintas hari)' : '')
-                : '-',
+                : '-'),
         ];
     }
 

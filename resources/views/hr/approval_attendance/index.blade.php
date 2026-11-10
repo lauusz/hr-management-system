@@ -149,6 +149,8 @@
         #approval-attendance-evidence-photo { display: block; width: 100%; height: min(58vh, 520px); object-fit: contain; border-radius: 8px; background: #e2e8f0; }
         #approval-attendance-evidence-map { display: block; width: 100%; height: min(58vh, 520px); border: 0; border-radius: 8px; background: #e2e8f0; }
         .approval-evidence-coordinates { margin: -2px 0 10px; color: #64748b; font-family: monospace; font-size: 12px; }
+        .evidence-maps-button { display: inline-block; padding: 4px 8px; border: 1px solid #2563eb; border-radius: 6px; color: #2563eb; font: 600 12px sans-serif; text-decoration: none; }
+        .evidence-maps-button[hidden] { display: none; }
         .approval-evidence-empty { margin: 0; color: #94a3b8; font-size: 13px; }
         @media (max-width: 700px) { .approval-evidence-grid { grid-template-columns: 1fr; } }
 
@@ -326,7 +328,7 @@
             </section>
             <section class="approval-evidence-panel">
                 <h4>Lokasi Kehadiran</h4>
-                <p id="approval-attendance-evidence-coordinates" class="approval-evidence-coordinates" hidden></p>
+                <div class="approval-evidence-coordinates"><span id="approval-attendance-evidence-coordinates" hidden></span> <a id="approval-attendance-evidence-maps-link" class="evidence-maps-button" target="_blank" rel="noopener noreferrer" hidden>Buka di Google Maps</a></div>
                 <iframe id="approval-attendance-evidence-map" title="Peta lokasi kehadiran" loading="lazy" referrerpolicy="no-referrer-when-downgrade" hidden></iframe>
                 <p id="approval-attendance-evidence-location-empty" class="approval-evidence-empty">Lokasi tidak tersedia.</p>
             </section>
@@ -480,6 +482,7 @@
                 photo: document.getElementById('approval-attendance-evidence-photo'),
                 photoEmpty: document.getElementById('approval-attendance-evidence-photo-empty'),
                 coordinates: document.getElementById('approval-attendance-evidence-coordinates'),
+                mapsLink: document.getElementById('approval-attendance-evidence-maps-link'),
                 map: document.getElementById('approval-attendance-evidence-map'),
                 locationEmpty: document.getElementById('approval-attendance-evidence-location-empty'),
             };
@@ -596,11 +599,15 @@
                         const coordinates = `${latitude}, ${longitude}`;
                         evidence.coordinates.textContent = coordinates;
                         evidence.coordinates.hidden = false;
+                        evidence.mapsLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordinates)}`;
+                        evidence.mapsLink.hidden = false;
                         evidence.map.src = `https://www.google.com/maps?q=${encodeURIComponent(coordinates)}&z=16&output=embed`;
                         evidence.map.hidden = false;
                         evidence.locationEmpty.hidden = true;
                     } else {
                         evidence.coordinates.hidden = true;
+                        evidence.mapsLink.hidden = true;
+                        evidence.mapsLink.removeAttribute('href');
                         evidence.map.removeAttribute('src');
                         evidence.map.hidden = true;
                         evidence.locationEmpty.hidden = false;

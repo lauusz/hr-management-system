@@ -21,7 +21,6 @@ class AttendanceMessageController extends Controller
         ]);
 
         $messages = [
-            'Jadwal rotasi hari ini belum diproses. Hubungi HR atau IT.',
             'Alasan Clock In di luar lokasi absen wajib diisi.',
             'Alasan Clock Out di luar lokasi absen wajib diisi.',
             'Jadwal shift belum diatur. Hubungi HR.',

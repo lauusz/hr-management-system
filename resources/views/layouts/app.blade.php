@@ -1084,7 +1084,7 @@
         @if($sidebarUser->isHR())
         @php
         $hrEmployeesOpen = request()->routeIs('hr.employees.*','hr.approvers.*','hr.organization','hr.divisions.*','hr.positions.*','hr.pts.*');
-        $hrPresensiOpen = request()->routeIs('hr.shifts.*','hr.shift-rotations.*','hr.locations.*','hr.schedules.*','hr.office-holidays.*');
+        $hrPresensiOpen = request()->routeIs('hr.shifts.*','hr.locations.*','hr.schedules.*','hr.work-schedules.*','hr.office-holidays.*');
         $hrAssetOpen = request()->routeIs('hr.assets.*');
         $pendingAttendanceApprovalCount = \Illuminate\Support\Facades\Schema::hasColumn('attendance_events', 'is_flexible')
           && \Illuminate\Support\Facades\Schema::hasColumn('attendance_events', 'is_outside_reference_location')
@@ -1157,6 +1157,14 @@
           </a>
         </div>
 
+        <div class="menu-section">
+          <div class="menu-section-title">Master Report</div>
+          <a href="{{ route('hr.reports.attendance') }}" class="menu-item {{ request()->routeIs('hr.reports.attendance') ? 'active' : '' }}">
+            <svg class="menu-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-5m4 5V7m4 10v-3M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            <span class="menu-text">Rekap Kehadiran</span>
+          </a>
+        </div>
+
         {{-- HRD: Kepegawaian --}}
         <div class="menu-section">
           <div class="menu-section-title">Kepegawaian</div>
@@ -1207,8 +1215,8 @@
           </button>
           <div class="submenu-panel {{ $hrPresensiOpen ? 'open' : '' }}" id="menu-panel-presensi" data-menu-panel="presensi">
             <a href="{{ route('hr.schedules.index') }}" class="submenu-item {{ request()->routeIs('hr.schedules.*') ? 'active' : '' }}">Jadwal Karyawan</a>
+            <a href="{{ route('hr.work-schedules.index') }}" class="submenu-item {{ request()->routeIs('hr.work-schedules.*') ? 'active' : '' }}">Jadwal Kerja</a>
             <a href="{{ route('hr.shifts.index') }}" class="submenu-item {{ request()->routeIs('hr.shifts.*') ? 'active' : '' }}">Jam Kerja (Shift)</a>
-            <a href="{{ route('hr.shift-rotations.index') }}" class="submenu-item {{ request()->routeIs('hr.shift-rotations.*') ? 'active' : '' }}">Jadwal Rotasi Kerja</a>
             <a href="{{ route('hr.locations.index') }}" class="submenu-item {{ request()->routeIs('hr.locations.*') ? 'active' : '' }}">Lokasi Absensi</a>
             <a href="{{ route('hr.office-holidays.index') }}" class="submenu-item {{ request()->routeIs('hr.office-holidays.*') ? 'active' : '' }}">Hari Libur Kantor</a>
           </div>

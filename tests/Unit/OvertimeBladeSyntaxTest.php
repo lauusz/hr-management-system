@@ -11,6 +11,7 @@ it('compiles the changed overtime templates into valid PHP', function () {
         'resources/views/hr/approvers/overtime.blade.php',
         'resources/views/layouts/app.blade.php',
         'resources/views/overtime_requests/index.blade.php',
+        'resources/views/overtime_requests/create.blade.php',
         'resources/views/overtime_requests/_approval_status.blade.php',
         'resources/views/overtime_requests/_edit_form.blade.php',
         'resources/views/overtime_approvals/index.blade.php',

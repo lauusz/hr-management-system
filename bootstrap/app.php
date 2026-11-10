@@ -22,6 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([__DIR__.'/../app/Console/Commands'])
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prependToPriorityList(\Illuminate\Routing\Middleware\SubstituteBindings::class, \App\Http\Middleware\EnsureInventoryPesonaAccess::class);
+        $middleware->prependToPriorityList(\Illuminate\Routing\Middleware\SubstituteBindings::class, \App\Http\Middleware\EnsurePesonaVehicleSchema::class);
         $middleware->alias([
             'role' => EnsureRole::class,
             'atk.admin' => EnsureAtkAdmin::class,

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Shift;
 use App\Models\ShiftDay;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -134,10 +135,6 @@ class ShiftController extends Controller
 
         DB::transaction(function () use ($request, $shift, $validated, $hasWitaColumn, $days) {
             $shift = Shift::whereKey($shift->id)->lockForUpdate()->firstOrFail();
-            if (! $request->boolean('is_active') || ($hasWitaColumn && (bool) $shift->is_wita !== $request->boolean('is_wita'))) {
-                app(\App\Services\ShiftRotationService::class)->ensureShiftNotInUse($shift->id);
-            }
-
             $shift->update([
                 'name' => $validated['name'],
                 'description' => $validated['description'] ?? null,
@@ -155,11 +152,19 @@ class ShiftController extends Controller
 
     public function destroy(Shift $shift)
     {
-        DB::transaction(function () use ($shift) {
-            $shift = Shift::whereKey($shift->id)->lockForUpdate()->firstOrFail();
-            app(\App\Services\ShiftRotationService::class)->ensureShiftNotInUse($shift->id, true);
-            $shift->delete();
-        });
+        try {
+            DB::transaction(function () use ($shift) {
+                $shift = Shift::whereKey($shift->id)->lockForUpdate()->firstOrFail();
+                $shift->delete();
+            });
+        } catch (QueryException $e) {
+            $driverCode = (int) ($e->errorInfo[1] ?? 0);
+            if ($driverCode !== 1451 && $driverCode !== 787 && ! ($driverCode === 19 && str_contains($e->getMessage(), 'FOREIGN KEY constraint failed'))) {
+                throw $e;
+            }
+
+            throw ValidationException::withMessages(['shift_id' => 'Shift masih digunakan oleh data lain dan tidak dapat dihapus.']);
+        }
 
         return redirect()
             ->route('hr.shifts.index')

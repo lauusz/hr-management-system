@@ -85,15 +85,18 @@ class OvertimeRequestController extends Controller
 
         $validated = $request->validate([
             'overtime_date' => 'required|date',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i|different:start_time',
-            'break_hours' => 'nullable|integer|min:0|max:23',
-            'break_minutes' => 'nullable|integer|min:0|max:59',
+            'start_time' => ['required', 'date_format:H:i', 'regex:/:(00|30)$/'],
+            'end_time' => ['required', 'date_format:H:i', 'regex:/:(00|30)$/', 'different:start_time'],
+            'break_duration_minutes' => 'nullable|integer|in:0,30,60,90,120,150,180,210,240,270,300',
             'description' => 'required|string|max:5000',
             'photos' => 'nullable|array|max:3',
             'photos.*' => 'file|mimes:jpg,jpeg,png,webp,heic,heif,pdf,doc,docx,xls,xlsx|max:8192',
         ], [
+            'start_time.regex' => 'Menit jam lembur hanya boleh 00 atau 30.',
+            'end_time.regex' => 'Menit jam lembur hanya boleh 00 atau 30.',
             'end_time.different' => 'Jam selesai lembur tidak boleh sama dengan jam mulai.',
+            'break_duration_minutes.integer' => 'Durasi istirahat tidak valid.',
+            'break_duration_minutes.in' => 'Durasi istirahat tidak valid.',
             'photos.max' => 'Maksimal 3 bukti pendukung per pengajuan.',
             'photos.*.max' => 'Ukuran tiap file bukti pendukung tidak boleh lebih dari 8 MB.',
             'photos.*.uploaded' => 'File gagal diunggah. Pastikan ukurannya tidak lebih dari 8 MB.',
@@ -102,8 +105,8 @@ class OvertimeRequestController extends Controller
         ]);
 
         $durationMinutes = $this->calculateDurationMinutes($validated['start_time'], $validated['end_time']);
-        $breakMinutes = $this->calculateBreakMinutes($validated);
-        $this->validateBreakDuration($breakMinutes, $durationMinutes);
+        $breakMinutes = (int) ($validated['break_duration_minutes'] ?? 0);
+        $this->validateBreakDuration($breakMinutes, $durationMinutes, 'break_duration_minutes');
 
         $files = [];
         try {
@@ -260,11 +263,11 @@ class OvertimeRequestController extends Controller
         return ((int) ($validated['break_hours'] ?? 0) * 60) + (int) ($validated['break_minutes'] ?? 0);
     }
 
-    private function validateBreakDuration(int $breakMinutes, int $durationMinutes): void
+    private function validateBreakDuration(int $breakMinutes, int $durationMinutes, string $field = 'break_hours'): void
     {
         if ($breakMinutes >= $durationMinutes) {
             throw ValidationException::withMessages([
-                'break_hours' => 'Istirahat harus lebih singkat dari durasi lembur.',
+                $field => 'Istirahat harus lebih singkat dari durasi lembur.',
             ]);
         }
     }

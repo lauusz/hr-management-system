@@ -934,8 +934,9 @@
         </div>
 
         <div class="remember-row">
+          <input type="hidden" name="remember" value="0">
           <label class="custom-checkbox">
-            <input type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
+            <input type="checkbox" name="remember" id="remember" value="1" {{ old('remember', '1') ? 'checked' : '' }}>
             <span class="checkbox-mark">
               <svg viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M1.5 5.5L4.5 8.5L10.5 1.5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>

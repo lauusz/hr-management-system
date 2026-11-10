@@ -45,9 +45,14 @@
                     </svg>
                     Tanggal Lembur <span class="otc-required">*</span>
                 </label>
-                <input type="date" name="overtime_date" id="overtime_date"
-                    class="otc-input @error('overtime_date') otc-input--error @enderror"
-                    value="{{ old('overtime_date') }}" required>
+                <div class="otc-input-wrap">
+                    <svg class="otc-input__icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <input type="text" name="overtime_date" id="overtime_date"
+                        class="otc-input otc-input--icon @error('overtime_date') otc-input--error @enderror"
+                        value="{{ old('overtime_date') }}" placeholder="Pilih tanggal lembur" autocomplete="off" required>
+                </div>
                 @error('overtime_date')
                     <div class="otc-error">{{ $message }}</div>
                 @enderror
@@ -61,55 +66,96 @@
                     Jam Lembur <span class="otc-required">*</span>
                 </label>
                 <div class="otc-time-grid">
-                    <div>
-                        <label class="otc-time-field-label" for="start_time">Jam Mulai Lembur</label>
-                        <div class="otc-input-wrap">
-                            <svg class="otc-input__icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <input type="time" name="start_time" id="start_time"
-                                class="otc-input otc-input--icon @error('start_time') otc-input--error @enderror"
-                                value="{{ old('start_time') }}" required>
+                    @foreach (['start_time' => 'Jam Mulai Lembur', 'end_time' => 'Jam Selesai Lembur'] as $field => $label)
+                        @php
+                            $oldTime = old($field);
+                            $oldTime = is_string($oldTime) && preg_match('/^(?:[01][0-9]|2[0-3]):(?:00|30)$/', $oldTime) ? $oldTime : '';
+                            $pickerPrompt = 'Pilih ' . strtolower($label);
+                        @endphp
+                        <div>
+                            <label class="otc-time-field-label" for="{{ $field }}_button">{{ $label }}</label>
+                            <input type="hidden" name="{{ $field }}" id="{{ $field }}" value="{{ $oldTime }}">
+                            <button type="button" id="{{ $field }}_button" class="otc-input otc-time-button @error($field) otc-input--error @enderror"
+                                data-time-field="{{ $field }}" data-picker-title="{{ $pickerPrompt }}" aria-haspopup="dialog" @error($field) aria-invalid="true" aria-describedby="{{ $field }}_error" @enderror>
+                                {{ $oldTime ?: $pickerPrompt }}
+                            </button>
+                            @error($field)
+                                <div class="otc-error" id="{{ $field }}_error">{{ $message }}</div>
+                            @enderror
                         </div>
-                        @error('start_time')
-                            <div class="otc-error">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div>
-                        <label class="otc-time-field-label" for="end_time">Jam Selesai Lembur</label>
-                        <div class="otc-input-wrap">
-                            <svg class="otc-input__icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <input type="time" name="end_time" id="end_time"
-                                class="otc-input otc-input--icon @error('end_time') otc-input--error @enderror"
-                                value="{{ old('end_time') }}" required>
-                        </div>
-                        @error('end_time')
-                            <div class="otc-error">{{ $message }}</div>
-                        @enderror
-                    </div>
+                    @endforeach
                 </div>
 
-                <div class="otc-break-field">
-                    <label class="otc-time-field-label" for="break_hours">Istirahat <span class="otc-optional">(opsional)</span></label>
-                    <div class="otc-break-grid">
-                        <div class="otc-break-control">
-                            <input type="number" name="break_hours" id="break_hours" min="0" max="23" value="{{ old('break_hours') }}" inputmode="numeric" placeholder="0" class="otc-input @error('break_hours') otc-input--error @enderror">
-                            <span class="otc-break-unit">jam</span>
+                <dialog id="otc-time-picker" class="otc-time-picker" aria-labelledby="otc-time-picker-title">
+                    <h2 id="otc-time-picker-title">Pilih jam mulai lembur</h2>
+                    <div class="otc-picker-columns">
+                        <div class="otc-wheel-col">
+                            <label class="otc-wheel-label" for="otc-picker-hour">Jam</label>
+                            <select id="otc-picker-hour" size="5" aria-label="Jam" class="otc-sr-only">
+                                @for ($hour = 0; $hour < 24; $hour++)
+                                    <option value="{{ sprintf('%02d', $hour) }}">{{ sprintf('%02d', $hour) }}</option>
+                                @endfor
+                            </select>
+                            <div class="otc-wheel-stage">
+                                <div class="otc-wheel-highlight" aria-hidden="true"></div>
+                                <div class="otc-wheel-scroller" id="otc-wheel-hour" data-wheel-for="otc-picker-hour" tabindex="0" role="listbox" aria-label="Pilih Jam"></div>
+                            </div>
                         </div>
-                        <div class="otc-break-control">
-                            <input type="number" name="break_minutes" id="break_minutes" min="0" max="59" value="{{ old('break_minutes') }}" inputmode="numeric" placeholder="0" class="otc-input @error('break_minutes') otc-input--error @enderror">
-                            <span class="otc-break-unit">menit</span>
+                        <div class="otc-wheel-col">
+                            <label class="otc-wheel-label" for="otc-picker-minute">Menit</label>
+                            <select id="otc-picker-minute" size="5" aria-label="Menit" class="otc-sr-only">
+                                <option value="00">00</option>
+                                <option value="30">30</option>
+                            </select>
+                            <div class="otc-wheel-stage">
+                                <div class="otc-wheel-highlight" aria-hidden="true"></div>
+                                <div class="otc-wheel-scroller" id="otc-wheel-minute" data-wheel-for="otc-picker-minute" tabindex="0" role="listbox" aria-label="Pilih Menit"></div>
+                            </div>
                         </div>
                     </div>
-                    @error('break_hours')
-                        <div class="otc-error">{{ $message }}</div>
-                    @enderror
-                    @error('break_minutes')
-                        <div class="otc-error">{{ $message }}</div>
+                    <div class="otc-picker-actions">
+                        <button type="button" id="otc-picker-save">Pilih</button>
+                    </div>
+                </dialog>
+
+                <div class="otc-break-field">
+                    @php
+                        $breakOptions = [0 => 'Tanpa istirahat', 30 => '30 menit', 60 => '1 jam', 90 => '1 jam 30 menit', 120 => '2 jam', 150 => '2 jam 30 menit', 180 => '3 jam', 210 => '3 jam 30 menit', 240 => '4 jam', 270 => '4 jam 30 menit', 300 => '5 jam'];
+                        $oldBreak = (string) old('break_duration_minutes', '0');
+                        $oldBreakLabel = $breakOptions[(int) $oldBreak] ?? 'Tanpa istirahat';
+                    @endphp
+                    <label class="otc-time-field-label" for="break_duration_minutes_button">Durasi Istirahat</label>
+                    <select name="break_duration_minutes" id="break_duration_minutes" class="otc-sr-only" @error('break_duration_minutes') aria-invalid="true" aria-describedby="break_duration_minutes_error" @enderror>
+                        @foreach ([0 => 'Tanpa istirahat', 30 => '30 menit', 60 => '1 jam', 90 => '1 jam 30 menit', 120 => '2 jam', 150 => '2 jam 30 menit', 180 => '3 jam', 210 => '3 jam 30 menit', 240 => '4 jam', 270 => '4 jam 30 menit', 300 => '5 jam'] as $minutes => $label)
+                            <option value="{{ $minutes }}" @selected((string) old('break_duration_minutes', '0') === (string) $minutes)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <button type="button" id="break_duration_minutes_button" class="otc-input otc-time-button @error('break_duration_minutes') otc-input--error @enderror"
+                        aria-haspopup="dialog" @error('break_duration_minutes') aria-invalid="true" aria-describedby="break_duration_minutes_error" @enderror>
+                        {{ $oldBreakLabel }}
+                    </button>
+                    @error('break_duration_minutes')
+                        <div class="otc-error" id="break_duration_minutes_error">{{ $message }}</div>
                     @enderror
                 </div>
+
+                <div class="otc-total">
+                    <div class="otc-total-label">Durasi Lembur</div>
+                    <div id="otc-total-value" class="otc-total-value" aria-live="polite">0 jam</div>
+                </div>
+
+                <dialog id="otc-break-picker" class="otc-time-picker" aria-labelledby="otc-break-picker-title">
+                    <h2 id="otc-break-picker-title">Pilih durasi istirahat</h2>
+                    <div class="otc-wheel-col">
+                        <div class="otc-wheel-stage">
+                            <div class="otc-wheel-highlight" aria-hidden="true"></div>
+                            <div class="otc-wheel-scroller" id="otc-wheel-break" tabindex="0" role="listbox" aria-label="Pilih Durasi Istirahat"></div>
+                        </div>
+                    </div>
+                    <div class="otc-picker-actions">
+                        <button type="button" id="otc-break-picker-save">Pilih</button>
+                    </div>
+                </dialog>
 
             </div>
         </div>
@@ -175,8 +221,238 @@
             const btnText = document.getElementById('btn-text');
             const btnSpinner = document.getElementById('btn-spinner');
 
+            const picker = document.getElementById('otc-time-picker');
+            const hour = document.getElementById('otc-picker-hour');
+            const minute = document.getElementById('otc-picker-minute');
+            let activeButton;
+
+            const ITEM_HEIGHT = 44;
+            const hourValues = Array.from({ length: 24 }, function(_, i) { return String(i).padStart(2, '0'); });
+            const minuteValues = ['00', '30'];
+
+            function createInfiniteWheel(scrollerId, selectEl, values, cycles, labels) {
+                const scroller = document.getElementById(scrollerId);
+                if (!scroller || !scroller.appendChild) return null;
+
+                const len = values.length;
+                const midCycle = Math.floor(cycles / 2);
+                const total = len * cycles;
+                const items = [];
+                scroller.innerHTML = '';
+
+                for (let i = 0; i < total; i++) {
+                    const val = values[i % len];
+                    const label = labels ? labels[i % len] : val;
+                    const item = document.createElement('button');
+                    item.type = 'button';
+                    item.className = 'otc-wheel-item';
+                    item.dataset.wheelIndex = String(i);
+                    item.dataset.wheelValue = val;
+                    item.setAttribute('role', 'option');
+                    item.textContent = label;
+                    item.addEventListener('click', function() {
+                        setFromValue(val);
+                    });
+                    scroller.appendChild(item);
+                    items.push(item);
+                }
+
+                let settleTimer = null;
+                let isAdjusting = false;
+
+                function updateVisuals(activeIndex) {
+                    for (let i = 0; i < items.length; i++) {
+                        const dist = Math.abs(i - activeIndex);
+                        const el = items[i];
+                        el.classList.toggle('is-selected', dist === 0);
+                        el.classList.toggle('is-near', dist === 1);
+                        el.setAttribute('aria-selected', dist === 0 ? 'true' : 'false');
+                    }
+                }
+
+                function setFromValue(val) {
+                    clearTimeout(settleTimer);
+                    let valIdx = values.indexOf(val);
+                    if (valIdx === -1) valIdx = 0;
+                    const targetIndex = midCycle * len + valIdx;
+                    selectEl.value = values[valIdx];
+                    updateVisuals(targetIndex);
+                    isAdjusting = true;
+                    scroller.scrollTo({ top: targetIndex * ITEM_HEIGHT, behavior: 'instant' });
+                    isAdjusting = false;
+                }
+
+                scroller.addEventListener('scroll', function() {
+                    if (isAdjusting) return;
+                    let idx = Math.round(scroller.scrollTop / ITEM_HEIGHT);
+                    if (idx < 0) idx = 0;
+                    if (idx >= total) idx = total - 1;
+
+                    const valIdx = ((idx % len) + len) % len;
+                    selectEl.value = values[valIdx];
+
+                    if (cycles > 1 && (idx < len * 2 || idx >= len * (cycles - 2))) {
+                        const recenteredIdx = midCycle * len + valIdx;
+                        isAdjusting = true;
+                        scroller.scrollTop += (recenteredIdx - idx) * ITEM_HEIGHT;
+                        idx = recenteredIdx;
+                        isAdjusting = false;
+                    }
+
+                    updateVisuals(idx);
+
+                    clearTimeout(settleTimer);
+                    settleTimer = setTimeout(function() {
+                        const settledValIdx = values.indexOf(selectEl.value);
+                        const finalIdx = midCycle * len + (settledValIdx >= 0 ? settledValIdx : 0);
+                        if (Math.abs(scroller.scrollTop - finalIdx * ITEM_HEIGHT) > 1) {
+                            isAdjusting = true;
+                            scroller.scrollTop = finalIdx * ITEM_HEIGHT;
+                            updateVisuals(finalIdx);
+                            isAdjusting = false;
+                        }
+                    }, 120);
+                }, { passive: true });
+
+                return { setFromValue: setFromValue };
+            }
+
+            const hourWheel = createInfiniteWheel('otc-wheel-hour', hour, hourValues, 7);
+            const minuteWheel = createInfiniteWheel('otc-wheel-minute', minute, minuteValues, 1);
+            const pickerTitle = document.getElementById('otc-time-picker-title');
+
+            document.querySelectorAll('[data-time-field]').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    activeButton = button;
+                    const value = document.getElementById(button.dataset.timeField).value;
+                    hour.value = value ? value.slice(0, 2) : String(new Date().getHours()).padStart(2, '0');
+                    minute.value = value ? value.slice(3) : '00';
+                    if (pickerTitle) {
+                        pickerTitle.textContent = button.dataset.pickerTitle || (button.dataset.timeField === 'end_time' ? 'Pilih jam selesai lembur' : 'Pilih jam mulai lembur');
+                    }
+                    picker.showModal();
+                    if (hourWheel && minuteWheel) {
+                        hourWheel.setFromValue(hour.value);
+                        minuteWheel.setFromValue(minute.value);
+                    } else {
+                        hour.focus();
+                    }
+                });
+            });
+            document.getElementById('otc-picker-cancel')?.addEventListener('click', function() {
+                picker.close();
+            });
+            picker.addEventListener?.('click', function(e) {
+                if (e.target === picker) {
+                    picker.close();
+                }
+            });
+            document.getElementById('otc-picker-save').addEventListener('click', function() {
+                const value = hour.value + ':' + minute.value;
+                document.getElementById(activeButton.dataset.timeField).value = value;
+                activeButton.textContent = value;
+                updateOvertimeTotal();
+                picker.close();
+            });
+
+            const breakPicker = document.getElementById('otc-break-picker');
+            const breakSelect = document.getElementById('break_duration_minutes');
+            const breakButton = document.getElementById('break_duration_minutes_button');
+            const breakSave = document.getElementById('otc-break-picker-save');
+            const breakValues = ['0', '30', '60', '90', '120', '150', '180', '210', '240', '270', '300'];
+            const breakLabels = ['Tanpa istirahat', '30 menit', '1 jam', '1 jam 30 menit', '2 jam', '2 jam 30 menit', '3 jam', '3 jam 30 menit', '4 jam', '4 jam 30 menit', '5 jam'];
+            const pendingBreak = { value: breakSelect ? (breakSelect.value || '0') : '0' };
+            const breakWheel = createInfiniteWheel('otc-wheel-break', pendingBreak, breakValues, 1, breakLabels);
+
+            function updateOvertimeTotal() {
+                const total = document.getElementById('otc-total-value');
+                const start = document.getElementById('start_time').value;
+                const end = document.getElementById('end_time').value;
+                if (!start || !end) {
+                    total.textContent = '0 jam';
+                    total.classList?.toggle?.('otc-total-value--error', false);
+                    return;
+                }
+                const timePattern = /^(?:[01]\d|2[0-3]):(?:00|30)$/;
+                if (!timePattern.test(start) || !timePattern.test(end)) {
+                    total.textContent = 'Jam lembur tidak valid.';
+                    total.classList?.toggle?.('otc-total-value--error', true);
+                    return;
+                }
+                if (start === end) {
+                    total.textContent = 'Jam selesai lembur tidak boleh sama dengan jam mulai.';
+                    total.classList?.toggle?.('otc-total-value--error', true);
+                    return;
+                }
+                const startMinutes = Number(start.slice(0, 2)) * 60 + Number(start.slice(3));
+                const endMinutes = Number(end.slice(0, 2)) * 60 + Number(end.slice(3));
+                const duration = endMinutes - startMinutes + (endMinutes < startMinutes ? 1440 : 0);
+                const breakValue = breakSelect ? breakSelect.value : '0';
+                if (breakValue !== '' && !breakValues.includes(breakValue)) {
+                    total.textContent = 'Durasi istirahat tidak valid.';
+                    total.classList?.toggle?.('otc-total-value--error', true);
+                    return;
+                }
+                const breakMinutes = Number(breakValue || '0');
+                if (breakMinutes >= duration) {
+                    total.textContent = 'Istirahat harus lebih singkat dari durasi lembur.';
+                    total.classList?.toggle?.('otc-total-value--error', true);
+                    return;
+                }
+                const workingMinutes = duration - breakMinutes;
+                const hours = Math.floor(workingMinutes / 60);
+                const minutes = workingMinutes % 60;
+                total.classList?.toggle?.('otc-total-value--error', false);
+                total.textContent = [hours ? hours + ' jam' : '', minutes ? minutes + ' menit' : ''].filter(Boolean).join(' ');
+            }
+
+            updateOvertimeTotal();
+
+            breakButton?.addEventListener('click', function() {
+                pendingBreak.value = breakSelect && breakSelect.value ? String(breakSelect.value) : '0';
+                breakPicker?.showModal();
+                if (breakWheel) {
+                    breakWheel.setFromValue(pendingBreak.value);
+                }
+            });
+            breakPicker?.addEventListener?.('click', function(e) {
+                if (e.target === breakPicker) {
+                    breakPicker.close();
+                }
+            });
+            breakSave?.addEventListener('click', function() {
+                if (breakSelect) {
+                    breakSelect.value = pendingBreak.value;
+                }
+                if (breakButton) {
+                    const idx = breakValues.indexOf(pendingBreak.value);
+                    breakButton.textContent = idx >= 0 ? breakLabels[idx] : 'Tanpa istirahat';
+                }
+                updateOvertimeTotal();
+                breakPicker?.close();
+            });
+
+            const dateInput = document.getElementById('overtime_date');
+            if (typeof flatpickr === 'function' && dateInput) {
+                flatpickr(dateInput, {
+                    mode: 'single',
+                    dateFormat: 'Y-m-d',
+                    allowInput: true,
+                    disableMobile: true,
+                });
+            }
+
             if (form) {
                 form.addEventListener('submit', function(e) {
+                    const missing = Array.from(document.querySelectorAll('[data-time-field]')).find(function(button) {
+                        return !document.getElementById(button.dataset.timeField).value;
+                    });
+                    if (missing) {
+                        e.preventDefault();
+                        missing.focus();
+                        alert('Silakan pilih jam mulai dan jam selesai lembur.');
+                        return;
+                    }
                     if (btnSubmit.disabled) {
                         e.preventDefault();
                         return;
@@ -289,6 +565,150 @@
     </script>
 
     <style>
+        .otc-sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        .otc-time-button { text-align: left; cursor: pointer; }
+        .otc-total {
+            margin-top: 14px;
+            padding: 14px 16px;
+            border: 1px solid rgba(20, 93, 160, 0.18);
+            border-radius: 12px;
+            background: rgba(20, 93, 160, 0.05);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .otc-total-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .otc-total-value {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary-dark);
+            line-height: 1.3;
+            font-variant-numeric: tabular-nums;
+        }
+        .otc-total-value--error {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--error);
+        }
+        .otc-time-picker { width: min(340px, calc(100% - 32px)); border: 1px solid var(--border); border-radius: 16px; padding: 20px; color: var(--text-primary); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18); }
+        .otc-time-picker::backdrop { background: rgba(0, 0, 0, 0.45); }
+        .otc-time-picker h2 { margin: 0 0 16px; font-size: 1.0625rem; font-weight: 700; }
+        .otc-picker-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .otc-wheel-col { display: flex; flex-direction: column; min-width: 0; }
+        .otc-wheel-label { font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-align: center; }
+        .otc-wheel-stage {
+            position: relative;
+            height: 220px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--gray-50, #F8FAFC);
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        .otc-wheel-stage::before,
+        .otc-wheel-stage::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 76px;
+            pointer-events: none;
+            z-index: 2;
+        }
+        .otc-wheel-stage::before {
+            top: 0;
+            background: linear-gradient(to bottom, rgba(248, 250, 252, 0.95) 0%, rgba(248, 250, 252, 0) 100%);
+        }
+        .otc-wheel-stage::after {
+            bottom: 0;
+            background: linear-gradient(to top, rgba(248, 250, 252, 0.95) 0%, rgba(248, 250, 252, 0) 100%);
+        }
+        .otc-wheel-highlight {
+            position: absolute;
+            top: 88px;
+            left: 6px;
+            right: 6px;
+            height: 44px;
+            border-radius: 10px;
+            background: rgba(20, 93, 160, 0.12);
+            border-top: 1.5px solid rgba(20, 93, 160, 0.28);
+            border-bottom: 1.5px solid rgba(20, 93, 160, 0.28);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .otc-wheel-scroller {
+            position: relative;
+            z-index: 1;
+            height: 220px;
+            padding: 88px 0;
+            overflow-y: auto;
+            scroll-snap-type: y mandatory;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            outline: none;
+        }
+        .otc-wheel-scroller::-webkit-scrollbar {
+            display: none;
+        }
+        .otc-wheel-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 44px;
+            padding: 0;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-variant-numeric: tabular-nums;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            opacity: 0.35;
+            scroll-snap-align: center;
+            cursor: pointer;
+            transition: transform 0.12s ease, opacity 0.12s ease, color 0.12s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .otc-wheel-item.is-near {
+            font-size: 1.0625rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            opacity: 0.68;
+        }
+        .otc-wheel-item.is-selected {
+            font-size: 1.3125rem;
+            font-weight: 800;
+            color: var(--primary-dark);
+            opacity: 1;
+            transform: scale(1.05);
+        }
+        #otc-wheel-break .otc-wheel-item.is-selected {
+            font-size: 1.125rem;
+        }
+        .otc-picker-actions { display: flex; margin-top: 18px; }
+        .otc-picker-actions button { width: 100%; min-height: 46px; padding: 12px 20px; border: 1px solid var(--primary); border-radius: 10px; font-size: 0.9375rem; font-weight: 700; font-family: inherit; cursor: pointer; background: var(--primary); color: white; }
         .lrc-upload {
             position: relative;
             border: 2px dashed var(--border);
@@ -627,13 +1047,6 @@
         }
 
         .otc-break-field { margin-top: 14px; }
-        .otc-optional { color: var(--text-muted); font-weight: 500; }
-        .otc-break-grid { display: flex; align-items: center; gap: 14px; }
-        .otc-break-control { display: flex; align-items: center; gap: 8px; min-width: 0; }
-        .otc-break-control .otc-input { width: 92px; appearance: textfield; -moz-appearance: textfield; }
-        .otc-break-control .otc-input::-webkit-inner-spin-button,
-        .otc-break-control .otc-input::-webkit-outer-spin-button { margin: 0; -webkit-appearance: none; }
-        .otc-break-unit { color: var(--text-secondary); font-size: .875rem; font-weight: 600; }
         .otc-submit-wrap {
             display: flex;
             gap: 10px;
@@ -711,4 +1124,7 @@
             }
         }
     </style>
+
+    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
+    <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
 </x-app>

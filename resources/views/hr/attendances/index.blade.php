@@ -533,6 +533,7 @@
         .attendance-evidence-photo-hint { position: absolute; bottom: 6px; right: 6px; background: rgba(15, 23, 42, 0.78); color: #fff; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; pointer-events: none; }
         .attendance-evidence-map { display: block; width: 100%; height: min(30vh, 220px); border: 0; border-radius: 8px; background: #e2e8f0; }
         .attendance-evidence-coordinates { margin: -2px 0 6px; color: #64748b; font-family: monospace; font-size: 11px; word-break: break-all; }
+        .evidence-maps-button { display: inline-block; padding: 4px 8px; border: 1px solid #2563eb; border-radius: 6px; color: #2563eb; font: 600 12px sans-serif; text-decoration: none; }
         .attendance-evidence-photo-spacer { visibility: hidden; }
         .attendance-evidence-empty { display: flex; align-items: center; justify-content: center; min-height: 120px; margin: 0; color: #94a3b8; font-size: 13px; font-style: italic; text-align: center; }
         .attendance-evidence-notes { margin: 0 0 10px; color: #334155; font-size: 12px; overflow-wrap: anywhere; white-space: pre-wrap; background: #fff; padding: 8px 10px; border-radius: 8px; border: 1px solid #e2e8f0; }
@@ -790,9 +791,18 @@
                     const label = document.createElement('p');
                     label.className = 'attendance-evidence-coordinates';
                     label.textContent = coordinates;
+                    const link = document.createElement('a');
+                    link.className = 'evidence-maps-button';
+                    link.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coordinates)}`;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.textContent = 'Buka di Google Maps';
+                    label.append(' ', link);
                     const spacer = label.cloneNode(true);
                     spacer.classList.add('attendance-evidence-photo-spacer');
                     spacer.setAttribute('aria-hidden', 'true');
+                    spacer.setAttribute('inert', '');
+                    spacer.querySelector('a').removeAttribute('href');
                     photoTitle.after(spacer);
                     const map = document.createElement('iframe');
                     map.className = 'attendance-evidence-map';

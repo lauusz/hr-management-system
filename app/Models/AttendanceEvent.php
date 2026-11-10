@@ -24,6 +24,8 @@ class AttendanceEvent extends Model
         'is_wita',
         'work_date',
         'attendance_shift_id',
+        'shift_name_snapshot',
+        'schedule_is_holiday',
         'shift_start_time',
         'shift_end_time',
         'is_overnight',
@@ -51,6 +53,7 @@ class AttendanceEvent extends Model
         'work_date' => 'date',
         'photo_deleted_at' => 'datetime',
         'is_overnight' => 'boolean',
+        'schedule_is_holiday' => 'boolean',
         'is_flexible' => 'boolean',
         'is_outside_reference_location' => 'boolean',
     ];

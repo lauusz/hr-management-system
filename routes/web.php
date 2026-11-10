@@ -30,18 +30,33 @@ use App\Http\Controllers\EmployeeLoanRequestController;
 use App\Http\Controllers\EmployeeShiftController;
 use App\Http\Controllers\HR\AssetController;
 use App\Http\Controllers\HR\AttendanceLocationController;
+use App\Http\Controllers\HR\AttendanceReportController;
 use App\Http\Controllers\HR\DivisionController;
 use App\Http\Controllers\HR\OfficeHolidayController;
 use App\Http\Controllers\HR\OrganizationController;
 use App\Http\Controllers\Hr\PayslipController;
 use App\Http\Controllers\HR\PositionController;
 use App\Http\Controllers\HR\ScheduleController;
+use App\Http\Controllers\HR\WorkScheduleController;
 use App\Http\Controllers\HRApproverMappingController;
 use App\Http\Controllers\HRAttendanceController;
 use App\Http\Controllers\HREmployeeController;
 use App\Http\Controllers\HrLeaveController;
 use App\Http\Controllers\HrLoanRequestController;
 use App\Http\Controllers\HrOvertimeController;
+use App\Http\Controllers\Inventory\Pesona\Admin\AccessController as PesonaAdminAccessController;
+use App\Http\Controllers\Inventory\Pesona\Admin\ItemController as PesonaAdminItemController;
+use App\Http\Controllers\Inventory\Pesona\Admin\StockInController as PesonaAdminStockInController;
+use App\Http\Controllers\Inventory\Pesona\Admin\StockAdjustmentController as PesonaAdminStockAdjustmentController;
+use App\Http\Controllers\Inventory\Pesona\Admin\StockMovementController as PesonaAdminStockMovementController;
+use App\Http\Controllers\Inventory\Pesona\Admin\RequestApprovalController as PesonaAdminRequestApprovalController;
+use App\Http\Controllers\Inventory\Pesona\Admin\ManualRequestController as PesonaAdminManualRequestController;
+use App\Http\Controllers\Inventory\Pesona\CatalogController as PesonaCatalogController;
+use App\Http\Controllers\Inventory\Pesona\CartController as PesonaCartController;
+use App\Http\Controllers\Inventory\Pesona\RequestController as PesonaRequestController;
+use App\Http\Middleware\EnsurePesonaSessionLock;
+use App\Http\Middleware\EnsurePesonaVehicleSchema;
+use App\Http\Controllers\Inventory\Pesona\Admin\VehicleController as PesonaAdminVehicleController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\Ops\Admin\AccessController as OpsAdminAccessController;
 use App\Http\Controllers\Ops\Admin\ItemController as OpsAdminItemController;
@@ -58,6 +73,7 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SupervisorDataController;
 use App\Http\Controllers\SupervisorOvertimeController;
 use App\Http\Controllers\V2AccessController;
+use App\Http\Middleware\EnsureInventoryPesonaAccess;
 use App\Models\Asset;
 use App\Models\Attendance;
 use App\Models\AttendanceEvent;
@@ -69,6 +85,55 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+
+    Route::prefix('inventory/pesona')->name('inventory.pesona.')->group(function () {
+        Route::get('/', [PesonaCatalogController::class, 'index'])
+            ->middleware(EnsureInventoryPesonaAccess::class)->name('catalog');
+        Route::middleware([EnsureInventoryPesonaAccess::class, EnsurePesonaSessionLock::class])->group(function () {
+            Route::post('/cart/items/{item}', [PesonaCartController::class, 'add'])->name('cart.add');
+            Route::get('/cart', [PesonaCartController::class, 'show'])->middleware(EnsurePesonaVehicleSchema::class)->name('cart.show');
+            Route::put('/cart/items/{item}', [PesonaCartController::class, 'update'])->name('cart.update');
+            Route::delete('/cart/items/{item}', [PesonaCartController::class, 'remove'])->whereNumber('item')->name('cart.remove');
+            Route::post('/cart/submit', [PesonaCartController::class, 'submit'])->middleware(EnsurePesonaVehicleSchema::class)->name('cart.submit');
+        });
+        Route::middleware(EnsureInventoryPesonaAccess::class)->group(function () {
+            Route::get('/requests', [PesonaRequestController::class, 'index'])->middleware(EnsurePesonaVehicleSchema::class)->name('requests.index');
+            Route::get('/requests/{pesonaRequest}', [PesonaRequestController::class, 'show'])->middleware(EnsurePesonaVehicleSchema::class)->name('requests.show');
+        });
+        Route::view('/admin', 'inventory.pesona.placeholder', ['title' => 'Admin Inventory Pesona'])
+            ->middleware(EnsureInventoryPesonaAccess::class.':admin')->name('admin.dashboard');
+        Route::middleware(EnsureInventoryPesonaAccess::class.':admin')->prefix('admin')->name('admin.')->group(function () {
+            Route::get('/requests/manual/create', [PesonaAdminManualRequestController::class, 'create'])->middleware([EnsurePesonaVehicleSchema::class, EnsurePesonaSessionLock::class])->name('requests.manual.create');
+            Route::post('/requests/manual', [PesonaAdminManualRequestController::class, 'store'])->middleware([EnsurePesonaVehicleSchema::class, EnsurePesonaSessionLock::class])->name('requests.manual.store');
+            Route::get('/requests', [PesonaAdminRequestApprovalController::class, 'index'])->middleware(EnsurePesonaVehicleSchema::class)->name('requests.index');
+            Route::get('/requests/{pesonaRequest}', [PesonaAdminRequestApprovalController::class, 'show'])->middleware(EnsurePesonaVehicleSchema::class)->name('requests.show');
+            Route::middleware(EnsurePesonaVehicleSchema::class)->group(function () {
+                Route::get('/vehicles', [PesonaAdminVehicleController::class, 'index'])->name('vehicles.index');
+                Route::get('/vehicles/create', [PesonaAdminVehicleController::class, 'create'])->name('vehicles.create');
+                Route::post('/vehicles', [PesonaAdminVehicleController::class, 'store'])->name('vehicles.store');
+                Route::get('/vehicles/{vehicle}/edit', [PesonaAdminVehicleController::class, 'edit'])->name('vehicles.edit');
+                Route::put('/vehicles/{vehicle}', [PesonaAdminVehicleController::class, 'update'])->name('vehicles.update');
+                Route::delete('/vehicles/{vehicle}', [PesonaAdminVehicleController::class, 'destroy'])->name('vehicles.destroy');
+            });
+            Route::post('/requests/{pesonaRequest}/items/{requestItem}/review', [PesonaAdminRequestApprovalController::class, 'review'])->name('requests.items.review');
+            Route::post('/requests/{pesonaRequest}/finalize', [PesonaAdminRequestApprovalController::class, 'finalize'])->name('requests.finalize');
+            Route::get('/items', [PesonaAdminItemController::class, 'index'])->name('items.index');
+            Route::get('/items/create', [PesonaAdminItemController::class, 'create'])->name('items.create');
+            Route::post('/items', [PesonaAdminItemController::class, 'store'])->name('items.store');
+            Route::get('/items/{item}/edit', [PesonaAdminItemController::class, 'edit'])->name('items.edit');
+            Route::put('/items/{item}', [PesonaAdminItemController::class, 'update'])->name('items.update');
+            Route::get('/items/{item}/stock-in/create', [PesonaAdminStockInController::class, 'create'])->name('stock-in.create');
+            Route::post('/items/{item}/stock-in', [PesonaAdminStockInController::class, 'store'])->name('stock-in.store');
+            Route::get('/items/{item}/stock-adjustment/create', [PesonaAdminStockAdjustmentController::class, 'create'])->name('stock-adjustment.create');
+            Route::post('/items/{item}/stock-adjustment', [PesonaAdminStockAdjustmentController::class, 'store'])->name('stock-adjustment.store');
+            Route::get('/stock-movements', [PesonaAdminStockMovementController::class, 'index'])->middleware(EnsurePesonaVehicleSchema::class)->name('stock-movements.index');
+            Route::get('/access', [PesonaAdminAccessController::class, 'index'])->name('access.index');
+            Route::post('/access/{user}/grant', [PesonaAdminAccessController::class, 'grant'])->name('access.grant');
+            Route::post('/access/{user}/grant-admin', [PesonaAdminAccessController::class, 'grantAdmin'])->name('access.grant-admin');
+            Route::delete('/access/{user}/revoke-admin', [PesonaAdminAccessController::class, 'revokeAdmin'])->name('access.revoke-admin');
+            Route::delete('/access/{user}/revoke', [PesonaAdminAccessController::class, 'revoke'])->name('access.revoke');
+        });
+    });
 
     Route::prefix('v2')->name('v2.')->group(function () {
         Route::get('/access', V2AccessController::class)->name('access');
@@ -273,6 +338,9 @@ Route::middleware('auth')->group(function () {
     // --- ROUTE HRD & HR STAFF ---
     Route::middleware('role:HRD,HR STAFF')->group(function () {
 
+        Route::get('/hr/reports/attendance', [AttendanceReportController::class, 'index'])->name('hr.reports.attendance');
+        Route::get('/hr/reports/attendance/{employee}/detail', [AttendanceReportController::class, 'detail'])->name('hr.reports.attendance.detail');
+
         Route::get('/hr/leave-requests', [HrLeaveController::class, 'index'])->name('hr.leave.index');
         Route::get('/hr/leave-requests/{leave}', [HrLeaveController::class, 'show'])->name('hr.leave.show');
         Route::put('/hr/leave-requests/{leave}', [HrLeaveController::class, 'update'])->name('hr.leave.update');
@@ -293,9 +361,6 @@ Route::middleware('auth')->group(function () {
         Route::put('/hr/shifts/{shift}', [ShiftController::class, 'update'])->name('hr.shifts.update');
         Route::delete('/hr/shifts/{shift}', [ShiftController::class, 'destroy'])->name('hr.shifts.destroy');
 
-        Route::get('/hr/shift-rotations', [\App\Http\Controllers\HR\ShiftRotationController::class, 'index'])->name('hr.shift-rotations.index');
-        Route::post('/hr/shift-rotations', [\App\Http\Controllers\HR\ShiftRotationController::class, 'store'])->name('hr.shift-rotations.store');
-        Route::post('/hr/shift-rotations/{rotation}/stop', [\App\Http\Controllers\HR\ShiftRotationController::class, 'stop'])->name('hr.shift-rotations.stop');
 
         Route::get('/hr/office-holidays', [OfficeHolidayController::class, 'index'])->name('hr.office-holidays.index');
         Route::post('/hr/office-holidays', [OfficeHolidayController::class, 'store'])->name('hr.office-holidays.store');
@@ -365,6 +430,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/hr/locations/{location}', [AttendanceLocationController::class, 'destroy'])->name('hr.locations.destroy');
 
         Route::get('/hr/schedules', [ScheduleController::class, 'index'])->name('hr.schedules.index');
+        Route::get('/hr/work-schedules', [WorkScheduleController::class, 'index'])->name('hr.work-schedules.index');
+        Route::get('/hr/work-schedules/preview', [WorkScheduleController::class, 'preview'])->name('hr.work-schedules.preview');
+        Route::post('/hr/work-schedules', [WorkScheduleController::class, 'store'])->name('hr.work-schedules.store');
         Route::post('/hr/schedules', [ScheduleController::class, 'store'])->name('hr.schedules.store');
         Route::get('/hr/schedules/{schedule}/edit', [ScheduleController::class, 'edit'])->name('hr.schedules.edit');
         Route::patch('/hr/schedules/{schedule}/shift', [ScheduleController::class, 'updateShift'])->name('hr.schedules.shift');

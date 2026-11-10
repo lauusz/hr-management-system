@@ -75,7 +75,7 @@ class AttendanceHistoryService
             'clock_ins' => $clockIns,
             'clock_outs' => $clockOuts,
             'latest_occurred_at' => $events->last()->occurred_at,
-            'shift_name' => $anchorEvent?->attendanceShift?->name ?? 'Reguler',
+            'shift_name' => $anchorEvent?->shift_name_snapshot ?? ($anchorEvent?->schedule_is_holiday ? 'Libur' : ($anchorEvent?->attendanceShift?->name ?? 'Reguler')),
             'work_schedule' => $this->formatScheduleText($anchorEvent),
             'has_pending' => $events->contains(fn ($e) => $e->approval_status === 'PENDING'),
             'has_rejected' => $events->contains(fn ($e) => $e->approval_status === 'REJECTED'),
@@ -86,6 +86,10 @@ class AttendanceHistoryService
 
     private function formatScheduleText(?AttendanceEvent $event): string
     {
+        if ($event?->schedule_is_holiday) {
+            return 'Libur';
+        }
+
         if (! $event || ! $event->shift_start_time || ! $event->shift_end_time) {
             return '-';
         }
