@@ -6,6 +6,9 @@
             <a class="pesona-button" style="text-decoration:none" href="{{ route('inventory.pesona.admin.vehicles.index') }}">Daftar Nopol</a>
             <a class="pesona-button" style="text-decoration:none" href="{{ route('inventory.pesona.admin.items.index') }}">Master Barang</a>
             <a class="pesona-button" style="text-decoration:none" href="{{ route('inventory.pesona.admin.stock-movements.index') }}">Riwayat Stok</a>
+            <a class="pesona-button" style="text-decoration:none" href="{{ route('inventory.pesona.admin.tires.index') }}">Master Ban</a>
+            <a class="pesona-button" style="text-decoration:none" href="{{ route('inventory.pesona.admin.tires.diagram') }}">Ban Armada</a>
+            <a class="pesona-button" style="text-decoration:none" href="{{ route('inventory.pesona.admin.tire-requests.index') }}">Approval Ban</a>
             <a class="pesona-button" style="text-decoration:none" href="{{ route('inventory.pesona.admin.requests.index') }}">Approval Pengambilan</a>
             <a class="pesona-button" style="text-decoration:none" href="{{ route('inventory.pesona.admin.access.index') }}">Akses</a>
         </nav>

@@ -57,6 +57,11 @@ use App\Http\Controllers\Inventory\Pesona\RequestController as PesonaRequestCont
 use App\Http\Middleware\EnsurePesonaSessionLock;
 use App\Http\Middleware\EnsurePesonaVehicleSchema;
 use App\Http\Controllers\Inventory\Pesona\Admin\VehicleController as PesonaAdminVehicleController;
+use App\Http\Controllers\Inventory\Pesona\Admin\TireController as PesonaAdminTireController;
+use App\Http\Middleware\EnsurePesonaTireSchema;
+use App\Http\Middleware\EnsurePesonaTireRequestSchema;
+use App\Http\Controllers\Inventory\Pesona\TireRequestController as PesonaTireRequestController;
+use App\Http\Controllers\Inventory\Pesona\Admin\TireRequestController as PesonaAdminTireRequestController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\Ops\Admin\AccessController as OpsAdminAccessController;
 use App\Http\Controllers\Ops\Admin\ItemController as OpsAdminItemController;
@@ -99,6 +104,12 @@ Route::middleware('auth')->group(function () {
         Route::middleware(EnsureInventoryPesonaAccess::class)->group(function () {
             Route::get('/requests', [PesonaRequestController::class, 'index'])->middleware(EnsurePesonaVehicleSchema::class)->name('requests.index');
             Route::get('/requests/{pesonaRequest}', [PesonaRequestController::class, 'show'])->middleware(EnsurePesonaVehicleSchema::class)->name('requests.show');
+            Route::middleware(EnsurePesonaTireRequestSchema::class)->prefix('tire-requests')->name('tire-requests.')->group(function () {
+                Route::get('/', [PesonaTireRequestController::class, 'index'])->name('index');
+                Route::get('/create', [PesonaTireRequestController::class, 'create'])->name('create');
+                Route::post('/', [PesonaTireRequestController::class, 'store'])->name('store');
+                Route::get('/{tireRequest}', [PesonaTireRequestController::class, 'show'])->whereNumber('tireRequest')->name('show');
+            });
         });
         Route::view('/admin', 'inventory.pesona.placeholder', ['title' => 'Admin Inventory Pesona'])
             ->middleware(EnsureInventoryPesonaAccess::class.':admin')->name('admin.dashboard');
@@ -114,6 +125,28 @@ Route::middleware('auth')->group(function () {
                 Route::get('/vehicles/{vehicle}/edit', [PesonaAdminVehicleController::class, 'edit'])->name('vehicles.edit');
                 Route::put('/vehicles/{vehicle}', [PesonaAdminVehicleController::class, 'update'])->name('vehicles.update');
                 Route::delete('/vehicles/{vehicle}', [PesonaAdminVehicleController::class, 'destroy'])->name('vehicles.destroy');
+            });
+            Route::middleware(EnsurePesonaTireRequestSchema::class)->prefix('tire-requests')->name('tire-requests.')->group(function () {
+                Route::get('/', [PesonaAdminTireRequestController::class, 'index'])->name('index');
+                Route::get('/{tireRequest}', [PesonaAdminTireRequestController::class, 'show'])->whereNumber('tireRequest')->name('show');
+                Route::post('/{tireRequest}/approve', [PesonaAdminTireRequestController::class, 'approve'])->whereNumber('tireRequest')->name('approve');
+                Route::post('/{tireRequest}/reject', [PesonaAdminTireRequestController::class, 'reject'])->whereNumber('tireRequest')->name('reject');
+            });
+            Route::middleware(EnsurePesonaTireSchema::class)->prefix('tires')->name('tires.')->group(function () {
+                Route::get('/', [PesonaAdminTireController::class, 'index'])->name('index');
+                Route::get('/create', [PesonaAdminTireController::class, 'create'])->name('create');
+                Route::get('/diagram', [PesonaAdminTireController::class, 'diagram'])->name('diagram');
+                Route::get('/ready-search', [PesonaAdminTireController::class, 'readySearch'])->name('ready-search');
+                Route::post('/diagram/install', [PesonaAdminTireController::class, 'diagramInstall'])->name('diagram.install');
+                Route::post('/diagram/replace', [PesonaAdminTireController::class, 'diagramReplace'])->name('diagram.replace');
+                Route::post('/', [PesonaAdminTireController::class, 'store'])->name('store');
+                Route::get('/{tire}', [PesonaAdminTireController::class, 'show'])->whereNumber('tire')->name('show');
+                Route::get('/{tire}/edit', [PesonaAdminTireController::class, 'edit'])->whereNumber('tire')->name('edit');
+                Route::put('/{tire}', [PesonaAdminTireController::class, 'update'])->whereNumber('tire')->name('update');
+                Route::post('/{tire}/install', [PesonaAdminTireController::class, 'install'])->whereNumber('tire')->name('install');
+                Route::post('/{tire}/return', [PesonaAdminTireController::class, 'returnToWarehouse'])->whereNumber('tire')->name('return');
+                Route::post('/{tire}/deactivate', [PesonaAdminTireController::class, 'deactivate'])->whereNumber('tire')->name('deactivate');
+                Route::post('/{tire}/activate', [PesonaAdminTireController::class, 'activate'])->whereNumber('tire')->name('activate');
             });
             Route::post('/requests/{pesonaRequest}/items/{requestItem}/review', [PesonaAdminRequestApprovalController::class, 'review'])->name('requests.items.review');
             Route::post('/requests/{pesonaRequest}/finalize', [PesonaAdminRequestApprovalController::class, 'finalize'])->name('requests.finalize');
@@ -433,6 +466,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/work-schedules', [WorkScheduleController::class, 'index'])->name('hr.work-schedules.index');
         Route::get('/hr/work-schedules/preview', [WorkScheduleController::class, 'preview'])->name('hr.work-schedules.preview');
         Route::post('/hr/work-schedules', [WorkScheduleController::class, 'store'])->name('hr.work-schedules.store');
+        Route::get('/hr/work-schedules/edit', [WorkScheduleController::class, 'edit'])->name('hr.work-schedules.edit');
+        Route::post('/hr/work-schedules/update', [WorkScheduleController::class, 'update'])->name('hr.work-schedules.update');
+        Route::post('/hr/work-schedules/deactivate', [WorkScheduleController::class, 'deactivate'])->name('hr.work-schedules.deactivate');
         Route::post('/hr/schedules', [ScheduleController::class, 'store'])->name('hr.schedules.store');
         Route::get('/hr/schedules/{schedule}/edit', [ScheduleController::class, 'edit'])->name('hr.schedules.edit');
         Route::patch('/hr/schedules/{schedule}/shift', [ScheduleController::class, 'updateShift'])->name('hr.schedules.shift');
@@ -444,6 +480,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/hr/attendance-access', [\App\Http\Controllers\HRAttendanceAccessController::class, 'index'])->name('hr.attendance-access.index');
         Route::post('/hr/attendance-access/{viewer}', [\App\Http\Controllers\HRAttendanceAccessController::class, 'update'])->name('hr.attendance-access.update');
         Route::post('/hr/attendances/{event}/move-event-type', [HRAttendanceController::class, 'moveEventType'])->name('hr.attendances.move_event_type');
+        Route::get('/hr/attendances/{event}/schedule-snapshot', [HRAttendanceController::class, 'scheduleSnapshot'])->name('hr.attendances.schedule_snapshot');
+        Route::post('/hr/attendances/{event}/schedule-snapshot', [HRAttendanceController::class, 'updateScheduleSnapshot'])->name('hr.attendances.schedule_snapshot.update');
 
         // APPROVAL ATTENDANCE (WFO dan Dinas Luar)
         Route::get('/hr/approval-attendance', [ApprovalAttendanceController::class, 'index'])->name('hr.approval_attendance.index');

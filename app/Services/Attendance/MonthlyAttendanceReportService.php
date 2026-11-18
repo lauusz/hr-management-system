@@ -55,22 +55,23 @@ class MonthlyAttendanceReportService
             }
             $wita = $event->is_wita;
             if ($wita === null) {
-                $result[$event->user_id]['incomplete'] = true;
+                $nav = $this->navigationDates($event->occurred_at, $event->work_date, null, $event->is_overnight);
+                $this->markIncomplete($result, $event->user_id, $nav);
                 if ($event->work_date && $event->work_date >= $from && $event->work_date <= $to) {
-                    $candidates[$event->user_id][$event->work_date][] = ['instant' => $event->occurred_at, 'clock_in' => null, 'start' => null];
+                    $candidates[$event->user_id][$event->work_date][] = ['instant' => $event->occurred_at, 'clock_in' => null, 'start' => null, 'nav' => $nav];
                 }
                 continue;
             }
             $local = Carbon::parse($event->occurred_at, config('app.timezone'))->timezone($wita ? 'Asia/Makassar' : 'Asia/Jakarta');
             if (! $event->work_date && $event->is_overnight !== 0 && $event->is_overnight !== '0') {
-                $result[$event->user_id]['incomplete'] = true;
+                $this->markIncomplete($result, $event->user_id, $this->navigationDates($event->occurred_at, null, (bool) $wita, $event->is_overnight));
                 continue;
             }
             $date = $event->work_date ?? $local->toDateString();
             if ($date < $from || $date > $to) {
                 continue;
             }
-            $candidates[$event->user_id][$date][] = ['instant' => $event->occurred_at, 'clock_in' => $local->toDateTimeString(), 'start' => $event->shift_start_time];
+            $candidates[$event->user_id][$date][] = ['instant' => $event->occurred_at, 'clock_in' => $local->toDateTimeString(), 'start' => $event->shift_start_time, 'nav' => $this->navigationDates($event->occurred_at, $event->work_date, (bool) $wita, $event->is_overnight)];
         }
 
         $legacy = DB::table('attendances')->whereIn('user_id', $userIds)->whereBetween('date', [$from, $to])
@@ -79,8 +80,9 @@ class MonthlyAttendanceReportService
             if (in_array($row->id, $linkedIds) || $row->approval_status === 'REJECTED' || ($row->type === 'DINAS_LUAR' && $row->approval_status !== 'APPROVED')) {
                 continue;
             }
-            $result[$row->user_id]['incomplete'] = true;
-            $candidates[$row->user_id][$row->date][] = ['instant' => $row->clock_in_at, 'clock_in' => null, 'start' => null];
+            $nav = array_values(array_unique([$row->date, ...$this->navigationDates($row->clock_in_at, null, null, null)]));
+            $this->markIncomplete($result, $row->user_id, $nav);
+            $candidates[$row->user_id][$row->date][] = ['instant' => $row->clock_in_at, 'clock_in' => null, 'start' => null, 'nav' => $nav];
         }
         foreach ($candidates as $userId => $dates) {
             foreach ($dates as $date => $entries) {
@@ -90,12 +92,44 @@ class MonthlyAttendanceReportService
                 usort($entries, fn ($a, $b) => strcmp($a['instant'], $b['instant']));
                 $first = $entries[0];
                 if (! $first['start'] || ! $first['clock_in']) {
-                    $result[$userId]['incomplete'] = true;
-                } elseif ($first['clock_in'] > $date.' '.$first['start']) {
+                    $this->markIncomplete($result, $userId, array_merge([$date], $first['nav'] ?? []));
+                } elseif (substr($first['clock_in'], 0, 16) > substr($date.' '.$first['start'], 0, 16)) {
                     $result[$userId]['TELAT'][$date] = ['date' => $date, 'start' => $first['start'], 'clock_in' => $first['clock_in']];
                 }
             }
         }
         return $result;
+    }
+
+    private function markIncomplete(array &$result, $userId, array $dates): void
+    {
+        $result[$userId]['incomplete'] = true;
+        foreach ($dates as $date) {
+            $result[$userId]['incomplete_dates'][$date] = $date;
+        }
+    }
+
+    /**
+     * Tanggal pencarian di Master Absensi (hanya navigasi): tanggal kerja, tanggal lokal log
+     * (WIB/WITA; keduanya bila zona tidak diketahui), dan hari sebelumnya untuk shift lintas hari.
+     */
+    private function navigationDates(?string $occurredAt, $workDate, ?bool $wita, $overnight): array
+    {
+        $dates = [];
+        if ($workDate) {
+            $dates[] = substr((string) $workDate, 0, 10);
+        }
+        if ($occurredAt) {
+            $zones = $wita === null ? ['Asia/Jakarta', 'Asia/Makassar'] : [$wita ? 'Asia/Makassar' : 'Asia/Jakarta'];
+            foreach ($zones as $zone) {
+                $local = Carbon::parse($occurredAt, config('app.timezone'))->timezone($zone);
+                $dates[] = $local->toDateString();
+                if ($overnight !== 0 && $overnight !== '0' && $overnight !== false) {
+                    $dates[] = $local->copy()->subDay()->toDateString();
+                }
+            }
+        }
+
+        return array_values(array_unique($dates));
     }
 }

@@ -36,9 +36,9 @@
         </a>
 
         @if($hasPesonaAccess)
-            <a class="access-item access-item--atk" href="{{ route('inventory.pesona.catalog') }}">
-                <span class="access-icon" aria-hidden="true">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+            <a class="access-item access-item--pesona" href="{{ route('inventory.pesona.catalog') }}">
+                <span class="access-icon access-icon--logo" aria-hidden="true">
+                    <img src="{{ asset('images/pesona-logo.png') }}" alt="" width="84" height="34" loading="lazy">
                 </span>
                 <span class="access-body"><strong>Inventory Pesona</strong><small>Persediaan barang garasi PT Pesona</small></span>
                 <span class="access-go" aria-hidden="true"><svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></span>
@@ -190,6 +190,29 @@
             --item-tint: #FEF3C7;
         }
 
+        .access-item--pesona {
+            --item-accent: #0B2A5B;
+            --item-tint: #EAF0FA;
+        }
+
+        /* Logo Pesona berbentuk lebar: kotak ikon dilebarkan, gambar proporsional */
+        .access-icon--logo {
+            width: 76px;
+            padding: 4px 6px;
+            box-sizing: border-box;
+            background: #FFFFFF;
+            border: 1px solid var(--item-tint);
+        }
+
+        .access-icon--logo img {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+
         /* Tablet & Desktop: 2 kolom penuh menyesuaikan lebar halaman */
         @media (min-width: 640px) {
             .access-list {
@@ -217,6 +240,10 @@
                 width: 48px;
                 height: 48px;
                 border-radius: 12px;
+            }
+
+            .access-icon--logo {
+                width: 92px;
             }
 
             .access-body strong {

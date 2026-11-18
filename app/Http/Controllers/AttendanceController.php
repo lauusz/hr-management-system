@@ -429,11 +429,11 @@ class AttendanceController extends Controller
         $specialPrevious = false;
         $incompleteForUser = Schema::hasTable('employee_work_schedules') && ! WorkSchedule::scheduleReadable()
             && Schema::hasColumn('employee_work_schedules', 'user_id')
-            && WorkSchedule::where('user_id', $employeeShift->user_id)->exists();
+            && WorkSchedule::active()->where('user_id', $employeeShift->user_id)->exists();
         if (WorkSchedule::scheduleReadable()) {
             $dates = collect(['Asia/Jakarta', 'Asia/Makassar'])->map(fn ($zone) => $occurredAt->copy()->timezone($zone)->toDateString())->unique();
             $previousDates = $dates->map(fn ($date) => Carbon::parse($date)->subDay()->toDateString());
-            $schedules = WorkSchedule::where('user_id', $employeeShift->user_id)->whereIn('work_date', $dates->concat($previousDates)->unique())->get();
+            $schedules = WorkSchedule::active()->where('user_id', $employeeShift->user_id)->whereIn('work_date', $dates->concat($previousDates)->unique())->get();
             $previous = $schedules->first(function ($item) use ($occurredAt) {
                 $local = $occurredAt->copy()->timezone($item->is_wita ? 'Asia/Makassar' : 'Asia/Jakarta');
                 return $item->work_date->toDateString() === $local->copy()->subDay()->toDateString();

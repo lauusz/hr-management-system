@@ -12,6 +12,7 @@ class WorkSchedule extends Model
     protected $fillable = [
         'user_id', 'work_date', 'shift_id', 'shift_name', 'start_time', 'end_time',
         'is_holiday', 'is_overnight', 'is_wita', 'created_by', 'updated_by', 'work_schedule_group_id',
+        'is_active', 'deactivated_at', 'deactivated_by',
     ];
 
     public static function scheduleSchemaReady(): bool
@@ -44,8 +45,30 @@ class WorkSchedule extends Model
             ]);
     }
 
+    /** Kolom status Aktif/Nonaktif (is_active: 1 aktif, NULL nonaktif). */
+    public static function hasLifecycleColumns(): bool
+    {
+        return Schema::hasTable('employee_work_schedules')
+            && Schema::hasColumns('employee_work_schedules', ['is_active', 'deactivated_at', 'deactivated_by']);
+    }
+
+    /** Aksi Edit/Nonaktifkan hanya tersedia bila skema status dan riwayat sudah diterapkan. */
+    public static function lifecycleReady(): bool
+    {
+        return self::schemaReady() && self::hasLifecycleColumns()
+            && Schema::hasTable('employee_work_schedule_changes')
+            && Schema::hasColumns('employee_work_schedule_changes', ['batch_id', 'work_schedule_id', 'work_schedule_group_id', 'action', 'before_data', 'after_data', 'changed_by', 'created_at']);
+    }
+
+    /** Hanya jadwal aktif yang menjadi acuan operasional; tanpa kolom status semua baris dianggap aktif. */
+    public function scopeActive($query)
+    {
+        return self::hasLifecycleColumns() ? $query->where($this->getTable().'.is_active', 1) : $query;
+    }
+
     protected $casts = [
         'work_date' => 'date',
+        'deactivated_at' => 'datetime',
         'is_holiday' => 'boolean',
         'is_overnight' => 'boolean',
         'is_wita' => 'boolean',

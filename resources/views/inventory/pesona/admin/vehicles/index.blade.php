@@ -551,7 +551,7 @@
                                     <a class="pesona-veh-btn pesona-veh-btn-edit" href="{{ route('inventory.pesona.admin.vehicles.edit', $vehicle) }}">
                                         Edit
                                     </a>
-                                    @if(! $vehicle->requests_exists)
+                                    @if($vehicle->is_active)
                                         <button
                                             class="pesona-veh-btn pesona-veh-btn-delete"
                                             type="button"
@@ -559,7 +559,7 @@
                                             aria-haspopup="dialog"
                                             aria-controls="vehicle_delete_{{ $vehicle->id }}"
                                         >
-                                            Hapus
+                                            Nonaktifkan
                                         </button>
                                     @endif
                                 </div>
@@ -603,7 +603,7 @@
                                             <a class="pesona-veh-btn pesona-veh-btn-edit" href="{{ route('inventory.pesona.admin.vehicles.edit', $vehicle) }}">
                                                 Edit
                                             </a>
-                                            @if(! $vehicle->requests_exists)
+                                            @if($vehicle->is_active)
                                                 <button
                                                     class="pesona-veh-btn pesona-veh-btn-delete"
                                                     type="button"
@@ -611,10 +611,8 @@
                                                     aria-haspopup="dialog"
                                                     aria-controls="vehicle_delete_{{ $vehicle->id }}"
                                                 >
-                                                    Hapus
+                                                    Nonaktifkan
                                                 </button>
-                                            @else
-                                                <span class="pesona-veh-locked-hint" title="Nopol yang sudah pernah dipakai tidak dapat dihapus">Terkunci</span>
                                             @endif
                                         </div>
                                     </td>
@@ -626,18 +624,18 @@
 
                 {{-- Shared Delete Confirmation Modals --}}
                 @foreach($vehicles as $vehicle)
-                    @if(! $vehicle->requests_exists)
+                    @if($vehicle->is_active)
                         <x-modal
                             :id="'vehicle_delete_'.$vehicle->id"
-                            title="Hapus Nopol?"
+                            title="Nonaktifkan Nopol?"
                             type="confirm"
                             variant="danger"
-                            confirmLabel="Hapus"
+                            confirmLabel="Nonaktifkan"
                             cancelLabel="Batal"
                             :confirmFormAction="route('inventory.pesona.admin.vehicles.destroy', $vehicle)"
                             confirmFormMethod="DELETE"
                         >
-                            <p style="margin:0;">Hapus nopol <strong>{{ $vehicle->nopol }}</strong>?</p>
+                            <p style="margin:0;">Nonaktifkan nopol <strong>{{ $vehicle->nopol }}</strong>? Data dan riwayat tetap tersimpan, dan nopol dapat diaktifkan lagi melalui Edit.</p>
                         </x-modal>
                     @endif
                 @endforeach

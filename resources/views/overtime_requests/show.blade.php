@@ -89,7 +89,7 @@
                         </div>
                         <div class="lrs-info-item">
                             <span class="lrs-info-label">Jam Lembur</span>
-                            <span class="lrs-info-value">{{ $overtime->start_time->format('H:i') }} – {{ $overtime->end_time->format('H:i') }}</span>
+                            <span class="lrs-info-value">{{ $overtime->start_time->format('H:i') }} – {{ $overtime->end_time->format('H:i') }} {{ $overtime->zone_label }}</span>
                         </div>
                         @if((int) ($overtime->break_minutes ?? 0) > 0)
                         <div class="lrs-info-item">

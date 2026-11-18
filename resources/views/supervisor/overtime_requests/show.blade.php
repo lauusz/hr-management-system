@@ -129,7 +129,7 @@
 
                 <div class="sov-detail-row">
                     <span class="sov-detail-label">Jam</span>
-                    <span class="sov-time-display">{{ $overtimeRequest->start_time->format('H:i') }} - {{ $overtimeRequest->end_time->format('H:i') }}</span>
+                    <span class="sov-time-display">{{ $overtimeRequest->start_time->format('H:i') }} - {{ $overtimeRequest->end_time->format('H:i') }} {{ $overtimeRequest->zone_label }}</span>
                 </div>
 
                 <div class="sov-detail-row">

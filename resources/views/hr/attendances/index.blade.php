@@ -37,23 +37,19 @@
                         data-attendance-live-search>
                 </div>
 
-                @if(($q ?? null) || $hasAdvancedFilter)
-                    <a href="{{ route('hr.attendances.index') }}" class="attendance-btn-reset">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                        Reset
-                    </a>
-                @endif
+                <a href="{{ route('hr.attendances.index') }}" id="attendance-reset" class="attendance-btn-reset" @if(! (($q ?? null) || $hasAdvancedFilter)) hidden @endif>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Reset
+                </a>
 
                 <button type="button" class="attendance-btn-toggle-filter {{ $hasAdvancedFilter ? 'active' : '' }}" onclick="toggleAttendanceFilterPanel()">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                     </svg>
                     Filter
-                    @if($hasAdvancedFilter)
-                        <span class="attendance-filter-badge">{{ $activeFilterCount }}</span>
-                    @endif
+                    <span id="attendance-filter-badge" class="attendance-filter-badge" @unless($hasAdvancedFilter) hidden @endunless>{{ $activeFilterCount }}</span>
                 </button>
             </div>
 
@@ -128,7 +124,14 @@
                             <div class="user-info">
                                 <span class="fw-bold">{{ $session->user->name }}</span>
                                 <span class="user-attendance-location">{{ $session->attendance_location_scope }}</span>
-                                <span class="user-work-schedule">{{ $session->work_schedule }}</span>
+                                <span class="user-work-schedule">{{ $session->work_schedule }}
+                                    @if(auth()->user()->isHR() && $actionEvents->isNotEmpty())
+                                    <button type="button" class="schedule-snapshot-edit" data-attendance-snapshot
+                                        title="Edit Snapshot Jadwal" aria-label="Edit Snapshot Jadwal {{ $session->user->name }}"
+                                        data-attendance-snapshot-url="{{ route('hr.attendances.schedule_snapshot', $actionEvents->first()) }}"
+                                        data-attendance-snapshot-save-url="{{ route('hr.attendances.schedule_snapshot.update', $actionEvents->first()) }}"><svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>
+                                    @endif
+                                </span>
                             </div>
                         </td>
                         <td class="attendance-date-column">{{ $session->work_date->format('d/m/y') }}</td>
@@ -159,22 +162,23 @@
                             @else <span class="text-muted">-</span> @endif
                         </td>
                         <td class="attendance-action-cell">
-                            @if($actionEvents->contains(fn ($event) => auth()->user()->isHR() && $event->approval_status === 'PENDING'))
+                            @if(auth()->user()->isHR() && $actionEvents->isNotEmpty())
                             <details class="clock-side-move">
                                 <summary aria-label="Opsi koreksi tipe event">⋮</summary>
                                 <div class="clock-side-move__menu">
-                                    @foreach($actionEvents->where('approval_status', 'PENDING') as $event)
-                                    @php($eventLabel = $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock In' : 'Clock Out')
-                                    @php($destinationLabel = $event->event_type === App\Models\AttendanceEvent::CLOCK_IN ? 'Clock Out' : 'Clock In')
+                                    @foreach($actionEvents as $event)
+                                    @php($isClockIn = $event->event_type === App\Models\AttendanceEvent::CLOCK_IN)
+                                    @php($eventLabel = $isClockIn ? 'Clock In' : 'Clock Out')
+                                    @php($destinationLabel = $isClockIn ? 'Clock Out' : 'Clock In')
                                     <div class="clock-side-move__event">
                                     <span class="clock-side-move__event-label">{{ $eventLabel }} · {{ $event->local_occurred_at->format('H:i') }}</span>
-                                    @if(auth()->user()->isHR() && $event->approval_status === 'PENDING')
                                     <button type="button" class="clock-side-move__button" data-attendance-move
                                         data-attendance-move-url="{{ route('hr.attendances.move_event_type', $event) }}"
                                         data-attendance-move-name="{{ $session->user->name }}"
-                                        data-attendance-move-source="{{ $eventLabel }} pukul {{ $event->local_occurred_at->format('H:i') }}"
+                                        data-attendance-move-source="{{ $eventLabel }} pukul {{ $event->local_occurred_at->format('H:i') }} tanggal {{ $event->local_occurred_at->format('d/m/Y') }}"
+                                        data-attendance-move-from="{{ $event->event_type }}"
+                                        data-attendance-move-to="{{ $isClockIn ? App\Models\AttendanceEvent::CLOCK_OUT : App\Models\AttendanceEvent::CLOCK_IN }}"
                                         data-attendance-move-destination="{{ $destinationLabel }}">Pindahkan ke {{ $destinationLabel }}</button>
-                                    @endif
                                     </div>
                                     @endforeach
                                 </div>
@@ -206,15 +210,61 @@
     </x-modal>
 
     <x-modal id="moveClockSideModal" title="Pindahkan Bukti Absensi?" type="form" variant="warning">
-        <p style="margin:0; color:#64748b;"><span id="moveClockSideSource" style="font-weight:700; color:#1e293b;"></span> milik <span id="moveClockSideUserName" style="font-weight:700; color:#1e293b;"></span> akan dipindahkan ke <span id="moveClockSideDestination" style="font-weight:700; color:#1e293b;"></span>.</p>
+        <p style="margin:0; color:#64748b;"><span id="moveClockSideSource" style="font-weight:700; color:#1e293b;"></span> milik <span id="moveClockSideUserName" style="font-weight:700; color:#1e293b;"></span> akan dipindahkan ke <span id="moveClockSideDestination" style="font-weight:700; color:#1e293b;"></span>. Waktu pencatatan tidak berubah.</p>
         <form id="moveClockSideForm" method="POST" style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
             @csrf
-            <input id="moveClockSideInput" type="hidden" name="destination">
+            <input id="moveClockSideInput" type="hidden" name="event_type">
+            <input id="moveClockSideFromInput" type="hidden" name="from_event_type">
             <button type="button" class="modal-btn modal-btn-secondary" data-modal-close="true">Batal</button>
             <button type="submit" class="modal-btn modal-btn-primary">Ya, Pindahkan</button>
         </form>
     </x-modal>
 
+    <x-modal id="scheduleSnapshotModal" title="Koreksi Jadwal Absensi" type="form" variant="warning">
+        <div id="scheduleSnapshotBody" style="font-size:13px; color:#334155; max-height:60vh; overflow:auto;"></div>
+        <form id="scheduleSnapshotForm" method="POST" style="margin-top:14px;">
+            @csrf
+            <input type="hidden" id="scheduleSnapshotSourceId" name="source_schedule_id">
+            <input type="hidden" id="scheduleSnapshotSourceFingerprint" name="source_fingerprint">
+            <div id="scheduleSnapshotWorkSchedule" style="margin-bottom:10px; padding:10px; border:1px dashed #cbd5e1; border-radius:8px; font-size:13px;"></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                <label style="font-size:12px; font-weight:700;">Jam mulai
+                    <input id="scheduleSnapshotStart" type="time" name="start_time" style="display:block; width:100%; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:8px; font:inherit;">
+                </label>
+                <label style="font-size:12px; font-weight:700;">Jam selesai
+                    <input id="scheduleSnapshotEnd" type="time" name="end_time" style="display:block; width:100%; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:8px; font:inherit;">
+                </label>
+                <label style="font-size:12px; font-weight:700;">Zona waktu
+                    <select id="scheduleSnapshotWita" name="is_wita" required style="display:block; width:100%; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:8px; font:inherit;">
+                        <option value="">Pilih…</option><option value="0">WIB</option><option value="1">WITA</option>
+                    </select>
+                </label>
+                <label style="font-size:12px; font-weight:700;">Lintas hari
+                    <select id="scheduleSnapshotOvernight" name="is_overnight" required style="display:block; width:100%; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:8px; font:inherit;">
+                        <option value="">Pilih…</option><option value="0">Tidak</option><option value="1">Ya (selesai hari berikutnya)</option>
+                    </select>
+                </label>
+                <label style="font-size:12px; font-weight:700;">Hari libur
+                    <select id="scheduleSnapshotHoliday" name="is_holiday" required style="display:block; width:100%; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:8px; font:inherit;">
+                        <option value="">Pilih…</option><option value="0">Tidak</option><option value="1">Ya</option>
+                    </select>
+                </label>
+                <label style="font-size:12px; font-weight:700;">Nama shift
+                    <input id="scheduleSnapshotShiftName" type="text" name="shift_name" maxlength="100" style="display:block; width:100%; margin-top:4px; border:1px solid #cbd5e1; border-radius:8px; padding:8px; font:inherit;">
+                </label>
+            </div>
+            <label for="scheduleSnapshotReason" style="display:block; font-size:12px; font-weight:700; margin-bottom:4px;">Alasan koreksi (wajib)</label>
+            <textarea id="scheduleSnapshotReason" name="reason" rows="2" maxlength="500" required style="width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:8px; font:inherit;"></textarea>
+            <p id="scheduleSnapshotError" role="alert" style="display:none; color:#b91c1c; font-size:12px; margin:8px 0 0;"></p>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+                <button type="button" class="modal-btn modal-btn-secondary" data-modal-close="true">Batal</button>
+                <button type="submit" id="scheduleSnapshotSubmit" class="modal-btn modal-btn-primary" disabled>Simpan Koreksi</button>
+            </div>
+        </form>
+    </x-modal>
+
+    @push('styles')
+    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <style>
         .attendance-access-link { display:inline-flex; padding:10px 14px; border:1px solid #bfdbfe; border-radius:10px; background:#fff; color:#145da0; font-size:13px; font-weight:600; text-decoration:none; }
         .attendance-access-link:hover { background:#eff6ff; }
@@ -408,11 +458,6 @@
             background: #0d4a83;
         }
 
-        .attendance-results-card.is-loading {
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
         /* --- TABLE --- */
         .table-wrapper { width: 100%; overflow-x: auto; }
         .custom-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 760px; }
@@ -480,6 +525,8 @@
         .time-block { display: flex; flex-direction: column; line-height: 1.2; }
         .time-clock { font-weight: 600; color: #111827; }
         .clock-side-cell { display: inline-flex; align-items: center; gap: 4px; }
+        .schedule-snapshot-edit { display: inline-flex; width: 28px; height: 28px; margin: -6px 0 -6px 2px; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: transparent; color: #64748b; cursor: pointer; vertical-align: middle; }
+        .schedule-snapshot-edit:hover, .schedule-snapshot-edit:focus-visible { background: #eff6ff; color: #145da0; outline: 2px solid #145da0; outline-offset: 1px; }
         .clock-side-move { position: relative; display: inline-flex; }
         .clock-side-move summary { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 6px; color: #64748b; cursor: pointer; font-size: 17px; font-weight: 700; line-height: 1; list-style: none; }
         .clock-side-move summary::-webkit-details-marker { display: none; }
@@ -589,63 +636,29 @@
             .attendance-evidence-map { height: 180px; }
         }
     </style>
+    @endpush
 
-    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
+    @include('hr._master_ajax')
     <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
     <script>
         (function () {
-            const form = document.getElementById('attendance-filter-form');
-            const input = form?.querySelector('[data-attendance-live-search]');
-            const results = document.querySelector('[data-attendance-results]');
-            let timer;
-            let request;
-
-            if (!form || !input || !results) return;
-
-            window.refreshAttendanceResults = async function() {
-                const url = new URL(form.action, window.location.origin);
-                const params = new URLSearchParams(new FormData(form));
-                params.delete('page');
-                url.search = params.toString();
-
-                request?.abort();
-                const currentRequest = new AbortController();
-                request = currentRequest;
-                results.classList.add('is-loading');
-                results.setAttribute('aria-busy', 'true');
-
-                try {
-                    const response = await fetch(url, {
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                        signal: currentRequest.signal,
-                    });
-                    if (!response.ok) throw new Error('Pencarian absensi gagal');
-
-                    const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
-                    const nextResults = documentResult.querySelector('[data-attendance-results]');
-                    if (!nextResults) throw new Error('Hasil pencarian tidak lengkap');
-                    results.innerHTML = nextResults.innerHTML;
-
+            const ajax = MasterAjax.init({
+                form: '#attendance-filter-form',
+                search: '[data-attendance-live-search]',
+                regions: ['[data-attendance-results]'],
+                reset: '#attendance-reset',
+                sync: ['#attendance-reset', '#attendance-filter-badge'],
+                onUpdate() {
                     initializeAttendanceEvidenceButtons();
                     initializeAttendanceMoveButtons();
-                    window.history.replaceState(null, '', url);
-                } catch (error) {
-                    if (error.name !== 'AbortError') {
-                        console.error(error);
-                        window.logAttendanceMessage?.(error.message || 'Pencarian absensi gagal');
-                    }
-                } finally {
-                    if (request === currentRequest) {
-                        results.classList.remove('is-loading');
-                        results.setAttribute('aria-busy', 'false');
-                    }
-                }
-            };
-
-            input.addEventListener('input', () => {
-                clearTimeout(timer);
-                timer = setTimeout(window.refreshAttendanceResults, 350);
+                    const panel = document.getElementById('attendance-filter-panel');
+                    document.querySelector('.attendance-btn-toggle-filter')
+                        ?.classList.toggle('active', panel.style.display !== 'none' || !document.getElementById('attendance-filter-badge').hidden);
+                },
             });
+
+            // Dipakai setelah koreksi berhasil: muat ulang URL aktif (filter tetap).
+            window.refreshAttendanceResults = () => ajax?.refresh();
         })();
 
         function toggleAttendanceFilterPanel() {
@@ -679,9 +692,10 @@
             if (!event.target.closest('details.clock-side-move')) closeOtherAttendanceActionMenus();
         });
 
-        function openMoveClockSideModal(url, name, source, destinationLabel) {
+        function openMoveClockSideModal(url, name, source, destinationLabel, fromType, toType) {
             document.getElementById('moveClockSideForm').action = url;
-            document.getElementById('moveClockSideInput').value = destinationLabel;
+            document.getElementById('moveClockSideInput').value = toType;
+            document.getElementById('moveClockSideFromInput').value = fromType;
             document.getElementById('moveClockSideUserName').innerText = name;
             document.getElementById('moveClockSideSource').innerText = source;
             document.getElementById('moveClockSideDestination').innerText = destinationLabel;
@@ -690,7 +704,180 @@
             document.body.style.overflow = 'hidden';
         }
 
+        const scheduleSnapshotState = { saveUrl: '', payload: null };
+
+        const scheduleSnapshotMonths = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+        function scheduleSnapshotDate(isoDate) {
+            const [year, month, day] = String(isoDate).split('-').map(Number);
+            return `${day} ${scheduleSnapshotMonths[month - 1]} ${year}`;
+        }
+
+        function scheduleSnapshotLine(label, value) {
+            const row = document.createElement('div');
+            const strong = document.createElement('strong');
+            strong.textContent = label + ': ';
+            row.append(strong, document.createTextNode(value));
+            return row;
+        }
+
+        function scheduleSnapshotBlock(title, lines) {
+            const block = document.createElement('section');
+            block.style.cssText = 'margin-top:10px; padding:10px; border:1px solid #e2e8f0; border-radius:8px;';
+            const heading = document.createElement('h4');
+            heading.style.cssText = 'margin:0 0 4px; font-size:13px;';
+            heading.textContent = title;
+            block.append(heading, ...lines);
+            return block;
+        }
+
+        function scheduleSnapshotDescribe(d) {
+            const zone = d.is_wita === null ? 'zona waktu belum tercatat' : (d.is_wita ? 'WITA' : 'WIB');
+            const lines = [
+                scheduleSnapshotLine('Shift', d.shift || '-'),
+                scheduleSnapshotLine('Jam', d.start && d.end ? `${d.start}–${d.end} ${zone}` : `belum tercatat (${zone})`),
+            ];
+            if (d.is_overnight === true) lines.push(scheduleSnapshotLine('Keterangan', 'Selesai pada hari berikutnya'));
+            if (d.is_holiday === true) lines.push(scheduleSnapshotLine('Keterangan', 'Hari libur'));
+            if (d.is_holiday === null) lines.push(scheduleSnapshotLine('Keterangan', 'Status libur belum tercatat'));
+            return lines;
+        }
+
+        function scheduleSnapshotMessage(text) {
+            const box = document.getElementById('scheduleSnapshotError');
+            box.textContent = text || '';
+            box.style.display = text ? 'block' : 'none';
+        }
+
+        const scheduleSnapshotValue = v => v === null || v === undefined ? '' : (v === true ? '1' : (v === false ? '0' : String(v)));
+
+        function fillScheduleSnapshotForm(form) {
+            document.getElementById('scheduleSnapshotStart').value = form.start_time || '';
+            document.getElementById('scheduleSnapshotEnd').value = form.end_time || '';
+            document.getElementById('scheduleSnapshotWita').value = scheduleSnapshotValue(form.is_wita);
+            document.getElementById('scheduleSnapshotOvernight').value = scheduleSnapshotValue(form.is_overnight);
+            document.getElementById('scheduleSnapshotHoliday').value = scheduleSnapshotValue(form.is_holiday);
+            document.getElementById('scheduleSnapshotShiftName').value = form.shift_name || '';
+        }
+
+        function renderScheduleSnapshotWorkSchedule(schedule) {
+            const box = document.getElementById('scheduleSnapshotWorkSchedule');
+            box.replaceChildren();
+            const title = document.createElement('strong');
+            title.textContent = 'Jadwal Kerja';
+            box.append(title);
+
+            if (!schedule) {
+                const none = document.createElement('p');
+                none.style.margin = '4px 0 0';
+                none.textContent = 'Belum ada Jadwal Kerja untuk tanggal ini. Isi manual.';
+                box.append(none);
+                return;
+            }
+
+            const zone = schedule.is_wita ? 'WITA' : 'WIB';
+            const lines = [
+                scheduleSnapshotLine('Shift', schedule.shift_name || '-'),
+                scheduleSnapshotLine('Jam', schedule.start_time && schedule.end_time ? `${schedule.start_time}–${schedule.end_time} ${zone}` : `belum tercatat (${zone})`),
+            ];
+            if (schedule.is_overnight) lines.push(scheduleSnapshotLine('Keterangan', 'Selesai pada hari berikutnya'));
+            if (schedule.is_holiday) lines.push(scheduleSnapshotLine('Keterangan', 'Hari libur'));
+            if (schedule.group) lines.push(scheduleSnapshotLine('Kelompok', schedule.group));
+            const hint = document.createElement('p');
+            hint.style.cssText = 'color:#64748b; margin:4px 0 6px;';
+            hint.textContent = 'Hanya mengisi form; belum disimpan.';
+            const use = document.createElement('button');
+            use.type = 'button';
+            use.className = 'modal-btn modal-btn-secondary';
+            use.textContent = 'Gunakan Jadwal Kerja';
+            use.addEventListener('click', function() {
+                fillScheduleSnapshotForm({ start_time: schedule.start_time, end_time: schedule.end_time, is_wita: schedule.is_wita, is_overnight: schedule.is_overnight, is_holiday: schedule.is_holiday, shift_name: schedule.shift_name });
+                document.getElementById('scheduleSnapshotSourceId').value = schedule.id;
+                document.getElementById('scheduleSnapshotSourceFingerprint').value = schedule.fingerprint;
+            });
+            box.append(...lines, hint, use);
+        }
+
+        function renderScheduleSnapshot(data) {
+            const body = document.getElementById('scheduleSnapshotBody');
+            body.replaceChildren();
+            body.append(scheduleSnapshotLine('Karyawan', data.employee || '-'), scheduleSnapshotLine('Tanggal kerja', scheduleSnapshotDate(data.work_date)));
+
+            const typeLabel = type => type === 'CLOCK_IN' ? 'Masuk' : 'Pulang';
+            const summary = data.events.map(event => `${typeLabel(event.type)} ${event.time}`);
+            const joined = summary.length > 1 ? `${summary.slice(0, -1).join(', ')} dan ${summary[summary.length - 1]}` : summary[0];
+            const scope = document.createElement('p');
+            scope.style.margin = '6px 0 0';
+            scope.textContent = `Berlaku untuk ${data.events.length} log: ${joined}`;
+            body.append(scope);
+
+            const keys = new Set(data.events.map(event => JSON.stringify(event.snapshot)));
+            if (keys.size === 1) {
+                body.append(scheduleSnapshotBlock('Jadwal saat ini', scheduleSnapshotDescribe(data.events[0].snapshot)));
+            } else {
+                const lines = [];
+                data.events.forEach(function(event) {
+                    const title = document.createElement('div');
+                    title.style.cssText = 'margin-top:6px; font-weight:700;';
+                    title.textContent = `${typeLabel(event.type)} ${event.time}`;
+                    lines.push(title, ...scheduleSnapshotDescribe(event.snapshot));
+                });
+                const warn = document.createElement('p');
+                warn.style.cssText = 'color:#b45309; margin:0 0 4px;';
+                warn.textContent = 'Jadwal tiap log berbeda. Isian berlaku untuk semua log.';
+                body.append(scheduleSnapshotBlock('Jadwal saat ini', [warn, ...lines]));
+            }
+
+            const note = document.createElement('p');
+            note.style.cssText = 'color:#64748b; margin:10px 0 0;';
+            note.textContent = 'Jam absen, bukti, dan approval tidak berubah. Isian menjadi acuan report.';
+            body.append(note);
+
+            fillScheduleSnapshotForm(data.form);
+            document.getElementById('scheduleSnapshotSourceId').value = '';
+            document.getElementById('scheduleSnapshotSourceFingerprint').value = '';
+            renderScheduleSnapshotWorkSchedule(data.schedule);
+
+            scheduleSnapshotMessage('');
+            document.getElementById('scheduleSnapshotSubmit').disabled = false;
+        }
+
+        async function openScheduleSnapshotModal(url, saveUrl) {
+            scheduleSnapshotState.saveUrl = saveUrl;
+            scheduleSnapshotState.payload = null;
+            document.getElementById('scheduleSnapshotReason').value = '';
+            document.getElementById('scheduleSnapshotSubmit').disabled = true;
+            document.getElementById('scheduleSnapshotBody').textContent = 'Memuat…';
+            document.getElementById('scheduleSnapshotWorkSchedule').replaceChildren();
+            scheduleSnapshotMessage('');
+            closeOtherAttendanceActionMenus();
+            document.getElementById('scheduleSnapshotModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+
+            try {
+                const response = await fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!response.ok) throw new Error('Gagal memuat data snapshot jadwal.');
+                scheduleSnapshotState.payload = await response.json();
+                renderScheduleSnapshot(scheduleSnapshotState.payload);
+            } catch (error) {
+                document.getElementById('scheduleSnapshotBody').textContent = '';
+                scheduleSnapshotMessage(error.message || 'Gagal memuat data snapshot jadwal.');
+            }
+        }
+
+        function initializeAttendanceSnapshotButtons() {
+            document.querySelectorAll('[data-attendance-snapshot]').forEach(function(button) {
+                if (button.dataset.attendanceSnapshotInitialized) return;
+
+                button.dataset.attendanceSnapshotInitialized = 'true';
+                button.addEventListener('click', function() {
+                    openScheduleSnapshotModal(this.dataset.attendanceSnapshotUrl, this.dataset.attendanceSnapshotSaveUrl);
+                });
+            });
+        }
+
         function initializeAttendanceMoveButtons() {
+            initializeAttendanceSnapshotButtons();
             document.querySelectorAll('[data-attendance-move]').forEach(function(button) {
                 if (button.dataset.attendanceMoveInitialized) return;
 
@@ -701,6 +888,8 @@
                         this.dataset.attendanceMoveName,
                         this.dataset.attendanceMoveSource,
                         this.dataset.attendanceMoveDestination,
+                        this.dataset.attendanceMoveFrom,
+                        this.dataset.attendanceMoveTo,
                     );
                 });
             });
@@ -862,6 +1051,40 @@
 
             initializeAttendanceEvidenceButtons();
             initializeAttendanceMoveButtons();
+
+            document.getElementById('scheduleSnapshotForm')?.addEventListener('submit', async function(event) {
+                event.preventDefault();
+
+                const payload = scheduleSnapshotState.payload;
+                const submitButton = document.getElementById('scheduleSnapshotSubmit');
+                if (!payload || submitButton.disabled) return;
+                submitButton.disabled = true;
+                scheduleSnapshotMessage('');
+                let status = 0;
+
+                try {
+                    const body = new FormData(event.target);
+                    body.set('fingerprint', payload.fingerprint);
+                    payload.event_ids.forEach(id => body.append('event_ids[]', id));
+
+                    const response = await fetch(scheduleSnapshotState.saveUrl, {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        body,
+                    });
+                    status = response.status;
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok) throw new Error(result.message || Object.values(result.errors || {}).flat()[0] || 'Koreksi snapshot jadwal gagal.');
+
+                    document.getElementById('scheduleSnapshotModal').style.display = 'none';
+                    document.body.style.overflow = '';
+                    await window.refreshAttendanceResults?.();
+                } catch (error) {
+                    scheduleSnapshotMessage(error.message || 'Koreksi snapshot jadwal gagal.');
+                    // 409 = modal basi: tetap nonaktif sampai HR memuat ulang.
+                    submitButton.disabled = status === 409;
+                }
+            });
 
             const moveForm = document.getElementById('moveClockSideForm');
             moveForm?.addEventListener('submit', async function(event) {

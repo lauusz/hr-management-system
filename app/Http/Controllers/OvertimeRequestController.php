@@ -6,6 +6,7 @@ use App\Models\OvertimeRequest;
 use App\Models\OvertimeRequestAttachment;
 use App\Services\OvertimeEvidenceStorage;
 use App\Services\OvertimeApprovalService;
+use App\Services\OvertimeTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -65,7 +66,24 @@ class OvertimeRequestController extends Controller
                 ->with('error', 'Pengajuan sudah diproses SPV, tidak dapat diubah.');
         }
 
-        return view('overtime_requests.edit', ['overtime' => $overtimeRequest]);
+        return view('overtime_requests.edit', [
+            'overtime' => $overtimeRequest,
+            'zoneLabel' => $overtimeRequest->zone_label ?: $this->zoneHint((int) $overtimeRequest->user_id, $overtimeRequest->overtime_date->toDateString()),
+        ]);
+    }
+
+    /** Petunjuk zona pada form; zona final tetap ditentukan server saat disimpan. */
+    private function zoneHint(int $userId, string $date): ?string
+    {
+        if (! OvertimeTimezone::columnReady()) {
+            return null;
+        }
+
+        try {
+            return OvertimeTimezone::label(OvertimeTimezone::resolveForNew($userId, $date));
+        } catch (ValidationException) {
+            return null;
+        }
     }
 
     /**
@@ -73,7 +91,7 @@ class OvertimeRequestController extends Controller
      */
     public function create()
     {
-        return view('overtime_requests.create');
+        return view('overtime_requests.create', ['zoneLabel' => $this->zoneHint((int) Auth::id(), now()->toDateString())]);
     }
 
     /**
@@ -108,14 +126,19 @@ class OvertimeRequestController extends Controller
         $breakMinutes = (int) ($validated['break_duration_minutes'] ?? 0);
         $this->validateBreakDuration($breakMinutes, $durationMinutes, 'break_duration_minutes');
 
+        // Zona ditentukan server (bukan input browser); snapshot hanya disimpan bila kolomnya sudah ada.
+        $zone = OvertimeTimezone::columnReady()
+            ? ['is_wita' => OvertimeTimezone::resolveForNew($user->id, Carbon::parse($validated['overtime_date'])->toDateString())]
+            : [];
+
         $files = [];
         try {
             foreach ($request->file('photos', []) as $file) {
                 $files[] = $evidenceStorage->store($file);
             }
 
-            DB::transaction(function () use ($user, $validated, $durationMinutes, $breakMinutes, $files) {
-                $overtime = OvertimeRequest::create([
+            DB::transaction(function () use ($user, $validated, $durationMinutes, $breakMinutes, $files, $zone) {
+                $overtime = OvertimeRequest::create($zone + [
                     'user_id' => $user->id,
                     'overtime_date' => $validated['overtime_date'],
                     'start_time' => $validated['start_time'],
@@ -209,8 +232,21 @@ class OvertimeRequestController extends Controller
         $breakMinutes = $this->calculateBreakMinutes($validated);
         $this->validateBreakDuration($breakMinutes, $durationMinutes);
 
+        // Snapshot zona yang sudah pasti dipertahankan selama tanggal sama; tanggal baru/zona belum ada ditentukan ulang oleh server.
+        $date = Carbon::parse($validated['overtime_date'])->toDateString();
+        $oldZone = OvertimeTimezone::columnReady() ? $overtimeRequest->getAttribute('is_wita') : null;
+        $zone = [];
+        $zoneChanged = false;
+        if (OvertimeTimezone::columnReady()) {
+            $newZone = ($oldZone !== null && $overtimeRequest->overtime_date->toDateString() === $date)
+                ? (bool) $oldZone
+                : OvertimeTimezone::resolveForNew((int) $overtimeRequest->user_id, $date);
+            $zone = ['is_wita' => $newZone];
+            $zoneChanged = $oldZone !== null && (bool) $oldZone !== $newZone;
+        }
+
         try {
-            $approvalService->locked($overtimeRequest, function ($locked) use ($isOwner, $user, $validated, $durationMinutes, $breakMinutes, $approvalService) {
+            $approvalService->locked($overtimeRequest, function ($locked) use ($isOwner, $user, $validated, $durationMinutes, $breakMinutes, $approvalService, $zone, $zoneChanged) {
                 if ($isOwner && $locked->status !== OvertimeRequest::STATUS_PENDING_SUPERVISOR) {
                     throw new \DomainException('Pengajuan sudah diproses, tidak dapat diubah sendiri.');
                 }
@@ -218,14 +254,15 @@ class OvertimeRequestController extends Controller
                     || $locked->start_time->format('H:i') !== $validated['start_time']
                     || $locked->end_time->format('H:i') !== $validated['end_time']
                     || (int) ($locked->break_minutes ?? 0) !== $breakMinutes
-                    || $locked->description !== $validated['description'];
+                    || $locked->description !== $validated['description']
+                    || $zoneChanged;
                 if ($changed && $locked->status === OvertimeRequest::STATUS_PENDING_SUPERVISOR && $locked->currentApprovalActions()->contains('action', 'APPROVE')) {
                     if ($isOwner) {
                         throw new \DomainException('Pengajuan tidak dapat diubah setelah ada persetujuan.');
                     }
                     $approvalService->resetIfApproved($locked, $user);
                 }
-                $locked->update([
+                $locked->update($zone + [
                     'overtime_date' => $validated['overtime_date'],
                     'start_time' => $validated['start_time'],
                     'end_time' => $validated['end_time'],
@@ -238,12 +275,17 @@ class OvertimeRequestController extends Controller
             return back()->with('error', $exception->getMessage());
         }
 
-        if ($isOwner) {
-            return redirect()->route('overtime-requests.index')
-                ->with('success', 'Data lembur berhasil diperbarui.');
+        $message = 'Data lembur berhasil diperbarui.';
+        if ($zoneChanged) {
+            $message .= ' Zona waktu jam lembur berubah menjadi '.OvertimeTimezone::label($zone['is_wita']).' mengikuti tanggal baru.';
         }
 
-        return back()->with('success', 'Data lembur berhasil diperbarui.');
+        if ($isOwner) {
+            return redirect()->route('overtime-requests.index')
+                ->with('success', $message);
+        }
+
+        return back()->with('success', $message);
     }
 
     private function calculateDurationMinutes(string $startTime, string $endTime): int

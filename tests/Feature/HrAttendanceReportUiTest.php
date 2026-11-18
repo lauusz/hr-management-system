@@ -124,7 +124,7 @@ it('renders redesigned user-friendly UI, exact 12-column order, KPI stats, stick
         ->assertSee('Total Hari Periode')
         ->assertSee('PT Samudra Nusantara')
         ->assertSee('Staff Operasional')
-        ->assertSee('Nonaktif')
+        ->assertDontSee('Citra Lestari')
         ->assertSeeInOrder([
             'NAMA',
             'JABATAN',
@@ -199,4 +199,49 @@ it('renders active filter chips, empty state when no employees match, and handle
         ->from(route('hr.reports.attendance'))
         ->get(route('hr.reports.attendance', ['month' => 99]))
         ->assertRedirect(route('hr.reports.attendance'));
+});
+
+it('menghitung Semua Bulan sebagai 26 Desember tahun sebelumnya sampai 25 Desember tahun terpilih', function () {
+    ensureAttendanceReportTestSchema($this);
+
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+    $employee = User::factory()->create(['name' => 'Rina Pratama', 'role' => UserRole::EMPLOYEE, 'status' => User::STATUS_ACTIVE]);
+
+    $leave = LeaveRequest::create([
+        'user_id' => $employee->id, 'type' => 'CUTI', 'start_date' => '2025-12-25', 'end_date' => '2026-12-26',
+        'reason' => 'Uji batas periode', 'status' => LeaveRequest::STATUS_APPROVED,
+    ]);
+    // 25 Des 2025 dan 26 Des 2026 berada di luar Semua Bulan 2026; sisanya di dalam.
+    foreach (['2025-12-25', '2025-12-26', '2026-01-25', '2026-01-26', '2026-12-25', '2026-12-26'] as $date) {
+        DB::table('leave_request_days')->insert(['leave_request_id' => $leave->id, 'leave_date' => $date, 'created_at' => now(), 'updated_at' => now()]);
+    }
+
+    $detail = fn (string|int $month) => $this->actingAs($hrd)->getJson(route('hr.reports.attendance.detail', [
+        'employee' => $employee->id, 'month' => $month, 'year' => 2026, 'category' => 'CUTI',
+    ]));
+
+    $detail('all')->assertOk()->assertJson(['start' => '2025-12-26', 'end' => '2026-12-25', 'total' => 4]);
+    $detail(1)->assertOk()->assertJson(['start' => '2025-12-26', 'end' => '2026-01-25', 'total' => 2]);
+    $detail(2)->assertOk()->assertJson(['start' => '2026-01-26', 'end' => '2026-02-25', 'total' => 1]);
+
+    $this->actingAs($hrd)
+        ->get(route('hr.reports.attendance', ['month' => 'all', 'year' => 2026]))
+        ->assertOk()
+        ->assertSee('Semua Bulan 2026')
+        ->assertSee('26 Desember 2025')
+        ->assertSee('25 Desember 2026')
+        ->assertSee('month=all', false)
+        ->assertDontSee('aria-label="Navigasi periode"', false);
+});
+
+it('menolak nilai bulan yang tidak sah tanpa error 500', function () {
+    ensureAttendanceReportTestSchema($this);
+
+    $hrd = User::factory()->create(['role' => UserRole::HRD]);
+
+    foreach (['semua', '0', '13', 'ALL'] as $invalid) {
+        $this->actingAs($hrd)->from(route('hr.reports.attendance'))
+            ->get(route('hr.reports.attendance', ['month' => $invalid]))
+            ->assertRedirect(route('hr.reports.attendance'));
+    }
 });

@@ -89,7 +89,6 @@
         </form>
     </div>
 
-    <div id="hom-search-error" class="hom-alert hom-alert--error" role="alert" hidden>Hasil pencarian tidak dapat dimuat. Coba lagi atau gunakan tombol Terapkan Filter.</div>
     <div data-overtime-results aria-live="polite" aria-busy="false">
 
     {{-- ============================================== --}}
@@ -107,15 +106,20 @@
                         <th>Durasi</th>
                         <th>Status / Supervisor</th>
                         <th>Clock Out</th>
-                        <th style="width: 80px;">Aksi</th>
+                        <th style="width: 190px;">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($overtimes as $i => $overtime)
                         @php
                             $recap = $recapData[$overtime->id] ?? null;
-                            $clockInTimes = collect($recap['clock_ins'] ?? [])->map(fn ($time) => $time->format('H:i'))->values();
-                            $clockOutTimes = collect($recap['clock_outs'] ?? [])->map(fn ($time) => $time->format('H:i'))->values();
+                            // Tanggal log ditampilkan hanya bila ada log di luar tanggal kerja (mis. lewat tengah malam).
+                            $overtimeDay = $overtime->overtime_date->toDateString();
+                            $crossesDate = collect($recap['clock_ins'] ?? [])->concat($recap['clock_outs'] ?? [])
+                                ->contains(fn ($time) => $time->toDateString() !== $overtimeDay);
+                            $formatLog = fn ($time) => ($crossesDate ? $time->format('d/m/Y').' ' : '').\App\Services\OvertimeTimezone::format($time);
+                            $clockInTimes = collect($recap['clock_ins'] ?? [])->map($formatLog)->values();
+                            $clockOutTimes = collect($recap['clock_outs'] ?? [])->map($formatLog)->values();
 
                             $st = $overtime->status;
                             $badgeClass = 'hom-badge--gray';
@@ -158,10 +162,11 @@
                                 </div>
                             </td>
                             <td>
-                                <span class="hom-text-date">{{ $overtime->overtime_date->translatedFormat('j F Y') }}</span>
+                                @php $shortMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']; @endphp
+                                <span class="hom-text-date" style="white-space: nowrap;">{{ $overtime->overtime_date->day }} {{ $shortMonths[$overtime->overtime_date->month - 1] }} {{ $overtime->overtime_date->year }}</span>
                             </td>
                             <td>
-                                <span class="hom-text-date">{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</span>
+                                <span class="hom-text-date">{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }} {{ $overtime->zone_label }}</span>
                                 @if((int) $overtime->break_minutes > 0)
                                     <span class="hom-break-note">Istirahat: {{ $overtime->break_human }}</span>
                                 @endif
@@ -174,7 +179,7 @@
                                     {!! $statusIcon !!}
                                     {{ $statusLabel }}
                                 </span>
-                                @include('overtime_requests._approval_status', ['overtime' => $overtime, 'compact' => true])
+                                @include('overtime_requests._approval_status', ['overtime' => $overtime, 'compact' => true, 'class' => 'hom-approval'])
                                 @if($overtime->status === \App\Models\OvertimeRequest::STATUS_REJECTED && $overtime->rejection_note)
                                     <div class="hom-rejection-mini">
                                         Note: {{ $overtime->rejection_note }}
@@ -183,15 +188,23 @@
                             </td>
                             <td>
                                 @if($recap && $recap['clock_out'])
-                                    <span class="hom-text-date">{{ $recap['clock_out']->format('H:i') }}</span>
+                                    @php $clockOutClass = ['match' => 'hom-clockout--match', 'short' => 'hom-clockout--short'][$recap['status_slug']] ?? ''; @endphp
+                                    <span class="hom-text-date {{ $clockOutClass }}" title="{{ $recap['status'] }}" aria-label="Clock Out {{ \App\Services\OvertimeTimezone::format($recap['clock_out']) }}, {{ $recap['status'] }}">{{ \App\Services\OvertimeTimezone::format($recap['clock_out']) }}</span>
                                 @else
                                     <span class="hom-text-muted">-</span>
                                 @endif
                             </td>
                             <td class="hom-text-right">
-                                <a href="{{ route('hr.overtime-requests.show', $overtime->id) }}" class="hom-action-link" data-overtime-detail aria-haspopup="dialog" aria-controls="hom-detail-modal">
-                                    Detail
-                                </a>
+                                <div class="hom-actions">
+                                    <button type="button" class="hom-action-link hom-action-link--check" data-overtime-attendance aria-haspopup="dialog" aria-controls="overtime-attendance-modal"
+                                        data-overtime-attendance-name="{{ $overtime->user->name }}"
+                                        data-overtime-attendance-date="{{ $overtime->overtime_date->translatedFormat('j F Y') }}"
+                                        data-overtime-attendance-clock-ins="{{ json_encode($clockInTimes) }}"
+                                        data-overtime-attendance-clock-outs="{{ json_encode($clockOutTimes) }}">Cek Absensi</button>
+                                    <a href="{{ route('hr.overtime-requests.show', $overtime->id) }}" class="hom-action-link" data-overtime-detail aria-haspopup="dialog" aria-controls="hom-detail-modal">
+                                        Detail
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -246,6 +259,7 @@
             <strong id="overtime-attendance-name"></strong>
             <span id="overtime-attendance-date"></span>
         </div>
+        <p id="overtime-attendance-empty" class="hom-attendance-modal-empty" hidden>Tidak ada data absensi untuk tanggal ini.</p>
         <div class="hom-attendance-modal-times">
             <section>
                 <span>Clock In</span>
@@ -258,7 +272,6 @@
         </div>
     </x-modal>
 
-    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -359,8 +372,13 @@
 
                 document.getElementById('overtime-attendance-name').textContent = trigger.dataset.overtimeAttendanceName;
                 document.getElementById('overtime-attendance-date').textContent = trigger.dataset.overtimeAttendanceDate;
-                renderOvertimeAttendanceTimes('overtime-attendance-clock-in', JSON.parse(trigger.dataset.overtimeAttendanceClockIns || '[]'));
-                renderOvertimeAttendanceTimes('overtime-attendance-clock-out', JSON.parse(trigger.dataset.overtimeAttendanceClockOuts || '[]'));
+                const clockIns = JSON.parse(trigger.dataset.overtimeAttendanceClockIns || '[]');
+                const clockOuts = JSON.parse(trigger.dataset.overtimeAttendanceClockOuts || '[]');
+                const isEmpty = !clockIns.length && !clockOuts.length;
+                document.getElementById('overtime-attendance-empty').hidden = !isEmpty;
+                document.querySelector('#overtime-attendance-modal .hom-attendance-modal-times').style.display = isEmpty ? 'none' : '';
+                renderOvertimeAttendanceTimes('overtime-attendance-clock-in', clockIns);
+                renderOvertimeAttendanceTimes('overtime-attendance-clock-out', clockOuts);
                 modal.style.display = 'flex';
                 document.body.style.overflow = 'hidden';
             });
@@ -369,7 +387,7 @@
                 const container = document.getElementById(id);
                 container.replaceChildren();
 
-                (times.length ? times : ['-']).forEach((time) => {
+                (times.length ? times : ['Belum tercatat']).forEach((time) => {
                     const value = document.createElement('strong');
                     value.textContent = time;
                     container.append(value);
@@ -377,90 +395,39 @@
             }
         })();
     </script>
+    @include('hr._master_ajax')
     <script data-overtime-live-search>
         (() => {
             const form = document.getElementById('hom-filter-form');
-            const input = form?.querySelector('[data-overtime-live-search]');
-            const results = document.querySelector('[data-overtime-results]');
             const panel = document.getElementById('hom-filter-panel');
             const toggle = document.getElementById('hom-filter-toggle');
             const badge = document.getElementById('hom-filter-badge');
-            const reset = document.getElementById('hom-search-reset');
-            const errorMessage = document.getElementById('hom-search-error');
-            if (!form || !input || !results || !panel || !toggle || !badge || !reset || !errorMessage) return;
-
-            let timer;
-            let request;
-            const activeCount = () => Number(!!form.elements.status.value) + Number(!!form.elements.overtime_date_range.value && form.elements.overtime_date_range.value !== form.dataset.defaultRange);
-            const syncReset = () => { reset.hidden = !input.value.trim() && activeCount() === 0; };
-            const syncFilter = () => {
-                const count = activeCount();
-                badge.textContent = count;
-                badge.hidden = count === 0;
-                toggle.classList.toggle('active', !panel.hidden || count > 0);
-            };
+            if (!form || !panel || !toggle || !badge) return;
 
             toggle.addEventListener('click', () => {
                 panel.hidden = !panel.hidden;
                 toggle.setAttribute('aria-expanded', String(!panel.hidden));
                 toggle.classList.toggle('active', !panel.hidden || !badge.hidden);
             });
-            const onFilterChange = () => { request?.abort(); syncReset(); };
-            form.elements.status.addEventListener('change', onFilterChange);
-            form.elements.overtime_date_range.addEventListener('change', onFilterChange);
-            form.addEventListener('submit', () => { clearTimeout(timer); request?.abort(); });
 
-            async function loadResults(url = null) {
-                if (!url) {
-                    url = new URL(form.action, window.location.origin);
-                    const params = new URLSearchParams(new FormData(form));
-                    params.delete('page');
-                    url.search = params.toString();
-                }
-                const currentRequest = new AbortController();
-                request = currentRequest;
-                results.classList.add('is-loading');
-                results.setAttribute('aria-busy', 'true');
-
-                try {
-                    const response = await fetch(url, {
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                        signal: currentRequest.signal,
-                    });
-                    if (!response.ok) throw new Error('Pencarian lembur gagal');
-                    const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
-                    const nextResults = documentResult.querySelector('[data-overtime-results]');
-                    if (!nextResults) throw new Error('Hasil pencarian tidak lengkap');
-                    if (request !== currentRequest || currentRequest.signal.aborted) return;
-                    results.innerHTML = nextResults.innerHTML;
-                    window.history.replaceState(null, '', url);
-                    syncFilter();
-                } catch (error) {
-                    if (error.name !== 'AbortError' && request === currentRequest && !currentRequest.signal.aborted) errorMessage.hidden = false;
-                } finally {
-                    if (request === currentRequest) {
-                        results.classList.remove('is-loading');
-                        results.setAttribute('aria-busy', 'false');
-                    }
-                }
-            }
-
-            input.addEventListener('input', () => {
-                clearTimeout(timer);
-                request?.abort();
-                errorMessage.hidden = true;
-                syncReset();
-                timer = setTimeout(loadResults, 350);
+            const ajax = MasterAjax.init({
+                form: '#hom-filter-form',
+                search: '[data-overtime-live-search]',
+                regions: ['[data-overtime-results]'],
+                links: '[data-overtime-results] .hom-pagination a[href]',
+                reset: '#hom-search-reset',
+                sync: ['#hom-search-reset', '#hom-filter-badge'],
+                onUpdate() {
+                    toggle.classList.toggle('active', !panel.hidden || !badge.hidden);
+                },
             });
-            document.addEventListener('overtime-refresh-results', () => {
-                clearTimeout(timer);
-                request?.abort();
-                errorMessage.hidden = true;
-                loadResults(new URL(window.location.href));
-            });
+
+            document.addEventListener('overtime-refresh-results', () => ajax?.refresh());
         })();
     </script>
 
+    @push('styles')
+    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <style>
         #hom-detail-modal {
             width: min(680px, calc(100% - 28px));
@@ -549,7 +516,11 @@
         .hom-attendance-modal-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
         .hom-attendance-modal-times section { padding: 16px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
         .hom-attendance-modal-times span { display: block; margin-bottom: 6px; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-        .hom-attendance-modal-times strong { display: block; color: #111827; font-size: 24px; }
+        .hom-attendance-modal-times strong { display: block; color: #111827; font-size: 20px; overflow-wrap: anywhere; }
+        .hom-attendance-modal-times strong + strong { margin-top: 6px; }
+        .hom-attendance-modal-empty { margin: 0; padding: 16px; color: #64748b; font-size: 14px; text-align: center; background: #f8fafc; border-radius: 12px; }
+        .hom-attendance-modal-empty[hidden] { display: none; }
+        .hom-action-link--check { font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
         @media (max-width: 480px) { .hom-attendance-modal-times { grid-template-columns: 1fr; } }
         /* ========================================== */
         /* ALERTS                                     */
@@ -638,8 +609,7 @@
         .hom-filter-actions { display: flex; justify-content: flex-end; }
         .hom-btn-apply { padding: 10px 20px; cursor: pointer; border: 1px solid #145da0; border-radius: 10px; font-weight: 600; }
         .hom-btn-apply:hover { background: #0d4a83; }
-        .hom-btn-reset[hidden], .hom-filter-panel[hidden], .hom-filter-badge[hidden], #hom-search-error[hidden], #hom-cancel-success[hidden] { display: none; }
-        [data-overtime-results].is-loading { opacity: 0.55; pointer-events: none; }
+        .hom-btn-reset[hidden], .hom-filter-panel[hidden], .hom-filter-badge[hidden], #hom-cancel-success[hidden] { display: none; }
         @media (min-width: 600px) {
             .hom-search-row { flex-direction: row; align-items: center; flex-wrap: wrap; padding: 16px 20px; }
             .hom-search-wrap { min-width: 260px; }
@@ -693,14 +663,23 @@
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            padding: 5px 10px;
+            padding: 3px 8px;
             border-radius: 9999px;
-            font-size: 0.6875rem;
-            font-weight: 700;
+            font-size: 0.625rem;
+            font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.03em;
+            letter-spacing: 0.02em;
             white-space: nowrap;
         }
+        .hom-badge svg { width: 10px; height: 10px; }
+        /* Kolom Status/Supervisor: teks 3px lebih kecil (10px -> 7px); ikon tetap 10px. */
+        .hom-table .hom-badge { font-size: 7px; }
+        /* Ringkasan persetujuan khusus Master Lembur HR; partial dipakai halaman lain tanpa class ini. */
+        .hom-approval { margin: 2px 0 0 !important; font-size: 8.5px !important; line-height: 1.35 !important; color: #4b5563; overflow-wrap: anywhere; }
+        .hom-approval strong { font-weight: 600; }
+        .hom-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+        .hom-actions .hom-action-link { flex: 0 0 auto; white-space: nowrap; }
+        @media (max-width: 1024px) { .hom-actions { justify-content: stretch; } .hom-actions .hom-action-link { flex: 1 1 120px; width: auto; } }
         .hom-badge--success { background: rgba(34, 197, 94, 0.1); color: #15803d; }
         .hom-badge--error   { background: rgba(239, 68, 68, 0.1); color: #b91c1c; }
         .hom-badge--warning { background: rgba(245, 158, 11, 0.1); color: #a16207; }
@@ -834,6 +813,8 @@
         .hom-text-muted { color: var(--text-muted, #6B7280); font-size: 13px; }
         .hom-text-center { text-align: center; }
         .hom-text-right { text-align: right; }
+        .hom-text-date.hom-clockout--match { color: #15803d; }
+        .hom-text-date.hom-clockout--short { color: #b91c1c; }
         .hom-text-date { font-weight: 600; color: var(--text-primary, #1f2937); font-size: 13.5px; }
         .hom-text-xs { font-size: 11px; margin-top: 2px; }
         .hom-break-note { display: block; margin-top: 3px; color: var(--text-muted, #6B7280); font-size: 11px; font-weight: 500; }
@@ -1004,4 +985,5 @@
             }
         }
     </style>
+    @endpush
 </x-app>

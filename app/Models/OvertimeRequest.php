@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Services\OvertimeTimezone;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
@@ -18,6 +19,7 @@ class OvertimeRequest extends Model
         'overtime_date',
         'start_time',
         'end_time',
+        'is_wita',
         'duration_minutes',
         'break_minutes',
         'description',
@@ -35,6 +37,7 @@ class OvertimeRequest extends Model
         'overtime_date' => 'date',
         'start_time' => 'datetime:H:i',
         'end_time' => 'datetime:H:i',
+        'is_wita' => 'boolean',
         'approved_by_supervisor_at' => 'datetime',
         'approved_by_hrd_at' => 'datetime',
         'created_at' => 'datetime',
@@ -109,6 +112,14 @@ class OvertimeRequest extends Model
     {
         return $this->formatMinutes($this->working_duration_minutes);
     }
+
+    /** WIB/WITA untuk jam lembur; null bila zona pengajuan lama belum dapat dipastikan. */
+    public function getZoneLabelAttribute(): ?string
+    {
+        return $this->zoneLabelCache ??= OvertimeTimezone::label(OvertimeTimezone::forRequest($this)) ?? '';
+    }
+
+    private ?string $zoneLabelCache = null;
 
     public function getWorkingDurationMinutesAttribute(): int
     {

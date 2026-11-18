@@ -43,6 +43,8 @@
         <form id="payroll-import-form" action="{{ route('hr.payroll.import.store') }}" method="POST">
             @csrf
             <input type="hidden" name="action" id="payroll-action-input" value="">
+            <input type="hidden" name="source" value="preview">
+            <input type="hidden" name="operation_id" value="{{ (string) \Illuminate\Support\Str::uuid() }}">
             <input type="hidden" name="expected_rows" value="{{ count($payslips) }}">
 
             <!-- Filter Section -->

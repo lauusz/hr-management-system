@@ -13,10 +13,44 @@ use Illuminate\Validation\Rule;
 
 class AttendanceReportController extends Controller
 {
+    /** Bulan sah: 1–12 (boleh diawali 0) atau literal "all" (Semua Bulan). */
+    private const MONTH_PATTERN = '/^(all|0?[1-9]|1[0-2])$/';
+
+    private function normalizeMonth(?string $value, int $default): int|string
+    {
+        if ($value === 'all') {
+            return 'all';
+        }
+
+        return $value === null || $value === '' ? $default : (int) $value;
+    }
+
+    /**
+     * Rentang periode cut-off (inklusif); nama bulan mengikuti bulan AKHIR periode.
+     * - Bulan M tahun Y : 26 (M-1) .. 25 M Y.
+     * - "all" tahun Y   : 26 Desember Y-1 .. 25 Desember Y (12 periode, tidak dipotong hari ini).
+     * Dipakai bersama oleh index dan detail agar batas tanggal selalu sama.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function periodRange(int|string $month, int $year): array
+    {
+        if ($month === 'all') {
+            return [
+                Carbon::create($year - 1, 12, 26, 0, 0, 0, 'Asia/Jakarta'),
+                Carbon::create($year, 12, 25, 0, 0, 0, 'Asia/Jakarta'),
+            ];
+        }
+
+        $end = Carbon::create($year, $month, 25, 0, 0, 0, 'Asia/Jakarta');
+
+        return [$end->copy()->subMonthNoOverflow()->day(26), $end];
+    }
+
     public function index(Request $request, MonthlyAttendanceReportService $report)
     {
         $filters = $request->validate([
-            'month' => ['nullable', 'integer', 'between:1,12'],
+            'month' => ['nullable', 'regex:'.self::MONTH_PATTERN],
             'year' => ['nullable', 'integer', 'between:2,9999'],
             'q' => ['nullable', 'string', 'max:255'],
             'pt_id' => ['nullable', 'integer', 'exists:pts,id'],
@@ -24,15 +58,14 @@ class AttendanceReportController extends Controller
         ]);
 
         $now = Carbon::now('Asia/Jakarta');
-        $month = (int) ($filters['month'] ?? $now->month);
+        $month = $this->normalizeMonth($filters['month'] ?? null, $now->month);
         $year = (int) ($filters['year'] ?? $now->year);
-        $end = Carbon::create($year, $month, 25, 0, 0, 0, 'Asia/Jakarta');
-        $start = $end->copy()->subMonthNoOverflow()->day(26);
+        [$start, $end] = $this->periodRange($month, $year);
         $search = trim($filters['q'] ?? '');
         $ptId = $filters['pt_id'] ?? null;
         $positionId = $filters['position_id'] ?? null;
 
-        $query = User::with(['position', 'profile.pt']);
+        $query = User::active()->with(['position', 'profile.pt']);
         if ($search !== '') {
             $query->whereNormalizedNameContains($search);
         }
@@ -43,8 +76,7 @@ class AttendanceReportController extends Controller
             $query->where('position_id', $positionId);
         }
 
-        $items = $query->orderByRaw('CASE WHEN status = ? THEN 0 ELSE 1 END', [User::STATUS_ACTIVE])
-            ->orderBy('name')->orderBy('id')->get();
+        $items = $query->orderBy('name')->orderBy('id')->get();
 
         return view('hr.reports.attendance', [
             'items' => $items, 'month' => $month, 'year' => $year,
@@ -59,12 +91,11 @@ class AttendanceReportController extends Controller
     public function detail(Request $request, User $employee, MonthlyAttendanceReportService $report)
     {
         $data = $request->validate([
-            'month' => ['required', 'integer', 'between:1,12'],
+            'month' => ['required', 'regex:'.self::MONTH_PATTERN],
             'year' => ['required', 'integer', 'between:2,9999'],
             'category' => ['required', Rule::in(array_keys(MonthlyAttendanceReportService::CATEGORIES))],
         ]);
-        $end = Carbon::create((int) $data['year'], (int) $data['month'], 25, 0, 0, 0, 'Asia/Jakarta');
-        $start = $end->copy()->subMonthNoOverflow()->day(26);
+        [$start, $end] = $this->periodRange($this->normalizeMonth($data['month'], 1), (int) $data['year']);
         $result = $report->calculate([$employee->id], $start, $end)[$employee->id] ?? [];
         $entries = $result[$data['category']] ?? [];
         ksort($entries);
@@ -74,6 +105,7 @@ class AttendanceReportController extends Controller
             'start' => $start->toDateString(), 'end' => $end->toDateString(),
             'total' => count($entries), 'entries' => array_values($entries),
             'incomplete' => $data['category'] === 'TELAT' && ($result['incomplete'] ?? false),
+            'leave_balance' => $data['category'] === 'CUTI' ? (float) ($employee->leave_balance ?? 0) : null,
         ]);
     }
 }

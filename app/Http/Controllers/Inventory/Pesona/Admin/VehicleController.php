@@ -81,25 +81,19 @@ class VehicleController extends Controller
         throw $exception;
     }
 
-    public function destroy(InvPesonaVehicle $vehicle): RedirectResponse
+    // Kompatibilitas pemanggil lama: aksi "hapus" kini hanya menonaktifkan; baris dan riwayat tidak dihapus.
+    public function destroy(Request $request, InvPesonaVehicle $vehicle): RedirectResponse
     {
-        try {
-            $deleted = DB::transaction(function () use ($vehicle): bool {
-                $current = InvPesonaVehicle::query()->lockForUpdate()->findOrFail($vehicle->id);
-                if ($current->requests()->exists()) {
-                    return false;
-                }
-                $current->delete();
-
-                return true;
-            });
-        } catch (QueryException $exception) {
-            if (($exception->errorInfo[1] ?? null) !== 1451 || ! str_contains($exception->getMessage(), 'inv_pesona_requests_vehicle_foreign')) {
-                throw $exception;
+        $changed = DB::transaction(function () use ($request, $vehicle): bool {
+            $current = InvPesonaVehicle::query()->lockForUpdate()->findOrFail($vehicle->id);
+            if (! $current->is_active) {
+                return false;
             }
-            $deleted = false;
-        }
+            $current->update(['is_active' => false, 'updated_by' => $request->user()->id]);
 
-        return redirect()->route('inventory.pesona.admin.vehicles.index')->with($deleted ? 'success' : 'warning', $deleted ? 'Nopol berhasil dihapus.' : 'Nopol sudah digunakan. Silakan nonaktifkan kendaraan.');
+            return true;
+        });
+
+        return redirect()->route('inventory.pesona.admin.vehicles.index')->with($changed ? 'success' : 'warning', $changed ? 'Nopol berhasil dinonaktifkan. Data dan riwayat tetap tersimpan.' : 'Nopol sudah nonaktif.');
     }
 }

@@ -3,140 +3,129 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
+// Memuat pemuat hasil bersama (hr/_master_ajax) yang dipakai Master Absensi, Izin/Cuti, dan Lembur.
 function setup() {
-    const template = readFileSync('resources/views/hr/overtime_requests/master.blade.php', 'utf8');
-    const script = template.match(/<script data-overtime-live-search>\s*([\s\S]*?)\s*<\/script>/)?.[1];
-    assert.ok(script, 'Skrip pencarian dinamis harus tersedia');
+    const template = readFileSync('resources/views/hr/_master_ajax.blade.php', 'utf8');
+    const script = template.match(/<script>\s*([\s\S]*?)\s*<\/script>/)?.[1];
+    assert.ok(script, 'Skrip pemuat bersama harus tersedia');
 
+    const created = [];
     const element = () => ({
-        listeners: {}, hidden: false, value: '', innerHTML: '', attributes: {},
-        classList: { add() {}, remove() {}, toggle() {} },
+        listeners: {}, hidden: false, value: '', innerHTML: '', textContent: '', attributes: {}, inert: false,
+        classes: new Set(),
+        classList: {
+            add(name) { this.owner.classes.add(name); },
+            toggle(name, on) { on ? this.owner.classes.add(name) : this.owner.classes.delete(name); },
+        },
         addEventListener(name, listener) { this.listeners[name] = listener; },
         setAttribute(name, value) { this.attributes[name] = value; },
+        querySelector() { return null; },
+        contains() { return false; },
+        before() {}, append() {}, focus() {},
     });
-    const input = element();
-    const status = element();
-    const date = element();
-    const results = element();
-    const reset = element();
-    const panel = element();
-    const toggle = element();
-    const badge = element();
-    const error = element();
-    date.value = '2026-10-01 sampai 2026-10-31';
-    const form = element();
-    form.action = 'https://example.test/hr/overtime-requests/master';
-    form.dataset = { defaultRange: date.value };
-    form.elements = { status, overtime_date_range: date };
-    form.querySelector = () => input;
-    const elements = {
-        'hom-filter-form': form, 'hom-filter-panel': panel, 'hom-filter-toggle': toggle,
-        'hom-search-reset': reset, 'hom-search-error': error, 'hom-filter-badge': badge,
-    };
-    const document = {
-        listeners: {},
-        addEventListener(name, listener) { this.listeners[name] = listener; },
-        getElementById(id) { return elements[id]; },
-        querySelector(selector) { return selector === '[data-overtime-results]' ? results : null; },
-    };
-    let scheduled;
+    const make = () => { const el = element(); el.classList.owner = el; return el; };
+
+    const input = make();
+    const results = make();
+    results.innerHTML = 'hasil awal';
+    const form = make();
+    form.action = 'https://example.test/hr/master';
+    const elements = { '#form': form, '#q': input, '[data-results]': results };
     let lastUrl;
+    let assigned;
+    let scheduled;
     const pending = [];
     const context = {
-        document, URL, URLSearchParams, AbortController,
-        FormData: class { constructor() { return [['q', input.value], ['status', status.value], ['overtime_date_range', date.value], ['page', '3']]; } },
-        DOMParser: class { parseFromString(html) { return { querySelector() { return { innerHTML: html }; } }; } },
-        window: { location: { origin: 'https://example.test', href: 'https://example.test/hr/overtime-requests/master?status=PENDING_SUPERVISOR&page=3' }, history: { replaceState(_state, _title, url) { lastUrl = String(url); } } },
+        console: { error() {} },
+        URL, URLSearchParams, AbortController, Array, String,
+        FormData: class { constructor() { return [['q', input.value], ['page', '3']]; } },
+        DOMParser: class { parseFromString(html) { return { querySelector: () => (html === 'tidak lengkap' ? null : { innerHTML: html }) }; } },
+        document: {
+            activeElement: null,
+            listeners: {},
+            addEventListener(name, listener) { this.listeners[name] = listener; },
+            querySelector: (selector) => elements[selector] ?? null,
+            createElement: () => { const el = make(); created.push(el); return el; },
+        },
+        window: {
+            location: { origin: 'https://example.test', href: 'https://example.test/hr/master?page=3', assign(url) { assigned = String(url); } },
+            history: { replaceState(_s, _t, url) { lastUrl = String(url); } },
+        },
         setTimeout(fn) { scheduled = fn; return 1; },
         clearTimeout() { scheduled = null; },
-        fetch(url, options) { return new Promise(resolve => pending.push({ url, options, resolve })); },
+        fetch(url, options) { return new Promise((resolve) => pending.push({ url, options, resolve })); },
     };
     vm.runInNewContext(script, context);
-    return { document, input, status, date, results, reset, panel, toggle, error, pending, runTimer: () => scheduled(), lastUrl: () => lastUrl };
+    const ajax = context.window.MasterAjax.init({ form: '#form', search: '#q', regions: ['[data-results]'] });
+    return { ajax, form, input, results, pending, created, lastUrl: () => lastUrl, assigned: () => assigned, runTimer: () => scheduled() };
 }
 
-test('pembaruan setelah pembatalan mempertahankan filter dan halaman aktif', async () => {
-    const ui = setup();
-    ui.document.listeners['overtime-refresh-results']();
-    const request = ui.pending[0];
-    assert.equal(request.url.searchParams.get('status'), 'PENDING_SUPERVISOR');
-    assert.equal(request.url.searchParams.get('page'), '3');
-    request.resolve({ ok: true, text: async () => 'tabel terbaru' });
-    await finish();
-    assert.equal(ui.results.innerHTML, 'tabel terbaru');
-});
+const finish = () => new Promise((resolve) => setImmediate(resolve));
+const ok = (text) => ({ ok: true, status: 200, redirected: false, text: async () => text });
 
-const finish = () => new Promise(resolve => setImmediate(resolve));
-
-test('pencarian menggunakan filter dan memperbarui tabel beserta paginasi', async () => {
+test('submit filter memuat hasil tanpa navigasi, kembali ke halaman pertama, dan mengakhiri loading', async () => {
     const ui = setup();
-    ui.status.value = 'REJECTED';
-    ui.input.value = 'andi';
-    ui.input.listeners.input();
-    assert.equal(ui.reset.hidden, false);
-    ui.runTimer();
-    const request = ui.pending[0];
-    assert.equal(request.url.searchParams.get('q'), 'andi');
-    assert.equal(request.url.searchParams.get('status'), 'REJECTED');
-    assert.equal(request.url.searchParams.get('overtime_date_range'), ui.date.value);
-    assert.equal(request.url.searchParams.has('page'), false);
-    request.resolve({ ok: true, text: async () => 'tabel dan halaman terbaru' });
+    const event = { prevented: false, preventDefault() { this.prevented = true; } };
+    ui.form.listeners.submit(event);
+    assert.equal(event.prevented, true);
+    assert.equal(ui.results.attributes['aria-busy'], 'true');
+    assert.equal(ui.results.inert, true);
+    assert.equal(ui.pending[0].url.searchParams.has('page'), false);
+    ui.pending[0].resolve(ok('hasil baru'));
     await finish();
-    assert.equal(ui.results.innerHTML, 'tabel dan halaman terbaru');
-    assert.match(ui.lastUrl(), /q=andi/);
+    assert.equal(ui.results.innerHTML, 'hasil baru');
     assert.equal(ui.results.attributes['aria-busy'], 'false');
+    assert.equal(ui.results.inert, false);
+    assert.match(ui.lastUrl(), /^https:\/\/example\.test\/hr\/master/);
 });
 
-test('hasil lama tidak menggantikan pencarian baru yang sedang diketik', async () => {
+test('respons request lama tidak menimpa hasil terbaru', async () => {
     const ui = setup();
     ui.input.value = 'a';
     ui.input.listeners.input();
     ui.runTimer();
     ui.input.value = 'andi';
     ui.input.listeners.input();
-    assert.equal(ui.pending[0].options.signal.aborted, true);
-    ui.pending[0].resolve({ ok: true, text: async () => 'hasil lama' });
-    await finish();
-    assert.notEqual(ui.results.innerHTML, 'hasil lama');
     ui.runTimer();
-    ui.pending[1].resolve({ ok: true, text: async () => 'hasil baru' });
+    assert.equal(ui.pending[0].options.signal.aborted, true);
+    ui.pending[0].resolve(ok('hasil lama'));
+    await finish();
+    assert.equal(ui.results.innerHTML, 'hasil awal');
+    assert.equal(ui.results.attributes['aria-busy'], 'true');
+    ui.pending[1].resolve(ok('hasil baru'));
     await finish();
     assert.equal(ui.results.innerHTML, 'hasil baru');
-});
-
-test('perubahan filter membatalkan hasil pencarian yang sudah tidak sesuai', async () => {
-    const ui = setup();
-    ui.input.value = 'andi';
-    ui.input.listeners.input();
-    ui.runTimer();
-    ui.status.value = 'REJECTED';
-    ui.status.listeners.change();
-    assert.equal(ui.pending[0].options.signal.aborted, true);
-    ui.pending[0].resolve({ ok: true, text: async () => 'hasil sebelum filter diubah' });
-    await finish();
-    assert.notEqual(ui.results.innerHTML, 'hasil sebelum filter diubah');
-});
-
-test('kegagalan pencarian ditampilkan tanpa menghapus hasil sebelumnya', async () => {
-    const ui = setup();
-    ui.results.innerHTML = 'hasil sebelumnya';
-    ui.input.value = 'andi';
-    ui.input.listeners.input();
-    ui.runTimer();
-    ui.pending[0].resolve({ ok: false });
-    await finish();
-    assert.equal(ui.results.innerHTML, 'hasil sebelumnya');
-    assert.equal(ui.error.hidden, false);
     assert.equal(ui.results.attributes['aria-busy'], 'false');
 });
 
-test('filter dapat dibuka dan ditutup dengan status aksesibilitas', () => {
+test('kegagalan mempertahankan hasil lama, menampilkan error, dan tidak mengubah URL', async () => {
     const ui = setup();
-    ui.panel.hidden = true;
-    ui.toggle.listeners.click();
-    assert.equal(ui.panel.hidden, false);
-    assert.equal(ui.toggle.attributes['aria-expanded'], 'true');
-    ui.toggle.listeners.click();
-    assert.equal(ui.panel.hidden, true);
-    assert.equal(ui.toggle.attributes['aria-expanded'], 'false');
+    ui.form.listeners.submit({ preventDefault() {} });
+    ui.pending[0].resolve({ ok: false, status: 500, text: async () => '' });
+    await finish();
+    const errorBox = ui.created[1];
+    assert.equal(ui.results.innerHTML, 'hasil awal');
+    assert.equal(errorBox.hidden, false);
+    assert.equal(errorBox.textContent, 'Data gagal dimuat. Silakan coba lagi.');
+    assert.equal(ui.results.attributes['aria-busy'], 'false');
+    assert.equal(ui.lastUrl(), undefined);
+});
+
+test('respons tidak lengkap tidak mengganti hasil', async () => {
+    const ui = setup();
+    ui.form.listeners.submit({ preventDefault() {} });
+    ui.pending[0].resolve(ok('tidak lengkap'));
+    await finish();
+    assert.equal(ui.results.innerHTML, 'hasil awal');
+    assert.equal(ui.created[1].hidden, false);
+    assert.equal(ui.lastUrl(), undefined);
+});
+
+test('sesi berakhir mengarahkan sekali ke aplikasi, bukan menampilkan error', async () => {
+    const ui = setup();
+    ui.form.listeners.submit({ preventDefault() {} });
+    ui.pending[0].resolve({ ok: false, status: 419, text: async () => '' });
+    await finish();
+    assert.match(ui.assigned(), /hr\/master/);
+    assert.equal(ui.results.innerHTML, 'hasil awal');
 });

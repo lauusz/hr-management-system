@@ -172,13 +172,22 @@ it('audit: HR filter supports reversed ranges and normalized employee search', f
     $this->actingAs($this->hr)->get(route('hr.attendances.index', ['date_start' => '2026-11-10', 'date_end' => '2026-11-08', 'q' => 'mawaraudit']))->assertOk()->assertSee('MAWAR AUDIT');
 });
 
-it('audit: pending event correction changes type only while approved event stays immutable', function () {
-    $event = AttendanceEvent::factory()->forUser($this->employee)->create(['shift_start_time' => '08:00:00', 'shift_end_time' => '16:00:00']);
-    $this->actingAs($this->hr)->postJson(route('hr.attendances.move_event_type', $event))->assertOk();
-    expect($event->fresh()->event_type)->toBe('CLOCK_OUT')->and($event->fresh()->shift_start_time)->toBe('08:00:00');
-    $event->update(['approval_status' => 'APPROVED']);
-    $this->postJson(route('hr.attendances.move_event_type', $event))->assertStatus(422);
-    expect($event->fresh()->event_type)->toBe('CLOCK_OUT');
+it('audit: HR corrects event type for any approval status without touching approval or time, and stale requests are rejected', function () {
+    foreach (['PENDING', 'APPROVED', 'REJECTED'] as $status) {
+        $event = AttendanceEvent::factory()->forUser($this->employee)->create(['event_type' => 'CLOCK_IN', 'approval_status' => $status, 'shift_start_time' => '08:00:00', 'shift_end_time' => '16:00:00']);
+        $occurredAt = $event->occurred_at->toDateTimeString();
+        $payload = ['from_event_type' => 'CLOCK_IN', 'event_type' => 'CLOCK_OUT'];
+        $this->actingAs($this->hr)->postJson(route('hr.attendances.move_event_type', $event), $payload)->assertOk();
+        $fresh = $event->fresh();
+        expect($fresh->event_type)->toBe('CLOCK_OUT')->and($fresh->approval_status)->toBe($status)
+            ->and($fresh->occurred_at->toDateTimeString())->toBe($occurredAt)->and($fresh->shift_start_time)->toBe('08:00:00');
+        // Request lama (modal stale) tidak boleh membalik event.
+        $this->postJson(route('hr.attendances.move_event_type', $event), $payload)->assertStatus(409);
+        expect($event->fresh()->event_type)->toBe('CLOCK_OUT');
+        // Arah sebaliknya berfungsi.
+        $this->postJson(route('hr.attendances.move_event_type', $event), ['from_event_type' => 'CLOCK_OUT', 'event_type' => 'CLOCK_IN'])->assertOk();
+        expect($event->fresh()->event_type)->toBe('CLOCK_IN');
+    }
 });
 
 it('audit: denies HR attendance access to regular employees and guests', function () {
@@ -252,4 +261,71 @@ it('audit: monthly lateness uses the event snapshot within the 26 to 25 cutoff a
     $result = $service->calculate([$this->employee->id], $start, $end);
     expect($result[$this->employee->id]['TELAT'] ?? [])->toBeEmpty()
         ->and($result[$this->employee->id]['IZIN_TELAT'])->toHaveKey('2026-11-09');
+});
+
+function snapshotCorrectionEvents(object $test): array
+{
+    $night = ['work_date' => '2026-11-16', 'attendance_shift_id' => $test->night->id, 'shift_name_snapshot' => 'Malam Audit', 'shift_start_time' => '19:00:00', 'shift_end_time' => '03:00:00', 'is_overnight' => true, 'is_wita' => false, 'schedule_is_holiday' => false, 'approval_status' => 'APPROVED'];
+
+    return [
+        AttendanceEvent::factory()->forUser($test->employee)->create($night + ['event_type' => 'CLOCK_IN', 'occurred_at' => '2026-11-16 08:51:26']),
+        AttendanceEvent::factory()->forUser($test->employee)->create($night + ['event_type' => 'CLOCK_OUT', 'occurred_at' => '2026-11-16 18:03:32']),
+    ];
+}
+
+it('audit: HR manually corrects schedule snapshot of all session events without special schedule and keeps attendance data', function () {
+    [$in, $out] = snapshotCorrectionEvents($this);
+    $preview = $this->actingAs($this->hr)->getJson(route('hr.attendances.schedule_snapshot', $in))->assertOk()
+        ->assertJsonPath('event_ids', [$in->id, $out->id])->assertJsonPath('form.start_time', '19:00')->json();
+    $payload = ['reason' => 'Jadwal salah tercatat', 'fingerprint' => $preview['fingerprint'], 'event_ids' => $preview['event_ids'],
+        'start_time' => '09:00', 'end_time' => '17:00', 'is_wita' => 0, 'is_overnight' => 0, 'is_holiday' => 0];
+
+    $this->postJson(route('hr.attendances.schedule_snapshot.update', $in), array_merge($payload, ['reason' => '']))->assertStatus(422);
+    $this->postJson(route('hr.attendances.schedule_snapshot.update', $in), array_merge($payload, ['end_time' => '08:00']))->assertStatus(422);
+    expect($in->fresh()->shift_start_time)->toBe('19:00:00');
+
+    $this->postJson(route('hr.attendances.schedule_snapshot.update', $in), $payload)->assertOk();
+    foreach ([$in, $out] as $event) {
+        $fresh = $event->fresh();
+        expect($fresh->shift_start_time)->toBe('09:00:00')->and($fresh->shift_end_time)->toBe('17:00:00')
+            ->and($fresh->is_overnight)->toBeFalse()->and($fresh->schedule_is_holiday)->toBeFalse()->and($fresh->approval_status)->toBe('APPROVED');
+    }
+    expect($in->fresh()->occurred_at->toDateTimeString())->toBe('2026-11-16 08:51:26')
+        ->and($out->fresh()->occurred_at->toDateTimeString())->toBe('2026-11-16 18:03:32');
+
+    // Modal basi ditolak tanpa perubahan.
+    $this->postJson(route('hr.attendances.schedule_snapshot.update', $in), array_merge($payload, ['start_time' => '10:00']))->assertStatus(409);
+    expect($in->fresh()->shift_start_time)->toBe('09:00:00');
+});
+
+it('audit: schedule snapshot correction is denied to non-HR', function () {
+    [$in] = snapshotCorrectionEvents($this);
+    $this->actingAs($this->employee)->getJson(route('hr.attendances.schedule_snapshot', $in))->assertForbidden();
+    $this->postJson(route('hr.attendances.schedule_snapshot.update', $in), [])->assertForbidden();
+});
+
+it('audit: Jadwal Kerja source fills the form but saved values come from the form, other dates stay untouched', function () {
+    [$in, $out] = snapshotCorrectionEvents($this);
+    $schedule = auditSpecialSchedule($this, ['work_date' => '2026-11-16', 'shift_id' => $this->regular->id, 'shift_name' => 'Pagi Kerja', 'start_time' => '09:00:00', 'end_time' => '17:00:00', 'is_overnight' => false]);
+    $other = auditSpecialSchedule($this, ['work_date' => '2026-11-17']);
+
+    $preview = $this->actingAs($this->hr)->getJson(route('hr.attendances.schedule_snapshot', $in))->assertOk()
+        ->assertJsonPath('schedule.id', $schedule->id)->assertJsonPath('schedule.start_time', '09:00')->json();
+    $payload = ['reason' => 'Isi dari Jadwal Kerja lalu diubah', 'fingerprint' => $preview['fingerprint'], 'event_ids' => $preview['event_ids'],
+        'source_schedule_id' => $schedule->id, 'source_fingerprint' => $preview['schedule']['fingerprint'],
+        'start_time' => '09:30', 'end_time' => '17:30', 'shift_name' => 'Manual', 'is_wita' => 0, 'is_overnight' => 0, 'is_holiday' => 0];
+
+    // Sumber jadwal berubah setelah modal dibuka → konflik, tanpa perubahan.
+    $schedule->update(['end_time' => '18:00:00']);
+    $this->postJson(route('hr.attendances.schedule_snapshot.update', $in), $payload)->assertStatus(409);
+    expect($in->fresh()->shift_start_time)->toBe('19:00:00');
+    $schedule->update(['end_time' => '17:00:00']);
+
+    $this->postJson(route('hr.attendances.schedule_snapshot.update', $in), $payload)->assertOk();
+    foreach ([$in, $out] as $event) {
+        $fresh = $event->fresh();
+        expect($fresh->shift_start_time)->toBe('09:30:00')->and($fresh->shift_end_time)->toBe('17:30:00')
+            ->and($fresh->shift_name_snapshot)->toBe('Manual')->and($fresh->attendance_shift_id)->toBe($this->regular->id);
+    }
+    expect($schedule->fresh()->start_time)->toBe('09:00:00')->and($other->fresh()->shift_name)->toBe('Malam Audit');
 });

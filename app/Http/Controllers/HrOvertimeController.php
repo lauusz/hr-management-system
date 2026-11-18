@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\AttendanceEvent;
 use App\Models\OvertimeRequest;
+use App\Services\OvertimeTimezone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -171,6 +172,7 @@ class HrOvertimeController extends Controller
 
         $dateLookup = array_fill_keys($dates, true);
         $events = AttendanceEvent::query()
+            ->with(['attendanceShift', 'user.employeeShift.shift'])
             ->whereIn('user_id', $userIds)
             ->whereBetween('occurred_at', [
                 Carbon::parse(min($dates))->subDay()->startOfDay(),
@@ -182,17 +184,23 @@ class HrOvertimeController extends Controller
             ->get()
             ->groupBy('user_id');
 
+        // Waktu disimpan sebagai waktu lokal event (sama dengan Master Absensi); instant absolutnya tidak berubah.
         $eventTimes = [];
         foreach ($events as $userEvents) {
             $openClockIn = null;
+            $openDate = null;
 
             foreach ($userEvents as $event) {
+                $ownDate = $event->work_date?->toDateString() ?? $event->local_occurred_at->toDateString();
+
                 if ($event->event_type === AttendanceEvent::CLOCK_IN) {
                     $openClockIn = $event;
-                    $workDate = $event->occurred_at->toDateString();
+                    $openDate = $ownDate;
+                    $workDate = $ownDate;
                     $side = 'clock_ins';
                 } else {
-                    $workDate = ($openClockIn ?? $event)->occurred_at->toDateString();
+                    // Clock Out hanya dikaitkan ke Clock In yang masih terbuka dalam 24 jam; selebihnya memakai tanggal kerjanya sendiri.
+                    $workDate = $openClockIn && $openClockIn->occurred_at->diffInHours($event->occurred_at, true) <= 24 ? $openDate : $ownDate;
                     $side = 'clock_outs';
                     $openClockIn = null;
                 }
@@ -202,8 +210,9 @@ class HrOvertimeController extends Controller
                 }
 
                 $key = $event->user_id.'|'.$workDate;
-                $eventTimes[$key] ??= ['clock_ins' => collect(), 'clock_outs' => collect()];
-                $eventTimes[$key][$side]->push($event->occurred_at);
+                $eventTimes[$key] ??= ['clock_ins' => collect(), 'clock_outs' => collect(), 'zones' => collect()];
+                $eventTimes[$key][$side]->push($event->local_occurred_at);
+                $eventTimes[$key]['zones']->push(OvertimeTimezone::eventZone($event));
             }
         }
 
@@ -215,12 +224,15 @@ class HrOvertimeController extends Controller
             $clockOuts = $times['clock_outs']->isNotEmpty()
                 ? $times['clock_outs']
                 : collect([$legacyAttendance?->clock_out_at])->filter();
+            $zones = $times['zones']->filter(fn ($zone) => $zone !== null)->unique();
 
             $map[$key] = (object) [
                 'clock_in_at' => $clockIns->first(),
                 'clock_out_at' => $clockOuts->last(),
                 'clock_ins' => $clockIns,
                 'clock_outs' => $clockOuts,
+                // Bukti zona dari absensi; null bila tidak ada atau bertentangan.
+                'event_is_wita' => $zones->count() === 1 ? $zones->first() : null,
             ];
         }
 
@@ -238,15 +250,21 @@ class HrOvertimeController extends Controller
      */
     private function computeRecapData(OvertimeRequest $overtime, ?object $attendance): array
     {
-        $requestedStart = Carbon::parse(
-            $overtime->overtime_date->toDateString().' '.$overtime->start_time->format('H:i:s')
-        );
-        $requestedEnd = Carbon::parse(
-            $overtime->overtime_date->toDateString().' '.$overtime->end_time->format('H:i:s')
-        );
+        // Jam pengajuan adalah jam lokal zona lembur: snapshot pengajuan, atau bukti absensi untuk data lama.
+        $stored = OvertimeTimezone::columnReady() ? $overtime->getAttribute('is_wita') : null;
+        $isWita = $stored !== null ? (bool) $stored : ($attendance->event_is_wita ?? null);
+        $zoneLabel = OvertimeTimezone::label($isWita);
+        $timezone = $isWita === null ? null : OvertimeTimezone::zoneName($isWita);
 
-        if ($requestedEnd->lt($requestedStart)) {
-            $requestedEnd->addDay();
+        $requestedStart = $requestedEnd = null;
+        if ($timezone !== null) {
+            $date = $overtime->overtime_date->toDateString();
+            $requestedStart = Carbon::parse($date.' '.$overtime->start_time->format('H:i:s'), $timezone);
+            $requestedEnd = Carbon::parse($date.' '.$overtime->end_time->format('H:i:s'), $timezone);
+
+            if ($requestedEnd->lt($requestedStart)) {
+                $requestedEnd->addDay();
+            }
         }
 
         if (! $attendance) {
@@ -259,6 +277,7 @@ class HrOvertimeController extends Controller
                 'clock_in' => null,
                 'clock_out' => null,
                 'variance_minutes' => null,
+                'zone_label' => $zoneLabel,
             ];
         }
 
@@ -272,6 +291,21 @@ class HrOvertimeController extends Controller
                 'clock_in' => $attendance->clock_in_at,
                 'clock_out' => null,
                 'variance_minutes' => null,
+                'zone_label' => $zoneLabel,
+            ];
+        }
+
+        if ($timezone === null) {
+            return [
+                'requested_start' => null,
+                'requested_end' => null,
+                'status' => 'Zona waktu belum dapat dipastikan',
+                'status_slug' => 'unknown_zone',
+                'status_color' => 'gray',
+                'clock_in' => $attendance->clock_in_at,
+                'clock_out' => $attendance->clock_out_at,
+                'variance_minutes' => null,
+                'zone_label' => null,
             ];
         }
 
@@ -288,6 +322,7 @@ class HrOvertimeController extends Controller
                 'clock_in' => $attendance->clock_in_at,
                 'clock_out' => $attendance->clock_out_at,
                 'variance_minutes' => $varianceMinutes,
+                'zone_label' => $zoneLabel,
             ];
         }
 
@@ -300,6 +335,7 @@ class HrOvertimeController extends Controller
             'clock_in' => $attendance->clock_in_at,
             'clock_out' => $attendance->clock_out_at,
             'variance_minutes' => $varianceMinutes,
+            'zone_label' => $zoneLabel,
         ];
     }
 }

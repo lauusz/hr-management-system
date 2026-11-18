@@ -126,7 +126,7 @@
                         </div>
                         <div class="hov-metric-content">
                             <span class="hov-metric-label">Jam Lembur</span>
-                            <strong class="hov-metric-value">{{ $overtimeRequest->start_time->format('H:i') }} – {{ $overtimeRequest->end_time->format('H:i') }}</strong>
+                            <strong class="hov-metric-value">{{ $overtimeRequest->start_time->format('H:i') }} – {{ $overtimeRequest->end_time->format('H:i') }} {{ $overtimeRequest->zone_label }}</strong>
                             @if((int) $overtimeRequest->break_minutes > 0)
                                 <span class="hov-metric-sub">Istirahat: {{ $overtimeRequest->break_human }}</span>
                             @endif

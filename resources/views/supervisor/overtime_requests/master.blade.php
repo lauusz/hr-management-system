@@ -176,7 +176,7 @@
                             </td>
                             <td class="som-row-overtime">
                                 <span class="som-text-date">{{ $overtime->overtime_date->translatedFormat('j F Y') }}</span>
-                                <div class="som-text-muted som-text-xs">{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</div>
+                                <div class="som-text-muted som-text-xs">{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }} {{ $overtime->zone_label }}</div>
                             </td>
                             <td class="som-row-duration">
                                 <span class="som-duration">{{ $overtime->duration_human }}</span>

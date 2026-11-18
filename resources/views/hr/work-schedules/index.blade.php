@@ -86,6 +86,10 @@
         </div>
     @endunless
 
+    @if($schemaReady && ! $lifecycleReady)
+        <div role="alert" class="lm-alert lm-alert--error"><span>Edit dan Nonaktifkan belum tersedia: pembaruan struktur Jadwal Kerja (status dan riwayat) belum diterapkan.</span></div>
+    @endif
+
     {{-- Top Bar: Month Filter & Related Menu Shortcuts --}}
     <div class="ws-top-card">
         <form method="GET" action="{{ route('hr.work-schedules.index') }}" class="ws-month-form" id="ws-month-form">
@@ -168,14 +172,14 @@
 
             @if(session('work_schedule_conflicts'))
                 <dialog id="ws-conflict-dialog" class="ws-conflict-dialog" aria-modal="true" aria-labelledby="ws-conflict-title" aria-describedby="ws-conflict-description" data-signature="{{ session('work_schedule_conflicts.signature') }}">
-                    <h2 id="ws-conflict-title">Ubah Jadwal Kerja?</h2>
-                    <p id="ws-conflict-description">Jadwal berikut sudah tersimpan dan akan diganti.</p>
-                    <div class="ws-conflict-list" tabindex="0" aria-label="Rincian jadwal yang akan diganti">
+                    <h2 id="ws-conflict-title">Ganti Jadwal?</h2>
+                    <p id="ws-conflict-description">Jadwal lama dinonaktifkan dan diganti. Data lama tetap tersimpan.</p>
+                    <div class="ws-conflict-list" tabindex="0" aria-label="Jadwal yang akan diganti">
                         <ul>@foreach(session('work_schedule_conflicts.dates') as $conflict)<li>{{ $conflict }}</li>@endforeach</ul>
                     </div>
                     <div class="ws-conflict-actions">
                         <button type="button" id="ws-conflict-cancel" class="ws-btn ws-btn--outline" autofocus>Batal</button>
-                        <button type="button" id="ws-conflict-confirm" class="ws-btn ws-btn--submit">Ubah</button>
+                        <button type="button" id="ws-conflict-confirm" class="ws-btn ws-btn--submit">Simpan Perubahan</button>
                     </div>
                 </dialog>
             @endif
@@ -393,7 +397,11 @@
                             data-saved-schedule-live-search
                             class="ws-user-search-input">
                     </div>
-                    <select id="ws-table-status" name="status" class="ws-select ws-select--compact" aria-label="Filter status jadwal">
+                    <select id="ws-table-aktif" name="aktif" class="ws-select ws-select--compact" aria-label="Filter aktif atau nonaktif">
+                        <option value="aktif" @selected(($aktif ?? 'aktif') === 'aktif')>Aktif</option>
+                        <option value="nonaktif" @selected(($aktif ?? 'aktif') === 'nonaktif')>Nonaktif</option>
+                    </select>
+                    <select id="ws-table-status" name="status" class="ws-select ws-select--compact" aria-label="Filter kerja atau libur">
                         <option value="">Semua Status</option>
                         <option value="kerja" @selected(($statusFilter ?? '') === 'kerja')>Kerja</option>
                         <option value="libur" @selected(($statusFilter ?? '') === 'libur')>Libur</option>
@@ -411,7 +419,8 @@
                             <th>Nama Kelompok</th>
                             <th>Jumlah Karyawan</th>
                             <th>Jumlah Tanggal Terjadwal</th>
-                            <th>Lihat Detail</th>
+                            <th>Status</th>
+                            <th>Tindakan</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -425,11 +434,44 @@
                                 <td><div class="lm-employee-name">{{ $groupName }}</div></td>
                                 <td>{{ $employeeCount }} karyawan</td>
                                 <td>{{ $dateCount }} tanggal</td>
-                                <td><a href="{{ route('hr.work-schedules.preview', ['month' => $month, 'group_id' => $groupId]) }}">Lihat Detail</a></td>
+                                @php($scope = $groupScopes[$groupId] ?? null)
+                                <td><span class="lm-badge {{ $aktif === 'nonaktif' ? 'lm-badge--holiday' : 'lm-badge--success' }}">{{ $aktif === 'nonaktif' ? 'Nonaktif' : 'Aktif' }}</span></td>
+                                <td class="ws-row-actions">
+                                    <div class="ws-action-group">
+                                        <a href="{{ route('hr.work-schedules.preview', ['month' => $month, 'group_id' => $groupId] + ($aktif === 'nonaktif' ? ['aktif' => 'nonaktif'] : [])) }}"
+                                            class="ws-action-btn ws-action-btn--detail">
+                                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                            </svg>
+                                            <span>Lihat Detail</span>
+                                        </a>
+                                        @if($lifecycleReady && $aktif === 'aktif' && $scope)
+                                            <a href="{{ route('hr.work-schedules.edit', ['month' => $month, 'group_id' => $groupId]) }}"
+                                                class="ws-action-btn ws-action-btn--edit"
+                                                aria-label="Edit kelompok {{ $groupName }}">
+                                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                                </svg>
+                                                <span>Edit</span>
+                                            </a>
+                                            <button type="button" class="ws-action-btn ws-action-btn--danger" data-ws-deactivate
+                                                data-group-id="{{ $groupId }}" data-ids="" data-fingerprint="{{ $scope['fingerprint'] }}"
+                                                data-title="{{ $groupName }} · {{ $monthLabel }}"
+                                                data-employees="{{ $scope['employees'] }}" data-dates="{{ $scope['dates'] }}" data-records="{{ $scope['records'] }}"
+                                                aria-label="Nonaktifkan kelompok {{ $groupName }}">
+                                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                                                </svg>
+                                                <span>Nonaktifkan</span>
+                                            </button>
+                                        @endif
+                                    </div>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4">
+                                <td colspan="5">
                                     <div class="lm-empty">
                                         <div class="lm-empty-icon">
                                             <svg width="32" height="32" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -451,6 +493,9 @@
                 </table>
             </div>
         </div>
+        @if($lifecycleReady)
+            @include('hr.work-schedules._deactivate_dialog', ['month' => $month, 'return' => 'index'])
+        @endif
     @endif
 
     <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
@@ -657,6 +702,7 @@
                 const searchInput = document.querySelector('[data-schedule-live-search]');
                 const tableSearch = document.querySelector('[data-saved-schedule-live-search]');
                 const tableStatus = document.getElementById('ws-table-status');
+                const tableAktif = document.getElementById('ws-table-aktif');
                 const countBadge = document.getElementById('ws-selected-count');
                 const selectAllBtn = document.getElementById('ws-select-all-users');
                 const clearAllBtn = document.getElementById('ws-clear-all-users');
@@ -738,6 +784,11 @@
                             url.searchParams.set('schedule_q', scheduleQVal);
                         }
 
+                        const aktifVal = (tableAktif?.value || '').trim();
+                        if (aktifVal === 'nonaktif') {
+                            url.searchParams.set('aktif', aktifVal);
+                        }
+
                         const statusVal = (tableStatus?.value || '').trim();
                         if (statusVal !== '') {
                             url.searchParams.set('status', statusVal);
@@ -798,6 +849,11 @@
                         searchTimer = setTimeout(() => loadScheduleResults(savedResults), 350);
                     });
 
+                    tableAktif?.addEventListener('change', () => {
+                        clearTimeout(searchTimer);
+                        loadScheduleResults(savedResults);
+                    });
+
                     tableStatus?.addEventListener('change', () => {
                         clearTimeout(searchTimer);
                         loadScheduleResults(savedResults);
@@ -810,6 +866,67 @@
     @endif
 
     <style>
+        .ws-row-actions {
+            white-space: nowrap;
+        }
+        .ws-action-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+        .ws-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            min-height: 32px;
+            padding: 5px 11px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1.35;
+            cursor: pointer;
+            text-decoration: none;
+            white-space: nowrap;
+            box-sizing: border-box;
+            border: 1.5px solid transparent;
+            transition: all 0.15s ease;
+        }
+        .ws-action-btn svg {
+            flex-shrink: 0;
+        }
+        .ws-action-btn--detail {
+            background: rgba(20, 93, 160, 0.08);
+            border-color: rgba(20, 93, 160, 0.24);
+            color: var(--primary, #145da0);
+        }
+        .ws-action-btn--detail:hover {
+            background: rgba(20, 93, 160, 0.14);
+            border-color: var(--primary, #145da0);
+            color: var(--primary-dark, #0a3d62);
+        }
+        .ws-action-btn--edit {
+            background: var(--white, #fff);
+            border-color: var(--border, #cbd5e1);
+            color: var(--text-secondary, #334155);
+        }
+        .ws-action-btn--edit:hover {
+            background: var(--gray-50, #f8fafc);
+            border-color: var(--primary, #145da0);
+            color: var(--primary, #145da0);
+        }
+        .ws-action-btn--danger {
+            background: #fef2f2;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+        .ws-action-btn--danger:hover {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #b91c1c;
+        }
         .ws-conflict-dialog {
             width: min(560px, calc(100% - 32px));
             max-height: min(80vh, 720px);

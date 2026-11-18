@@ -5,7 +5,16 @@
         ->where('is_admin', true)
         ->exists();
     $pesonaPendingRequestCount = 0;
+    $pesonaPendingTireRequestCount = 0;
+    // Master Ban (daftar, tambah, edit, detail) dan Ban Armada (halaman operasional) tidak aktif bersamaan.
+    $onFleetTires = request()->routeIs('inventory.pesona.admin.tires.diagram*');
+    $onMasterTires = request()->routeIs('inventory.pesona.admin.tires.*') && ! $onFleetTires;
     if ($isPesonaAdmin) {
+        try {
+            $pesonaPendingTireRequestCount = \App\Models\InvPesonaTireRequest::query()->where('status', \App\Models\InvPesonaTireRequest::STATUS_PENDING)->count();
+        } catch (\Throwable) {
+            $pesonaPendingTireRequestCount = 0; // tabel pengajuan ban belum tersedia
+        }
         try {
             $pesonaPendingRequestCount = \App\Models\InvPesonaRequest::query()
                 ->where('status', \App\Models\InvPesonaRequest::STATUS_PENDING)
@@ -364,6 +373,7 @@
                 <symbol id="pesona-icon-items" viewBox="0 0 24 24"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></symbol>
                 <symbol id="pesona-icon-stock" viewBox="0 0 24 24"><path d="M7 3v15M3 7l4-4 4 4M17 21V6M13 17l4 4 4-4"/></symbol>
                 <symbol id="pesona-icon-vehicle" viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13" rx="1.5"/><path d="M16 8h4l3 3v5h-7V8Z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></symbol>
+                <symbol id="pesona-icon-tire" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3v5.5M12 15.5V21M3 12h5.5M15.5 12H21"/></symbol>
                 <symbol id="pesona-icon-access" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M16 11h6M19 8v6"/></symbol>
                 <symbol id="pesona-icon-portal" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
             </svg>
@@ -389,6 +399,11 @@
                     <span>Riwayat Pengambilan</span>
                 </a>
 
+                <a class="pesona-menu-item {{ request()->routeIs('inventory.pesona.tire-requests.*') ? 'active' : '' }}" href="{{ route('inventory.pesona.tire-requests.index') }}" @if(request()->routeIs('inventory.pesona.tire-requests.*')) aria-current="page" @endif>
+                    <svg class="pesona-menu-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><use href="#pesona-icon-tire"/></svg>
+                    <span>Pengajuan Ban</span>
+                </a>
+
                 @if($isPesonaAdmin)
                     <div class="pesona-menu-title">Admin Pesona</div>
                     <a class="pesona-menu-item {{ request()->routeIs('inventory.pesona.admin.items.*', 'inventory.pesona.admin.stock-in.*', 'inventory.pesona.admin.stock-adjustment.*') ? 'active' : '' }}" href="{{ route('inventory.pesona.admin.items.index') }}" @if(request()->routeIs('inventory.pesona.admin.items.*', 'inventory.pesona.admin.stock-in.*', 'inventory.pesona.admin.stock-adjustment.*')) aria-current="page" @endif>
@@ -409,6 +424,21 @@
                     <a class="pesona-menu-item {{ request()->routeIs('inventory.pesona.admin.vehicles.*') ? 'active' : '' }}" href="{{ route('inventory.pesona.admin.vehicles.index') }}" @if(request()->routeIs('inventory.pesona.admin.vehicles.*')) aria-current="page" @endif>
                         <svg class="pesona-menu-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><use href="#pesona-icon-vehicle"/></svg>
                         <span>Daftar Nopol</span>
+                    </a>
+                    <a class="pesona-menu-item {{ request()->routeIs('inventory.pesona.admin.tire-requests.*') ? 'active' : '' }}" href="{{ route('inventory.pesona.admin.tire-requests.index') }}" @if(request()->routeIs('inventory.pesona.admin.tire-requests.*')) aria-current="page" @endif>
+                        <svg class="pesona-menu-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><use href="#pesona-icon-inbox"/></svg>
+                        <span>Approval Ban</span>
+                        @if($pesonaPendingTireRequestCount > 0)
+                            <span class="pesona-menu-badge">{{ $pesonaPendingTireRequestCount > 99 ? '99+' : $pesonaPendingTireRequestCount }}</span>
+                        @endif
+                    </a>
+                    <a class="pesona-menu-item {{ $onMasterTires ? 'active' : '' }}" href="{{ route('inventory.pesona.admin.tires.index') }}" @if($onMasterTires) aria-current="page" @endif>
+                        <svg class="pesona-menu-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><use href="#pesona-icon-tire"/></svg>
+                        <span>Master Ban</span>
+                    </a>
+                    <a class="pesona-menu-item {{ $onFleetTires ? 'active' : '' }}" href="{{ route('inventory.pesona.admin.tires.diagram') }}" @if($onFleetTires) aria-current="page" @endif>
+                        <svg class="pesona-menu-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><use href="#pesona-icon-vehicle"/></svg>
+                        <span>Ban Armada</span>
                     </a>
                     <a class="pesona-menu-item {{ request()->routeIs('inventory.pesona.admin.access.*') ? 'active' : '' }}" href="{{ route('inventory.pesona.admin.access.index') }}" @if(request()->routeIs('inventory.pesona.admin.access.*')) aria-current="page" @endif>
                         <svg class="pesona-menu-icon" width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><use href="#pesona-icon-access"/></svg>
@@ -466,7 +496,7 @@
                     $reviewInlineError = request()->routeIs('inventory.pesona.admin.requests.show')
                         && in_array($firstErrorKey, ['status', 'admin_note'], true) && old('review_form_id') !== null;
                 @endphp
-                @if(! request()->routeIs('inventory.pesona.admin.items.create', 'inventory.pesona.admin.items.edit', 'inventory.pesona.admin.stock-in.create', 'inventory.pesona.admin.stock-adjustment.create', 'inventory.pesona.admin.stock-movements.index') && ! $manualInlineError && ! $reviewInlineError && $errors->any() && ! (request()->routeIs('inventory.pesona.cart.show') && $errors->first() === $errors->first('notes')) && $errors->first() !== session('error') && $errors->first() !== session('warning') && $errors->first() !== session('success'))
+                @if(! request()->routeIs('inventory.pesona.admin.items.create', 'inventory.pesona.admin.items.edit', 'inventory.pesona.admin.stock-in.create', 'inventory.pesona.admin.stock-adjustment.create', 'inventory.pesona.admin.stock-movements.index', 'inventory.pesona.admin.tires.create', 'inventory.pesona.admin.tires.edit') && ! $manualInlineError && ! $reviewInlineError && $errors->any() && ! (request()->routeIs('inventory.pesona.cart.show') && $errors->first() === $errors->first('notes')) && $errors->first() !== session('error') && $errors->first() !== session('warning') && $errors->first() !== session('success'))
                     <div class="pesona-alert pesona-alert-error" role="alert">{{ $errors->first() }}</div>
                 @endif
                 {{ $slot }}

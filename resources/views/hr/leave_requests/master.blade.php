@@ -163,23 +163,19 @@
                     </svg>
                     <input type="search" name="q" value="{{ $q ?? '' }}" placeholder="Cari nama karyawan..." autocomplete="off" class="lm-search-input" aria-label="Cari nama karyawan" data-leave-live-search>
                 </div>
-                @if(($q ?? null) || $hasAdvancedFilter)
-                    <a href="{{ route('hr.leave.master') }}" class="lm-btn-reset">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                        Reset
-                    </a>
-                @endif
+                <a href="{{ route('hr.leave.master') }}" id="leave-reset" class="lm-btn-reset" @if(! (($q ?? null) || $hasAdvancedFilter)) hidden @endif>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Reset
+                </a>
 
                 <button type="button" class="lm-btn-toggle-filter {{ $hasAdvancedFilter ? 'active' : '' }}" onclick="toggleFilterPanel()">
                     <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                     </svg>
                     Filter
-                    @if($hasAdvancedFilter)
-                        <span class="lm-filter-badge">{{ $activeFilterCount }}</span>
-                    @endif
+                    <span id="leave-filter-badge" class="lm-filter-badge" @unless($hasAdvancedFilter) hidden @endunless>{{ $activeFilterCount }}</span>
                 </button>
             </div>
 
@@ -460,67 +456,22 @@
         @endif
     </div>
 
-    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
+    @include('hr._master_ajax')
     <script src="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.js') }}"></script>
     <script>
-        (function () {
-            const form = document.getElementById('filterForm');
-            const input = form?.querySelector('[data-leave-live-search]');
-            const results = document.querySelector('[data-leave-results]');
-            let timer;
-            let request;
-
-            if (!form || !input || !results) return;
-
-            async function loadLeaveResults() {
-                const url = new URL(form.action, window.location.origin);
-                const params = new URLSearchParams(new FormData(form));
-                params.delete('page');
-                url.search = params.toString();
-
-                request?.abort();
-                const currentRequest = new AbortController();
-                request = currentRequest;
-                results.classList.add('is-loading');
-                results.setAttribute('aria-busy', 'true');
-
-                try {
-                    const response = await fetch(url, {
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                        signal: currentRequest.signal,
-                    });
-                    if (!response.ok) throw new Error('Pencarian izin dan cuti gagal');
-
-                    const documentResult = new DOMParser().parseFromString(await response.text(), 'text/html');
-                    const selectors = [
-                        '[data-leave-stats]',
-                        '[data-leave-results]',
-                        '[data-leave-pagination]',
-                    ];
-
-                    selectors.forEach((selector) => {
-                        const current = document.querySelector(selector);
-                        const next = documentResult.querySelector(selector);
-                        if (!current || !next) throw new Error('Hasil pencarian tidak lengkap');
-                        current.innerHTML = next.innerHTML;
-                    });
-
-                    window.history.replaceState(null, '', url);
-                } catch (error) {
-                    if (error.name !== 'AbortError') console.error(error);
-                } finally {
-                    if (request === currentRequest) {
-                        results.classList.remove('is-loading');
-                        results.setAttribute('aria-busy', 'false');
-                    }
-                }
-            }
-
-            input.addEventListener('input', () => {
-                clearTimeout(timer);
-                timer = setTimeout(loadLeaveResults, 350);
-            });
-        })();
+        MasterAjax.init({
+            form: '#filterForm',
+            search: '[data-leave-live-search]',
+            regions: ['[data-leave-results]', '[data-leave-stats]', '[data-leave-pagination]'],
+            links: '[data-leave-pagination] a[href]',
+            reset: '#leave-reset',
+            sync: ['#leave-reset', '#leave-filter-badge', '[data-leave-export-all]'],
+            onUpdate() {
+                const panel = document.getElementById('filterPanel');
+                document.querySelector('.lm-btn-toggle-filter')
+                    ?.classList.toggle('active', panel.style.display !== 'none' || !document.getElementById('leave-filter-badge').hidden);
+            },
+        });
 
         document.addEventListener('DOMContentLoaded', function() {
             flatpickr("#submitted_range", {
@@ -550,6 +501,8 @@
         });
     </script>
 
+    @push('styles')
+    <link rel="stylesheet" href="{{ asset('vendor/flatpickr/4.6.13/flatpickr.min.css') }}">
     <style>
         /* ========================================== */
         /* SECTION HEADER (x-slot)                    */
@@ -955,7 +908,6 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.04);
             transition: opacity 0.15s ease;
         }
-        .lm-table-card.is-loading { opacity: 0.55; pointer-events: none; }
         .lm-table-wrap {
             overflow-x: auto;
         }
@@ -1262,6 +1214,7 @@
             }
         }
     </style>
+    @endpush
 
     <script>
     function toggleFilterPanel() {

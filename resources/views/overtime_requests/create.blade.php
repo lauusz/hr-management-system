@@ -65,6 +65,9 @@
                     </svg>
                     Jam Lembur <span class="otc-required">*</span>
                 </label>
+                @if (! empty($zoneLabel))
+                    <div class="otc-optional">Jam diisi dalam waktu setempat ({{ $zoneLabel }}); zona final mengikuti tanggal lembur.</div>
+                @endif
                 <div class="otc-time-grid">
                     @foreach (['start_time' => 'Jam Mulai Lembur', 'end_time' => 'Jam Selesai Lembur'] as $field => $label)
                         @php

@@ -41,6 +41,29 @@ class Payslip extends Model
         'status',
         'created_by'
     ];
+    /** Kolom nominal yang ikut membentuk sidik jari revisi slip. */
+    public const NOMINAL_FIELDS = [
+        'gaji_pokok', 'tunjangan_jabatan', 'tunjangan_makan', 'fee_marketing', 'bonus_bulanan',
+        'tunjangan_telekomunikasi', 'tunjangan_lainnya', 'tunjangan_penempatan', 'tunjangan_asuransi',
+        'tunjangan_kelancaran', 'pendapatan_lain', 'tunjangan_transportasi', 'lembur', 'thr', 'bonus',
+        'potongan_bpjs_tk', 'potongan_pph21', 'potongan_hutang', 'potongan_bpjs_kes', 'potongan_terlambat',
+    ];
+
+    /**
+     * Sidik jari isi slip (identitas, periode, status, nominal, total, catatan utang).
+     * Dipakai job email untuk memastikan slip yang dikirim sama dengan yang dijadwalkan.
+     */
+    public function revisionFingerprint(): string
+    {
+        $parts = [(int) $this->user_id, (int) $this->period_month, (int) $this->period_year, (string) $this->status];
+        foreach ([...self::NOMINAL_FIELDS, 'total_pendapatan', 'total_potongan', 'gaji_bersih'] as $field) {
+            $parts[] = number_format((float) ($this->{$field} ?? 0), 2, '.', '');
+        }
+        $parts[] = (string) ($this->sisa_utang ?? '');
+
+        return hash('sha256', json_encode($parts, JSON_UNESCAPED_UNICODE));
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');

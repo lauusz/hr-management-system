@@ -36,7 +36,7 @@
                                     <div class="text-date" style="line-height: 1.2;">
                                         <div>{{ $overtime->overtime_date->translatedFormat('j F Y') }}</div>
                                         <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">
-                                            {{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}
+                                            {{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }} {{ $overtime->zone_label }}
                                         </div>
                                     </div>
                                 </td>

@@ -115,7 +115,7 @@
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <span>{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }}</span>
+                    <span>{{ $overtime->start_time->format('H:i') }} - {{ $overtime->end_time->format('H:i') }} {{ $overtime->zone_label }}</span>
                 </div>
 
                 @if((int) ($overtime->break_minutes ?? 0) > 0)

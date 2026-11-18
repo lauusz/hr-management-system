@@ -46,6 +46,9 @@
 
             <div class="otc-field">
                 <label class="otc-label">Jam Lembur <span class="otc-required">*</span></label>
+                @if (! empty($zoneLabel))
+                    <div class="otc-optional">Jam diisi dalam waktu setempat ({{ $zoneLabel }}); zona final mengikuti tanggal lembur.</div>
+                @endif
                 <div class="otc-time-grid">
                     <div>
                         <label class="otc-time-field-label" for="start_time">Jam Mulai Lembur</label>
